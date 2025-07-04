@@ -1,7 +1,6 @@
 use crate::http::client::HttpClient;
 use gpui::{
-    div, px, rgb, App, Bounds, Context, Element, FontWeight, IntoElement,
-    ParentElement, Render, Styled, Window, WindowOptions,
+    div, px, rgb, App, Bounds, Context, Element, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Styled, Window, WindowOptions
 };
 
 pub struct PostmanApp {
@@ -47,8 +46,40 @@ impl PostmanApp {
         }
     }
 
-    pub fn render_method_selector(&self, _cx: &mut Context<Self>) -> impl IntoElement {
-        div().child("GET").bg(rgb(0xe0e0e0)).px_4().py_2()
+    fn render_method_selector(&self, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .flex_col()
+            .relative()
+            .child(
+                div()
+                    .child(self.selected_method.clone())
+                    .bg(rgb(0xe0e0e0))
+                    .px_4()
+                    .py_2()
+                    .border_1()
+                    .border_color(rgb(0xcccccc))
+                    .cursor_pointer()
+            )
+            .child(
+                div()
+                    .absolute()
+                    .top_full()
+                    .left_0()
+                    .bg(rgb(0xffffff))
+                    .border_1()
+                    .border_color(rgb(0xcccccc))
+                    .children(
+                        self.methods.iter().map(|method| {
+                            div()
+                                .child(method.clone())
+                                .px_4()
+                                .py_2()
+                                .cursor_pointer()
+                                .hover(|style| style.bg(rgb(0xf0f0f0)))
+                        })
+                    )
+            )
     }
 
     fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
