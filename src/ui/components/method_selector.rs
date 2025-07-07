@@ -24,7 +24,6 @@ impl Render for MethodSelector {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div().child(
             div().child(format!("Method: {}", self.selected_method)), // Note: GPUI doesn't have a built-in Dropdown component
-                                                                      // You would need to implement a custom dropdown or use a select-like UI
         )
     }
 }

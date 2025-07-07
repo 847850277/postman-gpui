@@ -1,12 +1,14 @@
-use crate::http::client::HttpClient;
+use crate::{http::client::HttpClient, ui::components::method_selector::MethodSelector};
 use gpui::{
-    div, px, rgb, App, Bounds, Context, Element, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Styled, Window, WindowOptions
+    div, px, rgb, App, AppContext, Bounds, Context, Element, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Styled, Window, WindowOptions
 };
 
 pub struct PostmanApp {
     // HTTP Method
     selected_method: String,
     methods: Vec<String>,
+
+    my_method_selector: Entity<MethodSelector>,
 
     // URL Input
     url: String,
@@ -23,10 +25,11 @@ pub struct PostmanApp {
     // Response (optional)
     response_body: Option<String>,
     response_status: Option<u16>,
+
 }
 
 impl PostmanApp {
-    pub fn new(_cx: &mut App) -> Self {
+    pub fn new(cx: &mut App) -> Self {
         let methods = vec![
             "GET".to_string(),
             "POST".to_string(),
@@ -37,6 +40,7 @@ impl PostmanApp {
         PostmanApp {
             selected_method: methods[0].clone(),
             methods,
+            my_method_selector: cx.new(|cx| MethodSelector::new()),
             url: String::new(),
             headers: Vec::new(),
             body_content: String::new(),
@@ -61,25 +65,25 @@ impl PostmanApp {
                     .border_color(rgb(0xcccccc))
                     .cursor_pointer()
             )
-            .child(
-                div()
-                    .absolute()
-                    .top_full()
-                    .left_0()
-                    .bg(rgb(0xffffff))
-                    .border_1()
-                    .border_color(rgb(0xcccccc))
-                    .children(
-                        self.methods.iter().map(|method| {
-                            div()
-                                .child(method.clone())
-                                .px_4()
-                                .py_2()
-                                .cursor_pointer()
-                                .hover(|style| style.bg(rgb(0xf0f0f0)))
-                        })
-                    )
-            )
+            // .child(
+            //     div()
+            //         .absolute()
+            //         .top_full()
+            //         .left_0()
+            //         .bg(rgb(0xffffff))
+            //         .border_1()
+            //         .border_color(rgb(0xcccccc))
+            //         .children(
+            //             self.methods.iter().map(|method| {
+            //                 div()
+            //                     .child(method.clone())
+            //                     .px_4()
+            //                     .py_2()
+            //                     .cursor_pointer()
+            //                     .hover(|style| style.bg(rgb(0xf0f0f0)))
+            //             })
+            //         )
+            // )
     }
 
     fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
@@ -246,7 +250,10 @@ impl Render for PostmanApp {
                         div()
                             .flex()
                             .gap_4()
-                            .child(self.render_method_selector(cx))
+                            //.child(self.render_method_selector(cx))
+                            .child(
+                                self.my_method_selector.clone()
+                            )
                             .child(self.render_url_input(cx))
                             .child(
                                 div()
