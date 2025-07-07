@@ -1,6 +1,6 @@
 use crate::{http::client::HttpClient, ui::components::method_selector::MethodSelector};
 use gpui::{
-    div, px, rgb, App, AppContext, Bounds, Context, Element, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Styled, Window, WindowOptions
+    div, px, rgb, App, AppContext, Bounds, Context, Element, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window, WindowOptions
 };
 
 pub struct PostmanApp {
@@ -9,6 +9,7 @@ pub struct PostmanApp {
     methods: Vec<String>,
 
     my_method_selector: Entity<MethodSelector>,
+    //_method_subscription: Subscription,
 
     // URL Input
     url: String,
@@ -37,10 +38,14 @@ impl PostmanApp {
             "DELETE".to_string(),
         ];
 
+        let my_method_selector = cx.new(MethodSelector::new);
+        //let method_subscription = cx.subscribe(&my_method_selector, Self::on_method_changed);
+
         PostmanApp {
             selected_method: methods[0].clone(),
             methods,
-            my_method_selector: cx.new(|cx| MethodSelector::new()),
+            my_method_selector,
+            //_method_subscription: method_subscription,
             url: String::new(),
             headers: Vec::new(),
             body_content: String::new(),
@@ -49,6 +54,7 @@ impl PostmanApp {
             response_status: None,
         }
     }
+
 
     fn render_method_selector(&self, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
