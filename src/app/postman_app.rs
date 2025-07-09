@@ -71,25 +71,6 @@ impl PostmanApp {
                     .border_color(rgb(0xcccccc))
                     .cursor_pointer()
             )
-            // .child(
-            //     div()
-            //         .absolute()
-            //         .top_full()
-            //         .left_0()
-            //         .bg(rgb(0xffffff))
-            //         .border_1()
-            //         .border_color(rgb(0xcccccc))
-            //         .children(
-            //             self.methods.iter().map(|method| {
-            //                 div()
-            //                     .child(method.clone())
-            //                     .px_4()
-            //                     .py_2()
-            //                     .cursor_pointer()
-            //                     .hover(|style| style.bg(rgb(0xf0f0f0)))
-            //             })
-            //         )
-            // )
     }
 
     fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
@@ -256,7 +237,6 @@ impl Render for PostmanApp {
                         div()
                             .flex()
                             .gap_4()
-                            //.child(self.render_method_selector(cx))
                             .child(
                                 self.my_method_selector.clone()
                             )
