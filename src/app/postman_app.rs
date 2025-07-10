@@ -34,6 +34,8 @@ pub struct PostmanApp {
 impl PostmanApp {
     pub fn new(cx: &mut App) -> Self {
         let method_selector = cx.new(MethodSelector::new);
+        //let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
+
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
 
         // 订阅事件

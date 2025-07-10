@@ -13,6 +13,7 @@ pub struct UrlInput {
     url: String,
     placeholder: String,
     focus_handle: FocusHandle,
+    is_editing: bool,
 }
 
 impl UrlInput {
@@ -21,6 +22,7 @@ impl UrlInput {
             url: String::new(),
             placeholder: "Enter request URL".to_string(),
             focus_handle: cx.focus_handle(),
+            is_editing: false,
         }
     }
 
@@ -47,10 +49,36 @@ impl UrlInput {
         cx.emit(UrlInputEvent::SubmitRequested);
     }
 
-    fn handle_input(&mut self, input: &str, cx: &mut Context<Self>) {
-        self.url = input.to_string();
-        cx.emit(UrlInputEvent::UrlChanged(self.url.clone()));
+    // 简单的编辑功能
+    fn toggle_edit(&mut self, cx: &mut Context<Self>) {
+        self.is_editing = !self.is_editing;
+
+        if self.is_editing {
+            // 开始编辑 - 可以在这里添加更复杂的输入处理
+            println!("开始编辑URL: {}", self.url);
+        } else {
+            // 结束编辑
+            println!("结束编辑URL: {}", self.url);
+        }
+
         cx.notify();
+    }
+
+    // 模拟文本输入 - 这里可以替换为真正的键盘输入处理
+    fn simulate_input(&mut self, new_text: String, cx: &mut Context<Self>) {
+        self.set_url(new_text, cx);
+    }
+
+    fn display_text(&self) -> String {
+        if self.url.is_empty() {
+            self.placeholder.clone()
+        } else {
+            let mut display = self.url.clone();
+            if self.is_editing {
+                display.push('|'); // 简单的光标显示
+            }
+            display
+        }
     }
 }
 
@@ -77,19 +105,16 @@ impl Render for UrlInput {
             .track_focus(&self.focus_handle)
             .on_click(cx.listener(|this, _event, window, cx| {
                 window.focus(&this.focus_handle);
+                this.toggle_edit(cx);
             }))
             .child(
                 div()
                     .text_color(if self.url.is_empty() {
-                        rgb(0x999999)
+                        rgb(0x999999) // 占位符颜色
                     } else {
-                        rgb(0x333333)
+                        rgb(0x333333) // 正常文本颜色
                     })
-                    .child(if self.url.is_empty() {
-                        self.placeholder.clone()
-                    } else {
-                        self.url.clone()
-                    }),
+                    .child(self.display_text()),
             )
     }
 }
