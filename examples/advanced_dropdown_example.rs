@@ -1,8 +1,8 @@
 use gpui::{
-    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, 
-    Application, Bounds, ClickEvent, Context, Element, EventEmitter, FocusHandle, Focusable, 
-    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, 
-    Styled, Window, WindowBounds, WindowOptions
+    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext,
+    Application, Bounds, ClickEvent, Context, Element, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
+    Window, WindowBounds, WindowOptions,
 };
 
 pub struct AdvancedDropdown {
@@ -31,7 +31,13 @@ impl AdvancedDropdown {
         cx.notify();
     }
 
-    fn select_option(&mut self, option: String, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
+    fn select_option(
+        &mut self,
+        option: String,
+        _: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.selected_value = Some(option);
         self.is_open = false;
         cx.notify();
@@ -44,7 +50,8 @@ impl AdvancedDropdown {
 
     fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().clone();
-        let display_text = self.selected_value
+        let display_text = self
+            .selected_value
             .as_ref()
             .cloned()
             .unwrap_or_else(|| format!("Select {}", self.label));
@@ -59,20 +66,20 @@ impl AdvancedDropdown {
             .py_2()
             .bg(rgb(0xffffff))
             .border_1()
-            .border_color(if self.is_open { rgb(0x007bff) } else { rgb(0xcccccc) })
+            .border_color(if self.is_open {
+                rgb(0x007bff)
+            } else {
+                rgb(0xcccccc)
+            })
             .rounded_md()
             .cursor_pointer()
             .hover(|style| style.border_color(rgb(0x007bff)))
             .on_click(cx.listener(Self::toggle_dropdown)) // 移除 into_element()
-            .child(
-                div()
-                    .flex_1()
-                    .child(display_text)
-            )
+            .child(div().flex_1().child(display_text))
             .child(
                 div()
                     .child(if self.is_open { "▲" } else { "▼" })
-                    .text_color(rgb(0x666666))
+                    .text_color(rgb(0x666666)),
             )
             .child(
                 // 获取按钮位置
@@ -89,61 +96,64 @@ impl AdvancedDropdown {
 
     fn render_dropdown_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let bounds = self.button_bounds;
-        
+
         // 使用 deferred + anchored 确保菜单显示在最顶层
         deferred(
-            anchored()
-                .snap_to_window_with_margin(px(8.))
-                .child(
-                    div()
-                        .absolute()
-                        .top(bounds.bottom() + px(2.))
-                        .left(bounds.left())
-                        .w(bounds.size.width) // 与按钮同宽
-                        .bg(rgb(0xffffff))
-                        .border_1()
-                        .border_color(rgb(0xcccccc))
-                        .rounded_md()
-                        .shadow_lg()
-                        .max_h_48()
-                        //.overflow_y_auto() // 恢复滚动
-                        .children(
-                            self.options.iter().map(|option| {
-                                let option_clone = option.clone();
-                                let is_selected = self.selected_value.as_ref() == Some(option);
-                                
-                                div()
-                                    .id("dropdown-option")
-                                    .w_full()
-                                    .px_4()
-                                    .py_2()
-                                    .cursor_pointer()
-                                    .bg(if is_selected { rgb(0xf0f8ff) } else { rgb(0xffffff) })
-                                    .hover(|style| {
-                                        if is_selected {
-                                            style.bg(rgb(0xe6f3ff)) // 已选中项的 hover 颜色
-                                        } else {
-                                            style.bg(rgb(0xf5f5f5)) // 未选中项的 hover 颜色
-                                        }
-                                    })
-                                    .text_color(if is_selected { rgb(0x007bff) } else { rgb(0x333333) })
-                                    .on_click(cx.listener(move |this, event, window, cx| {
-                                        this.select_option(option_clone.clone(), event, window, cx)
-                                    }))
-                                    .child(option.clone())
-                                    .when(is_selected, |this| {
-                                        this.child(
-                                            div()
-                                                .absolute()
-                                                .right_2()
-                                                .child("✓")
-                                                .text_color(rgb(0x007bff))
-                                        )
-                                    })
+            anchored().snap_to_window_with_margin(px(8.)).child(
+                div()
+                    .absolute()
+                    .top(bounds.bottom() + px(2.))
+                    .left(bounds.left())
+                    .w(bounds.size.width) // 与按钮同宽
+                    .bg(rgb(0xffffff))
+                    .border_1()
+                    .border_color(rgb(0xcccccc))
+                    .rounded_md()
+                    .shadow_lg()
+                    .max_h_48()
+                    //.overflow_y_auto() // 恢复滚动
+                    .children(self.options.iter().map(|option| {
+                        let option_clone = option.clone();
+                        let is_selected = self.selected_value.as_ref() == Some(option);
+
+                        div()
+                            .id("dropdown-option")
+                            .w_full()
+                            .px_4()
+                            .py_2()
+                            .cursor_pointer()
+                            .bg(if is_selected {
+                                rgb(0xf0f8ff)
+                            } else {
+                                rgb(0xffffff)
                             })
-                        )
-                )
-                //.on_mouse_down_out(cx.listener(Self::close_dropdown)) // 恢复点击外部关闭
+                            .hover(|style| {
+                                if is_selected {
+                                    style.bg(rgb(0xe6f3ff)) // 已选中项的 hover 颜色
+                                } else {
+                                    style.bg(rgb(0xf5f5f5)) // 未选中项的 hover 颜色
+                                }
+                            })
+                            .text_color(if is_selected {
+                                rgb(0x007bff)
+                            } else {
+                                rgb(0x333333)
+                            })
+                            .on_click(cx.listener(move |this, event, window, cx| {
+                                this.select_option(option_clone.clone(), event, window, cx)
+                            }))
+                            .child(option.clone())
+                            .when(is_selected, |this| {
+                                this.child(
+                                    div()
+                                        .absolute()
+                                        .right_2()
+                                        .child("✓")
+                                        .text_color(rgb(0x007bff)),
+                                )
+                            })
+                    })),
+            ), //.on_mouse_down_out(cx.listener(Self::close_dropdown)) // 恢复点击外部关闭
         )
         .with_priority(200) // 高优先级渲染
     }
@@ -167,21 +177,42 @@ pub struct DropdownExample {
 impl DropdownExample {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let dropdowns = vec![
-            cx.new(|_| AdvancedDropdown::new(
-                "countries",
-                "Country",
-                vec!["USA".to_string(), "Canada".to_string(), "UK".to_string(), "Germany".to_string()]
-            )),
-            cx.new(|_| AdvancedDropdown::new(
-                "colors", 
-                "Color",
-                vec!["Red".to_string(), "Green".to_string(), "Blue".to_string(), "Yellow".to_string()]
-            )),
-            cx.new(|_| AdvancedDropdown::new(
-                "sizes",
-                "Size", 
-                vec!["Small".to_string(), "Medium".to_string(), "Large".to_string(), "Extra Large".to_string()]
-            )),
+            cx.new(|_| {
+                AdvancedDropdown::new(
+                    "countries",
+                    "Country",
+                    vec![
+                        "USA".to_string(),
+                        "Canada".to_string(),
+                        "UK".to_string(),
+                        "Germany".to_string(),
+                    ],
+                )
+            }),
+            cx.new(|_| {
+                AdvancedDropdown::new(
+                    "colors",
+                    "Color",
+                    vec![
+                        "Red".to_string(),
+                        "Green".to_string(),
+                        "Blue".to_string(),
+                        "Yellow".to_string(),
+                    ],
+                )
+            }),
+            cx.new(|_| {
+                AdvancedDropdown::new(
+                    "sizes",
+                    "Size",
+                    vec![
+                        "Small".to_string(),
+                        "Medium".to_string(),
+                        "Large".to_string(),
+                        "Extra Large".to_string(),
+                    ],
+                )
+            }),
         ];
 
         Self { dropdowns }
@@ -252,9 +283,7 @@ fn main() {
             ..Default::default()
         };
 
-        cx.open_window(options, |_window, cx| {
-            cx.new(DropdownExample::new)
-        })
-        .expect("Failed to open window");
+        cx.open_window(options, |_window, cx| cx.new(DropdownExample::new))
+            .expect("Failed to open window");
     });
 }

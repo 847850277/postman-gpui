@@ -1,5 +1,8 @@
 use gpui::{
-    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, Application, Bounds, ClickEvent, Context, Element, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions
+    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, Application,
+    Bounds, ClickEvent, Context, Element, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window, WindowBounds,
+    WindowOptions,
 };
 
 #[derive(Clone)]
@@ -37,7 +40,7 @@ impl TooltipButton {
 
     fn render_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().clone();
-        
+
         div()
             .id("tooltip-button")
             .relative()
@@ -65,7 +68,7 @@ impl TooltipButton {
 
     fn render_tooltip(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let bounds = self.button_bounds;
-        
+
         // 关键：使用 deferred + anchored 组合
         deferred(
             anchored()
@@ -94,9 +97,9 @@ impl TooltipButton {
                                 .w_0()
                                 .h_0()
                                 .border_4()
-                                .border_color(rgb(0x00000000)) // 透明边框
-                        )
-                )
+                                .border_color(rgb(0x00000000)), // 透明边框
+                        ),
+                ),
         )
         .with_priority(100) // 设置高渲染优先级，确保显示在最顶层
     }
@@ -121,7 +124,12 @@ impl DeferredAnchoredExample {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let buttons = vec![
             cx.new(|_cx| TooltipButton::new("Button 1", "This is tooltip for button 1")),
-            cx.new(|_cx| TooltipButton::new("Button 2", "This is a longer tooltip text for button 2 that might wrap to multiple lines")),
+            cx.new(|_cx| {
+                TooltipButton::new(
+                    "Button 2",
+                    "This is a longer tooltip text for button 2 that might wrap to multiple lines",
+                )
+            }),
             cx.new(|_cx| TooltipButton::new("Button 3", "Short tip")),
         ];
 
@@ -195,9 +203,7 @@ fn main() {
             ..Default::default()
         };
 
-        cx.open_window(options, |_window, cx| {
-            cx.new(DeferredAnchoredExample::new)
-        })
-        .expect("Failed to open window");
+        cx.open_window(options, |_window, cx| cx.new(DeferredAnchoredExample::new))
+            .expect("Failed to open window");
     });
 }

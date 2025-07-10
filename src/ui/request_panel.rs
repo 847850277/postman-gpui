@@ -8,7 +8,7 @@ use crate::ui::components::{
 #[derive(IntoElement)]
 pub struct RequestPanel {
     //method_selector: MethodSelector,
-    url_input: UrlInput,
+    //url_input: UrlInput,
     headers_editor: HeadersEditor,
     body_editor: BodyEditor,
 }
@@ -17,7 +17,7 @@ impl RequestPanel {
     pub fn new() -> Self {
         Self {
             //method_selector: MethodSelector::new("GET"),
-            url_input: UrlInput::new(),
+            //url_input: UrlInput::new(),
             headers_editor: HeadersEditor::new(),
             body_editor: BodyEditor::new(),
         }
