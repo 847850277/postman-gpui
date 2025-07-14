@@ -2,20 +2,18 @@ use crate::{
     http::client::HttpClient,
     ui::components::{
         method_selector::{MethodSelector, MethodSelectorEvent},
-        url_input::{UrlInput, UrlInputEvent},
+        url_input::{UrlInput, UrlInputEvent, setup_url_input_key_bindings},
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Bounds, Context, Element, Entity, FontWeight,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
-    WindowOptions,
+    div, px, rgb, App, AppContext, Context, Entity, FontWeight,
+    IntoElement, ParentElement, Render, Styled, Window,
+    InteractiveElement,
 };
 
 pub struct PostmanApp {
     method_selector: Entity<MethodSelector>,
-    url_input: Entity<UrlInput>, // 添加 url_input 组件
-    //_method_subscription: Subscription,
-    //_url_subscription: Subscription, // 添加 URL 订阅
+    url_input: Entity<UrlInput>,
 
     // Headers
     headers: Vec<(String, String)>,
@@ -33,20 +31,15 @@ pub struct PostmanApp {
 
 impl PostmanApp {
     pub fn new(cx: &mut App) -> Self {
+        // 设置键盘绑定 - 在创建组件之前
+        cx.bind_keys(setup_url_input_key_bindings());
+
         let method_selector = cx.new(MethodSelector::new);
-        //let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
-
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
-
-        // 订阅事件
-        //let method_subscription = cx.subscribe(&method_selector, Self::on_method_changed);
-        //let url_subscription = cx.subscribe(&url_input, Self::on_url_changed);
 
         PostmanApp {
             method_selector,
             url_input,
-            //_method_subscription: method_subscription,
-            //_url_subscription: url_subscription,
             headers: Vec::new(),
             body_content: String::new(),
             http_client: HttpClient::new(),
@@ -58,9 +51,7 @@ impl PostmanApp {
     // 处理方法变更事件
     pub fn on_method_changed(
         &mut self,
-        _method_selector: Entity<MethodSelector>,
         event: &MethodSelectorEvent,
-        _cx: &mut Context<Self>,
     ) {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
@@ -73,9 +64,7 @@ impl PostmanApp {
     // 处理URL变更事件
     pub fn on_url_changed(
         &mut self,
-        _url_input: Entity<UrlInput>,
         event: &UrlInputEvent,
-        cx: &mut Context<Self>,
     ) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
@@ -83,21 +72,31 @@ impl PostmanApp {
             }
             UrlInputEvent::SubmitRequested => {
                 println!("🚀 PostmanApp - 请求提交");
-                self.send_request(cx);
+                // 注意：这里我们需要重新构造 Context，暂时简化处理
+                println!("🚀 PostmanApp - 发送请求");
             }
         }
     }
 
     // 发送请求
     fn send_request(&mut self, cx: &mut Context<Self>) {
-        // let method = self.method_selector.read(cx).selected_method();
-        // let url = self.url_input.read(cx).get_url().to_string();
+        let method = self.method_selector.update(cx, |selector, cx| selector.selected_method(cx));
+        let url = self.url_input.read(cx).get_url().to_string();
 
-        //println!("发送请求: {} {}", method, url);
-        println!("🚀 PostmanApp - 发送请求");
+        println!("🚀 PostmanApp - 发送请求: {} {}", method, url);
 
         // 这里添加实际的HTTP请求逻辑
         // self.http_client.send_request(method, url, headers, body)
+        
+        // 模拟响应
+        self.response_status = Some(200);
+        self.response_body = Some(format!("Response for {} request to {}", method, url));
+        cx.notify();
+    }
+
+    // 处理 Send 按钮点击
+    fn on_send_clicked(&mut self, _event: &gpui::MouseUpEvent, _window: &mut gpui::Window, cx: &mut Context<Self>) {
+        self.send_request(cx);
     }
 
     fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
@@ -270,7 +269,11 @@ impl Render for PostmanApp {
                                     .bg(rgb(0x007acc))
                                     .text_color(rgb(0xffffff))
                                     .px_4()
-                                    .py_2(),
+                                    .py_2()
+                                    .rounded_md()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(rgb(0x0056b3)))
+                                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
                             ),
                     )
                     .child(self.render_headers_editor(cx))
