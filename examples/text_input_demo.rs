@@ -3,7 +3,7 @@ use gpui::{
     div, prelude::*, rgb, Context, FontWeight, IntoElement, ParentElement, Render, Styled, Window,
 };
 use gpui::{px, size, App, Application, Bounds, WindowBounds, WindowOptions};
-use postman_gpui::ui::components::url_input::{UrlInput, setup_url_input_key_bindings};
+use postman_gpui::ui::components::url_input::{setup_url_input_key_bindings, UrlInput};
 
 struct TextInputDemo {
     url_input: gpui::Entity<UrlInput>,

@@ -2,13 +2,12 @@ use crate::{
     http::client::HttpClient,
     ui::components::{
         method_selector::{MethodSelector, MethodSelectorEvent},
-        url_input::{UrlInput, UrlInputEvent, setup_url_input_key_bindings},
+        url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Context, Entity, FontWeight,
-    IntoElement, ParentElement, Render, Styled, Window,
-    InteractiveElement,
+    div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Window,
 };
 
 pub struct PostmanApp {
@@ -49,10 +48,7 @@ impl PostmanApp {
     }
 
     // 处理方法变更事件
-    pub fn on_method_changed(
-        &mut self,
-        event: &MethodSelectorEvent,
-    ) {
+    pub fn on_method_changed(&mut self, event: &MethodSelectorEvent) {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
                 println!("🎯 PostmanApp - HTTP方法变更为: {}", method);
@@ -62,10 +58,7 @@ impl PostmanApp {
     }
 
     // 处理URL变更事件
-    pub fn on_url_changed(
-        &mut self,
-        event: &UrlInputEvent,
-    ) {
+    pub fn on_url_changed(&mut self, event: &UrlInputEvent) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
                 println!("🌐 PostmanApp - URL变更为: {}", url);
@@ -80,14 +73,16 @@ impl PostmanApp {
 
     // 发送请求
     fn send_request(&mut self, cx: &mut Context<Self>) {
-        let method = self.method_selector.update(cx, |selector, cx| selector.selected_method(cx));
+        let method = self
+            .method_selector
+            .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
 
         println!("🚀 PostmanApp - 发送请求: {} {}", method, url);
 
         // 这里添加实际的HTTP请求逻辑
         // self.http_client.send_request(method, url, headers, body)
-        
+
         // 模拟响应
         self.response_status = Some(200);
         self.response_body = Some(format!("Response for {} request to {}", method, url));
@@ -95,7 +90,12 @@ impl PostmanApp {
     }
 
     // 处理 Send 按钮点击
-    fn on_send_clicked(&mut self, _event: &gpui::MouseUpEvent, _window: &mut gpui::Window, cx: &mut Context<Self>) {
+    fn on_send_clicked(
+        &mut self,
+        _event: &gpui::MouseUpEvent,
+        _window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         self.send_request(cx);
     }
 
@@ -273,7 +273,10 @@ impl Render for PostmanApp {
                                     .rounded_md()
                                     .cursor_pointer()
                                     .hover(|style| style.bg(rgb(0x0056b3)))
-                                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(Self::on_send_clicked),
+                                    ),
                             ),
                     )
                     .child(self.render_headers_editor(cx))

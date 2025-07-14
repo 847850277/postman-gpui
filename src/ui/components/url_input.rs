@@ -511,17 +511,18 @@ impl Element for UrlTextElement {
             underline: None,
             strikethrough: None,
         };
-        
-        let content_line = window
-            .text_system()
-            .shape_line(content.clone(), font_size, &[content_run]);
+
+        let content_line =
+            window
+                .text_system()
+                .shape_line(content.clone(), font_size, &[content_run]);
 
         let cursor_pos = if content.is_empty() {
             px(0.0)
         } else {
             content_line.x_for_index(cursor)
         };
-        
+
         let (selection, cursor) = if selected_range.is_empty() {
             (
                 None,
@@ -595,7 +596,7 @@ impl Element for UrlTextElement {
         self.input.update(cx, |input, _cx| {
             let style = window.text_style();
             let font_size = style.font_size.to_pixels(window.rem_size());
-            
+
             // 创建实际内容的布局（不是显示文本）
             let content_run = TextRun {
                 len: input.content.len(),
@@ -605,11 +606,12 @@ impl Element for UrlTextElement {
                 underline: None,
                 strikethrough: None,
             };
-            
-            let content_line = window
-                .text_system()
-                .shape_line(input.content.clone(), font_size, &[content_run]);
-                
+
+            let content_line =
+                window
+                    .text_system()
+                    .shape_line(input.content.clone(), font_size, &[content_run]);
+
             input.last_layout = Some(content_line);
             input.last_bounds = Some(bounds);
         });
