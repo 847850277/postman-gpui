@@ -93,6 +93,10 @@ postman-gpui
 - 如果需要，输入请求体（支持 JSON 格式）
 - 点击"发送"按钮发送请求，并在响应面板中查看响应
 
+## 截图
+
+![alt text](image.png)
+
 ## 主要组件功能
 
 ### URL 输入框 (UrlInput)

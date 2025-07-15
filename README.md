@@ -90,6 +90,10 @@ postman-gpui
 - Enter the request body if applicable.
 - Click the "Send" button to make the request and view the response in the response panel.
 
+## Screenshot
+
+![alt text](image.png)
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
