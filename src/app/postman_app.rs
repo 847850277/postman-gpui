@@ -1,6 +1,7 @@
 use crate::{
     http::client::HttpClient,
     ui::components::{
+        header_input::HeaderInput,
         method_selector::{MethodSelector, MethodSelectorEvent},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
@@ -26,9 +27,13 @@ pub struct PostmanApp {
     // Response (optional)
     response_body: Option<String>,
     response_status: Option<u16>,
-    
+
     // 请求状态
     is_loading: bool,
+
+    // Headers输入组件
+    header_key_input: Entity<HeaderInput>,
+    header_value_input: Entity<HeaderInput>,
 }
 
 impl PostmanApp {
@@ -38,6 +43,11 @@ impl PostmanApp {
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
+        let header_key_input =
+            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Header Key (e.g., Authorization)"));
+        let header_value_input = cx.new(|cx| {
+            HeaderInput::new(cx).with_placeholder("Header Value (e.g., Bearer token123)")
+        });
 
         PostmanApp {
             method_selector,
@@ -48,6 +58,8 @@ impl PostmanApp {
             response_body: None,
             response_status: None,
             is_loading: false,
+            header_key_input,
+            header_value_input,
         }
     }
 
@@ -55,8 +67,11 @@ impl PostmanApp {
     pub fn on_method_changed(&mut self, event: &MethodSelectorEvent) {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
-                println!("🎯 PostmanApp - HTTP方法变更为: {}", method);
-                
+                println!("🎯 PostmanApp - HTTP方法变更:");
+                println!("   新方法: {}", method);
+                println!("   当前headers数量: {}", self.headers.len());
+                println!("   当前body长度: {} bytes", self.body_content.len());
+
                 // 根据方法类型设置默认请求体
                 if method.to_uppercase() == "POST" && self.body_content.is_empty() {
                     self.body_content = r#"{
@@ -65,14 +80,36 @@ impl PostmanApp {
   "data": {
     "key": "value"
   }
-}"#.to_string();
-                    println!("📝 PostmanApp - 为POST请求设置默认JSON请求体");
+}"#
+                    .to_string();
+                    println!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
+                    println!("   Body长度: {} bytes", self.body_content.len());
+
+                    // 为POST请求设置默认Content-Type头
+                    if self.headers.is_empty() {
+                        self.headers
+                            .push(("Content-Type".to_string(), "application/json".to_string()));
+                        self.headers
+                            .push(("Accept".to_string(), "application/json".to_string()));
+                        println!("📝 PostmanApp - 为POST请求设置默认Headers:");
+                        println!("   添加: Content-Type = application/json");
+                        println!("   添加: Accept = application/json");
+                        println!("   当前headers总数: {}", self.headers.len());
+                    } else {
+                        println!("ℹ️ PostmanApp - 已有headers，跳过默认headers设置");
+                    }
                 } else if method.to_uppercase() == "GET" {
                     // GET请求通常不需要请求体
                     if !self.body_content.is_empty() {
                         println!("ℹ️ PostmanApp - GET请求通常不使用请求体");
+                        println!("   当前body长度: {} bytes", self.body_content.len());
+                        println!("   建议: 清空请求体或改用POST方法");
+                    } else {
+                        println!("✅ PostmanApp - GET请求配置正确，无请求体");
                     }
                 }
+
+                println!("🏁 PostmanApp - 方法变更处理完成");
             }
         }
     }
@@ -107,7 +144,38 @@ impl PostmanApp {
             return;
         }
 
-        println!("🚀 PostmanApp - 发送请求: {} {}", method, url);
+        println!("🚀 PostmanApp - 开始发送请求");
+        println!("📋 PostmanApp - 请求详情:");
+        println!("   Method: {}", method);
+        println!("   URL: {}", url);
+        println!("   Headers Count: {}", self.headers.len());
+
+        // 打印所有headers
+        if !self.headers.is_empty() {
+            println!("   Headers:");
+            for (i, (key, value)) in self.headers.iter().enumerate() {
+                println!("     {}. {} = {}", i + 1, key, value);
+            }
+        } else {
+            println!("   Headers: None");
+        }
+
+        // 打印请求体信息
+        if method.to_uppercase() == "POST" {
+            println!("   Body Length: {} bytes", self.body_content.len());
+            if !self.body_content.is_empty() {
+                println!(
+                    "   Body Preview: {}",
+                    if self.body_content.len() > 200 {
+                        format!("{}... (truncated)", &self.body_content[..200])
+                    } else {
+                        self.body_content.clone()
+                    }
+                );
+            } else {
+                println!("   Body: Empty");
+            }
+        }
 
         // 支持GET和POST请求
         if method.to_uppercase() == "GET" || method.to_uppercase() == "POST" {
@@ -117,51 +185,81 @@ impl PostmanApp {
             self.response_status = None;
             cx.notify();
 
-            println!("📡 PostmanApp - 发送{}请求到: {}", method.to_uppercase(), url);
-            
+            println!("📡 PostmanApp - 正在发送{}请求...", method.to_uppercase());
+
             // 使用 tokio 的 block_on 来同步执行异步请求
             let client = &self.http_client;
             let rt = tokio::runtime::Runtime::new().unwrap();
-            
+
             let result = if method.to_uppercase() == "GET" {
+                println!("🔍 PostmanApp - 执行GET请求，不包含请求体");
                 rt.block_on(client.get(&url))
             } else {
                 // POST 请求
                 let headers = if self.headers.is_empty() {
+                    println!("📝 PostmanApp - POST请求，无自定义headers");
                     None
                 } else {
                     let mut header_map = std::collections::HashMap::new();
                     for (key, value) in &self.headers {
                         header_map.insert(key.clone(), value.clone());
                     }
+                    println!(
+                        "📝 PostmanApp - POST请求，包含{}个自定义headers",
+                        header_map.len()
+                    );
                     Some(header_map)
                 };
-                
+
+                println!(
+                    "📤 PostmanApp - 执行POST请求，Body大小: {} bytes",
+                    self.body_content.len()
+                );
                 rt.block_on(client.post(&url, &self.body_content, headers))
             };
-            
+
             match result {
                 Ok(response_body) => {
                     self.is_loading = false;
                     self.response_status = Some(200);
-                    self.response_body = Some(response_body);
-                    println!("✅ PostmanApp - {}请求成功，响应长度: {} bytes", 
-                        method.to_uppercase(),
-                        self.response_body.as_ref().unwrap().len());
+                    self.response_body = Some(response_body.clone());
+
+                    println!("✅ PostmanApp - {}请求成功!", method.to_uppercase());
+                    println!("📊 PostmanApp - 响应信息:");
+                    println!("   Status: 200 OK");
+                    println!("   Response Length: {} bytes", response_body.len());
+                    println!(
+                        "   Response Preview: {}",
+                        if response_body.len() > 300 {
+                            format!("{}... (truncated)", &response_body[..300])
+                        } else {
+                            response_body
+                        }
+                    );
                 }
                 Err(e) => {
                     self.is_loading = false;
                     self.response_status = Some(0);
                     self.response_body = Some(format!("请求失败: {}", e));
-                    println!("❌ PostmanApp - {}请求失败: {}", method.to_uppercase(), e);
+
+                    println!("❌ PostmanApp - {}请求失败!", method.to_uppercase());
+                    println!("💥 PostmanApp - 错误详情:");
+                    println!("   Error: {}", e);
+                    println!("   可能的原因:");
+                    println!("     - 网络连接问题");
+                    println!("     - 服务器未响应");
+                    println!("     - URL格式错误");
+                    println!("     - 服务器返回错误状态码");
                 }
             }
         } else {
             self.response_status = Some(0);
             self.response_body = Some(format!("Method {} not implemented yet", method));
             println!("⚠️ PostmanApp - 方法 {} 尚未实现", method);
+            println!("📋 PostmanApp - 当前支持的方法: GET, POST");
         }
-        
+
+        println!("🏁 PostmanApp - 请求处理完成");
         cx.notify();
     }
 
@@ -175,6 +273,124 @@ impl PostmanApp {
         self.send_request(cx);
     }
 
+    // 添加header
+    fn add_header(&mut self, cx: &mut Context<Self>) {
+        let key = self
+            .header_key_input
+            .read(cx)
+            .get_content()
+            .trim()
+            .to_string();
+        let value = self
+            .header_value_input
+            .read(cx)
+            .get_content()
+            .trim()
+            .to_string();
+
+        println!("🔧 PostmanApp - 尝试添加header:");
+        println!("   Key: '{}'", key);
+        println!("   Value: '{}'", value);
+
+        if !key.is_empty() && !value.is_empty() {
+            // 检查是否已存在相同的key
+            let existing_index = self.headers.iter().position(|(k, _)| k == &key);
+
+            if let Some(index) = existing_index {
+                let old_value = self.headers[index].1.clone(); // 克隆旧值避免借用冲突
+                self.headers[index].1 = value.clone();
+                println!("🔄 PostmanApp - 更新已存在的header:");
+                println!("   Key: {}", key);
+                println!("   旧值: {}", old_value);
+                println!("   新值: {}", value);
+            } else {
+                self.headers.push((key.clone(), value.clone()));
+                println!("✅ PostmanApp - 成功添加新header:");
+                println!("   Key: {}", key);
+                println!("   Value: {}", value);
+                println!("   当前headers总数: {}", self.headers.len());
+            }
+
+            // 清空输入框
+            self.header_key_input
+                .update(cx, |input, cx| input.clear(cx));
+            self.header_value_input
+                .update(cx, |input, cx| input.clear(cx));
+
+            // 打印当前所有headers
+            println!("📋 PostmanApp - 当前所有headers:");
+            for (i, (k, v)) in self.headers.iter().enumerate() {
+                println!("   {}. {} = {}", i + 1, k, v);
+            }
+
+            cx.notify();
+        } else {
+            println!("⚠️ PostmanApp - 添加header失败:");
+            if key.is_empty() {
+                println!("   原因: Header key不能为空");
+            }
+            if value.is_empty() {
+                println!("   原因: Header value不能为空");
+            }
+            println!("   请确保key和value都有内容");
+        }
+    }
+
+    // 添加预设header
+    fn add_preset_header(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
+        self.headers.push((key.to_string(), value.to_string()));
+        println!("✅ PostmanApp - 添加预设header: {} = {}", key, value);
+        cx.notify();
+    }
+
+    // 通过输入框设置header值
+    fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
+        println!("🎯 PostmanApp - 设置预设header到输入框:");
+        println!("   预设Key: {}", key);
+        println!("   预设Value: {}", value);
+
+        self.header_key_input.update(cx, |input, cx| {
+            input.set_content(key.to_string(), cx);
+        });
+        self.header_value_input.update(cx, |input, cx| {
+            input.set_content(value.to_string(), cx);
+        });
+
+        println!("✅ PostmanApp - 预设header已填入输入框，请点击Add按钮添加");
+    }
+
+    // 删除header
+    fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        println!("🗑️ PostmanApp - 尝试删除header，索引: {}", index);
+
+        if index < self.headers.len() {
+            let removed = self.headers.remove(index);
+            println!("✅ PostmanApp - 成功删除header:");
+            println!("   Key: {}", removed.0);
+            println!("   Value: {}", removed.1);
+            println!("   剩余headers数量: {}", self.headers.len());
+
+            // 打印剩余的headers
+            if self.headers.is_empty() {
+                println!("📋 PostmanApp - 当前无headers");
+            } else {
+                println!("📋 PostmanApp - 剩余headers:");
+                for (i, (k, v)) in self.headers.iter().enumerate() {
+                    println!("   {}. {} = {}", i + 1, k, v);
+                }
+            }
+
+            cx.notify();
+        } else {
+            println!("❌ PostmanApp - 删除header失败:");
+            println!(
+                "   原因: 索引 {} 超出范围 (当前headers数量: {})",
+                index,
+                self.headers.len()
+            );
+        }
+    }
+
     fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex_1()
@@ -186,49 +402,216 @@ impl PostmanApp {
             .child("Enter URL...")
     }
 
-    fn render_headers_editor(&self, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_headers_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
-            .gap_2()
+            .gap_3()
             .child(
                 div()
                     .child("Headers")
                     .text_size(px(16.0))
                     .font_weight(FontWeight::MEDIUM),
             )
+            // 现有headers列表
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .children(if self.headers.is_empty() {
+                        vec![div()
+                            .flex()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .px_3()
+                                    .py_2()
+                                    .bg(rgb(0xf8f9fa))
+                                    .border_1()
+                                    .border_color(rgb(0xcccccc))
+                                    .child("No headers set"),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .px_3()
+                                    .py_2()
+                                    .bg(rgb(0xf8f9fa))
+                                    .border_1()
+                                    .border_color(rgb(0xcccccc))
+                                    .child(""),
+                            )
+                            .child(
+                                div()
+                                    .w_16()
+                                    .px_3()
+                                    .py_2()
+                                    .bg(rgb(0xf8f9fa))
+                                    .border_1()
+                                    .border_color(rgb(0xcccccc))
+                                    .child(""),
+                            )]
+                    } else {
+                        self.headers
+                            .iter()
+                            .enumerate()
+                            .map(|(index, (key, value))| {
+                                div()
+                                    .flex()
+                                    .gap_2()
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .px_3()
+                                            .py_2()
+                                            .bg(rgb(0xffffff))
+                                            .border_1()
+                                            .border_color(rgb(0x28a745))
+                                            .child(key.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .px_3()
+                                            .py_2()
+                                            .bg(rgb(0xffffff))
+                                            .border_1()
+                                            .border_color(rgb(0x28a745))
+                                            .child(value.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .w_16()
+                                            .px_2()
+                                            .py_1()
+                                            .bg(rgb(0xdc3545))
+                                            .text_color(rgb(0xffffff))
+                                            .rounded_md()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(rgb(0xc82333)))
+                                            .child("Delete")
+                                            .on_mouse_up(
+                                                gpui::MouseButton::Left,
+                                                cx.listener(move |this, _event, _window, cx| {
+                                                    this.remove_header(index, cx);
+                                                }),
+                                            ),
+                                    )
+                            })
+                            .collect()
+                    }),
+            )
+            // 添加新header的输入框
+            .child(
+                div()
+                    .flex()
+                    .gap_2()
+                    .child(self.header_key_input.clone())
+                    .child(self.header_value_input.clone())
+                    .child(
+                        div()
+                            .w_16()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x28a745))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x218838)))
+                            .child("Add")
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.add_header(cx);
+                                }),
+                            ),
+                    ),
+            )
+            // 快速添加预设headers
             .child(
                 div()
                     .flex()
                     .gap_2()
                     .child(
                         div()
-                            .flex_1()
-                            .px_3()
-                            .py_2()
-                            .bg(rgb(0xffffff))
-                            .border_1()
-                            .border_color(rgb(0xcccccc))
-                            .child("Key"),
+                            .text_size(px(12.0))
+                            .text_color(rgb(0x6c757d))
+                            .child("Quick add: "),
                     )
                     .child(
                         div()
-                            .flex_1()
-                            .px_3()
-                            .py_2()
-                            .bg(rgb(0xffffff))
-                            .border_1()
-                            .border_color(rgb(0xcccccc))
-                            .child("Value"),
-                    )
-                    .child(
-                        div()
-                            .child("Add")
-                            .bg(rgb(0x28a745))
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x6c757d))
                             .text_color(rgb(0xffffff))
-                            .px_3()
-                            .py_2(),
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .child("JSON")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.set_header_input_values(
+                                        "Content-Type",
+                                        "application/json",
+                                        cx,
+                                    );
+                                }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x6c757d))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .child("Auth")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.set_header_input_values("Authorization", "Bearer ", cx);
+                                }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x6c757d))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .child("CORS")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.set_header_input_values(
+                                        "Access-Control-Allow-Origin",
+                                        "*",
+                                        cx,
+                                    );
+                                }),
+                            ),
                     ),
+            )
+            // 统计信息
+            .child(
+                div()
+                    .text_size(px(12.0))
+                    .text_color(rgb(0x6c757d))
+                    .child(format!(
+                        "Total headers: {} | Add headers by typing key and value above",
+                        self.headers.len()
+                    )),
             )
     }
 
@@ -262,7 +645,10 @@ impl PostmanApp {
                 div()
                     .text_size(px(12.0))
                     .text_color(rgb(0x6c757d))
-                    .child(format!("Body length: {} characters", self.body_content.len())),
+                    .child(format!(
+                        "Body length: {} characters",
+                        self.body_content.len()
+                    )),
             )
     }
 
@@ -331,7 +717,7 @@ impl PostmanApp {
                                     div()
                                         .text_size(px(12.0))
                                         .font_family("monospace")
-                                        .child(body.clone())
+                                        .child(body.clone()),
                                 ),
                         ),
                     _ => div()
