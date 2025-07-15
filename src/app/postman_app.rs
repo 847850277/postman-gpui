@@ -1,7 +1,7 @@
 use crate::{
     http::client::HttpClient,
     ui::components::{
-        header_input::HeaderInput,
+        header_input::{setup_header_input_key_bindings, HeaderInput},
         method_selector::{MethodSelector, MethodSelectorEvent},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
@@ -40,6 +40,7 @@ impl PostmanApp {
     pub fn new(cx: &mut App) -> Self {
         // 设置键盘绑定 - 在创建组件之前
         cx.bind_keys(setup_url_input_key_bindings());
+        cx.bind_keys(setup_header_input_key_bindings());
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
@@ -336,13 +337,6 @@ impl PostmanApp {
         }
     }
 
-    // 添加预设header
-    fn add_preset_header(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
-        self.headers.push((key.to_string(), value.to_string()));
-        println!("✅ PostmanApp - 添加预设header: {} = {}", key, value);
-        cx.notify();
-    }
-
     // 通过输入框设置header值
     fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
         println!("🎯 PostmanApp - 设置预设header到输入框:");
@@ -389,17 +383,6 @@ impl PostmanApp {
                 self.headers.len()
             );
         }
-    }
-
-    fn render_url_input(&self, _cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex_1()
-            .px_4()
-            .py_2()
-            .bg(rgb(0xffffff))
-            .border_1()
-            .border_color(rgb(0xcccccc))
-            .child("Enter URL...")
     }
 
     fn render_headers_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
