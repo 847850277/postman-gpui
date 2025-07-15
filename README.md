@@ -21,52 +21,64 @@ postman-gpui
 │   │   └── postman_app.rs
 │   ├── ui               # User interface components
 │   │   ├── mod.rs
-│   │   ├── request_panel.rs
-│   │   ├── response_panel.rs
-│   │   ├── collection_panel.rs
 │   │   └── components
 │   │       ├── mod.rs
-│   │       ├── method_selector.rs
-│   │       ├── url_input.rs
-│   │       ├── headers_editor.rs
-│   │       └── body_editor.rs
+│   │       ├── method_selector.rs  # HTTP method dropdown selector
+│   │       ├── url_input.rs        # URL input field with validation
+│   │       ├── header_input.rs     # Header key-value input component
+│   │       ├── body_input.rs       # Request body editor with JSON support
+│   │       ├── body_editor.rs      # Body editor container
+│   │       └── dropdown.rs         # Reusable dropdown component
 │   ├── http             # HTTP functionalities
 │   │   ├── mod.rs
-│   │   ├── client.rs
-│   │   ├── request.rs
-│   │   └── response.rs
+│   │   ├── client.rs    # HTTP client implementation
+│   │   ├── request.rs   # HTTP request models
+│   │   └── response.rs  # HTTP response models
 │   ├── models           # Data models
 │   │   ├── mod.rs
-│   │   ├── collection.rs
-│   │   └── workspace.rs
+│   │   ├── collection.rs # Request collection management
+│   │   └── workspace.rs  # Workspace data structures
 │   ├── assets           # Application assets
 │   │   └── mod.rs
 │   └── utils            # Utility functions
 │       ├── mod.rs
-│       └── helpers.rs
-├── examples             # Example usage
-│   └── basic_request.rs
-├── assets               # Font files
-│   └── fonts
+│       └── helpers.rs   # Helper utilities
+├── examples             # Example usage and demos
+│   ├── advanced_dropdown_example.rs
+│   ├── basic_request.rs
+│   ├── deferred_anchored_example.rs
+│   └── text_input_demo.rs
+├── assets               # Static assets
+│   └── fonts           # Font files
+├── postman-gpui/       # Additional examples
+│   └── examples/
+│       └── basic_request.rs
 ├── Cargo.toml          # Cargo configuration
-└── README.md           # Project documentation
+├── Cargo.lock          # Cargo lock file
+├── README.md           # Project documentation (English)
+├── README-zh.md        # Project documentation (Chinese)
+├── todo.md             # Development todos
+└── test_server.py      # Test HTTP server for development
 ```
 
 ## Getting Started
 
 1. Clone the repository:
-   ```
+
+   ```bash
    git clone https://github.com/yourusername/postman-gpui.git
    cd postman-gpui
    ```
 
 2. Build the project:
-   ```
+
+   ```bash
    cargo build
    ```
 
 3. Run the application:
-   ```
+
+   ```bash
    cargo run
    ```
 

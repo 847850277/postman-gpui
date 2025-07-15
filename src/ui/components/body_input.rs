@@ -1,12 +1,54 @@
 use gpui::{
-    div, prelude::*, px, rgb, App, Context, EventEmitter, FocusHandle, Focusable, IntoElement,
-    MouseButton, MouseDownEvent, ParentElement, Render, SharedString, Styled, Window,
+    actions, div, fill, hsla, point, prelude::*, px, relative, rgb, rgba, size, App, Bounds,
+    ClipboardItem, Context, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
+    EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, IntoElement,
+    KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad,
+    ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style, Styled, TextRun,
+    UTF16Selection, Window,
 };
+use std::ops::Range;
+use unicode_segmentation::*;
+
+// 定义actions - 这些是键盘快捷键对应的动作
+actions!(
+    body_input,
+    [
+        Backspace,
+        Delete,
+        Left,
+        Right,
+        Up,
+        Down,
+        SelectLeft,
+        SelectRight,
+        SelectUp,
+        SelectDown,
+        SelectAll,
+        Home,
+        End,
+        Paste,
+        Cut,
+        Copy,
+        NewLine,
+        Tab,
+    ]
+);
+
+#[derive(Debug, Clone)]
+pub enum BodyInputEvent {
+    ValueChanged(String),
+}
 
 pub struct BodyInput {
     focus_handle: FocusHandle,
     content: SharedString,
     placeholder: SharedString,
+    selected_range: Range<usize>,
+    selection_reversed: bool,
+    marked_range: Option<Range<usize>>,
+    last_layout: Option<Vec<ShapedLine>>,
+    last_bounds: Option<Bounds<Pixels>>,
+    is_selecting: bool,
 }
 
 impl BodyInput {
@@ -15,25 +57,41 @@ impl BodyInput {
             focus_handle: cx.focus_handle(),
             content: "".into(),
             placeholder: "Enter request body (JSON, form data, etc.)...".into(),
+            selected_range: 0..0,
+            selection_reversed: false,
+            marked_range: None,
+            last_layout: None,
+            last_bounds: None,
+            is_selecting: false,
         }
     }
 
-    pub fn with_placeholder(mut self, placeholder: &str) -> Self {
-        self.placeholder = placeholder.to_string().into();
+    pub fn with_placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = placeholder.into().into();
         self
-    }
-
-    pub fn set_content(&mut self, content: String, cx: &mut Context<Self>) {
-        self.content = content.into();
-        cx.notify();
     }
 
     pub fn get_content(&self) -> &str {
         &self.content
     }
 
+    pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+        let new_content: SharedString = content.into().into();
+        if self.content != new_content {
+            self.content = new_content.clone();
+            let cursor_position = self.selected_range.start.min(self.content.len());
+            self.selected_range = cursor_position..cursor_position;
+            self.selection_reversed = false;
+            cx.emit(BodyInputEvent::ValueChanged(new_content.to_string()));
+            cx.notify();
+        }
+    }
+
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.content = "".into();
+        self.selected_range = 0..0;
+        self.selection_reversed = false;
+        cx.emit(BodyInputEvent::ValueChanged(String::new()));
         cx.notify();
     }
 
@@ -41,26 +99,765 @@ impl BodyInput {
         self.content.is_empty()
     }
 
-    // 处理鼠标点击
-    fn handle_click(&mut self, _event: &MouseDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+    // Action handlers - 这些方法处理键盘动作
+    fn left(&mut self, _: &Left, _: &mut Window, cx: &mut Context<Self>) {
+        if self.selected_range.is_empty() {
+            self.move_to(self.previous_boundary(self.cursor_offset()), cx);
+        } else {
+            self.move_to(self.selected_range.start, cx);
+        }
+    }
+
+    fn right(&mut self, _: &Right, _: &mut Window, cx: &mut Context<Self>) {
+        if self.selected_range.is_empty() {
+            self.move_to(self.next_boundary(self.selected_range.end), cx);
+        } else {
+            self.move_to(self.selected_range.end, cx);
+        }
+    }
+
+    fn up(&mut self, _: &Up, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        if let Some(new_offset) = self.offset_for_line_up(cursor) {
+            self.move_to(new_offset, cx);
+        }
+    }
+
+    fn down(&mut self, _: &Down, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        if let Some(new_offset) = self.offset_for_line_down(cursor) {
+            self.move_to(new_offset, cx);
+        }
+    }
+
+    fn select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(self.previous_boundary(self.cursor_offset()), cx);
+    }
+
+    fn select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(self.next_boundary(self.cursor_offset()), cx);
+    }
+
+    fn select_up(&mut self, _: &SelectUp, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        if let Some(new_offset) = self.offset_for_line_up(cursor) {
+            self.select_to(new_offset, cx);
+        }
+    }
+
+    fn select_down(&mut self, _: &SelectDown, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        if let Some(new_offset) = self.offset_for_line_down(cursor) {
+            self.select_to(new_offset, cx);
+        }
+    }
+
+    fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
+        self.move_to(0, cx);
+        self.select_to(self.content.len(), cx);
+    }
+
+    fn home(&mut self, _: &Home, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        let line_start = self.line_start_for_offset(cursor);
+        self.move_to(line_start, cx);
+    }
+
+    fn end(&mut self, _: &End, _: &mut Window, cx: &mut Context<Self>) {
+        let cursor = self.cursor_offset();
+        let line_end = self.line_end_for_offset(cursor);
+        self.move_to(line_end, cx);
+    }
+
+    fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
+        if self.selected_range.is_empty() {
+            self.select_to(self.previous_boundary(self.cursor_offset()), cx);
+        }
+        self.replace_text_in_range(None, "", window, cx);
+    }
+
+    fn delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
+        if self.selected_range.is_empty() {
+            self.select_to(self.next_boundary(self.cursor_offset()), cx);
+        }
+        self.replace_text_in_range(None, "", window, cx);
+    }
+
+    fn new_line(&mut self, _: &NewLine, window: &mut Window, cx: &mut Context<Self>) {
+        self.replace_text_in_range(None, "\n", window, cx);
+    }
+
+    fn tab(&mut self, _: &Tab, window: &mut Window, cx: &mut Context<Self>) {
+        self.replace_text_in_range(None, "    ", window, cx); // 4 spaces for tab
+    }
+
+    fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+            self.replace_text_in_range(None, &text, window, cx);
+        }
+    }
+
+    fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
+        if !self.selected_range.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(
+                (&self.content[self.selected_range.clone()]).to_string(),
+            ));
+        }
+    }
+
+    fn cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.selected_range.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(
+                (&self.content[self.selected_range.clone()]).to_string(),
+            ));
+            self.replace_text_in_range(None, "", window, cx);
+        }
+    }
+
+    // Mouse event handlers
+    fn on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.is_selecting = true;
+
+        if event.modifiers.shift {
+            self.select_to(self.index_for_mouse_position(event.position), cx);
+        } else {
+            self.move_to(self.index_for_mouse_position(event.position), cx);
+        }
+    }
+
+    fn on_mouse_up(&mut self, _: &MouseUpEvent, _window: &mut Window, _: &mut Context<Self>) {
+        self.is_selecting = false;
+    }
+
+    fn on_mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if self.is_selecting {
+            self.select_to(self.index_for_mouse_position(event.position), cx);
+        }
+    }
+
+    // Helper methods
+    fn move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.selected_range = offset..offset;
         cx.notify();
+    }
+
+    fn cursor_offset(&self) -> usize {
+        if self.selection_reversed {
+            self.selected_range.start
+        } else {
+            self.selected_range.end
+        }
+    }
+
+    fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
+        if self.content.is_empty() {
+            return 0;
+        }
+
+        let (Some(bounds), Some(lines)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
+        else {
+            return 0;
+        };
+
+        if position.y < bounds.top() {
+            return 0;
+        }
+
+        // 计算点击在哪一行
+        let line_height = (bounds.bottom() - bounds.top()).0 / lines.len() as f32;
+        let line_index = ((position.y - bounds.top()).0 / line_height).floor() as usize;
+
+        if line_index >= lines.len() {
+            return self.content.len();
+        }
+
+        let line = &lines[line_index];
+        let x_offset = position.x - bounds.left();
+
+        // 计算当前行在原始文本中的起始位置
+        let mut line_start = 0;
+        for (i, _) in self.content.split('\n').enumerate() {
+            if i == line_index {
+                break;
+            }
+            line_start += self.content.split('\n').nth(i).unwrap_or("").len() + 1;
+            // +1 for \n
+        }
+
+        line_start + line.closest_index_for_x(x_offset)
+    }
+
+    fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        if self.selection_reversed {
+            self.selected_range.start = offset;
+        } else {
+            self.selected_range.end = offset;
+        }
+
+        if self.selected_range.end < self.selected_range.start {
+            self.selection_reversed = !self.selection_reversed;
+            self.selected_range = self.selected_range.end..self.selected_range.start;
+        }
+        cx.notify();
+    }
+
+    fn offset_from_utf16(&self, offset: usize) -> usize {
+        let mut utf8_offset = 0;
+        let mut utf16_count = 0;
+
+        for ch in self.content.chars() {
+            if utf16_count >= offset {
+                break;
+            }
+            utf16_count += ch.len_utf16();
+            utf8_offset += ch.len_utf8();
+        }
+
+        utf8_offset
+    }
+
+    fn offset_to_utf16(&self, offset: usize) -> usize {
+        let mut utf16_offset = 0;
+        let mut utf8_count = 0;
+
+        for ch in self.content.chars() {
+            if utf8_count >= offset {
+                break;
+            }
+            utf8_count += ch.len_utf8();
+            utf16_offset += ch.len_utf16();
+        }
+
+        utf16_offset
+    }
+
+    fn range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
+        self.offset_to_utf16(range.start)..self.offset_to_utf16(range.end)
+    }
+
+    fn range_from_utf16(&self, range_utf16: &Range<usize>) -> Range<usize> {
+        self.offset_from_utf16(range_utf16.start)..self.offset_from_utf16(range_utf16.end)
+    }
+
+    fn previous_boundary(&self, offset: usize) -> usize {
+        self.content
+            .grapheme_indices(true)
+            .rev()
+            .find_map(|(idx, _)| (idx < offset).then_some(idx))
+            .unwrap_or(0)
+    }
+
+    fn next_boundary(&self, offset: usize) -> usize {
+        self.content
+            .grapheme_indices(true)
+            .find_map(|(idx, _)| (idx > offset).then_some(idx))
+            .unwrap_or(self.content.len())
+    }
+
+    fn line_start_for_offset(&self, offset: usize) -> usize {
+        let text_before_offset = &self.content[..offset];
+        text_before_offset
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(0)
+    }
+
+    fn line_end_for_offset(&self, offset: usize) -> usize {
+        let text_after_offset = &self.content[offset..];
+        text_after_offset
+            .find('\n')
+            .map(|pos| offset + pos)
+            .unwrap_or(self.content.len())
+    }
+
+    fn offset_for_line_up(&self, offset: usize) -> Option<usize> {
+        let line_start = self.line_start_for_offset(offset);
+        if line_start == 0 {
+            return None; // Already at first line
+        }
+
+        let column = offset - line_start;
+        let prev_line_end = line_start - 1; // -1 to skip the \n
+        let prev_line_start = self.line_start_for_offset(prev_line_end);
+        let prev_line_length = prev_line_end - prev_line_start;
+
+        Some(prev_line_start + column.min(prev_line_length))
+    }
+
+    fn offset_for_line_down(&self, offset: usize) -> Option<usize> {
+        let line_start = self.line_start_for_offset(offset);
+        let line_end = self.line_end_for_offset(offset);
+
+        if line_end == self.content.len() {
+            return None; // Already at last line
+        }
+
+        let column = offset - line_start;
+        let next_line_start = line_end + 1; // +1 to skip the \n
+        let next_line_end = self.line_end_for_offset(next_line_start);
+        let next_line_length = next_line_end - next_line_start;
+
+        Some(next_line_start + column.min(next_line_length))
     }
 }
 
+// 实现 EntityInputHandler 来处理系统级输入
+impl EntityInputHandler for BodyInput {
+    fn text_for_range(
+        &mut self,
+        range_utf16: Range<usize>,
+        actual_range: &mut Option<Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<String> {
+        let range = self.range_from_utf16(&range_utf16);
+        actual_range.replace(self.range_to_utf16(&range));
+        Some(self.content[range].to_string())
+    }
+
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<UTF16Selection> {
+        Some(UTF16Selection {
+            range: self.range_to_utf16(&self.selected_range),
+            reversed: self.selection_reversed,
+        })
+    }
+
+    fn marked_text_range(
+        &self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Range<usize>> {
+        self.marked_range
+            .as_ref()
+            .map(|range| self.range_to_utf16(range))
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
+        self.marked_range = None;
+    }
+
+    fn replace_text_in_range(
+        &mut self,
+        range_utf16: Option<Range<usize>>,
+        new_text: &str,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let range = range_utf16
+            .as_ref()
+            .map(|range_utf16| self.range_from_utf16(range_utf16))
+            .or(self.marked_range.clone())
+            .unwrap_or(self.selected_range.clone());
+
+        self.content =
+            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
+                .into();
+        self.selected_range = range.start + new_text.len()..range.start + new_text.len();
+        self.marked_range.take();
+
+        // 发送值变化事件
+        cx.emit(BodyInputEvent::ValueChanged(self.content.to_string()));
+        cx.notify();
+    }
+
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        range_utf16: Option<Range<usize>>,
+        new_text: &str,
+        new_selected_range_utf16: Option<Range<usize>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let range = range_utf16
+            .as_ref()
+            .map(|range_utf16| self.range_from_utf16(range_utf16))
+            .or(self.marked_range.clone())
+            .unwrap_or(self.selected_range.clone());
+
+        self.content =
+            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
+                .into();
+        self.marked_range = Some(range.start..range.start + new_text.len());
+        self.selected_range = new_selected_range_utf16
+            .as_ref()
+            .map(|range_utf16| self.range_from_utf16(range_utf16))
+            .map(|new_range| new_range.start + range.start..new_range.end + range.end)
+            .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
+
+        cx.emit(BodyInputEvent::ValueChanged(self.content.to_string()));
+        cx.notify();
+    }
+
+    fn bounds_for_range(
+        &mut self,
+        range_utf16: Range<usize>,
+        bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Bounds<Pixels>> {
+        let last_layout = self.last_layout.as_ref()?;
+        let range = self.range_from_utf16(&range_utf16);
+
+        // For multi-line text, we need to calculate bounds differently
+        // This is a simplified version - for now just return the line bounds
+        if let Some(first_line) = last_layout.first() {
+            Some(Bounds::from_corners(
+                point(
+                    bounds.left() + first_line.x_for_index(range.start.min(first_line.len())),
+                    bounds.top(),
+                ),
+                point(
+                    bounds.left() + first_line.x_for_index(range.end.min(first_line.len())),
+                    bounds.bottom(),
+                ),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        point: Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        let line_point = self.last_bounds?.localize(&point)?;
+        let last_layout = self.last_layout.as_ref()?;
+
+        // 如果内容为空但显示的是placeholder，则点击应该定位到开头
+        if self.content.is_empty() {
+            return Some(0);
+        }
+
+        // For multi-line, find the appropriate line
+        if let Some(first_line) = last_layout.first() {
+            let utf8_index = first_line.index_for_x(point.x - line_point.x)?;
+            Some(self.offset_to_utf16(utf8_index))
+        } else {
+            Some(0)
+        }
+    }
+}
+
+// 自定义文本元素，用于渲染和处理输入
+struct BodyTextElement {
+    input: Entity<BodyInput>,
+}
+
+struct PrepaintState {
+    lines: Option<Vec<ShapedLine>>,
+    cursor: Option<PaintQuad>,
+    selection: Option<Vec<PaintQuad>>,
+}
+
+impl IntoElement for BodyTextElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for BodyTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = PrepaintState;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = Style::default();
+        style.size.width = relative(1.).into();
+        style.size.height = px(200.0).into(); // Fixed height for multi-line input
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let input = self.input.read(cx);
+        let content = input.content.clone();
+        let selected_range = input.selected_range.clone();
+        let cursor = input.cursor_offset();
+        let style = window.text_style();
+
+        let (display_text, text_color) = if content.is_empty() {
+            (input.placeholder.clone(), hsla(0., 0., 0., 0.4))
+        } else {
+            (content.clone(), style.color)
+        };
+
+        let font_size = style.font_size.to_pixels(window.rem_size());
+
+        // Split text into lines for multi-line rendering
+        let lines: Vec<String> = if display_text.is_empty() {
+            vec![String::new()]
+        } else {
+            display_text.split('\n').map(|s| s.to_string()).collect()
+        };
+
+        let shaped_lines: Vec<ShapedLine> = lines
+            .iter()
+            .map(|line| {
+                let run = TextRun {
+                    len: line.len(),
+                    font: style.font(),
+                    color: text_color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                window
+                    .text_system()
+                    .shape_line(line.clone().into(), font_size, &[run])
+            })
+            .collect();
+
+        // Calculate cursor and selection for content (not display text)
+        let content_lines: Vec<String> = if content.is_empty() {
+            vec![String::new()]
+        } else {
+            content.split('\n').map(|s| s.to_string()).collect()
+        };
+
+        let content_shaped_lines: Vec<ShapedLine> = content_lines
+            .iter()
+            .map(|line| {
+                let run = TextRun {
+                    len: line.len(),
+                    font: style.font(),
+                    color: style.color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                window
+                    .text_system()
+                    .shape_line(line.clone().into(), font_size, &[run])
+            })
+            .collect();
+
+        let line_height = window.line_height();
+
+        let (selection, cursor) = if selected_range.is_empty() && !content.is_empty() {
+            // Find cursor line and position
+            let (line_index, line_offset) = self.line_and_offset_for_index(cursor, &content_lines);
+            let cursor_x = if line_index < content_shaped_lines.len() {
+                content_shaped_lines[line_index].x_for_index(line_offset)
+            } else {
+                px(0.0)
+            };
+
+            (
+                None,
+                Some(fill(
+                    Bounds::new(
+                        point(
+                            bounds.left() + cursor_x,
+                            bounds.top() + line_height * line_index as f32,
+                        ),
+                        size(px(2.), line_height),
+                    ),
+                    rgb(0x007acc),
+                )),
+            )
+        } else if !selected_range.is_empty() && !content.is_empty() {
+            // Create selection quads for each line in the selection
+            let selection_quads = self.create_selection_quads(
+                selected_range,
+                &content_lines,
+                &content_shaped_lines,
+                bounds,
+                line_height,
+            );
+            (Some(selection_quads), None)
+        } else {
+            (None, None)
+        };
+
+        PrepaintState {
+            lines: Some(shaped_lines),
+            cursor,
+            selection,
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let focus_handle = self.input.read(cx).focus_handle.clone();
+        window.handle_input(
+            &focus_handle,
+            ElementInputHandler::new(bounds, self.input.clone()),
+            cx,
+        );
+
+        if let Some(selection_quads) = prepaint.selection.take() {
+            for quad in selection_quads {
+                window.paint_quad(quad);
+            }
+        }
+
+        if let Some(lines) = prepaint.lines.take() {
+            let line_height = window.line_height();
+            for (i, line) in lines.iter().enumerate() {
+                let line_origin = point(bounds.left(), bounds.top() + line_height * i as f32);
+                let _ = line.paint(line_origin, line_height, window, cx);
+            }
+        }
+
+        if focus_handle.is_focused(window) {
+            if let Some(cursor) = prepaint.cursor.take() {
+                window.paint_quad(cursor);
+            }
+        }
+
+        // Save layout for position calculations
+        self.input.update(cx, |input, _cx| {
+            let style = window.text_style();
+            let font_size = style.font_size.to_pixels(window.rem_size());
+
+            let content_lines: Vec<String> = if input.content.is_empty() {
+                vec![String::new()]
+            } else {
+                input.content.split('\n').map(|s| s.to_string()).collect()
+            };
+
+            let content_shaped_lines: Vec<ShapedLine> = content_lines
+                .iter()
+                .map(|line| {
+                    let run = TextRun {
+                        len: line.len(),
+                        font: style.font(),
+                        color: style.color,
+                        background_color: None,
+                        underline: None,
+                        strikethrough: None,
+                    };
+                    window
+                        .text_system()
+                        .shape_line(line.clone().into(), font_size, &[run])
+                })
+                .collect();
+
+            input.last_layout = Some(content_shaped_lines);
+            input.last_bounds = Some(bounds);
+        });
+    }
+}
+
+impl BodyTextElement {
+    fn line_and_offset_for_index(&self, index: usize, lines: &[String]) -> (usize, usize) {
+        let mut current_index = 0;
+        for (line_idx, line) in lines.iter().enumerate() {
+            if current_index + line.len() >= index {
+                return (line_idx, index - current_index);
+            }
+            current_index += line.len() + 1; // +1 for newline
+        }
+        (lines.len().saturating_sub(1), 0)
+    }
+
+    fn create_selection_quads(
+        &self,
+        selection_range: Range<usize>,
+        lines: &[String],
+        shaped_lines: &[ShapedLine],
+        bounds: Bounds<Pixels>,
+        line_height: Pixels,
+    ) -> Vec<PaintQuad> {
+        let mut quads = Vec::new();
+        let (start_line, start_offset) =
+            self.line_and_offset_for_index(selection_range.start, lines);
+        let (end_line, end_offset) = self.line_and_offset_for_index(selection_range.end, lines);
+
+        for line_idx in start_line..=end_line {
+            if line_idx >= shaped_lines.len() {
+                break;
+            }
+
+            let line = &shaped_lines[line_idx];
+            let line_start = if line_idx == start_line {
+                start_offset
+            } else {
+                0
+            };
+            let line_end = if line_idx == end_line {
+                end_offset
+            } else {
+                lines[line_idx].len()
+            };
+
+            if line_start < line_end {
+                let start_x = line.x_for_index(line_start);
+                let end_x = line.x_for_index(line_end);
+
+                quads.push(fill(
+                    Bounds::from_corners(
+                        point(
+                            bounds.left() + start_x,
+                            bounds.top() + line_height * line_idx as f32,
+                        ),
+                        point(
+                            bounds.left() + end_x,
+                            bounds.top() + line_height * (line_idx + 1) as f32,
+                        ),
+                    ),
+                    rgba(0x3366ff33),
+                ));
+            }
+        }
+
+        quads
+    }
+}
+
+impl EventEmitter<BodyInputEvent> for BodyInput {}
+
 impl Focusable for BodyInput {
-    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl EventEmitter<()> for BodyInput {}
-
 impl Render for BodyInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let is_focused = self.focus_handle.is_focused(window);
-
         div()
-            .id("body-input")
             .w_full()
             .min_h_32()
             .max_h_96()
@@ -68,7 +865,7 @@ impl Render for BodyInput {
             .py_2()
             .bg(rgb(0xffffff))
             .border_1()
-            .border_color(if is_focused {
+            .border_color(if self.focus_handle.is_focused(window) {
                 rgb(0x007acc)
             } else {
                 rgb(0xcccccc)
@@ -76,42 +873,57 @@ impl Render for BodyInput {
             .rounded_md()
             .font_family("monospace")
             .text_size(px(13.0))
-            .overflow_y_scroll()
-            .when(is_focused, |div| {
-                div.shadow_md().border_color(rgb(0x007acc))
+            .overflow_hidden()
+            .cursor(CursorStyle::IBeam)
+            .track_focus(&self.focus_handle(cx))
+            .on_action(cx.listener(Self::backspace))
+            .on_action(cx.listener(Self::delete))
+            .on_action(cx.listener(Self::left))
+            .on_action(cx.listener(Self::right))
+            .on_action(cx.listener(Self::up))
+            .on_action(cx.listener(Self::down))
+            .on_action(cx.listener(Self::select_left))
+            .on_action(cx.listener(Self::select_right))
+            .on_action(cx.listener(Self::select_up))
+            .on_action(cx.listener(Self::select_down))
+            .on_action(cx.listener(Self::select_all))
+            .on_action(cx.listener(Self::home))
+            .on_action(cx.listener(Self::end))
+            .on_action(cx.listener(Self::paste))
+            .on_action(cx.listener(Self::cut))
+            .on_action(cx.listener(Self::copy))
+            .on_action(cx.listener(Self::new_line))
+            .on_action(cx.listener(Self::tab))
+            .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_move(cx.listener(Self::on_mouse_move))
+            .child(BodyTextElement {
+                input: cx.entity().clone(),
             })
-            .child(
-                div()
-                    .relative()
-                    .min_h_6()
-                    .child(if self.content.is_empty() && !is_focused {
-                        div()
-                            .text_color(rgb(0x999999))
-                            .child(self.placeholder.to_string())
-                    } else {
-                        div()
-                            .text_color(rgb(0x333333))
-                            .children(if self.content.is_empty() {
-                                vec![div().child(" ")]
-                            } else {
-                                // 保持换行和空格的显示
-                                self.content
-                                    .lines()
-                                    .map(|line| {
-                                        div().child(if line.is_empty() {
-                                            " ".to_string()
-                                        } else {
-                                            line.to_string()
-                                        })
-                                    })
-                                    .collect::<Vec<_>>()
-                            })
-                    })
-                    .when(is_focused, |this_div| {
-                        this_div.child(div().absolute().w_px().h_4().bg(rgb(0x333333)).opacity(0.8))
-                    }),
-            )
-            .on_mouse_down(MouseButton::Left, cx.listener(Self::handle_click))
-            .focusable()
     }
+}
+
+// 导出KeyBinding设置函数，供主应用使用
+pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("backspace", Backspace, None),
+        KeyBinding::new("delete", Delete, None),
+        KeyBinding::new("left", Left, None),
+        KeyBinding::new("right", Right, None),
+        KeyBinding::new("up", Up, None),
+        KeyBinding::new("down", Down, None),
+        KeyBinding::new("shift-left", SelectLeft, None),
+        KeyBinding::new("shift-right", SelectRight, None),
+        KeyBinding::new("shift-up", SelectUp, None),
+        KeyBinding::new("shift-down", SelectDown, None),
+        KeyBinding::new("cmd-a", SelectAll, None),
+        KeyBinding::new("cmd-v", Paste, None),
+        KeyBinding::new("cmd-c", Copy, None),
+        KeyBinding::new("cmd-x", Cut, None),
+        KeyBinding::new("home", Home, None),
+        KeyBinding::new("end", End, None),
+        KeyBinding::new("enter", NewLine, None),
+        KeyBinding::new("tab", Tab, None),
+    ]
 }

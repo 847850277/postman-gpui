@@ -1,8 +1,8 @@
 use crate::{
     http::client::HttpClient,
     ui::components::{
-        body_input::BodyInput,
-        header_input::{setup_header_input_key_bindings, HeaderInput},
+        body_input::{setup_body_input_key_bindings, BodyInput, BodyInputEvent},
+        header_input::{setup_header_input_key_bindings, HeaderInput, HeaderInputEvent},
         method_selector::{MethodSelector, MethodSelectorEvent},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
@@ -42,6 +42,7 @@ impl PostmanApp {
         // 设置键盘绑定 - 在创建组件之前
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
+        cx.bind_keys(setup_body_input_key_bindings());
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
