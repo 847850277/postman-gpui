@@ -2,6 +2,7 @@
 use reqwest::{Client, Error};
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct HttpClient {
     client: Client,
 }
