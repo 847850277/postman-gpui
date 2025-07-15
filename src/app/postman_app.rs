@@ -1,6 +1,7 @@
 use crate::{
     http::client::HttpClient,
     ui::components::{
+        body_input::BodyInput,
         header_input::{setup_header_input_key_bindings, HeaderInput},
         method_selector::{MethodSelector, MethodSelectorEvent},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
@@ -18,8 +19,8 @@ pub struct PostmanApp {
     // Headers
     headers: Vec<(String, String)>,
 
-    // Body
-    body_content: String,
+    // Body - 使用BodyInput组件替代字符串
+    body_input: Entity<BodyInput>,
 
     // HTTP Client
     http_client: HttpClient,
@@ -49,12 +50,15 @@ impl PostmanApp {
         let header_value_input = cx.new(|cx| {
             HeaderInput::new(cx).with_placeholder("Header Value (e.g., Bearer token123)")
         });
+        let body_input = cx.new(|cx| {
+            BodyInput::new(cx).with_placeholder("Enter request body (JSON, form data, etc.)...")
+        });
 
         PostmanApp {
             method_selector,
             url_input,
             headers: Vec::new(),
-            body_content: String::new(),
+            body_input,
             http_client: HttpClient::new(),
             response_body: None,
             response_status: None,
@@ -65,17 +69,19 @@ impl PostmanApp {
     }
 
     // 处理方法变更事件
-    pub fn on_method_changed(&mut self, event: &MethodSelectorEvent) {
+    pub fn on_method_changed(&mut self, event: &MethodSelectorEvent, cx: &mut Context<Self>) {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
                 println!("🎯 PostmanApp - HTTP方法变更:");
                 println!("   新方法: {}", method);
                 println!("   当前headers数量: {}", self.headers.len());
-                println!("   当前body长度: {} bytes", self.body_content.len());
+
+                let body_length = self.body_input.read(cx).get_content().len();
+                println!("   当前body长度: {} bytes", body_length);
 
                 // 根据方法类型设置默认请求体
-                if method.to_uppercase() == "POST" && self.body_content.is_empty() {
-                    self.body_content = r#"{
+                if method.to_uppercase() == "POST" && self.body_input.read(cx).is_empty() {
+                    let default_json = r#"{
   "message": "Hello, World!",
   "timestamp": "2025-07-15T14:30:00Z",
   "data": {
@@ -83,8 +89,14 @@ impl PostmanApp {
   }
 }"#
                     .to_string();
+
+                    self.body_input.update(cx, |input, cx| {
+                        input.set_content(default_json, cx);
+                    });
+
+                    let new_body_length = self.body_input.read(cx).get_content().len();
                     println!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
-                    println!("   Body长度: {} bytes", self.body_content.len());
+                    println!("   Body长度: {} bytes", new_body_length);
 
                     // 为POST请求设置默认Content-Type头
                     if self.headers.is_empty() {
@@ -101,9 +113,9 @@ impl PostmanApp {
                     }
                 } else if method.to_uppercase() == "GET" {
                     // GET请求通常不需要请求体
-                    if !self.body_content.is_empty() {
+                    if !self.body_input.read(cx).is_empty() {
                         println!("ℹ️ PostmanApp - GET请求通常不使用请求体");
-                        println!("   当前body长度: {} bytes", self.body_content.len());
+                        println!("   当前body长度: {} bytes", body_length);
                         println!("   建议: 清空请求体或改用POST方法");
                     } else {
                         println!("✅ PostmanApp - GET请求配置正确，无请求体");
@@ -163,14 +175,15 @@ impl PostmanApp {
 
         // 打印请求体信息
         if method.to_uppercase() == "POST" {
-            println!("   Body Length: {} bytes", self.body_content.len());
-            if !self.body_content.is_empty() {
+            let body_content = self.body_input.read(cx).get_content();
+            println!("   Body Length: {} bytes", body_content.len());
+            if !body_content.is_empty() {
                 println!(
                     "   Body Preview: {}",
-                    if self.body_content.len() > 200 {
-                        format!("{}... (truncated)", &self.body_content[..200])
+                    if body_content.len() > 200 {
+                        format!("{}... (truncated)", &body_content[..200])
                     } else {
-                        self.body_content.clone()
+                        body_content.to_string()
                     }
                 );
             } else {
@@ -212,11 +225,12 @@ impl PostmanApp {
                     Some(header_map)
                 };
 
+                let body_content = self.body_input.read(cx).get_content().to_string();
                 println!(
                     "📤 PostmanApp - 执行POST请求，Body大小: {} bytes",
-                    self.body_content.len()
+                    body_content.len()
                 );
-                rt.block_on(client.post(&url, &self.body_content, headers))
+                rt.block_on(client.post(&url, &body_content, headers))
             };
 
             match result {
@@ -598,40 +612,142 @@ impl PostmanApp {
             )
     }
 
-    fn render_body_editor(&self, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_body_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
             .gap_2()
             .child(
                 div()
-                    .child("Request Body")
+                    .child("Request Body (JSON)")
                     .text_size(px(16.0))
                     .font_weight(FontWeight::MEDIUM),
             )
-            .child(
-                div()
-                    .w_full()
-                    .h_32()
-                    .px_3()
-                    .py_2()
-                    .bg(rgb(0xffffff))
-                    .border_1()
-                    .border_color(rgb(0xcccccc))
-                    .child(if self.body_content.is_empty() {
-                        "Enter request body (JSON, form data, etc.)...".to_string()
-                    } else {
-                        self.body_content.clone()
-                    }),
-            )
+            .child(self.body_input.clone())
             .child(
                 div()
                     .text_size(px(12.0))
                     .text_color(rgb(0x6c757d))
                     .child(format!(
-                        "Body length: {} characters",
-                        self.body_content.len()
+                        "Body length: {} characters | Use Ctrl+A to select all, Ctrl+V to paste",
+                        self.body_input.read(cx).get_content().len()
                     )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(rgb(0x6c757d))
+                            .child("Quick JSON templates: "),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x17a2b8))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x138496)))
+                            .child("Simple")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    let simple_json = r#"{
+  "message": "Hello, World!",
+  "timestamp": "2025-07-15T14:30:00Z"
+}"#
+                                    .to_string();
+                                    this.body_input.update(cx, |input, cx| {
+                                        input.set_content(simple_json, cx);
+                                    });
+                                }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x17a2b8))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x138496)))
+                            .child("User")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    let user_json = r#"{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "age": 30,
+  "city": "New York"
+}"#
+                                    .to_string();
+                                    this.body_input.update(cx, |input, cx| {
+                                        input.set_content(user_json, cx);
+                                    });
+                                }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0x17a2b8))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0x138496)))
+                            .child("Array")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    let array_json = r#"[
+  {
+    "id": 1,
+    "name": "Item 1",
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Item 2",
+    "active": false
+  }
+]"#
+                                    .to_string();
+                                    this.body_input.update(cx, |input, cx| {
+                                        input.set_content(array_json, cx);
+                                    });
+                                }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .px_2()
+                            .py_1()
+                            .bg(rgb(0xdc3545))
+                            .text_color(rgb(0xffffff))
+                            .rounded_md()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(0xc82333)))
+                            .child("Clear")
+                            .text_size(px(12.0))
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.body_input.update(cx, |input, cx| {
+                                        input.clear(cx);
+                                    });
+                                }),
+                            ),
+                    ),
             )
     }
 

@@ -144,7 +144,10 @@ impl HeaderInput {
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        println!("📝 HeaderInput: Submit triggered with value: {}", self.content);
+        println!(
+            "📝 HeaderInput: Submit triggered with value: {}",
+            self.content
+        );
         cx.emit(HeaderInputEvent::SubmitRequested);
     }
 
