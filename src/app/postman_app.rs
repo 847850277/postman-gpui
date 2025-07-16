@@ -426,9 +426,9 @@ impl PostmanApp {
                                     .flex_1()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0xf8f9fa))
+                                    .bg(rgb(0x00f8_f9fa))
                                     .border_1()
-                                    .border_color(rgb(0xcccccc))
+                                    .border_color(rgb(0x00cc_cccc))
                                     .child("No headers set"),
                             )
                             .child(
@@ -436,9 +436,9 @@ impl PostmanApp {
                                     .flex_1()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0xf8f9fa))
+                                    .bg(rgb(0x00f8_f9fa))
                                     .border_1()
-                                    .border_color(rgb(0xcccccc))
+                                    .border_color(rgb(0x00cc_cccc))
                                     .child(""),
                             )
                             .child(
@@ -446,9 +446,9 @@ impl PostmanApp {
                                     .w_16()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0xf8f9fa))
+                                    .bg(rgb(0x00f8_f9fa))
                                     .border_1()
-                                    .border_color(rgb(0xcccccc))
+                                    .border_color(rgb(0x00cc_cccc))
                                     .child(""),
                             )]
                     } else {
@@ -464,9 +464,9 @@ impl PostmanApp {
                                             .flex_1()
                                             .px_3()
                                             .py_2()
-                                            .bg(rgb(0xffffff))
+                                            .bg(rgb(0x00ff_ffff))
                                             .border_1()
-                                            .border_color(rgb(0x28a745))
+                                            .border_color(rgb(0x0028_a745))
                                             .child(key.clone()),
                                     )
                                     .child(
@@ -474,9 +474,9 @@ impl PostmanApp {
                                             .flex_1()
                                             .px_3()
                                             .py_2()
-                                            .bg(rgb(0xffffff))
+                                            .bg(rgb(0x00ff_ffff))
                                             .border_1()
-                                            .border_color(rgb(0x28a745))
+                                            .border_color(rgb(0x0028_a745))
                                             .child(value.clone()),
                                     )
                                     .child(
@@ -484,11 +484,11 @@ impl PostmanApp {
                                             .w_16()
                                             .px_2()
                                             .py_1()
-                                            .bg(rgb(0xdc3545))
-                                            .text_color(rgb(0xffffff))
+                                            .bg(rgb(0x00dc_3545))
+                                            .text_color(rgb(0x00ff_ffff))
                                             .rounded_md()
                                             .cursor_pointer()
-                                            .hover(|style| style.bg(rgb(0xc82333)))
+                                            .hover(|style| style.bg(rgb(0x00c8_2333)))
                                             .child("Delete")
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
@@ -513,11 +513,11 @@ impl PostmanApp {
                             .w_16()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x28a745))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x0028_a745))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x218838)))
+                            .hover(|style| style.bg(rgb(0x0021_8838)))
                             .child("Add")
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
@@ -535,18 +535,18 @@ impl PostmanApp {
                     .child(
                         div()
                             .text_size(px(12.0))
-                            .text_color(rgb(0x6c757d))
+                            .text_color(rgb(0x006c_757d))
                             .child("Quick add: "),
                     )
                     .child(
                         div()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x6c757d))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x006c_757d))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .hover(|style| style.bg(rgb(0x005a_6268)))
                             .child("JSON")
                             .text_size(px(12.0))
                             .on_mouse_up(
@@ -564,11 +564,11 @@ impl PostmanApp {
                         div()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x6c757d))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x006c_757d))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .hover(|style| style.bg(rgb(0x005a_6268)))
                             .child("Auth")
                             .text_size(px(12.0))
                             .on_mouse_up(
@@ -582,11 +582,11 @@ impl PostmanApp {
                         div()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x6c757d))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x006c_757d))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x5a6268)))
+                            .hover(|style| style.bg(rgb(0x005a_6268)))
                             .child("CORS")
                             .text_size(px(12.0))
                             .on_mouse_up(
@@ -605,7 +605,7 @@ impl PostmanApp {
             .child(
                 div()
                     .text_size(px(12.0))
-                    .text_color(rgb(0x6c757d))
+                    .text_color(rgb(0x006c_757d))
                     .child(format!(
                         "Total headers: {} | Add headers by typing key and value above",
                         self.headers.len()
@@ -620,7 +620,7 @@ impl PostmanApp {
             .gap_2()
             .child(
                 div()
-                    .child("Request Body (JSON)")
+                    .child("Request Body")
                     .text_size(px(16.0))
                     .font_weight(FontWeight::MEDIUM),
             )
@@ -628,11 +628,27 @@ impl PostmanApp {
             .child(
                 div()
                     .text_size(px(12.0))
-                    .text_color(rgb(0x6c757d))
-                    .child(format!(
-                        "Body length: {} characters | Use Ctrl+A to select all, Ctrl+V to paste",
-                        self.body_input.read(cx).get_content().len()
-                    )),
+                    .text_color(rgb(0x006c_757d))
+                    .child(match self.body_input.read(cx).get_current_type() {
+                        crate::ui::components::body_input::BodyType::Json => {
+                            format!(
+                                "JSON body length: {} characters",
+                                self.body_input.read(cx).get_json_content().len()
+                            )
+                        }
+                        crate::ui::components::body_input::BodyType::FormData => {
+                            format!(
+                                "Form data entries: {}",
+                                self.body_input.read(cx).get_form_data_entries().len()
+                            )
+                        }
+                        crate::ui::components::body_input::BodyType::Raw => {
+                            format!(
+                                "Raw body length: {} characters",
+                                self.body_input.read(cx).get_content().len()
+                            )
+                        }
+                    }),
             )
             .child(
                 div()
@@ -641,57 +657,31 @@ impl PostmanApp {
                     .child(
                         div()
                             .text_size(px(12.0))
-                            .text_color(rgb(0x6c757d))
-                            .child("Quick JSON templates: "),
+                            .text_color(rgb(0x006c_757d))
+                            .child("Quick actions: "),
                     )
                     .child(
                         div()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x17a2b8))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x0017_a2b8))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x138496)))
-                            .child("Simple")
+                            .hover(|style| style.bg(rgb(0x0013_8496)))
+                            .child("Sample JSON")
                             .text_size(px(12.0))
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
-                                    let simple_json = r#"{
-  "message": "Hello, World!",
-  "timestamp": "2025-07-15T14:30:00Z"
-}"#
-                                    .to_string();
-                                    this.body_input.update(cx, |input, cx| {
-                                        input.set_content(simple_json, cx);
-                                    });
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x17a2b8))
-                            .text_color(rgb(0xffffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x138496)))
-                            .child("User")
-                            .text_size(px(12.0))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    let user_json = r#"{
+                                    let sample_json = r#"{
   "name": "John Doe",
   "email": "john.doe@example.com",
-  "age": 30,
-  "city": "New York"
+  "age": 30
 }"#
                                     .to_string();
                                     this.body_input.update(cx, |input, cx| {
-                                        input.set_content(user_json, cx);
+                                        input.set_content(sample_json, cx);
                                     });
                                 }),
                             ),
@@ -700,44 +690,11 @@ impl PostmanApp {
                         div()
                             .px_2()
                             .py_1()
-                            .bg(rgb(0x17a2b8))
-                            .text_color(rgb(0xffffff))
+                            .bg(rgb(0x00dc_3545))
+                            .text_color(rgb(0x00ff_ffff))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x138496)))
-                            .child("Array")
-                            .text_size(px(12.0))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    let array_json = r#"[
-  {
-    "id": 1,
-    "name": "Item 1",
-    "active": true
-  },
-  {
-    "id": 2,
-    "name": "Item 2",
-    "active": false
-  }
-]"#
-                                    .to_string();
-                                    this.body_input.update(cx, |input, cx| {
-                                        input.set_content(array_json, cx);
-                                    });
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0xdc3545))
-                            .text_color(rgb(0xffffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0xc82333)))
+                            .hover(|style| style.bg(rgb(0x00c8_2333)))
                             .child("Clear")
                             .text_size(px(12.0))
                             .on_mouse_up(
@@ -772,7 +729,7 @@ impl PostmanApp {
                     .child(
                         div()
                             .child("🔄 发送请求中...")
-                            .text_color(rgb(0x007acc))
+                            .text_color(rgb(0x0000_7acc))
                             .font_weight(FontWeight::MEDIUM),
                     )
                     .child(
@@ -781,9 +738,9 @@ impl PostmanApp {
                             .h_32()
                             .px_3()
                             .py_2()
-                            .bg(rgb(0xf8f9fa))
+                            .bg(rgb(0x00f8_f9fa))
                             .border_1()
-                            .border_color(rgb(0xcccccc))
+                            .border_color(rgb(0x00cc_cccc))
                             .child("请稍等，正在处理请求..."),
                     )
             } else {
@@ -796,11 +753,11 @@ impl PostmanApp {
                             div()
                                 .child(format!("Status: {status}"))
                                 .text_color(if *status == 0 {
-                                    rgb(0xdc3545) // 错误
+                                    rgb(0x00dc_3545) // 错误
                                 } else if *status < 400 {
-                                    rgb(0x28a745) // 成功
+                                    rgb(0x0028_a745) // 成功
                                 } else {
-                                    rgb(0xdc3545) // 客户端/服务器错误
+                                    rgb(0x00dc_3545) // 客户端/服务器错误
                                 })
                                 .font_weight(FontWeight::MEDIUM),
                         )
@@ -810,9 +767,9 @@ impl PostmanApp {
                                 .h_40()
                                 .px_3()
                                 .py_2()
-                                .bg(rgb(0xf8f9fa))
+                                .bg(rgb(0x00f8_f9fa))
                                 .border_1()
-                                .border_color(rgb(0xcccccc))
+                                .border_color(rgb(0x00cc_cccc))
                                 .child(
                                     div()
                                         .text_size(px(12.0))
@@ -825,9 +782,9 @@ impl PostmanApp {
                         .h_32()
                         .px_3()
                         .py_2()
-                        .bg(rgb(0xf8f9fa))
+                        .bg(rgb(0x00f8_f9fa))
                         .border_1()
-                        .border_color(rgb(0xcccccc))
+                        .border_color(rgb(0x00cc_cccc))
                         .child("No response yet..."),
                 }
             })
@@ -839,7 +796,7 @@ impl Render for PostmanApp {
         div()
             .flex()
             .flex_col()
-            .bg(rgb(0xf0f0f0))
+            .bg(rgb(0x00f0_f0f0))
             .size_full()
             .p_4()
             .gap_4()
@@ -857,9 +814,9 @@ impl Render for PostmanApp {
                     .flex_col()
                     .gap_4()
                     .p_4()
-                    .bg(rgb(0xffffff))
+                    .bg(rgb(0x00ff_ffff))
                     .border_1()
-                    .border_color(rgb(0xcccccc))
+                    .border_color(rgb(0x00cc_cccc))
                     .child(
                         // Method and URL row
                         div()
@@ -870,13 +827,13 @@ impl Render for PostmanApp {
                             .child(
                                 div()
                                     .child("Send")
-                                    .bg(rgb(0x007acc))
-                                    .text_color(rgb(0xffffff))
+                                    .bg(rgb(0x0000_7acc))
+                                    .text_color(rgb(0x00ff_ffff))
                                     .px_4()
                                     .py_2()
                                     .rounded_md()
                                     .cursor_pointer()
-                                    .hover(|style| style.bg(rgb(0x0056b3)))
+                                    .hover(|style| style.bg(rgb(0x0000_56b3)))
                                     .on_mouse_up(
                                         gpui::MouseButton::Left,
                                         cx.listener(Self::on_send_clicked),
@@ -893,9 +850,9 @@ impl Render for PostmanApp {
                     .flex_col()
                     .gap_4()
                     .p_4()
-                    .bg(rgb(0xffffff))
+                    .bg(rgb(0x00ff_ffff))
                     .border_1()
-                    .border_color(rgb(0xcccccc))
+                    .border_color(rgb(0x00cc_cccc))
                     .child(self.render_response_panel(cx)),
             )
     }

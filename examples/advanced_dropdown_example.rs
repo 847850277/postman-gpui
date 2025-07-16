@@ -1,8 +1,7 @@
 use gpui::{
     anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext,
-    Application, ClickEvent, Context, Element,
-    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
-    Window, WindowBounds, WindowOptions,
+    Application, ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement,
+    Render, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
 };
 
 pub struct AdvancedDropdown {

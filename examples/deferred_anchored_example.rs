@@ -1,7 +1,7 @@
 use gpui::{
-    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, Application, ClickEvent, Context, Element, InteractiveElement,
-    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window, WindowBounds,
-    WindowOptions,
+    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, Application,
+    ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
+    StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
 };
 
 #[derive(Clone)]

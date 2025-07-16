@@ -531,7 +531,7 @@ impl Element for UrlTextElement {
                         point(bounds.left() + cursor_pos, bounds.top()),
                         size(px(2.), bounds.bottom() - bounds.top()),
                     ),
-                    rgb(0x007acc),
+                    rgb(0x0000_7acc),
                 )),
             )
         } else if !content.is_empty() {
@@ -547,7 +547,7 @@ impl Element for UrlTextElement {
                             bounds.bottom(),
                         ),
                     ),
-                    rgba(0x3366ff33),
+                    rgba(0x3366_ff33),
                 )),
                 None,
             )
@@ -632,12 +632,12 @@ impl Render for UrlInput {
             .flex_1()
             .px_4()
             .py_2()
-            .bg(rgb(0xffffff))
+            .bg(rgb(0x00ff_ffff))
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                rgb(0x007acc)
+                rgb(0x0000_7acc)
             } else {
-                rgb(0xcccccc)
+                rgb(0x00cc_cccc)
             })
             .rounded_md()
             .cursor(CursorStyle::IBeam)

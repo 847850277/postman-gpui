@@ -1,7 +1,7 @@
 use gpui::{
-    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, ClickEvent,
-    Context, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, ClickEvent, Context,
+    ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
 #[derive(Debug, Clone)]
@@ -132,24 +132,24 @@ impl Dropdown {
             .min_w_32() // 设置最小宽度
             .px_3()
             .py_2()
-            .bg(rgb(0xffffff))
+            .bg(rgb(0x00ff_ffff))
             .border_1()
             .border_color(if self.is_open {
-                rgb(0x007bff)
+                rgb(0x0000_7bff)
             } else {
-                rgb(0xcccccc)
+                rgb(0x00cc_cccc)
             })
             .rounded_md()
             .cursor_pointer()
-            .hover(|style| style.border_color(rgb(0x007bff)))
+            .hover(|style| style.border_color(rgb(0x0000_7bff)))
             .on_click(cx.listener(Self::toggle_dropdown))
             .child(
                 div()
                     .flex_1()
                     .text_color(if self.selected_value.is_empty() {
-                        rgb(0x999999)
+                        rgb(0x0099_9999)
                     } else {
-                        rgb(0x333333)
+                        rgb(0x0033_3333)
                     })
                     .child(display_text),
             )
@@ -158,7 +158,7 @@ impl Dropdown {
                     .w_4()
                     .h_4()
                     .child(if self.is_open { "▲" } else { "▼" })
-                    .text_color(rgb(0x666666)),
+                    .text_color(rgb(0x0066_6666)),
             )
             .child(
                 // 使用 canvas 获取按钮的精确位置
@@ -182,9 +182,9 @@ impl Dropdown {
                         .left(bounds.left())
                         .min_w(px(200.)) // 设置最小宽度 200px
                         .w(bounds.size.width) // 与按钮同宽
-                        .bg(rgb(0xffffff))
+                        .bg(rgb(0x00ff_ffff))
                         .border_1()
-                        .border_color(rgb(0xcccccc))
+                        .border_color(rgb(0x00cc_cccc))
                         .rounded_md()
                         .shadow_lg()
                         .max_h_48()
@@ -200,21 +200,21 @@ impl Dropdown {
                                 .py_2()
                                 .cursor_pointer()
                                 .bg(if is_selected {
-                                    rgb(0xf0f8ff)
+                                    rgb(0x00f0_f8ff)
                                 } else {
-                                    rgb(0xffffff)
+                                    rgb(0x00ff_ffff)
                                 })
                                 .hover(|style| {
                                     if !is_selected {
-                                        style.bg(rgb(0xf5f5f5))
+                                        style.bg(rgb(0x00f5_f5f5))
                                     } else {
                                         style
                                     }
                                 })
                                 .text_color(if is_selected {
-                                    rgb(0x007bff)
+                                    rgb(0x0000_7bff)
                                 } else {
-                                    rgb(0x333333)
+                                    rgb(0x0033_3333)
                                 })
                                 // 修复点击事件
                                 .on_mouse_down(
@@ -235,7 +235,7 @@ impl Dropdown {
                                             .absolute()
                                             .right_2()
                                             .child("✓")
-                                            .text_color(rgb(0x007bff)),
+                                            .text_color(rgb(0x0000_7bff)),
                                     )
                                 })
                         })),
