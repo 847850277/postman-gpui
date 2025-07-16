@@ -200,7 +200,7 @@ impl BodyInput {
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                (&self.content[self.selected_range.clone()]).to_string(),
+                self.content[self.selected_range.clone()].to_string(),
             ));
         }
     }
@@ -208,7 +208,7 @@ impl BodyInput {
     fn cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                (&self.content[self.selected_range.clone()]).to_string(),
+                self.content[self.selected_range.clone()].to_string(),
             ));
             self.replace_text_in_range(None, "", window, cx);
         }
@@ -510,8 +510,7 @@ impl EntityInputHandler for BodyInput {
 
         // For multi-line text, we need to calculate bounds differently
         // This is a simplified version - for now just return the line bounds
-        if let Some(first_line) = last_layout.first() {
-            Some(Bounds::from_corners(
+        last_layout.first().map(|first_line| Bounds::from_corners(
                 point(
                     bounds.left() + first_line.x_for_index(range.start.min(first_line.len())),
                     bounds.top(),
@@ -521,9 +520,6 @@ impl EntityInputHandler for BodyInput {
                     bounds.bottom(),
                 ),
             ))
-        } else {
-            None
-        }
     }
 
     fn character_index_for_point(

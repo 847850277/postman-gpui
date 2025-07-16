@@ -1,8 +1,8 @@
 use crate::{
     http::client::HttpClient,
     ui::components::{
-        body_input::{setup_body_input_key_bindings, BodyInput, BodyInputEvent},
-        header_input::{setup_header_input_key_bindings, HeaderInput, HeaderInputEvent},
+        body_input::{setup_body_input_key_bindings, BodyInput},
+        header_input::{setup_header_input_key_bindings, HeaderInput},
         method_selector::{MethodSelector, MethodSelectorEvent},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
@@ -74,11 +74,11 @@ impl PostmanApp {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
                 println!("🎯 PostmanApp - HTTP方法变更:");
-                println!("   新方法: {}", method);
+                println!("   新方法: {method}");
                 println!("   当前headers数量: {}", self.headers.len());
 
                 let body_length = self.body_input.read(cx).get_content().len();
-                println!("   当前body长度: {} bytes", body_length);
+                println!("   当前body长度: {body_length} bytes");
 
                 // 根据方法类型设置默认请求体
                 if method.to_uppercase() == "POST" && self.body_input.read(cx).is_empty() {
@@ -97,7 +97,7 @@ impl PostmanApp {
 
                     let new_body_length = self.body_input.read(cx).get_content().len();
                     println!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
-                    println!("   Body长度: {} bytes", new_body_length);
+                    println!("   Body长度: {new_body_length} bytes");
 
                     // 为POST请求设置默认Content-Type头
                     if self.headers.is_empty() {
@@ -116,7 +116,7 @@ impl PostmanApp {
                     // GET请求通常不需要请求体
                     if !self.body_input.read(cx).is_empty() {
                         println!("ℹ️ PostmanApp - GET请求通常不使用请求体");
-                        println!("   当前body长度: {} bytes", body_length);
+                        println!("   当前body长度: {body_length} bytes");
                         println!("   建议: 清空请求体或改用POST方法");
                     } else {
                         println!("✅ PostmanApp - GET请求配置正确，无请求体");
@@ -132,7 +132,7 @@ impl PostmanApp {
     pub fn on_url_changed(&mut self, event: &UrlInputEvent) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
-                println!("🌐 PostmanApp - URL变更为: {}", url);
+                println!("🌐 PostmanApp - URL变更为: {url}");
             }
             UrlInputEvent::SubmitRequested => {
                 println!("🚀 PostmanApp - 请求提交");
@@ -160,8 +160,8 @@ impl PostmanApp {
 
         println!("🚀 PostmanApp - 开始发送请求");
         println!("📋 PostmanApp - 请求详情:");
-        println!("   Method: {}", method);
-        println!("   URL: {}", url);
+        println!("   Method: {method}");
+        println!("   URL: {url}");
         println!("   Headers Count: {}", self.headers.len());
 
         // 打印所有headers
@@ -256,11 +256,11 @@ impl PostmanApp {
                 Err(e) => {
                     self.is_loading = false;
                     self.response_status = Some(0);
-                    self.response_body = Some(format!("请求失败: {}", e));
+                    self.response_body = Some(format!("请求失败: {e}"));
 
                     println!("❌ PostmanApp - {}请求失败!", method.to_uppercase());
                     println!("💥 PostmanApp - 错误详情:");
-                    println!("   Error: {}", e);
+                    println!("   Error: {e}");
                     println!("   可能的原因:");
                     println!("     - 网络连接问题");
                     println!("     - 服务器未响应");
@@ -270,8 +270,8 @@ impl PostmanApp {
             }
         } else {
             self.response_status = Some(0);
-            self.response_body = Some(format!("Method {} not implemented yet", method));
-            println!("⚠️ PostmanApp - 方法 {} 尚未实现", method);
+            self.response_body = Some(format!("Method {method} not implemented yet"));
+            println!("⚠️ PostmanApp - 方法 {method} 尚未实现");
             println!("📋 PostmanApp - 当前支持的方法: GET, POST");
         }
 
@@ -305,8 +305,8 @@ impl PostmanApp {
             .to_string();
 
         println!("🔧 PostmanApp - 尝试添加header:");
-        println!("   Key: '{}'", key);
-        println!("   Value: '{}'", value);
+        println!("   Key: '{key}'");
+        println!("   Value: '{value}'");
 
         if !key.is_empty() && !value.is_empty() {
             // 检查是否已存在相同的key
@@ -316,14 +316,14 @@ impl PostmanApp {
                 let old_value = self.headers[index].1.clone(); // 克隆旧值避免借用冲突
                 self.headers[index].1 = value.clone();
                 println!("🔄 PostmanApp - 更新已存在的header:");
-                println!("   Key: {}", key);
-                println!("   旧值: {}", old_value);
-                println!("   新值: {}", value);
+                println!("   Key: {key}");
+                println!("   旧值: {old_value}");
+                println!("   新值: {value}");
             } else {
                 self.headers.push((key.clone(), value.clone()));
                 println!("✅ PostmanApp - 成功添加新header:");
-                println!("   Key: {}", key);
-                println!("   Value: {}", value);
+                println!("   Key: {key}");
+                println!("   Value: {value}");
                 println!("   当前headers总数: {}", self.headers.len());
             }
 
@@ -355,8 +355,8 @@ impl PostmanApp {
     // 通过输入框设置header值
     fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
         println!("🎯 PostmanApp - 设置预设header到输入框:");
-        println!("   预设Key: {}", key);
-        println!("   预设Value: {}", value);
+        println!("   预设Key: {key}");
+        println!("   预设Value: {value}");
 
         self.header_key_input.update(cx, |input, cx| {
             input.set_content(key.to_string(), cx);
@@ -370,7 +370,7 @@ impl PostmanApp {
 
     // 删除header
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        println!("🗑️ PostmanApp - 尝试删除header，索引: {}", index);
+        println!("🗑️ PostmanApp - 尝试删除header，索引: {index}");
 
         if index < self.headers.len() {
             let removed = self.headers.remove(index);
@@ -794,7 +794,7 @@ impl PostmanApp {
                         .gap_2()
                         .child(
                             div()
-                                .child(format!("Status: {}", status))
+                                .child(format!("Status: {status}"))
                                 .text_color(if *status == 0 {
                                     rgb(0xdc3545) // 错误
                                 } else if *status < 400 {

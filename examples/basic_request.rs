@@ -9,7 +9,7 @@ fn main() {
             ..Default::default()
         };
 
-        cx.open_window(option, |window, cx| {
+        cx.open_window(option, |_window, cx| {
             // 创建视图
             let postman_app = PostmanApp::new(cx);
             cx.new(|_| postman_app)

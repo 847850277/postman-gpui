@@ -1,6 +1,6 @@
 use gpui::{
-    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, AppContext, ClickEvent,
-    Context, Element, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, ClickEvent,
+    Context, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
@@ -56,7 +56,7 @@ impl Dropdown {
 
     pub fn set_selected(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
         let new_value = value.into();
-        println!("🔽 Dropdown::set_selected - 设置值: {}", new_value);
+        println!("🔽 Dropdown::set_selected - 设置值: {new_value}");
         println!(
             "🔽 Dropdown::set_selected - 当前值: {}",
             self.selected_value
@@ -69,8 +69,7 @@ impl Dropdown {
             cx.emit(DropdownEvent::SelectionChanged(new_value.clone()));
             cx.notify();
             println!(
-                "🔽 Dropdown::set_selected - 发送事件: DropdownEvent::SelectionChanged({})",
-                new_value
+                "🔽 Dropdown::set_selected - 发送事件: DropdownEvent::SelectionChanged({new_value})"
             );
         } else {
             println!("🔽 Dropdown::set_selected - 值未变化或无效，跳过更新");
@@ -93,7 +92,7 @@ impl Dropdown {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        println!("🔽 Dropdown::select_option - 选择选项: {}", option);
+        println!("🔽 Dropdown::select_option - 选择选项: {option}");
         println!(
             "🔽 Dropdown::select_option - 之前的值: {}",
             self.selected_value
@@ -103,8 +102,7 @@ impl Dropdown {
         self.is_open = false;
 
         println!(
-            "🔽 Dropdown::select_option - 发送事件: DropdownEvent::SelectionChanged({})",
-            option
+            "🔽 Dropdown::select_option - 发送事件: DropdownEvent::SelectionChanged({option})"
         );
         cx.emit(DropdownEvent::SelectionChanged(option));
         cx.notify();
@@ -164,7 +162,7 @@ impl Dropdown {
             )
             .child(
                 // 使用 canvas 获取按钮的精确位置
-                canvas(move |bounds, _, _| {}, |_, _, _, _| {})
+                canvas(move |_bounds, _, _| {}, |_, _, _, _| {})
                     .absolute()
                     .size_full(),
             )
@@ -259,7 +257,7 @@ impl Focusable for Dropdown {
 }
 
 impl Render for Dropdown {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .id(self.id.clone())
             .relative()

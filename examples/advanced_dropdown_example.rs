@@ -1,6 +1,6 @@
 use gpui::{
     anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext,
-    Application, Bounds, ClickEvent, Context, Element, EventEmitter, FocusHandle, Focusable,
+    Application, ClickEvent, Context, Element,
     InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
     Window, WindowBounds, WindowOptions,
 };

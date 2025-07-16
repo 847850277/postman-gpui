@@ -1,7 +1,13 @@
-use gpui::{div, AppContext, Context, IntoElement, ParentElement, Render, Window};
+use gpui::{div, Context, IntoElement, ParentElement, Render, Window};
 
 pub struct BodyEditor {
     body_content: String,
+}
+
+impl Default for BodyEditor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BodyEditor {

@@ -1,5 +1,5 @@
 use gpui::{
-    div, AppContext, Context, Entity, EventEmitter, Focusable, IntoElement, ParentElement, Render,
+    div, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
     Styled, Subscription, Window,
 };
 
@@ -49,8 +49,7 @@ impl MethodSelector {
     pub fn selected_method(&self, cx: &mut Context<Self>) -> String {
         let method = self.dropdown.read(cx).selected_value().to_string();
         println!(
-            "📖 MethodSelector::selected_method - 当前选中方法: {}",
-            method
+            "📖 MethodSelector::selected_method - 当前选中方法: {method}"
         );
         println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
         method
@@ -58,8 +57,7 @@ impl MethodSelector {
 
     pub fn set_selected_method(&mut self, method: &str, cx: &mut Context<Self>) {
         println!(
-            "📝 MethodSelector::set_selected_method - 设置方法: {}",
-            method
+            "📝 MethodSelector::set_selected_method - 设置方法: {method}"
         );
         println!("📝 调用栈: {:?}", std::backtrace::Backtrace::capture());
         self.dropdown.update(cx, |dropdown, cx| {
@@ -75,17 +73,15 @@ impl MethodSelector {
         cx: &mut Context<Self>,
     ) {
         println!(
-            "📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {:?}",
-            event
+            "📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {event:?}"
         );
 
         match event {
             DropdownEvent::SelectionChanged(method) => {
                 println!(
-                    "📡 MethodSelector::on_dropdown_event - 方法变更: {}",
-                    method
+                    "📡 MethodSelector::on_dropdown_event - 方法变更: {method}"
                 );
-                println!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({})", method);
+                println!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
                 cx.emit(MethodSelectorEvent::MethodChanged(method.clone()));
                 println!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
             }
