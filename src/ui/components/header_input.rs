@@ -511,7 +511,7 @@ impl Element for HeaderTextElement {
         let font_size = style.font_size.to_pixels(window.rem_size());
         let display_line = window
             .text_system()
-            .shape_line(display_text, font_size, &[run]);
+            .shape_line(display_text, font_size, &[run], None);
 
         // 为实际内容创建布局（用于光标和选择计算）
         let content_run = TextRun {
@@ -526,7 +526,7 @@ impl Element for HeaderTextElement {
         let content_line =
             window
                 .text_system()
-                .shape_line(content.clone(), font_size, &[content_run]);
+                .shape_line(content.clone(), font_size, &[content_run], None);
 
         let cursor_pos = if content.is_empty() {
             px(0.0)
@@ -621,7 +621,7 @@ impl Element for HeaderTextElement {
             let content_line =
                 window
                     .text_system()
-                    .shape_line(input.content.clone(), font_size, &[content_run]);
+                    .shape_line(input.content.clone(), font_size, &[content_run], None);
 
             input.last_layout = Some(content_line);
             input.last_bounds = Some(bounds);
