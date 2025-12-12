@@ -8,8 +8,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window, div, px, rgb
 };
 
 pub struct PostmanApp {
@@ -794,6 +793,8 @@ impl PostmanApp {
 impl Render for PostmanApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .id("main-container")
+            //.overflow_scroll()
             .flex()
             .flex_col()
             .bg(rgb(0x00f0_f0f0))
@@ -846,6 +847,8 @@ impl Render for PostmanApp {
             .child(
                 // Response Panel
                 div()
+                    .id("response-container")
+                    .overflow_scroll()
                     .flex()
                     .flex_col()
                     .gap_4()
