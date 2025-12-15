@@ -4,6 +4,7 @@ use crate::{
         body_input::{setup_body_input_key_bindings, BodyInput},
         header_input::{setup_header_input_key_bindings, HeaderInput},
         method_selector::{MethodSelector, MethodSelectorEvent},
+        response_viewer::ResponseViewer,
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
 };
@@ -25,12 +26,8 @@ pub struct PostmanApp {
     // HTTP Client
     http_client: HttpClient,
 
-    // Response (optional)
-    response_body: Option<String>,
-    response_status: Option<u16>,
-
-    // 请求状态
-    is_loading: bool,
+    // Response viewer component
+    response_viewer: Entity<ResponseViewer>,
 
     // Headers输入组件
     header_key_input: Entity<HeaderInput>,
@@ -54,6 +51,7 @@ impl PostmanApp {
         let body_input = cx.new(|cx| {
             BodyInput::new(cx).with_placeholder("Enter request body (JSON, form data, etc.)...")
         });
+        let response_viewer = cx.new(ResponseViewer::new);
 
         PostmanApp {
             method_selector,
@@ -61,9 +59,7 @@ impl PostmanApp {
             headers: Vec::new(),
             body_input,
             http_client: HttpClient::new(),
-            response_body: None,
-            response_status: None,
-            is_loading: false,
+            response_viewer,
             header_key_input,
             header_value_input,
         }
@@ -152,8 +148,9 @@ impl PostmanApp {
         // 验证URL是否为空
         if url.trim().is_empty() {
             println!("❌ PostmanApp - URL不能为空");
-            self.response_status = Some(0);
-            self.response_body = Some("Error: URL cannot be empty".to_string());
+            self.response_viewer.update(cx, |viewer, cx| {
+                viewer.set_error("Error: URL cannot be empty".to_string(), cx);
+            });
             cx.notify();
             return;
         }
@@ -195,9 +192,9 @@ impl PostmanApp {
         // 支持GET和POST请求
         if method.to_uppercase() == "GET" || method.to_uppercase() == "POST" {
             // 设置加载状态
-            self.is_loading = true;
-            self.response_body = None;
-            self.response_status = None;
+            self.response_viewer.update(cx, |viewer, cx| {
+                viewer.set_loading(cx);
+            });
             cx.notify();
 
             println!("📡 PostmanApp - 正在发送{}请求...", method.to_uppercase());
@@ -236,9 +233,9 @@ impl PostmanApp {
 
             match result {
                 Ok(response_body) => {
-                    self.is_loading = false;
-                    self.response_status = Some(200);
-                    self.response_body = Some(response_body.clone());
+                    self.response_viewer.update(cx, |viewer, cx| {
+                        viewer.set_success(200, response_body.clone(), cx);
+                    });
 
                     println!("✅ PostmanApp - {}请求成功!", method.to_uppercase());
                     println!("📊 PostmanApp - 响应信息:");
@@ -254,9 +251,9 @@ impl PostmanApp {
                     );
                 }
                 Err(e) => {
-                    self.is_loading = false;
-                    self.response_status = Some(0);
-                    self.response_body = Some(format!("请求失败: {e}"));
+                    self.response_viewer.update(cx, |viewer, cx| {
+                        viewer.set_error(format!("请求失败: {e}"), cx);
+                    });
 
                     println!("❌ PostmanApp - {}请求失败!", method.to_uppercase());
                     println!("💥 PostmanApp - 错误详情:");
@@ -269,8 +266,9 @@ impl PostmanApp {
                 }
             }
         } else {
-            self.response_status = Some(0);
-            self.response_body = Some(format!("Method {method} not implemented yet"));
+            self.response_viewer.update(cx, |viewer, cx| {
+                viewer.set_error(format!("Method {method} not implemented yet"), cx);
+            });
             println!("⚠️ PostmanApp - 方法 {method} 尚未实现");
             println!("📋 PostmanApp - 当前支持的方法: GET, POST");
         }
@@ -708,87 +706,6 @@ impl PostmanApp {
                     ),
             )
     }
-
-    fn render_response_panel(&self, _cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex()
-            .flex_col()
-            .gap_2()
-            .child(
-                div()
-                    .child("Response")
-                    .text_size(px(16.0))
-                    .font_weight(FontWeight::MEDIUM),
-            )
-            .child(if self.is_loading {
-                // 显示加载状态
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .child(
-                        div()
-                            .child("🔄 发送请求中...")
-                            .text_color(rgb(0x0000_7acc))
-                            .font_weight(FontWeight::MEDIUM),
-                    )
-                    .child(
-                        div()
-                            .w_full()
-                            .h_64()
-                            .px_3()
-                            .py_2()
-                            .bg(rgb(0x00f8_f9fa))
-                            .border_1()
-                            .border_color(rgb(0x00cc_cccc))
-                            .child("请稍等，正在处理请求..."),
-                    )
-            } else {
-                match (&self.response_status, &self.response_body) {
-                    (Some(status), Some(body)) => div()
-                        .flex()
-                        .flex_col()
-                        .gap_2()
-                        .child(
-                            div()
-                                .child(format!("Status: {status}"))
-                                .text_color(if *status == 0 {
-                                    rgb(0x00dc_3545) // 错误
-                                } else if *status < 400 {
-                                    rgb(0x0028_a745) // 成功
-                                } else {
-                                    rgb(0x00dc_3545) // 客户端/服务器错误
-                                })
-                                .font_weight(FontWeight::MEDIUM),
-                        )
-                        .child(
-                            div()
-                                .w_full()
-                                .h_64()
-                                .px_3()
-                                .py_2()
-                                .bg(rgb(0x00f8_f9fa))
-                                .border_1()
-                                .border_color(rgb(0x00cc_cccc))
-                                .child(
-                                    div()
-                                        .text_size(px(12.0))
-                                        .font_family("monospace")
-                                        .child(body.clone()),
-                                ),
-                        ),
-                    _ => div()
-                        .w_full()
-                        .h_64()
-                        .px_3()
-                        .py_2()
-                        .bg(rgb(0x00f8_f9fa))
-                        .border_1()
-                        .border_color(rgb(0x00cc_cccc))
-                        .child("No response yet..."),
-                }
-            })
-    }
 }
 
 impl Render for PostmanApp {
@@ -857,7 +774,7 @@ impl Render for PostmanApp {
                     .bg(rgb(0x00ff_ffff))
                     .border_1()
                     .border_color(rgb(0x00cc_cccc))
-                    .child(self.render_response_panel(cx)),
+                    .child(self.response_viewer.clone()),
             )
     }
 }
