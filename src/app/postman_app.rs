@@ -1,5 +1,5 @@
 use crate::{
-    http::client::HttpClient,
+    http::executor::RequestExecutor,
     ui::components::{
         body_input::{setup_body_input_key_bindings, BodyInput},
         header_input::{setup_header_input_key_bindings, HeaderInput},
@@ -23,8 +23,8 @@ pub struct PostmanApp {
     // Body - 使用BodyInput组件替代字符串
     body_input: Entity<BodyInput>,
 
-    // HTTP Client
-    http_client: HttpClient,
+    // HTTP Request Executor
+    request_executor: RequestExecutor,
 
     // Response viewer component
     response_viewer: Entity<ResponseViewer>,
@@ -58,7 +58,7 @@ impl PostmanApp {
             url_input,
             headers: Vec::new(),
             body_input,
-            http_client: HttpClient::new(),
+            request_executor: RequestExecutor::new(),
             response_viewer,
             header_key_input,
             header_value_input,
@@ -144,133 +144,34 @@ impl PostmanApp {
             .method_selector
             .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
-
-        // 验证URL是否为空
-        if url.trim().is_empty() {
-            println!("❌ PostmanApp - URL不能为空");
-            self.response_viewer.update(cx, |viewer, cx| {
-                viewer.set_error("Error: URL cannot be empty".to_string(), cx);
-            });
-            cx.notify();
-            return;
-        }
-
-        println!("🚀 PostmanApp - 开始发送请求");
-        println!("📋 PostmanApp - 请求详情:");
-        println!("   Method: {method}");
-        println!("   URL: {url}");
-        println!("   Headers Count: {}", self.headers.len());
-
-        // 打印所有headers
-        if !self.headers.is_empty() {
-            println!("   Headers:");
-            for (i, (key, value)) in self.headers.iter().enumerate() {
-                println!("     {}. {} = {}", i + 1, key, value);
-            }
+        let headers = self.headers.clone();
+        let body = if method.to_uppercase() == "POST" {
+            Some(self.body_input.read(cx).get_content().to_string())
         } else {
-            println!("   Headers: None");
-        }
+            None
+        };
 
-        // 打印请求体信息
-        if method.to_uppercase() == "POST" {
-            let body_content = self.body_input.read(cx).get_content();
-            println!("   Body Length: {} bytes", body_content.len());
-            if !body_content.is_empty() {
-                println!(
-                    "   Body Preview: {}",
-                    if body_content.len() > 200 {
-                        format!("{}... (truncated)", &body_content[..200])
-                    } else {
-                        body_content.to_string()
-                    }
-                );
-            } else {
-                println!("   Body: Empty");
+        // 设置加载状态
+        self.response_viewer.update(cx, |viewer, cx| {
+            viewer.set_loading(cx);
+        });
+        cx.notify();
+
+        // 执行请求
+        let result = self.request_executor.execute(&method, &url, headers, body);
+
+        // 处理结果
+        match result {
+            Ok(request_result) => {
+                self.response_viewer.update(cx, |viewer, cx| {
+                    viewer.set_success(request_result.status, request_result.body, cx);
+                });
             }
-        }
-
-        // 支持GET和POST请求
-        if method.to_uppercase() == "GET" || method.to_uppercase() == "POST" {
-            // 设置加载状态
-            self.response_viewer.update(cx, |viewer, cx| {
-                viewer.set_loading(cx);
-            });
-            cx.notify();
-
-            println!("📡 PostmanApp - 正在发送{}请求...", method.to_uppercase());
-
-            // 使用 tokio 的 block_on 来同步执行异步请求
-            let client = &self.http_client;
-            let rt = tokio::runtime::Runtime::new().unwrap();
-
-            let result = if method.to_uppercase() == "GET" {
-                println!("🔍 PostmanApp - 执行GET请求，不包含请求体");
-                rt.block_on(client.get(&url))
-            } else {
-                // POST 请求
-                let headers = if self.headers.is_empty() {
-                    println!("📝 PostmanApp - POST请求，无自定义headers");
-                    None
-                } else {
-                    let mut header_map = std::collections::HashMap::new();
-                    for (key, value) in &self.headers {
-                        header_map.insert(key.clone(), value.clone());
-                    }
-                    println!(
-                        "📝 PostmanApp - POST请求，包含{}个自定义headers",
-                        header_map.len()
-                    );
-                    Some(header_map)
-                };
-
-                let body_content = self.body_input.read(cx).get_content().to_string();
-                println!(
-                    "📤 PostmanApp - 执行POST请求，Body大小: {} bytes",
-                    body_content.len()
-                );
-                rt.block_on(client.post(&url, &body_content, headers))
-            };
-
-            match result {
-                Ok(response_body) => {
-                    self.response_viewer.update(cx, |viewer, cx| {
-                        viewer.set_success(200, response_body.clone(), cx);
-                    });
-
-                    println!("✅ PostmanApp - {}请求成功!", method.to_uppercase());
-                    println!("📊 PostmanApp - 响应信息:");
-                    println!("   Status: 200 OK");
-                    println!("   Response Length: {} bytes", response_body.len());
-                    println!(
-                        "   Response Preview: {}",
-                        if response_body.len() > 300 {
-                            format!("{}... (truncated)", &response_body[..300])
-                        } else {
-                            response_body
-                        }
-                    );
-                }
-                Err(e) => {
-                    self.response_viewer.update(cx, |viewer, cx| {
-                        viewer.set_error(format!("请求失败: {e}"), cx);
-                    });
-
-                    println!("❌ PostmanApp - {}请求失败!", method.to_uppercase());
-                    println!("💥 PostmanApp - 错误详情:");
-                    println!("   Error: {e}");
-                    println!("   可能的原因:");
-                    println!("     - 网络连接问题");
-                    println!("     - 服务器未响应");
-                    println!("     - URL格式错误");
-                    println!("     - 服务器返回错误状态码");
-                }
+            Err(error_message) => {
+                self.response_viewer.update(cx, |viewer, cx| {
+                    viewer.set_error(error_message, cx);
+                });
             }
-        } else {
-            self.response_viewer.update(cx, |viewer, cx| {
-                viewer.set_error(format!("Method {method} not implemented yet"), cx);
-            });
-            println!("⚠️ PostmanApp - 方法 {method} 尚未实现");
-            println!("📋 PostmanApp - 当前支持的方法: GET, POST");
         }
 
         println!("🏁 PostmanApp - 请求处理完成");
