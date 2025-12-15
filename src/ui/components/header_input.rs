@@ -618,10 +618,12 @@ impl Element for HeaderTextElement {
                 strikethrough: None,
             };
 
-            let content_line =
-                window
-                    .text_system()
-                    .shape_line(input.content.clone(), font_size, &[content_run], None);
+            let content_line = window.text_system().shape_line(
+                input.content.clone(),
+                font_size,
+                &[content_run],
+                None,
+            );
 
             input.last_layout = Some(content_line);
             input.last_bounds = Some(bounds);
