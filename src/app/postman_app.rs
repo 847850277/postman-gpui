@@ -675,10 +675,10 @@ impl PostmanApp {
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
                                     let sample_json = r#"{
-  "name": "John Doe",
-  "email": "john.doe@example.com",
-  "age": 30
-}"#
+                                                                "name": "John Doe",
+                                                                "email": "john.doe@example.com",
+                                                                "age": 30
+                                                                }"#
                                     .to_string();
                                     this.body_input.update(cx, |input, cx| {
                                         input.set_content(sample_json, cx);
@@ -735,7 +735,7 @@ impl PostmanApp {
                     .child(
                         div()
                             .w_full()
-                            .h_32()
+                            .h_64()
                             .px_3()
                             .py_2()
                             .bg(rgb(0x00f8_f9fa))
@@ -764,7 +764,7 @@ impl PostmanApp {
                         .child(
                             div()
                                 .w_full()
-                                .h_40()
+                                .h_64()
                                 .px_3()
                                 .py_2()
                                 .bg(rgb(0x00f8_f9fa))
@@ -779,7 +779,7 @@ impl PostmanApp {
                         ),
                     _ => div()
                         .w_full()
-                        .h_32()
+                        .h_64()
                         .px_3()
                         .py_2()
                         .bg(rgb(0x00f8_f9fa))
