@@ -1,5 +1,4 @@
 // src/ui/components/mod.rs
-pub mod body_editor;
 pub mod body_input;
 pub mod dropdown;
 pub mod header_input;
