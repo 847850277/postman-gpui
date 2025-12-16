@@ -70,7 +70,10 @@ mod tests {
         let mut request = Request::new("GET", "https://api.example.com");
         request.add_header("Authorization", "Bearer token123");
         assert_eq!(request.headers.len(), 1);
-        assert_eq!(request.headers[0], ("Authorization".to_string(), "Bearer token123".to_string()));
+        assert_eq!(
+            request.headers[0],
+            ("Authorization".to_string(), "Bearer token123".to_string())
+        );
     }
 
     #[test]
@@ -85,10 +88,13 @@ mod tests {
         let mut request = Request::new("GET", "https://api.example.com");
         request.add_header("Content-Type", "application/json");
         request.add_header("Authorization", "Bearer token");
-        
+
         let map = request.headers_as_map();
         assert_eq!(map.len(), 2);
-        assert_eq!(map.get("Content-Type"), Some(&"application/json".to_string()));
+        assert_eq!(
+            map.get("Content-Type"),
+            Some(&"application/json".to_string())
+        );
     }
 
     #[test]

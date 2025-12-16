@@ -1,7 +1,7 @@
 pub struct Workspace {
     pub name: String,
     pub collections: Vec<String>, // List of collection names
-    pub requests: Vec<String>,     // List of request names
+    pub requests: Vec<String>,    // List of request names
 }
 
 impl Workspace {
