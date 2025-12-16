@@ -1,4 +1,5 @@
 use crate::http::client::HttpClient;
+use crate::models::Request;
 use std::collections::HashMap;
 
 /// HTTP 请求执行结果
@@ -33,7 +34,17 @@ impl RequestExecutor {
         }
     }
 
-    /// 执行 HTTP 请求
+    /// 执行 HTTP 请求（接受统一的 Request 模型）
+    pub fn execute_request(&self, request: &Request) -> Result<RequestResult, String> {
+        self.execute(
+            &request.method,
+            &request.url,
+            request.headers.clone(),
+            request.body.clone(),
+        )
+    }
+
+    /// 执行 HTTP 请求（保留原有接口以兼容）
     pub fn execute(
         &self,
         method: &str,

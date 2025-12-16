@@ -4,6 +4,25 @@
 - [x] 一个文件拆分为按模块
 - [x] Response 改造为组件 (issue #7)
 - [x] 将发送请求逻辑拆分到 http 模块
+- [x] **优化和删除重复文件 (issue #9)**
+  - [x] 删除 `src/ui/components/body_editor.rs`
+  - [x] 删除未使用的 `src/ui/components/text_input.rs`
+  - [x] 删除空文件 `src/utils/helpers.rs`
+- [x] **统一 Request 模型**
+  - [x] 创建 `src/models/request.rs` 统一的 Request 模型
+  - [x] 删除重复的 `http/request.rs`
+  - [x] 更新 `collection.rs` 使用统一模型
+  - [x] 完善 `models/mod.rs` 导出
+- [x] **添加 GitHub Actions CI/CD**
+  - [x] 创建 `.github/workflows/ci.yml` 工作流
+  - [x] 配置跨平台构建（Ubuntu, macOS, Windows）
+  - [x] 集成 cargo build、cargo test、cargo run
+  - [x] 添加代码格式检查（cargo fmt）
+  - [x] 添加代码质量检查（cargo clippy）
+  - [x] 添加安全审计（cargo audit）
+  - [x] 配置缓存优化构建速度
+  - [x] 在 `RequestExecutor` 中添加 `execute_request` 方法支持新模型
+  - [x] 为 Request 模型添加完整的单元测试
 
 ---
 
@@ -11,27 +30,27 @@
 
 ### 高优先级 🔴
 
-#### 1. 删除冗余和未使用的模块
-- [ ] 删除 `src/ui/components/body_editor.rs` - 功能已被 `body_input.rs` 完全覆盖
-- [ ] 检查并删除未使用的 `src/ui/components/text_input.rs`
-- [ ] 删除空文件 `src/utils/helpers.rs` 或添加实际内容
-- [ ] 完善 `src/models/mod.rs` - 当前为空文件，需要正确导出模块
+#### 1. ~~删除冗余和未使用的模块~~ ✅ 已完成
+- [x] 删除 `src/ui/components/body_editor.rs` - 功能已被 `body_input.rs` 完全覆盖
+- [x] 检查并删除未使用的 `src/ui/components/text_input.rs`
+- [x] 删除空文件 `src/utils/helpers.rs` 或添加实际内容
+- [x] 完善 `src/models/mod.rs` - 当前为空文件，需要正确导出模块
 
-#### 2. 统一 Request 模型 ⚠️
+#### 2. ~~统一 Request 模型~~ ✅ 已完成
 **问题：** `models/collection.rs` 和 `http/request.rs` 中定义了两个不同的 Request 结构体
-- [ ] 在 `src/models/` 中创建统一的 `request.rs` 模块
-- [ ] 重构 `http/request.rs`，使用 `models::Request` 或明确区分用途
-- [ ] 更新所有引用，确保使用统一的 Request 模型
-- [ ] 考虑将 `http/response.rs` 也移到 `models/` 下
+- [x] 在 `src/models/` 中创建统一的 `request.rs` 模块
+- [x] 重构 `http/request.rs`，使用 `models::Request` 或明确区分用途
+- [x] 更新所有引用，确保使用统一的 Request 模型
+- [ ] 考虑将 `http/response.rs` 也移到 `models/` 下（可选）
 
-#### 3. 完善 models 模块
-- [ ] 在 `models/mod.rs` 中添加：
+#### 3. ~~完善 models 模块~~ ✅ 已完成
+- [x] 在 `models/mod.rs` 中添加：
   ```rust
   pub mod request;
   pub mod response;
   pub mod collection;
   ```
-- [ ] 确保所有数据模型都通过 models 模块导出
+- [x] 确保所有数据模型都通过 models 模块导出
 
 ---
 

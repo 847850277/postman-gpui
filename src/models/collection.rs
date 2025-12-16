@@ -1,10 +1,4 @@
-#[derive(Debug, Clone)]
-pub struct Request {
-    pub method: String,
-    pub url: String,
-    pub headers: Vec<(String, String)>,
-    pub body: Option<String>,
-}
+use super::request::Request;
 
 #[derive(Debug, Clone)]
 pub struct Collection {
