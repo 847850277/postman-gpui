@@ -13,6 +13,14 @@
   - [x] 删除重复的 `http/request.rs`
   - [x] 更新 `collection.rs` 使用统一模型
   - [x] 完善 `models/mod.rs` 导出
+- [x] **添加 GitHub Actions CI/CD**
+  - [x] 创建 `.github/workflows/ci.yml` 工作流
+  - [x] 配置跨平台构建（Ubuntu, macOS, Windows）
+  - [x] 集成 cargo build、cargo test、cargo run
+  - [x] 添加代码格式检查（cargo fmt）
+  - [x] 添加代码质量检查（cargo clippy）
+  - [x] 添加安全审计（cargo audit）
+  - [x] 配置缓存优化构建速度
   - [x] 在 `RequestExecutor` 中添加 `execute_request` 方法支持新模型
   - [x] 为 Request 模型添加完整的单元测试
 
