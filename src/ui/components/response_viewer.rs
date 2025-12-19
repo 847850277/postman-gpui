@@ -46,7 +46,7 @@ pub struct ResponseViewer {
     selected_range: Range<usize>,
     is_selecting: bool,
     last_bounds: Option<Bounds<Pixels>>,
-    last_layout: Option<ShapedLine>,
+    last_lines_layout: Vec<(ShapedLine, usize)>, // (shaped_line, char_offset)
 }
 
 impl Focusable for ResponseViewer {
@@ -63,7 +63,7 @@ impl ResponseViewer {
             selected_range: 0..0,
             is_selecting: false,
             last_bounds: None,
-            last_layout: None,
+            last_lines_layout: Vec::new(),
         }
     }
 
@@ -111,8 +111,6 @@ impl ResponseViewer {
         if !self.selected_range.is_empty() {
             let content = self.get_content();
             if !content.is_empty() {
-                // Use character-based slicing to avoid UTF-8 boundary issues
-                // chars().skip().take() naturally handles out-of-bounds indices
                 let selected_text: String = content
                     .chars()
                     .skip(self.selected_range.start)
@@ -128,7 +126,6 @@ impl ResponseViewer {
 
     fn select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
         let content = self.get_content();
-        // Use character count instead of byte length for consistency with character-based indexing
         self.selected_range = 0..content.chars().count();
         cx.notify();
     }
@@ -159,7 +156,6 @@ impl ResponseViewer {
             let index = self.index_for_mouse_position(event.position);
             let selection_start = self.selected_range.start;
             
-            // Normalize the range: always ensure start <= end
             if index < selection_start {
                 self.selected_range = index..selection_start;
             } else {
@@ -171,23 +167,11 @@ impl ResponseViewer {
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        // Try to use accurate text layout if available
-        if let (Some(last_bounds), Some(last_layout)) = (&self.last_bounds, &self.last_layout) {
-            // Convert to local coordinates
-            if let Some(line_point) = last_bounds.localize(&position) {
-                if let Some(index) = last_layout.index_for_x(line_point.x) {
-                    return index;
-                }
-            }
-        }
-        
-        // Fallback to approximation if layout not available
         let content = self.get_content();
         if content.is_empty() {
             return 0;
         }
         
-        // Use mathematical calculation to estimate line and column based on position
         let estimated_line = {
             let mut line_estimate = 0;
             for threshold in 1..=100 {
@@ -212,13 +196,12 @@ impl ResponseViewer {
             col_estimate
         };
         
-        // Convert line and column to character index
         let lines: Vec<&str> = content.lines().collect();
         let mut char_index = 0;
         
         for (i, line) in lines.iter().enumerate() {
             if i < estimated_line {
-                char_index += line.chars().count() + 1; // +1 for newline
+                char_index += line.chars().count() + 1;
             } else if i == estimated_line {
                 let line_char_count = line.chars().count();
                 char_index += estimated_column.min(line_char_count);
@@ -226,12 +209,10 @@ impl ResponseViewer {
             }
         }
         
-        // Handle case where click is beyond the last line
         if estimated_line >= lines.len() {
             char_index = content.chars().count();
         }
         
-        // Ensure index is within bounds
         char_index.min(content.chars().count())
     }
 
@@ -253,24 +234,24 @@ impl ResponseViewer {
             .border_1()
             .border_color(rgb(0x00cc_cccc))
             .overflow_scroll()
-            .child(ResponseTextElement {
+            .child(MultiLineTextElement {
                 viewer: cx.entity().clone(),
             })
     }
 }
 
-// Custom text element for rendering response content with selection
-struct ResponseTextElement {
+// Custom text element for rendering multi-line response content with selection
+struct MultiLineTextElement {
     viewer: Entity<ResponseViewer>,
 }
 
 struct PrepaintState {
-    line: Option<ShapedLine>,
-    selection: Option<PaintQuad>,
+    lines: Vec<(ShapedLine, usize)>,
+    selections: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
 }
 
-impl IntoElement for ResponseTextElement {
+impl IntoElement for MultiLineTextElement {
     type Element = Self;
 
     fn into_element(self) -> Self::Element {
@@ -278,7 +259,7 @@ impl IntoElement for ResponseTextElement {
     }
 }
 
-impl Element for ResponseTextElement {
+impl Element for MultiLineTextElement {
     type RequestLayoutState = ();
     type PrepaintState = PrepaintState;
 
@@ -300,12 +281,10 @@ impl Element for ResponseTextElement {
         let mut style = Style::default();
         style.size.width = gpui::relative(1.).into();
         
-        // Calculate height based on content line count
         let viewer = self.viewer.read(cx);
         let content = viewer.get_content();
         let line_count = content.lines().count().max(1);
         let line_height = window.line_height();
-        // Use relative height - let the container handle scrolling
         style.size.height = (line_height * line_count as f32).into();
         
         (window.request_layout(style, [], cx), ())
@@ -325,72 +304,174 @@ impl Element for ResponseTextElement {
         let selected_range = viewer.selected_range.clone();
         
         let style = window.text_style();
-        let font_size = px(12.0); // Match the text size in the old implementation
+        let font_size = px(12.0);
+        let line_height = window.line_height();
         
-        let run = TextRun {
-            len: content.len(),
-            font: style.font(),
-            color: style.color,
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        };
+        let lines: Vec<&str> = content.lines().collect();
+        let mut shaped_lines = Vec::new();
+        let mut char_offset = 0;
         
-        let shaped_line = window
-            .text_system()
-            .shape_line(content.clone().into(), font_size.into(), &[run], None);
+        for line in &lines {
+            let run = TextRun {
+                len: line.len(),
+                font: style.font(),
+                color: style.color,
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            
+            let shaped_line = window
+                .text_system()
+                .shape_line((*line).to_string().into(), font_size.into(), &[run], None);
+            
+            shaped_lines.push((shaped_line, char_offset));
+            char_offset += line.chars().count() + 1;
+        }
         
-        // Calculate cursor position
-        let cursor_pos = if content.is_empty() {
-            px(0.0)
-        } else {
-            shaped_line.x_for_index(selected_range.start)
-        };
+        let mut selections = Vec::new();
+        let mut cursor = None;
         
-        // Calculate selection visual and cursor (cursor only shows when no selection)
-        let (selection, cursor) = if selected_range.is_empty() {
-            // Show cursor when no selection
-            (
-                None,
-                Some(fill(
-                    Bounds::new(
-                        point(bounds.left() + cursor_pos, bounds.top()),
-                        gpui::size(px(2.), bounds.bottom() - bounds.top()),
-                    ),
-                    rgb(0x0000_7acc), // Blue cursor
-                )),
-            )
-        } else if !content.is_empty() {
-            // Show selection when text is selected
-            (
-                Some(fill(
-                    Bounds::from_corners(
-                        point(
-                            bounds.left() + shaped_line.x_for_index(selected_range.start),
-                            bounds.top(),
+        if selected_range.is_empty() && !content.is_empty() {
+            let cursor_char = selected_range.start;
+            let mut current_offset = 0;
+            
+            for (line_idx, (_shaped_line, _)) in shaped_lines.iter().enumerate() {
+                let line_len = if line_idx < lines.len() {
+                    lines[line_idx].chars().count()
+                } else {
+                    0
+                };
+                
+                if cursor_char >= current_offset && cursor_char <= current_offset + line_len {
+                    let local_pos = cursor_char - current_offset;
+                    let x_pos = if local_pos == 0 {
+                        px(0.0)
+                    } else {
+                        let line_text: String = lines[line_idx].chars().take(local_pos).collect();
+                        let temp_run = TextRun {
+                            len: line_text.len(),
+                            font: style.font(),
+                            color: style.color,
+                            background_color: None,
+                            underline: None,
+                            strikethrough: None,
+                        };
+                        let temp_line = window.text_system().shape_line(
+                            line_text.into(),
+                            font_size.into(),
+                            &[temp_run],
+                            None,
+                        );
+                        temp_line.x_for_index(temp_line.len())
+                    };
+                    
+                    cursor = Some(fill(
+                        Bounds::new(
+                            point(
+                                bounds.left() + x_pos,
+                                bounds.top() + line_height * line_idx as f32,
+                            ),
+                            gpui::size(px(2.), line_height),
                         ),
-                        point(
-                            bounds.left() + shaped_line.x_for_index(selected_range.end),
-                            bounds.bottom(),
+                        rgb(0x0000_7acc),
+                    ));
+                    break;
+                }
+                
+                current_offset += line_len + 1;
+            }
+        } else if !selected_range.is_empty() && !content.is_empty() {
+            let mut current_offset = 0;
+            
+            for (line_idx, (shaped_line, _)) in shaped_lines.iter().enumerate() {
+                let line_len = if line_idx < lines.len() {
+                    lines[line_idx].chars().count()
+                } else {
+                    0
+                };
+                
+                let line_start = current_offset;
+                let line_end = current_offset + line_len;
+                
+                if selected_range.end > line_start && selected_range.start < line_end {
+                    let sel_start = selected_range.start.max(line_start).min(line_end);
+                    let sel_end = selected_range.end.max(line_start).min(line_end);
+                    
+                    let local_start = sel_start - line_start;
+                    let local_end = sel_end - line_start;
+                    
+                    let start_x = if local_start == 0 {
+                        px(0.0)
+                    } else {
+                        let text_before: String = lines[line_idx].chars().take(local_start).collect();
+                        let temp_run = TextRun {
+                            len: text_before.len(),
+                            font: style.font(),
+                            color: style.color,
+                            background_color: None,
+                            underline: None,
+                            strikethrough: None,
+                        };
+                        let temp_line = window.text_system().shape_line(
+                            text_before.into(),
+                            font_size.into(),
+                            &[temp_run],
+                            None,
+                        );
+                        temp_line.x_for_index(temp_line.len())
+                    };
+                    
+                    let end_x = if local_end == 0 {
+                        px(0.0)
+                    } else if local_end >= line_len {
+                        shaped_line.width
+                    } else {
+                        let text_before: String = lines[line_idx].chars().take(local_end).collect();
+                        let temp_run = TextRun {
+                            len: text_before.len(),
+                            font: style.font(),
+                            color: style.color,
+                            background_color: None,
+                            underline: None,
+                            strikethrough: None,
+                        };
+                        let temp_line = window.text_system().shape_line(
+                            text_before.into(),
+                            font_size.into(),
+                            &[temp_run],
+                            None,
+                        );
+                        temp_line.x_for_index(temp_line.len())
+                    };
+                    
+                    selections.push(fill(
+                        Bounds::from_corners(
+                            point(
+                                bounds.left() + start_x,
+                                bounds.top() + line_height * line_idx as f32,
+                            ),
+                            point(
+                                bounds.left() + end_x,
+                                bounds.top() + line_height * (line_idx + 1) as f32,
+                            ),
                         ),
-                    ),
-                    rgba(0x3366_ff55), // Semi-transparent blue selection
-                )),
-                None,
-            )
-        } else {
-            (None, None)
-        };
+                        rgba(0x3366_ff55),
+                    ));
+                }
+                
+                current_offset += line_len + 1;
+            }
+        }
         
-        // Store layout for click handling
         self.viewer.update(cx, |viewer, _cx| {
-            viewer.last_layout = Some(shaped_line.clone());
+            viewer.last_lines_layout = shaped_lines.clone();
             viewer.last_bounds = Some(bounds);
         });
         
         PrepaintState {
-            line: Some(shaped_line),
-            selection,
+            lines: shaped_lines,
+            selections,
             cursor,
         }
     }
@@ -403,21 +484,24 @@ impl Element for ResponseTextElement {
         _request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
         window: &mut Window,
-        _cx: &mut App,
+        cx: &mut App,
     ) {
-        // Paint selection first (behind text)
-        if let Some(selection) = prepaint.selection.take() {
-            window.paint_quad(selection);
+        let line_height = window.line_height();
+        
+        for selection in &prepaint.selections {
+            window.paint_quad(selection.clone());
         }
         
-        // Paint cursor (behind text but after selection)
-        if let Some(cursor) = prepaint.cursor.take() {
-            window.paint_quad(cursor);
+        if let Some(cursor) = &prepaint.cursor {
+            window.paint_quad(cursor.clone());
         }
         
-        // Paint text
-        if let Some(line) = &prepaint.line {
-            line.paint(bounds.origin, window.line_height(), window, _cx).ok();
+        for (line_idx, (shaped_line, _)) in prepaint.lines.iter().enumerate() {
+            let origin = point(
+                bounds.origin.x,
+                bounds.origin.y + line_height * line_idx as f32,
+            );
+            shaped_line.paint(origin, line_height, window, cx).ok();
         }
     }
 }
