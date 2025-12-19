@@ -1,8 +1,9 @@
 use gpui::{
-    actions, div, px, rgb, ClipboardItem, Context, FocusHandle, Focusable, FontWeight,
-    InteractiveElement, IntoElement, KeyBinding, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, ParentElement, Pixels, Point, Render, StatefulInteractiveElement, Styled,
-    Window,
+    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, Element,
+    ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement,
+    IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement,
+    Style, Styled, TextRun, Window,
 };
 use std::ops::Range;
 
@@ -44,6 +45,8 @@ pub struct ResponseViewer {
     focus_handle: FocusHandle,
     selected_range: Range<usize>,
     is_selecting: bool,
+    last_bounds: Option<Bounds<Pixels>>,
+    last_layout: Option<ShapedLine>,
 }
 
 impl Focusable for ResponseViewer {
@@ -59,6 +62,8 @@ impl ResponseViewer {
             focus_handle: cx.focus_handle(),
             selected_range: 0..0,
             is_selecting: false,
+            last_bounds: None,
+            last_layout: None,
         }
     }
 
@@ -166,18 +171,24 @@ impl ResponseViewer {
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        // LIMITATION: This is a rough approximation for monospace text
-        // A production implementation should use GPUI's text layout APIs for accurate positioning
+        // Try to use accurate text layout if available
+        if let (Some(last_bounds), Some(last_layout)) = (&self.last_bounds, &self.last_layout) {
+            // Convert to local coordinates
+            if let Some(line_point) = last_bounds.localize(&position) {
+                if let Some(index) = last_layout.index_for_x(line_point.x) {
+                    return index;
+                }
+            }
+        }
         
+        // Fallback to approximation if layout not available
         let content = self.get_content();
         if content.is_empty() {
             return 0;
         }
         
         // Use mathematical calculation to estimate line and column based on position
-        // This uses approximate metrics but works better than hardcoded thresholds
         let estimated_line = {
-            // Calculate approximate line by dividing Y position by line height
             let mut line_estimate = 0;
             for threshold in 1..=100 {
                 if position.y > px(CONTENT_PADDING_PX + APPROX_LINE_HEIGHT_PX * threshold as f32) {
@@ -190,7 +201,6 @@ impl ResponseViewer {
         };
         
         let estimated_column = {
-            // Calculate approximate column by dividing X position by character width
             let mut col_estimate = 0;
             for threshold in 1..=200 {
                 if position.x > px(CONTENT_PADDING_PX + APPROX_CHAR_WIDTH_PX * threshold as f32) {
@@ -225,7 +235,7 @@ impl ResponseViewer {
         char_index.min(content.chars().count())
     }
 
-    fn render_selectable_content(&self, content: &str, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_selectable_content(&self, _content: &str, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .id("response-content")
             .track_focus(&self.focus_handle(cx))
@@ -243,12 +253,142 @@ impl ResponseViewer {
             .border_1()
             .border_color(rgb(0x00cc_cccc))
             .overflow_scroll()
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .font_family("monospace")
-                    .child(content.to_string()),
-            )
+            .child(ResponseTextElement {
+                viewer: cx.entity().clone(),
+            })
+    }
+}
+
+// Custom text element for rendering response content with selection
+struct ResponseTextElement {
+    viewer: Entity<ResponseViewer>,
+}
+
+struct PrepaintState {
+    line: Option<ShapedLine>,
+    selection: Option<PaintQuad>,
+}
+
+impl IntoElement for ResponseTextElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for ResponseTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = PrepaintState;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = Style::default();
+        style.size.width = gpui::relative(1.).into();
+        
+        // Calculate height based on content line count
+        let viewer = self.viewer.read(cx);
+        let content = viewer.get_content();
+        let line_count = content.lines().count().max(1);
+        let line_height = window.line_height();
+        // Use relative height - let the container handle scrolling
+        style.size.height = (line_height * line_count as f32).into();
+        
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let viewer = self.viewer.read(cx);
+        let content = viewer.get_content();
+        let selected_range = viewer.selected_range.clone();
+        
+        let style = window.text_style();
+        let font_size = px(12.0); // Match the text size in the old implementation
+        
+        let run = TextRun {
+            len: content.len(),
+            font: style.font(),
+            color: style.color,
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+        
+        let shaped_line = window
+            .text_system()
+            .shape_line(content.clone().into(), font_size.into(), &[run], None);
+        
+        // Calculate selection visual
+        let selection = if !selected_range.is_empty() && !content.is_empty() {
+            Some(fill(
+                Bounds::from_corners(
+                    point(
+                        bounds.left() + shaped_line.x_for_index(selected_range.start),
+                        bounds.top(),
+                    ),
+                    point(
+                        bounds.left() + shaped_line.x_for_index(selected_range.end),
+                        bounds.bottom(),
+                    ),
+                ),
+                rgba(0x3366_ff55), // Semi-transparent blue selection
+            ))
+        } else {
+            None
+        };
+        
+        // Store layout for click handling
+        self.viewer.update(cx, |viewer, _cx| {
+            viewer.last_layout = Some(shaped_line.clone());
+            viewer.last_bounds = Some(bounds);
+        });
+        
+        PrepaintState {
+            line: Some(shaped_line),
+            selection,
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        _cx: &mut App,
+    ) {
+        // Paint selection first (behind text)
+        if let Some(selection) = prepaint.selection.take() {
+            window.paint_quad(selection);
+        }
+        
+        // Paint text
+        if let Some(line) = &prepaint.line {
+            line.paint(bounds.origin, window.line_height(), window, _cx).ok();
+        }
     }
 }
 
