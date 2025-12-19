@@ -6,6 +6,11 @@ use gpui::{
 };
 use std::ops::Range;
 
+// Approximate font metrics for 12px monospace font
+const APPROX_CHAR_WIDTH_PX: f32 = 7.2;
+const APPROX_LINE_HEIGHT_PX: f32 = 16.0;
+const CONTENT_PADDING_PX: f32 = 12.0; // px_3() = 12px padding
+
 actions!(
     response_viewer,
     [Copy, SelectAll]
@@ -101,15 +106,12 @@ impl ResponseViewer {
         if !self.selected_range.is_empty() {
             let content = self.get_content();
             if !content.is_empty() {
-                // Ensure indices are within bounds and on character boundaries
-                let start = self.selected_range.start.min(content.len());
-                let end = self.selected_range.end.min(content.len());
-                
                 // Use character-based slicing to avoid UTF-8 boundary issues
+                // chars().skip().take() naturally handles out-of-bounds indices
                 let selected_text: String = content
                     .chars()
-                    .skip(start)
-                    .take(end.saturating_sub(start))
+                    .skip(self.selected_range.start)
+                    .take(self.selected_range.end.saturating_sub(self.selected_range.start))
                     .collect();
                 
                 if !selected_text.is_empty() {
@@ -150,13 +152,13 @@ impl ResponseViewer {
     ) {
         if self.is_selecting {
             let index = self.index_for_mouse_position(event.position);
-            let start = self.selected_range.start;
+            let selection_start = self.selected_range.start;
             
             // Normalize the range: always ensure start <= end
-            if index < start {
-                self.selected_range = index..start;
+            if index < selection_start {
+                self.selected_range = index..selection_start;
             } else {
-                self.selected_range = start..index;
+                self.selected_range = selection_start..index;
             }
             
             cx.notify();
@@ -164,77 +166,59 @@ impl ResponseViewer {
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        // LIMITATION: This is a rough approximation using fixed thresholds
+        // LIMITATION: This is a rough approximation for monospace text
         // A production implementation should use GPUI's text layout APIs for accurate positioning
-        // The current approach provides basic functionality but won't be pixel-perfect
-        // 
-        // The hardcoded thresholds work reasonably well for typical response sizes
-        // but may be inaccurate for very long lines or different font sizes
         
         let content = self.get_content();
         if content.is_empty() {
             return 0;
         }
         
-        // Approximate character dimensions for 12px monospace font
-        // These are rough estimates - actual positioning would require text layout info
-        let char_width_px = 7.2;
-        let line_height_px = 16.0;
-        let padding_px = 12.0; // px_3() = 12px padding
-        
-        // Convert position to approximate line and column
-        // Note: We can't access Pixels internal value directly, so we work around it
-        // by using comparison with known pixel values
-        let adjusted_y = if position.y > px(padding_px) {
-            // Approximate by comparing with reference pixels
-            let lines = if position.y > px(padding_px + line_height_px * 10.0) {
-                10
-            } else if position.y > px(padding_px + line_height_px * 5.0) {
-                5
-            } else if position.y > px(padding_px + line_height_px * 2.0) {
-                2
-            } else if position.y > px(padding_px + line_height_px) {
-                1
-            } else {
-                0
-            };
-            lines
-        } else {
-            0
+        // Use mathematical calculation to estimate line and column based on position
+        // This uses approximate metrics but works better than hardcoded thresholds
+        let estimated_line = {
+            // Calculate approximate line by dividing Y position by line height
+            let mut line_estimate = 0;
+            for threshold in 1..=100 {
+                if position.y > px(CONTENT_PADDING_PX + APPROX_LINE_HEIGHT_PX * threshold as f32) {
+                    line_estimate = threshold;
+                } else {
+                    break;
+                }
+            }
+            line_estimate
         };
         
-        let adjusted_x = if position.x > px(padding_px) {
-            // Similar approximation for column
-            let cols = if position.x > px(padding_px + char_width_px * 50.0) {
-                50
-            } else if position.x > px(padding_px + char_width_px * 20.0) {
-                20
-            } else if position.x > px(padding_px + char_width_px * 10.0) {
-                10
-            } else if position.x > px(padding_px + char_width_px * 5.0) {
-                5
-            } else if position.x > px(padding_px + char_width_px) {
-                1
-            } else {
-                0
-            };
-            cols
-        } else {
-            0
+        let estimated_column = {
+            // Calculate approximate column by dividing X position by character width
+            let mut col_estimate = 0;
+            for threshold in 1..=200 {
+                if position.x > px(CONTENT_PADDING_PX + APPROX_CHAR_WIDTH_PX * threshold as f32) {
+                    col_estimate = threshold;
+                } else {
+                    break;
+                }
+            }
+            col_estimate
         };
         
-        // Calculate character index from line and column
+        // Convert line and column to character index
         let lines: Vec<&str> = content.lines().collect();
         let mut char_index = 0;
         
         for (i, line) in lines.iter().enumerate() {
-            if i < adjusted_y {
+            if i < estimated_line {
                 char_index += line.chars().count() + 1; // +1 for newline
-            } else if i == adjusted_y {
-                let line_chars: Vec<char> = line.chars().collect();
-                char_index += adjusted_x.min(line_chars.len());
+            } else if i == estimated_line {
+                let line_char_count = line.chars().count();
+                char_index += estimated_column.min(line_char_count);
                 break;
             }
+        }
+        
+        // Handle case where click is beyond the last line
+        if estimated_line >= lines.len() {
+            char_index = content.chars().count();
         }
         
         // Ensure index is within bounds
@@ -269,7 +253,7 @@ impl ResponseViewer {
 }
 
 impl Render for ResponseViewer {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -333,7 +317,7 @@ impl Render for ResponseViewer {
                                 })
                                 .font_weight(FontWeight::MEDIUM),
                         )
-                        .child(self.render_selectable_content(body, _cx))
+                        .child(self.render_selectable_content(body, cx))
                 }
                 ResponseState::Error { message } => {
                     // 错误状态
@@ -347,7 +331,7 @@ impl Render for ResponseViewer {
                                 .text_color(rgb(0x00dc_3545))
                                 .font_weight(FontWeight::MEDIUM),
                         )
-                        .child(self.render_selectable_content(message, _cx))
+                        .child(self.render_selectable_content(message, cx))
                 }
             })
     }
