@@ -244,7 +244,7 @@ impl ResponseViewer {
     fn render_selectable_content(&self, content: &str, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .id("response-content")
-            .track_focus(&self.focus_handle)
+            .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
