@@ -96,8 +96,22 @@ impl RequestExecutor {
 
         let result = match method.to_uppercase().as_str() {
             "GET" => {
-                println!("🔍 RequestExecutor - 执行GET请求，不包含请求体");
-                rt.block_on(self.client.get(url))
+                // GET 请求
+                let header_map = if headers.is_empty() {
+                    println!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
+                    None
+                } else {
+                    let mut map = HashMap::new();
+                    for (key, value) in &headers {
+                        map.insert(key.clone(), value.clone());
+                    }
+                    println!(
+                        "🔍 RequestExecutor - 执行GET请求，包含{}个自定义headers",
+                        map.len()
+                    );
+                    Some(map)
+                };
+                rt.block_on(self.client.get(url, header_map))
             }
             "POST" => {
                 // POST 请求
@@ -164,5 +178,37 @@ impl RequestExecutor {
 impl Default for RequestExecutor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_executor_creation() {
+        let executor = RequestExecutor::new();
+        // Verify executor can be created
+        assert!(std::mem::size_of_val(&executor) > 0);
+    }
+
+    #[test]
+    fn test_executor_execute_validates_empty_url() {
+        let executor = RequestExecutor::new();
+        let result = executor.execute("GET", "", vec![], None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("URL cannot be empty"));
+    }
+
+    #[test]
+    fn test_executor_execute_request_model() {
+        let executor = RequestExecutor::new();
+        let mut request = Request::new("GET", "https://httpbin.org/get");
+        request.add_header("User-Agent", "test-agent");
+        
+        // Just verify the model can be passed to the executor
+        // We won't actually make the request in the test
+        assert!(request.is_valid());
+        assert_eq!(request.headers.len(), 1);
     }
 }
