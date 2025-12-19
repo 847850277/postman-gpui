@@ -121,7 +121,8 @@ impl ResponseViewer {
 
     fn select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
         let content = self.get_content();
-        self.selected_range = 0..content.len();
+        // Use character count instead of byte length for consistency with character-based indexing
+        self.selected_range = 0..content.chars().count();
         cx.notify();
     }
 
@@ -163,9 +164,12 @@ impl ResponseViewer {
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        // Simple approximation for monospace text
-        // Note: This is a simplified version. A production implementation would use
-        // GPUI's text measurement APIs for pixel-perfect positioning.
+        // LIMITATION: This is a rough approximation using fixed thresholds
+        // A production implementation should use GPUI's text layout APIs for accurate positioning
+        // The current approach provides basic functionality but won't be pixel-perfect
+        // 
+        // The hardcoded thresholds work reasonably well for typical response sizes
+        // but may be inaccurate for very long lines or different font sizes
         
         let content = self.get_content();
         if content.is_empty() {
