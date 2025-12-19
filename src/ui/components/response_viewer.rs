@@ -267,6 +267,7 @@ struct ResponseTextElement {
 struct PrepaintState {
     line: Option<ShapedLine>,
     selection: Option<PaintQuad>,
+    cursor: Option<PaintQuad>,
 }
 
 impl IntoElement for ResponseTextElement {
@@ -339,23 +340,46 @@ impl Element for ResponseTextElement {
             .text_system()
             .shape_line(content.clone().into(), font_size.into(), &[run], None);
         
-        // Calculate selection visual
-        let selection = if !selected_range.is_empty() && !content.is_empty() {
-            Some(fill(
-                Bounds::from_corners(
-                    point(
-                        bounds.left() + shaped_line.x_for_index(selected_range.start),
-                        bounds.top(),
-                    ),
-                    point(
-                        bounds.left() + shaped_line.x_for_index(selected_range.end),
-                        bounds.bottom(),
-                    ),
-                ),
-                rgba(0x3366_ff55), // Semi-transparent blue selection
-            ))
+        // Calculate cursor position
+        let cursor_pos = if content.is_empty() {
+            px(0.0)
         } else {
-            None
+            shaped_line.x_for_index(selected_range.start)
+        };
+        
+        // Calculate selection visual and cursor (cursor only shows when no selection)
+        let (selection, cursor) = if selected_range.is_empty() {
+            // Show cursor when no selection
+            (
+                None,
+                Some(fill(
+                    Bounds::new(
+                        point(bounds.left() + cursor_pos, bounds.top()),
+                        gpui::size(px(2.), bounds.bottom() - bounds.top()),
+                    ),
+                    rgb(0x0000_7acc), // Blue cursor
+                )),
+            )
+        } else if !content.is_empty() {
+            // Show selection when text is selected
+            (
+                Some(fill(
+                    Bounds::from_corners(
+                        point(
+                            bounds.left() + shaped_line.x_for_index(selected_range.start),
+                            bounds.top(),
+                        ),
+                        point(
+                            bounds.left() + shaped_line.x_for_index(selected_range.end),
+                            bounds.bottom(),
+                        ),
+                    ),
+                    rgba(0x3366_ff55), // Semi-transparent blue selection
+                )),
+                None,
+            )
+        } else {
+            (None, None)
         };
         
         // Store layout for click handling
@@ -367,6 +391,7 @@ impl Element for ResponseTextElement {
         PrepaintState {
             line: Some(shaped_line),
             selection,
+            cursor,
         }
     }
 
@@ -383,6 +408,11 @@ impl Element for ResponseTextElement {
         // Paint selection first (behind text)
         if let Some(selection) = prepaint.selection.take() {
             window.paint_quad(selection);
+        }
+        
+        // Paint cursor (behind text but after selection)
+        if let Some(cursor) = prepaint.cursor.take() {
+            window.paint_quad(cursor);
         }
         
         // Paint text
