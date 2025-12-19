@@ -4,7 +4,7 @@ use crate::{
         body_input::{setup_body_input_key_bindings, BodyInput},
         header_input::{setup_header_input_key_bindings, HeaderInput},
         method_selector::{MethodSelector, MethodSelectorEvent},
-        response_viewer::ResponseViewer,
+        response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
     },
 };
@@ -40,6 +40,7 @@ impl PostmanApp {
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
+        cx.bind_keys(setup_response_viewer_key_bindings());
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
