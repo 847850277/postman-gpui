@@ -100,9 +100,21 @@ impl ResponseViewer {
     fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
         if !self.selected_range.is_empty() {
             let content = self.get_content();
-            if !content.is_empty() && self.selected_range.end <= content.len() {
-                let selected_text = content[self.selected_range.clone()].to_string();
-                cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
+            if !content.is_empty() {
+                // Ensure indices are within bounds and on character boundaries
+                let start = self.selected_range.start.min(content.len());
+                let end = self.selected_range.end.min(content.len());
+                
+                // Use character-based slicing to avoid UTF-8 boundary issues
+                let selected_text: String = content
+                    .chars()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect();
+                
+                if !selected_text.is_empty() {
+                    cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
+                }
             }
         }
     }
@@ -137,22 +149,92 @@ impl ResponseViewer {
     ) {
         if self.is_selecting {
             let index = self.index_for_mouse_position(event.position);
-            self.selected_range.end = index;
+            let start = self.selected_range.start;
             
-            // Normalize the range
-            if self.selected_range.end < self.selected_range.start {
-                self.selected_range = self.selected_range.end..self.selected_range.start;
+            // Normalize the range: always ensure start <= end
+            if index < start {
+                self.selected_range = index..start;
+            } else {
+                self.selected_range = start..index;
             }
             
             cx.notify();
         }
     }
 
-    fn index_for_mouse_position(&self, _position: Point<Pixels>) -> usize {
-        // For now, return 0 - full implementation would require accessing Pixels internal value
-        // or using GPUI's text measurement APIs which are more complex
-        // This is sufficient for basic click-to-focus behavior
-        0
+    fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
+        // Simple approximation for monospace text
+        // Note: This is a simplified version. A production implementation would use
+        // GPUI's text measurement APIs for pixel-perfect positioning.
+        
+        let content = self.get_content();
+        if content.is_empty() {
+            return 0;
+        }
+        
+        // Approximate character dimensions for 12px monospace font
+        // These are rough estimates - actual positioning would require text layout info
+        let char_width_px = 7.2;
+        let line_height_px = 16.0;
+        let padding_px = 12.0; // px_3() = 12px padding
+        
+        // Convert position to approximate line and column
+        // Note: We can't access Pixels internal value directly, so we work around it
+        // by using comparison with known pixel values
+        let adjusted_y = if position.y > px(padding_px) {
+            // Approximate by comparing with reference pixels
+            let lines = if position.y > px(padding_px + line_height_px * 10.0) {
+                10
+            } else if position.y > px(padding_px + line_height_px * 5.0) {
+                5
+            } else if position.y > px(padding_px + line_height_px * 2.0) {
+                2
+            } else if position.y > px(padding_px + line_height_px) {
+                1
+            } else {
+                0
+            };
+            lines
+        } else {
+            0
+        };
+        
+        let adjusted_x = if position.x > px(padding_px) {
+            // Similar approximation for column
+            let cols = if position.x > px(padding_px + char_width_px * 50.0) {
+                50
+            } else if position.x > px(padding_px + char_width_px * 20.0) {
+                20
+            } else if position.x > px(padding_px + char_width_px * 10.0) {
+                10
+            } else if position.x > px(padding_px + char_width_px * 5.0) {
+                5
+            } else if position.x > px(padding_px + char_width_px) {
+                1
+            } else {
+                0
+            };
+            cols
+        } else {
+            0
+        };
+        
+        // Calculate character index from line and column
+        let lines: Vec<&str> = content.lines().collect();
+        let mut char_index = 0;
+        
+        for (i, line) in lines.iter().enumerate() {
+            if i < adjusted_y {
+                char_index += line.chars().count() + 1; // +1 for newline
+            } else if i == adjusted_y {
+                let line_chars: Vec<char> = line.chars().collect();
+                char_index += adjusted_x.min(line_chars.len());
+                break;
+            }
+        }
+        
+        // Ensure index is within bounds
+        char_index.min(content.chars().count())
     }
 
     fn render_selectable_content(&self, content: &str, cx: &mut Context<Self>) -> impl IntoElement {
