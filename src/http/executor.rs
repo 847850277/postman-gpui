@@ -101,10 +101,7 @@ impl RequestExecutor {
                     println!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
                     None
                 } else {
-                    let mut map = HashMap::new();
-                    for (key, value) in &headers {
-                        map.insert(key.clone(), value.clone());
-                    }
+                    let map: HashMap<String, String> = headers.iter().cloned().collect();
                     println!(
                         "🔍 RequestExecutor - 执行GET请求，包含{}个自定义headers",
                         map.len()
@@ -119,10 +116,7 @@ impl RequestExecutor {
                     println!("📝 RequestExecutor - POST请求，无自定义headers");
                     None
                 } else {
-                    let mut map = HashMap::new();
-                    for (key, value) in &headers {
-                        map.insert(key.clone(), value.clone());
-                    }
+                    let map: HashMap<String, String> = headers.iter().cloned().collect();
                     println!(
                         "📝 RequestExecutor - POST请求，包含{}个自定义headers",
                         map.len()
