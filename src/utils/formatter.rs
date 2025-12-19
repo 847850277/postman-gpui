@@ -28,7 +28,7 @@ mod tests {
     fn test_format_valid_json() {
         let input = r#"{"name":"John","age":30,"city":"New York"}"#;
         let output = format_response_body(input);
-        
+
         // Should contain line breaks
         assert!(output.contains('\n'));
         // Should be valid JSON
@@ -39,7 +39,7 @@ mod tests {
     fn test_format_invalid_json() {
         let input = "This is not JSON content";
         let output = format_response_body(input);
-        
+
         // Should remain unchanged
         assert_eq!(output, input);
     }
@@ -48,7 +48,7 @@ mod tests {
     fn test_format_empty_string() {
         let input = "";
         let output = format_response_body(input);
-        
+
         // Empty string should remain empty
         assert_eq!(output, "");
     }
@@ -60,7 +60,7 @@ mod tests {
   "age": 30
 }"#;
         let output = format_response_body(input);
-        
+
         // Should still be valid JSON
         assert!(from_str::<Value>(&output).is_ok());
         // Should contain line breaks
@@ -71,7 +71,7 @@ mod tests {
     fn test_format_json_array() {
         let input = r#"[{"id":1,"name":"Item 1"},{"id":2,"name":"Item 2"}]"#;
         let output = format_response_body(input);
-        
+
         // Should contain line breaks
         assert!(output.contains('\n'));
         // Should be valid JSON

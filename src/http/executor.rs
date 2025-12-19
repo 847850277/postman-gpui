@@ -153,10 +153,10 @@ impl RequestExecutor {
                         response_body.clone()
                     }
                 );
-                
+
                 // Format the response body (pretty-print JSON if applicable)
                 let formatted_body = format_response_body(&response_body);
-                
+
                 Ok(RequestResult::success(formatted_body))
             }
             Err(e) => {
@@ -204,7 +204,7 @@ mod tests {
         let executor = RequestExecutor::new();
         let mut request = Request::new("GET", "https://httpbin.org/get");
         request.add_header("User-Agent", "test-agent");
-        
+
         // Just verify the model can be passed to the executor
         // We won't actually make the request in the test
         assert!(request.is_valid());

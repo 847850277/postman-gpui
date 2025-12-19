@@ -2,8 +2,8 @@ use gpui::{
     actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, Element,
     ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement,
     IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement,
-    Style, Styled, TextRun, Window,
+    PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style,
+    Styled, TextRun, Window,
 };
 use std::ops::Range;
 
@@ -12,10 +12,7 @@ const APPROX_CHAR_WIDTH_PX: f32 = 7.2;
 const APPROX_LINE_HEIGHT_PX: f32 = 16.0;
 const CONTENT_PADDING_PX: f32 = 12.0; // px_3() = 12px padding
 
-actions!(
-    response_viewer,
-    [Copy, SelectAll]
-);
+actions!(response_viewer, [Copy, SelectAll]);
 
 pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
     vec![
@@ -114,9 +111,13 @@ impl ResponseViewer {
                 let selected_text: String = content
                     .chars()
                     .skip(self.selected_range.start)
-                    .take(self.selected_range.end.saturating_sub(self.selected_range.start))
+                    .take(
+                        self.selected_range
+                            .end
+                            .saturating_sub(self.selected_range.start),
+                    )
                     .collect();
-                
+
                 if !selected_text.is_empty() {
                     cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
                 }
@@ -142,7 +143,12 @@ impl ResponseViewer {
         cx.notify();
     }
 
-    fn on_mouse_up(&mut self, _event: &MouseUpEvent, _window: &mut Window, _cx: &mut Context<Self>) {
+    fn on_mouse_up(
+        &mut self,
+        _event: &MouseUpEvent,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
         self.is_selecting = false;
     }
 
@@ -155,13 +161,13 @@ impl ResponseViewer {
         if self.is_selecting {
             let index = self.index_for_mouse_position(event.position);
             let selection_start = self.selected_range.start;
-            
+
             if index < selection_start {
                 self.selected_range = index..selection_start;
             } else {
                 self.selected_range = selection_start..index;
             }
-            
+
             cx.notify();
         }
     }
@@ -171,7 +177,7 @@ impl ResponseViewer {
         if content.is_empty() {
             return 0;
         }
-        
+
         let estimated_line = {
             let mut line_estimate = 0;
             for threshold in 1..=100 {
@@ -183,7 +189,7 @@ impl ResponseViewer {
             }
             line_estimate
         };
-        
+
         let estimated_column = {
             let mut col_estimate = 0;
             for threshold in 1..=200 {
@@ -195,10 +201,10 @@ impl ResponseViewer {
             }
             col_estimate
         };
-        
+
         let lines: Vec<&str> = content.lines().collect();
         let mut char_index = 0;
-        
+
         for (i, line) in lines.iter().enumerate() {
             if i < estimated_line {
                 char_index += line.chars().count() + 1;
@@ -208,15 +214,19 @@ impl ResponseViewer {
                 break;
             }
         }
-        
+
         if estimated_line >= lines.len() {
             char_index = content.chars().count();
         }
-        
+
         char_index.min(content.chars().count())
     }
 
-    fn render_selectable_content(&self, _content: &str, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_selectable_content(
+        &self,
+        _content: &str,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         div()
             .id("response-content")
             .track_focus(&self.focus_handle(cx))
@@ -280,13 +290,13 @@ impl Element for MultiLineTextElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = Style::default();
         style.size.width = gpui::relative(1.).into();
-        
+
         let viewer = self.viewer.read(cx);
         let content = viewer.get_content();
         let line_count = content.lines().count().max(1);
         let line_height = window.line_height();
         style.size.height = (line_height * line_count as f32).into();
-        
+
         (window.request_layout(style, [], cx), ())
     }
 
@@ -302,15 +312,15 @@ impl Element for MultiLineTextElement {
         let viewer = self.viewer.read(cx);
         let content = viewer.get_content();
         let selected_range = viewer.selected_range.clone();
-        
+
         let style = window.text_style();
         let font_size = px(12.0);
         let line_height = window.line_height();
-        
+
         let lines: Vec<&str> = content.lines().collect();
         let mut shaped_lines = Vec::new();
         let mut char_offset = 0;
-        
+
         for line in &lines {
             let run = TextRun {
                 len: line.len(),
@@ -320,29 +330,32 @@ impl Element for MultiLineTextElement {
                 underline: None,
                 strikethrough: None,
             };
-            
-            let shaped_line = window
-                .text_system()
-                .shape_line((*line).to_string().into(), font_size.into(), &[run], None);
-            
+
+            let shaped_line = window.text_system().shape_line(
+                (*line).to_string().into(),
+                font_size.into(),
+                &[run],
+                None,
+            );
+
             shaped_lines.push((shaped_line, char_offset));
             char_offset += line.chars().count() + 1;
         }
-        
+
         let mut selections = Vec::new();
         let mut cursor = None;
-        
+
         if selected_range.is_empty() && !content.is_empty() {
             let cursor_char = selected_range.start;
             let mut current_offset = 0;
-            
+
             for (line_idx, (_shaped_line, _)) in shaped_lines.iter().enumerate() {
                 let line_len = if line_idx < lines.len() {
                     lines[line_idx].chars().count()
                 } else {
                     0
                 };
-                
+
                 if cursor_char >= current_offset && cursor_char <= current_offset + line_len {
                     let local_pos = cursor_char - current_offset;
                     let x_pos = if local_pos == 0 {
@@ -365,7 +378,7 @@ impl Element for MultiLineTextElement {
                         );
                         temp_line.x_for_index(temp_line.len())
                     };
-                    
+
                     cursor = Some(fill(
                         Bounds::new(
                             point(
@@ -378,33 +391,34 @@ impl Element for MultiLineTextElement {
                     ));
                     break;
                 }
-                
+
                 current_offset += line_len + 1;
             }
         } else if !selected_range.is_empty() && !content.is_empty() {
             let mut current_offset = 0;
-            
+
             for (line_idx, (shaped_line, _)) in shaped_lines.iter().enumerate() {
                 let line_len = if line_idx < lines.len() {
                     lines[line_idx].chars().count()
                 } else {
                     0
                 };
-                
+
                 let line_start = current_offset;
                 let line_end = current_offset + line_len;
-                
+
                 if selected_range.end > line_start && selected_range.start < line_end {
                     let sel_start = selected_range.start.max(line_start).min(line_end);
                     let sel_end = selected_range.end.max(line_start).min(line_end);
-                    
+
                     let local_start = sel_start - line_start;
                     let local_end = sel_end - line_start;
-                    
+
                     let start_x = if local_start == 0 {
                         px(0.0)
                     } else {
-                        let text_before: String = lines[line_idx].chars().take(local_start).collect();
+                        let text_before: String =
+                            lines[line_idx].chars().take(local_start).collect();
                         let temp_run = TextRun {
                             len: text_before.len(),
                             font: style.font(),
@@ -421,7 +435,7 @@ impl Element for MultiLineTextElement {
                         );
                         temp_line.x_for_index(temp_line.len())
                     };
-                    
+
                     let end_x = if local_end == 0 {
                         px(0.0)
                     } else if local_end >= line_len {
@@ -444,7 +458,7 @@ impl Element for MultiLineTextElement {
                         );
                         temp_line.x_for_index(temp_line.len())
                     };
-                    
+
                     selections.push(fill(
                         Bounds::from_corners(
                             point(
@@ -459,16 +473,16 @@ impl Element for MultiLineTextElement {
                         rgba(0x3366_ff55),
                     ));
                 }
-                
+
                 current_offset += line_len + 1;
             }
         }
-        
+
         self.viewer.update(cx, |viewer, _cx| {
             viewer.last_lines_layout = shaped_lines.clone();
             viewer.last_bounds = Some(bounds);
         });
-        
+
         PrepaintState {
             lines: shaped_lines,
             selections,
@@ -487,15 +501,15 @@ impl Element for MultiLineTextElement {
         cx: &mut App,
     ) {
         let line_height = window.line_height();
-        
+
         for selection in &prepaint.selections {
             window.paint_quad(selection.clone());
         }
-        
+
         if let Some(cursor) = &prepaint.cursor {
             window.paint_quad(cursor.clone());
         }
-        
+
         for (line_idx, (shaped_line, _)) in prepaint.lines.iter().enumerate() {
             let origin = point(
                 bounds.origin.x,
