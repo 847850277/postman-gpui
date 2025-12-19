@@ -1,5 +1,6 @@
 use crate::http::client::HttpClient;
 use crate::models::Request;
+use crate::utils::formatter::format_response_body;
 use std::collections::HashMap;
 
 /// HTTP 请求执行结果
@@ -152,7 +153,11 @@ impl RequestExecutor {
                         response_body.clone()
                     }
                 );
-                Ok(RequestResult::success(response_body))
+                
+                // Format the response body (pretty-print JSON if applicable)
+                let formatted_body = format_response_body(&response_body);
+                
+                Ok(RequestResult::success(formatted_body))
             }
             Err(e) => {
                 println!("❌ RequestExecutor - {}请求失败!", method.to_uppercase());
