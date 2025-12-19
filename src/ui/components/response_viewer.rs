@@ -101,7 +101,11 @@ impl ResponseViewer {
     }
 
     fn render_selectable_content(&self, content: &str, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
+        // Split content into lines and render each line separately
+        // This avoids the shape_line panic with newlines while keeping text visible
+        let lines: Vec<&str> = content.lines().collect();
+        
+        let mut container = div()
             .id("response-content")
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::copy))
@@ -116,7 +120,23 @@ impl ResponseViewer {
             .border_color(rgb(0x00cc_cccc))
             .overflow_scroll()
             .text_size(px(12.0))
-            .child(content.to_string())
+            .flex()
+            .flex_col();
+        
+        // Render each line as a separate div to preserve line breaks
+        for line in lines {
+            container = container.child(
+                div()
+                    .child(if line.is_empty() {
+                        // Preserve empty lines with a space to maintain layout
+                        "\u{00A0}".to_string()  // Non-breaking space
+                    } else {
+                        line.to_string()
+                    })
+            );
+        }
+        
+        container
     }
 }
 
