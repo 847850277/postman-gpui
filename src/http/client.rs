@@ -20,7 +20,11 @@ impl HttpClient {
         }
     }
 
-    pub async fn get(
+    pub async fn get(&self, url: &str) -> Result<String, Error> {
+        self.get_with_headers(url, None).await
+    }
+
+    pub async fn get_with_headers(
         &self,
         url: &str,
         headers: Option<HashMap<String, String>>,

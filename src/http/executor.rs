@@ -108,7 +108,7 @@ impl RequestExecutor {
                     );
                     Some(map)
                 };
-                rt.block_on(self.client.get(url, header_map))
+                rt.block_on(self.client.get_with_headers(url, header_map))
             }
             "POST" => {
                 // POST 请求
