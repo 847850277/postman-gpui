@@ -1,7 +1,7 @@
 use gpui::{
     actions, div, prelude::FluentBuilder, px, rgb, App, Context, CursorStyle, EventEmitter,
     FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, KeyDownEvent,
-    ParentElement, Render, Styled, Window,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
 actions!(
@@ -38,6 +38,8 @@ pub struct BodyInput {
     editing_value_index: Option<usize>,
     temp_key_value: String,
     temp_value_value: String,
+    editing_json: bool,
+    editing_raw: bool,
 }
 
 impl EventEmitter<BodyInputEvent> for BodyInput {}
@@ -64,6 +66,8 @@ impl BodyInput {
             editing_value_index: None,
             temp_key_value: String::new(),
             temp_value_value: String::new(),
+            editing_json: false,
+            editing_raw: false,
         }
     }
 
@@ -276,6 +280,20 @@ impl BodyInput {
         self.editing_value_index = None;
         self.temp_key_value.clear();
         self.temp_value_value.clear();
+        self.editing_json = false;
+        self.editing_raw = false;
+        cx.notify();
+    }
+
+    pub fn start_editing_json(&mut self, cx: &mut Context<Self>) {
+        self.editing_json = true;
+        self.editing_raw = false;
+        cx.notify();
+    }
+
+    pub fn start_editing_raw(&mut self, cx: &mut Context<Self>) {
+        self.editing_raw = true;
+        self.editing_json = false;
         cx.notify();
     }
 
@@ -297,6 +315,14 @@ impl BodyInput {
         } else if let Some(_index) = self.editing_value_index {
             self.temp_value_value.pop();
             cx.notify();
+        } else if self.editing_json {
+            self.json_content.pop();
+            cx.emit(BodyInputEvent::ValueChanged(self.json_content.clone()));
+            cx.notify();
+        } else if self.editing_raw {
+            self.raw_content.pop();
+            cx.emit(BodyInputEvent::ValueChanged(self.raw_content.clone()));
+            cx.notify();
         }
     }
 
@@ -308,6 +334,14 @@ impl BodyInput {
     fn enter(&mut self, _: &Enter, _: &mut Window, cx: &mut Context<Self>) {
         if self.editing_key_index.is_some() || self.editing_value_index.is_some() {
             self.finish_editing(cx);
+        } else if self.editing_json {
+            self.json_content.push('\n');
+            cx.emit(BodyInputEvent::ValueChanged(self.json_content.clone()));
+            cx.notify();
+        } else if self.editing_raw {
+            self.raw_content.push('\n');
+            cx.emit(BodyInputEvent::ValueChanged(self.raw_content.clone()));
+            cx.notify();
         }
     }
 
@@ -347,20 +381,31 @@ impl BodyInput {
     }
 
     fn on_key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
-        // 只在编辑模式下处理字符输入
-        if self.editing_key_index.is_none() && self.editing_value_index.is_none() {
+        // Handle character input for all editing modes
+        if self.editing_key_index.is_none() 
+            && self.editing_value_index.is_none() 
+            && !self.editing_json 
+            && !self.editing_raw {
             return;
         }
 
-        // 处理普通字符输入
+        // Handle ordinary character input
         if let Some(key_char) = &event.keystroke.key_char {
-            // 过滤掉特殊键和控制字符
+            // Filter out special keys and control characters
             if key_char.len() == 1 && !key_char.chars().any(|c| c.is_control()) {
                 if self.editing_key_index.is_some() {
                     self.temp_key_value.push_str(key_char);
                     cx.notify();
                 } else if self.editing_value_index.is_some() {
                     self.temp_value_value.push_str(key_char);
+                    cx.notify();
+                } else if self.editing_json {
+                    self.json_content.push_str(key_char);
+                    cx.emit(BodyInputEvent::ValueChanged(self.json_content.clone()));
+                    cx.notify();
+                } else if self.editing_raw {
+                    self.raw_content.push_str(key_char);
+                    cx.emit(BodyInputEvent::ValueChanged(self.raw_content.clone()));
                     cx.notify();
                 }
             }
@@ -457,25 +502,45 @@ impl Render for BodyInput {
                     .flex()
                     .flex_col()
                     .gap_2()
+                    .track_focus(&self.focus_handle(cx))
+                    .on_action(cx.listener(Self::backspace))
+                    .on_action(cx.listener(Self::delete))
+                    .on_action(cx.listener(Self::enter))
+                    .on_action(cx.listener(Self::escape))
+                    .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
+                            .id("json-input")
                             .w_full()
-                            .h_16()
+                            .h_64()
                             .px_3()
                             .py_2()
                             .bg(rgb(0x00ff_ffff))
                             .border_1()
-                            .border_color(rgb(0x00cc_cccc))
+                            .border_color(if self.editing_json {
+                                rgb(0x0000_7acc)
+                            } else {
+                                rgb(0x00cc_cccc)
+                            })
+                            .rounded_md()
+                            .cursor(CursorStyle::IBeam)
+                            .overflow_scroll()
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.start_editing_json(cx);
+                                }),
+                            )
                             .child(
                                 div()
                                     .text_size(px(14.0))
                                     .font_family("monospace")
-                                    .child(if json_content.is_empty() {
+                                    .child(if json_content.is_empty() && !self.editing_json {
                                         "Enter JSON body here...".to_string()
                                     } else {
                                         json_content
                                     })
-                                    .when(self.json_content.is_empty(), |div| {
+                                    .when(self.json_content.is_empty() && !self.editing_json, |div: gpui::Div| {
                                         div.text_color(rgb(0x006c_757d))
                                     }),
                             ),
@@ -675,25 +740,51 @@ impl Render for BodyInput {
                     )
                     .into_any_element(),
                 BodyType::Raw => div()
-                    .w_full()
-                    .h_64()
-                    .px_3()
-                    .py_2()
-                    .bg(rgb(0x00ff_ffff))
-                    .border_1()
-                    .border_color(rgb(0x00cc_cccc))
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .track_focus(&self.focus_handle(cx))
+                    .on_action(cx.listener(Self::backspace))
+                    .on_action(cx.listener(Self::delete))
+                    .on_action(cx.listener(Self::enter))
+                    .on_action(cx.listener(Self::escape))
+                    .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
-                            .text_size(px(14.0))
-                            .font_family("monospace")
-                            .child(if raw_content.is_empty() {
-                                "Enter raw body here...".to_string()
+                            .id("raw-input")
+                            .w_full()
+                            .h_64()
+                            .px_3()
+                            .py_2()
+                            .bg(rgb(0x00ff_ffff))
+                            .border_1()
+                            .border_color(if self.editing_raw {
+                                rgb(0x0000_7acc)
                             } else {
-                                raw_content
+                                rgb(0x00cc_cccc)
                             })
-                            .when(self.raw_content.is_empty(), |div| {
-                                div.text_color(rgb(0x006c_757d))
-                            }),
+                            .rounded_md()
+                            .cursor(CursorStyle::IBeam)
+                            .overflow_scroll()
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    this.start_editing_raw(cx);
+                                }),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(14.0))
+                                    .font_family("monospace")
+                                    .child(if raw_content.is_empty() && !self.editing_raw {
+                                        "Enter raw body here...".to_string()
+                                    } else {
+                                        raw_content
+                                    })
+                                    .when(self.raw_content.is_empty() && !self.editing_raw, |div: gpui::Div| {
+                                        div.text_color(rgb(0x006c_757d))
+                                    }),
+                            ),
                     )
                     .into_any_element(),
             })
