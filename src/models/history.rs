@@ -1,6 +1,9 @@
 use super::request::Request;
 use chrono::{DateTime, Utc};
 
+/// Maximum number of history entries to keep
+const DEFAULT_MAX_HISTORY_ENTRIES: usize = 50;
+
 /// Request history entry
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
@@ -40,7 +43,7 @@ impl RequestHistory {
     pub fn new() -> Self {
         Self {
             entries: Vec::new(),
-            max_entries: 50, // Keep last 50 requests
+            max_entries: DEFAULT_MAX_HISTORY_ENTRIES,
         }
     }
 

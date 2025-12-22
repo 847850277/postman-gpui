@@ -1,8 +1,20 @@
 use crate::models::{HistoryEntry, Request};
 use gpui::{
     div, px, rgb, Context, EventEmitter, InteractiveElement, IntoElement, ParentElement, Render,
-    StatefulInteractiveElement, Styled, Window,
+    Rgb, StatefulInteractiveElement, Styled, Window,
 };
+
+/// Get color for HTTP method
+fn get_method_color(method: &str) -> Rgb {
+    match method.to_uppercase().as_str() {
+        "GET" => rgb(0x0028_a745),
+        "POST" => rgb(0x0000_7acc),
+        "PUT" => rgb(0x00fd_7e14),
+        "DELETE" => rgb(0x00dc_3545),
+        "PATCH" => rgb(0x006f_42c1),
+        _ => rgb(0x006c_757d),
+    }
+}
 
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
@@ -54,7 +66,11 @@ impl HistoryList {
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {
             // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
-            eprintln!("Warning: Attempted to select history item at invalid index {}", index);
+            eprintln!(
+                "Warning: Attempted to select history item at invalid index {} (entries length: {})",
+                index,
+                self.entries.len()
+            );
             HistoryListEvent::RequestSelected(Request::default())
         }
     }
@@ -104,14 +120,7 @@ impl Render for HistoryList {
                             .enumerate()
                             .map(|(index, entry)| {
                                 let is_selected = self.selected_index == Some(index);
-                                let method_color = match entry.request.method.to_uppercase().as_str() {
-                                    "GET" => rgb(0x0028_a745),
-                                    "POST" => rgb(0x0000_7acc),
-                                    "PUT" => rgb(0x00fd_7e14),
-                                    "DELETE" => rgb(0x00dc_3545),
-                                    "PATCH" => rgb(0x006f_42c1),
-                                    _ => rgb(0x006c_757d),
-                                };
+                                let method_color = get_method_color(&entry.request.method);
 
                                 let bg_color = if is_selected {
                                     rgb(0x00e7_f1ff)
