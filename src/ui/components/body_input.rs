@@ -3,8 +3,8 @@ use gpui::{
     Bounds, ClipboardItem, Context, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, InteractiveElement,
     IntoElement, KeyBinding, KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, SharedString,
-    Style, Styled, TextAlign, TextRun, UTF16Selection, Window,
+    MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style,
+    Styled, TextAlign, TextRun, UTF16Selection, Window,
 };
 use std::ops::Range;
 use unicode_segmentation::*;
@@ -188,7 +188,7 @@ impl EntityInputHandler for BodyInput {
             return None;
         }
         let _range = self.json_range_from_utf16(&range_utf16);
-        
+
         // For multi-line, approximate bounds
         let line_height = bounds.size.height / self.json_last_layout.len() as f32;
         Some(Bounds::new(
@@ -714,8 +714,7 @@ impl BodyInput {
 
         if self.json_selected_range.end < self.json_selected_range.start {
             self.json_selection_reversed = !self.json_selection_reversed;
-            self.json_selected_range =
-                self.json_selected_range.end..self.json_selected_range.start;
+            self.json_selected_range = self.json_selected_range.end..self.json_selected_range.start;
         }
         cx.notify();
     }
@@ -896,12 +895,7 @@ impl BodyInput {
         }
     }
 
-    fn json_on_mouse_up(
-        &mut self,
-        _: &MouseUpEvent,
-        _window: &mut Window,
-        _: &mut Context<Self>,
-    ) {
+    fn json_on_mouse_up(&mut self, _: &MouseUpEvent, _window: &mut Window, _: &mut Context<Self>) {
         if self.current_type != BodyType::Json {
             return;
         }
@@ -963,10 +957,10 @@ impl Element for JsonTextElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let input = self.input.read(cx);
         let content = &input.json_content;
-        
+
         let mut style = Style::default();
         style.size.width = relative(1.).into();
-        
+
         // Calculate height based on number of lines
         let line_count = if content.is_empty() {
             1
@@ -975,7 +969,7 @@ impl Element for JsonTextElement {
         };
         let line_height = window.line_height();
         style.size.height = (line_height * line_count as f32).into();
-        
+
         (window.request_layout(style, [], cx), ())
     }
 
@@ -1020,7 +1014,9 @@ impl Element for JsonTextElement {
                 underline: None,
                 strikethrough: None,
             };
-            let shaped_line = window.text_system().shape_line(line_str, font_size, &[run], None);
+            let shaped_line = window
+                .text_system()
+                .shape_line(line_str, font_size, &[run], None);
             shaped_lines.push(shaped_line);
         }
 
@@ -1078,7 +1074,7 @@ impl Element for JsonTextElement {
         cx: &mut App,
     ) {
         let focus_handle = self.input.read(cx).focus_handle.clone();
-        
+
         // Register input handler
         window.handle_input(
             &focus_handle,
@@ -1132,7 +1128,10 @@ impl JsonTextElement {
         }
         // If offset is at the end, return last line
         let line_count = content.lines().count();
-        (line_count.saturating_sub(1), content.lines().last().map(|l| l.len()).unwrap_or(0))
+        (
+            line_count.saturating_sub(1),
+            content.lines().last().map(|l| l.len()).unwrap_or(0),
+        )
     }
 
     fn calculate_selection_quads(
@@ -1305,11 +1304,15 @@ impl Render for BodyInput {
                             .py_2()
                             .bg(rgb(0x00ff_ffff))
                             .border_1()
-                            .border_color(if self.focus_handle.is_focused(_window) && self.current_type == BodyType::Json {
-                                rgb(0x0000_7acc)
-                            } else {
-                                rgb(0x00cc_cccc)
-                            })
+                            .border_color(
+                                if self.focus_handle.is_focused(_window)
+                                    && self.current_type == BodyType::Json
+                                {
+                                    rgb(0x0000_7acc)
+                                } else {
+                                    rgb(0x00cc_cccc)
+                                },
+                            )
                             .rounded_md()
                             .cursor(CursorStyle::IBeam)
                             .track_focus(&self.focus_handle(cx))
@@ -1676,7 +1679,7 @@ mod tests {
     #[test]
     fn test_find_line_for_offset() {
         let content = "Line 1\nLine 2\nLine 3";
-        
+
         // Test at start
         assert_eq!(JsonTextElement::find_line_for_offset(content, 0), (0, 0));
         // Test in first line
