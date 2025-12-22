@@ -1582,3 +1582,110 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("end", End, None),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_json_line_start() {
+        let mut body = BodyInput {
+            focus_handle: unsafe { std::mem::zeroed() }, // For testing only
+            current_type: BodyType::Json,
+            json_content: "Line 1\nLine 2\nLine 3".to_string(),
+            form_data_entries: vec![],
+            raw_content: String::new(),
+            editing_key_index: None,
+            editing_value_index: None,
+            temp_key_value: String::new(),
+            temp_value_value: String::new(),
+            json_selected_range: 0..0,
+            json_selection_reversed: false,
+            json_marked_range: None,
+            json_last_layout: Vec::new(),
+            json_last_bounds: None,
+            json_is_selecting: false,
+        };
+
+        // Test at start of first line
+        assert_eq!(body.json_line_start(0), 0);
+        // Test in middle of first line
+        assert_eq!(body.json_line_start(3), 0);
+        // Test at start of second line
+        assert_eq!(body.json_line_start(7), 7);
+        // Test in middle of second line
+        assert_eq!(body.json_line_start(10), 7);
+    }
+
+    #[test]
+    fn test_json_line_end() {
+        let mut body = BodyInput {
+            focus_handle: unsafe { std::mem::zeroed() },
+            current_type: BodyType::Json,
+            json_content: "Line 1\nLine 2\nLine 3".to_string(),
+            form_data_entries: vec![],
+            raw_content: String::new(),
+            editing_key_index: None,
+            editing_value_index: None,
+            temp_key_value: String::new(),
+            temp_value_value: String::new(),
+            json_selected_range: 0..0,
+            json_selection_reversed: false,
+            json_marked_range: None,
+            json_last_layout: Vec::new(),
+            json_last_bounds: None,
+            json_is_selecting: false,
+        };
+
+        // Test from start of first line
+        assert_eq!(body.json_line_end(0), 6);
+        // Test from middle of first line
+        assert_eq!(body.json_line_end(3), 6);
+        // Test from start of second line
+        assert_eq!(body.json_line_end(7), 13);
+        // Test from last line
+        assert_eq!(body.json_line_end(14), 20);
+    }
+
+    #[test]
+    fn test_json_offset_to_utf16() {
+        let mut body = BodyInput {
+            focus_handle: unsafe { std::mem::zeroed() },
+            current_type: BodyType::Json,
+            json_content: "Hello 世界".to_string(), // "世" and "界" are 3 bytes each in UTF-8
+            form_data_entries: vec![],
+            raw_content: String::new(),
+            editing_key_index: None,
+            editing_value_index: None,
+            temp_key_value: String::new(),
+            temp_value_value: String::new(),
+            json_selected_range: 0..0,
+            json_selection_reversed: false,
+            json_marked_range: None,
+            json_last_layout: Vec::new(),
+            json_last_bounds: None,
+            json_is_selecting: false,
+        };
+
+        // "Hello " is 6 bytes in UTF-8 and UTF-16
+        assert_eq!(body.json_offset_to_utf16(6), 6);
+        // "世" is 3 bytes in UTF-8 but 1 code unit in UTF-16
+        assert_eq!(body.json_offset_to_utf16(9), 7);
+    }
+
+    #[test]
+    fn test_find_line_for_offset() {
+        let content = "Line 1\nLine 2\nLine 3";
+        
+        // Test at start
+        assert_eq!(JsonTextElement::find_line_for_offset(content, 0), (0, 0));
+        // Test in first line
+        assert_eq!(JsonTextElement::find_line_for_offset(content, 3), (0, 3));
+        // Test at newline
+        assert_eq!(JsonTextElement::find_line_for_offset(content, 6), (0, 6));
+        // Test in second line
+        assert_eq!(JsonTextElement::find_line_for_offset(content, 10), (1, 3));
+        // Test in third line
+        assert_eq!(JsonTextElement::find_line_for_offset(content, 17), (2, 3));
+    }
+}
