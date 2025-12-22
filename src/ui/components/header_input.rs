@@ -3,8 +3,8 @@ use gpui::{
     ClipboardItem, Context, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, IntoElement,
     KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad,
-    ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style, Styled, TextRun,
-    UTF16Selection, Window,
+    ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style, Styled, TextAlign,
+    TextRun, UTF16Selection, Window,
 };
 use std::ops::Range;
 use unicode_segmentation::*;
@@ -595,7 +595,7 @@ impl Element for HeaderTextElement {
         }
 
         let display_line = prepaint.line.take().unwrap();
-        let _ = display_line.paint(bounds.origin, window.line_height(), window, cx);
+        let _ = display_line.paint(bounds.origin, window.line_height(), TextAlign::Left, None, window, cx);
 
         if focus_handle.is_focused(window) {
             if let Some(cursor) = prepaint.cursor.take() {

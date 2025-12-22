@@ -3,7 +3,7 @@ use gpui::{
     ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement,
     IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
     PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style,
-    Styled, TextRun, Window,
+    Styled, TextAlign, TextRun, Window,
 };
 use std::ops::Range;
 
@@ -515,7 +515,7 @@ impl Element for MultiLineTextElement {
                 bounds.origin.x,
                 bounds.origin.y + line_height * line_idx as f32,
             );
-            shaped_line.paint(origin, line_height, window, cx).ok();
+            shaped_line.paint(origin, line_height, TextAlign::Left, None, window, cx).ok();
         }
     }
 }
