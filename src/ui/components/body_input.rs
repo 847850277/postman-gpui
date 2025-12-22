@@ -1,12 +1,12 @@
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, App, Context, CursorStyle, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, KeyDownEvent,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    actions, div, prelude::FluentBuilder, px, rgb, App, ClipboardItem, Context, CursorStyle,
+    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding,
+    KeyDownEvent, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
 actions!(
     body_input,
-    [Backspace, Delete, Enter, Escape, Tab, ShiftTab,]
+    [Backspace, Delete, Enter, Escape, Tab, ShiftTab, Paste, Copy, Cut, SelectAll,]
 );
 
 #[derive(Debug, Clone, PartialEq)]
@@ -416,6 +416,52 @@ impl BodyInput {
             }
         }
     }
+
+    fn paste(&mut self, _: &Paste, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+            if self.editing_json {
+                self.json_content.push_str(&text);
+                cx.emit(BodyInputEvent::ValueChanged(self.json_content.clone()));
+                cx.notify();
+            } else if self.editing_raw {
+                self.raw_content.push_str(&text);
+                cx.emit(BodyInputEvent::ValueChanged(self.raw_content.clone()));
+                cx.notify();
+            }
+        }
+    }
+
+    fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_json && !self.json_content.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.json_content.clone()));
+        } else if self.editing_raw && !self.raw_content.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.raw_content.clone()));
+        }
+    }
+
+    fn cut(&mut self, _: &Cut, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_json && !self.json_content.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.json_content.clone()));
+            self.json_content.clear();
+            cx.emit(BodyInputEvent::ValueChanged(String::new()));
+            cx.notify();
+        } else if self.editing_raw && !self.raw_content.is_empty() {
+            cx.write_to_clipboard(ClipboardItem::new_string(self.raw_content.clone()));
+            self.raw_content.clear();
+            cx.emit(BodyInputEvent::ValueChanged(String::new()));
+            cx.notify();
+        }
+    }
+
+    fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
+        // For now, select_all just ensures we're in editing mode
+        // Full text selection would require cursor/selection range tracking
+        if self.current_type == BodyType::Json && !self.editing_json {
+            self.start_editing_json(cx);
+        } else if self.current_type == BodyType::Raw && !self.editing_raw {
+            self.start_editing_raw(cx);
+        }
+    }
 }
 
 impl Render for BodyInput {
@@ -512,6 +558,10 @@ impl Render for BodyInput {
                     .on_action(cx.listener(Self::delete))
                     .on_action(cx.listener(Self::enter))
                     .on_action(cx.listener(Self::escape))
+                    .on_action(cx.listener(Self::paste))
+                    .on_action(cx.listener(Self::copy))
+                    .on_action(cx.listener(Self::cut))
+                    .on_action(cx.listener(Self::select_all))
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
@@ -753,6 +803,10 @@ impl Render for BodyInput {
                     .on_action(cx.listener(Self::delete))
                     .on_action(cx.listener(Self::enter))
                     .on_action(cx.listener(Self::escape))
+                    .on_action(cx.listener(Self::paste))
+                    .on_action(cx.listener(Self::copy))
+                    .on_action(cx.listener(Self::cut))
+                    .on_action(cx.listener(Self::select_all))
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
@@ -804,5 +858,13 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("escape", Escape, None),
         KeyBinding::new("tab", Tab, None),
         KeyBinding::new("shift-tab", ShiftTab, None),
+        KeyBinding::new("cmd-v", Paste, None),
+        KeyBinding::new("ctrl-v", Paste, None),
+        KeyBinding::new("cmd-c", Copy, None),
+        KeyBinding::new("ctrl-c", Copy, None),
+        KeyBinding::new("cmd-x", Cut, None),
+        KeyBinding::new("ctrl-x", Cut, None),
+        KeyBinding::new("cmd-a", SelectAll, None),
+        KeyBinding::new("ctrl-a", SelectAll, None),
     ]
 }
