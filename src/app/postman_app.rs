@@ -62,7 +62,7 @@ impl PostmanApp {
             BodyInput::new(cx).with_placeholder("Enter request body (JSON, form data, etc.)...")
         });
         let response_viewer = cx.new(ResponseViewer::new);
-        let history_list = cx.new(HistoryList::new);
+        let history_list = cx.new(|_cx| HistoryList::new());
 
         PostmanApp {
             method_selector,

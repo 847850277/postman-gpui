@@ -1,11 +1,11 @@
 use crate::models::{HistoryEntry, Request};
 use gpui::{
     div, px, rgb, Context, EventEmitter, InteractiveElement, IntoElement, ParentElement, Render,
-    Rgb, StatefulInteractiveElement, Styled, Window,
+    Rgba, StatefulInteractiveElement, Styled, Window,
 };
 
 /// Get color for HTTP method
-fn get_method_color(method: &str) -> Rgb {
+fn get_method_color(method: &str) -> Rgba {
     match method.to_uppercase().as_str() {
         "GET" => rgb(0x0028_a745),
         "POST" => rgb(0x0000_7acc),
@@ -79,6 +79,7 @@ impl HistoryList {
 impl Render for HistoryList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .id("history-list")
             .flex()
             .flex_col()
             .w_64() // Fixed width for sidebar
