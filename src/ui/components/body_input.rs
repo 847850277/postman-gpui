@@ -346,7 +346,11 @@ impl BodyInput {
     }
 
     fn escape(&mut self, _: &Escape, _: &mut Window, cx: &mut Context<Self>) {
-        if self.editing_key_index.is_some() || self.editing_value_index.is_some() {
+        if self.editing_key_index.is_some()
+            || self.editing_value_index.is_some()
+            || self.editing_json
+            || self.editing_raw
+        {
             self.cancel_editing(cx);
         }
     }
