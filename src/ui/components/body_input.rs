@@ -517,7 +517,7 @@ impl Render for BodyInput {
                         div()
                             .id("json-input")
                             .w_full()
-                            .h_64()
+                            .h_16()
                             .px_3()
                             .py_2()
                             .bg(rgb(0x00ff_ffff))
