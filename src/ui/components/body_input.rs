@@ -465,11 +465,12 @@ impl BodyInput {
 }
 
 impl Render for BodyInput {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type.clone();
         let json_content = self.json_content.clone();
         let raw_content = self.raw_content.clone();
         let form_data_entries = self.form_data_entries.clone();
+        let is_focused = self.focus_handle.is_focused(window);
 
         div()
             .flex()
@@ -572,7 +573,7 @@ impl Render for BodyInput {
                             .py_2()
                             .bg(rgb(0x00ff_ffff))
                             .border_1()
-                            .border_color(if self.editing_json {
+                            .border_color(if is_focused && self.editing_json {
                                 rgb(0x0000_7acc)
                             } else {
                                 rgb(0x00cc_cccc)
@@ -817,7 +818,7 @@ impl Render for BodyInput {
                             .py_2()
                             .bg(rgb(0x00ff_ffff))
                             .border_1()
-                            .border_color(if self.editing_raw {
+                            .border_color(if is_focused && self.editing_raw {
                                 rgb(0x0000_7acc)
                             } else {
                                 rgb(0x00cc_cccc)
