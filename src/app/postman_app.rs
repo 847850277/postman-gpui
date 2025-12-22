@@ -1,8 +1,10 @@
 use crate::{
     http::executor::RequestExecutor,
+    models::{Request, RequestHistory},
     ui::components::{
         body_input::{setup_body_input_key_bindings, BodyInput},
         header_input::{setup_header_input_key_bindings, HeaderInput},
+        history_list::{HistoryList, HistoryListEvent},
         method_selector::{MethodSelector, MethodSelectorEvent},
         response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
         url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
@@ -32,6 +34,10 @@ pub struct PostmanApp {
     // Headers输入组件
     header_key_input: Entity<HeaderInput>,
     header_value_input: Entity<HeaderInput>,
+
+    // Request history
+    request_history: RequestHistory,
+    history_list: Entity<HistoryList>,
 }
 
 impl PostmanApp {
@@ -53,6 +59,7 @@ impl PostmanApp {
             BodyInput::new(cx).with_placeholder("Enter request body (JSON, form data, etc.)...")
         });
         let response_viewer = cx.new(ResponseViewer::new);
+        let history_list = cx.new(HistoryList::new);
 
         PostmanApp {
             method_selector,
@@ -63,6 +70,8 @@ impl PostmanApp {
             response_viewer,
             header_key_input,
             header_value_input,
+            request_history: RequestHistory::new(),
+            history_list,
         }
     }
 
@@ -158,12 +167,34 @@ impl PostmanApp {
         });
         cx.notify();
 
+        // Create a Request object for history
+        let mut request = Request::new(&method, &url);
+        for (key, value) in &headers {
+            request.add_header(key, value);
+        }
+        if let Some(body_content) = &body {
+            request.set_body(body_content);
+        }
+
         // 执行请求
         let result = self.request_executor.execute(&method, &url, headers, body);
 
         // 处理结果
         match result {
             Ok(request_result) => {
+                // Add to history on success
+                let url_display = if url.len() > 40 {
+                    format!("{}...", &url[..40])
+                } else {
+                    url.clone()
+                };
+                self.request_history.add(request, url_display);
+                
+                // Update history list UI
+                self.history_list.update(cx, |list, cx| {
+                    list.set_entries(self.request_history.entries().to_vec(), cx);
+                });
+
                 self.response_viewer.update(cx, |viewer, cx| {
                     viewer.set_success(request_result.status, request_result.body, cx);
                 });
@@ -297,6 +328,52 @@ impl PostmanApp {
                 index,
                 self.headers.len()
             );
+        }
+    }
+
+    // Handle history item selection
+    fn on_history_selected(
+        &mut self,
+        _history_list: gpui::Entity<HistoryList>,
+        event: &HistoryListEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            HistoryListEvent::RequestSelected(request) => {
+                println!("📋 PostmanApp - Loading request from history:");
+                println!("   Method: {}", request.method);
+                println!("   URL: {}", request.url);
+                println!("   Headers: {}", request.headers.len());
+
+                // Update method selector
+                self.method_selector.update(cx, |selector, cx| {
+                    // Assuming MethodSelector has a method to set the selected method
+                    // We'll need to check if this method exists or add it
+                    selector.set_selected_method(&request.method, cx);
+                });
+
+                // Update URL input
+                self.url_input.update(cx, |input, cx| {
+                    input.set_url(&request.url, cx);
+                });
+
+                // Update headers
+                self.headers = request.headers.clone();
+
+                // Update body
+                if let Some(body) = &request.body {
+                    self.body_input.update(cx, |input, cx| {
+                        input.set_content(body.clone(), cx);
+                    });
+                } else {
+                    self.body_input.update(cx, |input, cx| {
+                        input.clear(cx);
+                    });
+                }
+
+                println!("✅ PostmanApp - Request loaded from history");
+                cx.notify();
+            }
         }
     }
 
@@ -612,71 +689,85 @@ impl PostmanApp {
 
 impl Render for PostmanApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Subscribe to history list events
+        let history_list_clone = self.history_list.clone();
+        cx.subscribe(&history_list_clone, Self::on_history_selected)
+            .detach();
+
         div()
             .id("main-container")
-            //.overflow_scroll()
             .flex()
-            .flex_col()
             .bg(rgb(0x00f0_f0f0))
             .size_full()
-            .p_4()
-            .gap_4()
             .child(
-                // Header
-                div()
-                    .child("Postman GPUI")
-                    .text_size(px(24.0))
-                    .font_weight(FontWeight::BOLD),
+                // Left sidebar - History List
+                self.history_list.clone(),
             )
             .child(
-                // Request Panel
+                // Main content area
                 div()
                     .flex()
                     .flex_col()
-                    .gap_4()
+                    .flex_1()
                     .p_4()
-                    .bg(rgb(0x00ff_ffff))
-                    .border_1()
-                    .border_color(rgb(0x00cc_cccc))
+                    .gap_4()
                     .child(
-                        // Method and URL row
+                        // Header
+                        div()
+                            .child("Postman GPUI")
+                            .text_size(px(24.0))
+                            .font_weight(FontWeight::BOLD),
+                    )
+                    .child(
+                        // Request Panel
                         div()
                             .flex()
+                            .flex_col()
                             .gap_4()
-                            .child(self.method_selector.clone())
-                            .child(self.url_input.clone()) // 使用 UrlInput 组件替代 render_url_input
+                            .p_4()
+                            .bg(rgb(0x00ff_ffff))
+                            .border_1()
+                            .border_color(rgb(0x00cc_cccc))
                             .child(
+                                // Method and URL row
                                 div()
-                                    .child("Send")
-                                    .bg(rgb(0x0000_7acc))
-                                    .text_color(rgb(0x00ff_ffff))
-                                    .px_4()
-                                    .py_2()
-                                    .rounded_md()
-                                    .cursor_pointer()
-                                    .hover(|style| style.bg(rgb(0x0000_56b3)))
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(Self::on_send_clicked),
+                                    .flex()
+                                    .gap_4()
+                                    .child(self.method_selector.clone())
+                                    .child(self.url_input.clone()) // 使用 UrlInput 组件替代 render_url_input
+                                    .child(
+                                        div()
+                                            .child("Send")
+                                            .bg(rgb(0x0000_7acc))
+                                            .text_color(rgb(0x00ff_ffff))
+                                            .px_4()
+                                            .py_2()
+                                            .rounded_md()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(rgb(0x0000_56b3)))
+                                            .on_mouse_up(
+                                                gpui::MouseButton::Left,
+                                                cx.listener(Self::on_send_clicked),
+                                            ),
                                     ),
-                            ),
+                            )
+                            .child(self.render_headers_editor(cx))
+                            .child(self.render_body_editor(cx)),
                     )
-                    .child(self.render_headers_editor(cx))
-                    .child(self.render_body_editor(cx)),
-            )
-            .child(
-                // Response Panel
-                div()
-                    .id("response-container")
-                    .overflow_scroll()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    .p_4()
-                    .bg(rgb(0x00ff_ffff))
-                    .border_1()
-                    .border_color(rgb(0x00cc_cccc))
-                    .child(self.response_viewer.clone()),
+                    .child(
+                        // Response Panel
+                        div()
+                            .id("response-container")
+                            .overflow_scroll()
+                            .flex()
+                            .flex_col()
+                            .gap_4()
+                            .p_4()
+                            .bg(rgb(0x00ff_ffff))
+                            .border_1()
+                            .border_color(rgb(0x00cc_cccc))
+                            .child(self.response_viewer.clone()),
+                    ),
             )
     }
 }
