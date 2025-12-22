@@ -66,10 +66,9 @@ jobs:
     - name: Build release
       run: cargo build --release --verbose
 
-  # Run the application (only on Linux for headless testing)
+  # Run the application (only on macOS for testing)
   run-app:
     name: Run Application (Test)
-    #runs-on: ubuntu-latest
     runs-on: macos-latest
     needs: build-and-test
     
@@ -86,8 +85,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libx11-dev libxcb1-dev
+        # macOS dependencies are handled by Xcode Command Line Tools
+        # Install coreutils for timeout command
+        brew install coreutils
 
     - name: Build project
       run: cargo build --release
@@ -95,7 +95,7 @@ jobs:
     - name: Test run (should start and exit cleanly)
       run: |
         echo "Testing application startup..."
-        timeout 5s cargo run --release || exit_code=$?
+        gtimeout 5s cargo run --release || exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "Application started successfully (timed out as expected)"
           exit 0
