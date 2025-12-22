@@ -382,10 +382,11 @@ impl BodyInput {
 
     fn on_key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
         // Handle character input for all editing modes
-        if self.editing_key_index.is_none() 
-            && self.editing_value_index.is_none() 
-            && !self.editing_json 
-            && !self.editing_raw {
+        if self.editing_key_index.is_none()
+            && self.editing_value_index.is_none()
+            && !self.editing_json
+            && !self.editing_raw
+        {
             return;
         }
 
@@ -540,7 +541,7 @@ impl Render for BodyInput {
                                     } else {
                                         json_content
                                     })
-                                    .when(self.json_content.is_empty() && !self.editing_json, |div: gpui::Div| {
+                                    .when(self.json_content.is_empty() && !self.editing_json, |div| {
                                         div.text_color(rgb(0x006c_757d))
                                     }),
                             ),
@@ -781,7 +782,7 @@ impl Render for BodyInput {
                                     } else {
                                         raw_content
                                     })
-                                    .when(self.raw_content.is_empty() && !self.editing_raw, |div: gpui::Div| {
+                                    .when(self.raw_content.is_empty() && !self.editing_raw, |div| {
                                         div.text_color(rgb(0x006c_757d))
                                     }),
                             ),
