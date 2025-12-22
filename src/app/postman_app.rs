@@ -187,16 +187,13 @@ impl PostmanApp {
             Ok(request_result) => {
                 // Add to history on success
                 let url_display = if url.len() > MAX_HISTORY_URL_LENGTH {
-                    let truncated: String = url
-                        .chars()
-                        .take(MAX_HISTORY_URL_LENGTH)
-                        .collect();
+                    let truncated: String = url.chars().take(MAX_HISTORY_URL_LENGTH).collect();
                     format!("{}...", truncated)
                 } else {
                     url.clone()
                 };
                 self.request_history.add(request, url_display);
-                
+
                 // Update history list UI
                 self.history_list.update(cx, |list, cx| {
                     list.set_entries(self.request_history.entries().to_vec(), cx);

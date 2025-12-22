@@ -61,7 +61,7 @@ impl HistoryList {
     fn on_item_clicked(&mut self, index: usize, cx: &mut Context<Self>) -> HistoryListEvent {
         self.selected_index = Some(index);
         cx.notify();
-        
+
         if let Some(entry) = self.entries.get(index) {
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {

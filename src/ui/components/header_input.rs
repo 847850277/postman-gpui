@@ -595,7 +595,14 @@ impl Element for HeaderTextElement {
         }
 
         let display_line = prepaint.line.take().unwrap();
-        let _ = display_line.paint(bounds.origin, window.line_height(), TextAlign::Left, None, window, cx);
+        let _ = display_line.paint(
+            bounds.origin,
+            window.line_height(),
+            TextAlign::Left,
+            None,
+            window,
+            cx,
+        );
 
         if focus_handle.is_focused(window) {
             if let Some(cursor) = prepaint.cursor.take() {

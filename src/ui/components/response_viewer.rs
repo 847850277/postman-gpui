@@ -515,7 +515,9 @@ impl Element for MultiLineTextElement {
                 bounds.origin.x,
                 bounds.origin.y + line_height * line_idx as f32,
             );
-            shaped_line.paint(origin, line_height, TextAlign::Left, None, window, cx).ok();
+            shaped_line
+                .paint(origin, line_height, TextAlign::Left, None, window, cx)
+                .ok();
         }
     }
 }
