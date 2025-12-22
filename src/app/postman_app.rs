@@ -15,6 +15,9 @@ use gpui::{
     ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
+// Maximum length for URL display in history
+const MAX_HISTORY_URL_LENGTH: usize = 40;
+
 pub struct PostmanApp {
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
@@ -183,8 +186,8 @@ impl PostmanApp {
         match result {
             Ok(request_result) => {
                 // Add to history on success
-                let url_display = if url.len() > 40 {
-                    format!("{}...", &url[..40])
+                let url_display = if url.len() > MAX_HISTORY_URL_LENGTH {
+                    format!("{}...", &url[..MAX_HISTORY_URL_LENGTH])
                 } else {
                     url.clone()
                 };
@@ -345,11 +348,10 @@ impl PostmanApp {
                 println!("   URL: {}", request.url);
                 println!("   Headers: {}", request.headers.len());
 
-                // Update method selector
+                // Update method selector - normalize method to uppercase
+                let method = request.method.to_uppercase();
                 self.method_selector.update(cx, |selector, cx| {
-                    // Assuming MethodSelector has a method to set the selected method
-                    // We'll need to check if this method exists or add it
-                    selector.set_selected_method(&request.method, cx);
+                    selector.set_selected_method(&method, cx);
                 });
 
                 // Update URL input

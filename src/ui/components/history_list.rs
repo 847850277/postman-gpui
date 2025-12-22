@@ -53,7 +53,8 @@ impl HistoryList {
         if let Some(entry) = self.entries.get(index) {
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {
-            // This shouldn't happen, but handle gracefully
+            // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
+            eprintln!("Warning: Attempted to select history item at invalid index {}", index);
             HistoryListEvent::RequestSelected(Request::default())
         }
     }
