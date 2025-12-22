@@ -69,7 +69,8 @@ jobs:
   # Run the application (only on Linux for headless testing)
   run-app:
     name: Run Application (Test)
-    runs-on: ubuntu-latest
+    #runs-on: ubuntu-latest
+    runs-on: macos-latest
     needs: build-and-test
     
     steps:
