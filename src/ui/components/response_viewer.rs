@@ -1,10 +1,4 @@
-use gpui::{
-    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, Element,
-    ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement,
-    IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style,
-    Styled, TextAlign, TextRun, Window,
-};
+use gpui::{actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window};
 use std::ops::Range;
 
 // Approximate font metrics for 12px monospace font
@@ -160,14 +154,8 @@ impl ResponseViewer {
     ) {
         if self.is_selecting {
             let index = self.index_for_mouse_position(event.position);
-            let selection_start = self.selected_range.start;
-
-            if index < selection_start {
-                self.selected_range = index..selection_start;
-            } else {
-                self.selected_range = selection_start..index;
-            }
-
+            let start = self.selected_range.start;
+            self.selected_range = 0..10;
             cx.notify();
         }
     }
@@ -229,6 +217,10 @@ impl ResponseViewer {
     ) -> impl IntoElement {
         div()
             .id("response-content")
+            .border_1()
+            .border_color(rgb(0x00cc_cccc))
+            .rounded_md()
+            .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
@@ -241,8 +233,6 @@ impl ResponseViewer {
             .px_3()
             .py_2()
             .bg(rgb(0x00f8_f9fa))
-            .border_1()
-            .border_color(rgb(0x00cc_cccc))
             .overflow_scroll()
             .child(MultiLineTextElement {
                 viewer: cx.entity().clone(),
