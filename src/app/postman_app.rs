@@ -176,18 +176,34 @@ impl PostmanApp {
             .method_selector
             .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
-        // Only include enabled headers
-        let headers: Vec<(String, String)> = self
-            .headers
-            .iter()
-            .filter(|(enabled, _, _)| *enabled)
-            .map(|(_, key, value)| (key.clone(), value.clone()))
-            .collect();
+        
+        // Get body type and content
+        let body_type = self.body_input.read(cx).get_current_type().clone();
         let body = if method.to_uppercase() == "POST" {
             Some(self.body_input.read(cx).get_content().to_string())
         } else {
             None
         };
+        
+        // Only include enabled headers
+        let mut headers: Vec<(String, String)> = self
+            .headers
+            .iter()
+            .filter(|(enabled, _, _)| *enabled)
+            .map(|(_, key, value)| (key.clone(), value.clone()))
+            .collect();
+        
+        // Auto-add Content-Type header for form-data if not already present
+        use crate::ui::components::body_input::BodyType;
+        if method.to_uppercase() == "POST" && body_type == BodyType::FormData {
+            let has_content_type = headers.iter().any(|(key, _)| 
+                key.to_lowercase() == "content-type"
+            );
+            if !has_content_type {
+                headers.push(("Content-Type".to_string(), "application/x-www-form-urlencoded".to_string()));
+                println!("📝 PostmanApp - Auto-added Content-Type header for form-data: application/x-www-form-urlencoded");
+            }
+        }
 
         // 设置加载状态
         self.response_viewer.update(cx, |viewer, cx| {

@@ -30,20 +30,42 @@ class TestHandler(BaseHTTPRequestHandler):
         """处理POST请求"""
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
+        content_type = self.headers.get('Content-Type', '')
         
         print(f"POST {self.path}")
         print(f"Headers: {dict(self.headers)}")
+        print(f"Content-Type: {content_type}")
         print(f"Body: {post_data.decode('utf-8', errors='ignore')}")
         
-        try:
-            body_json = json.loads(post_data.decode('utf-8')) if post_data else {}
-        except:
+        # Parse body based on content type
+        if 'application/x-www-form-urlencoded' in content_type:
+            # Parse form data
+            from urllib.parse import parse_qs
+            try:
+                body_str = post_data.decode('utf-8')
+                parsed_form = parse_qs(body_str)
+                # Convert lists to single values for simplicity
+                body_json = {k: v[0] if len(v) == 1 else v for k, v in parsed_form.items()}
+                print(f"Parsed form data: {body_json}")
+            except Exception as e:
+                print(f"Error parsing form data: {e}")
+                body_json = {"raw_body": post_data.decode('utf-8', errors='ignore')}
+        elif 'application/json' in content_type:
+            # Parse JSON
+            try:
+                body_json = json.loads(post_data.decode('utf-8')) if post_data else {}
+            except Exception as e:
+                print(f"Error parsing JSON: {e}")
+                body_json = {"raw_body": post_data.decode('utf-8', errors='ignore')}
+        else:
+            # Raw body
             body_json = {"raw_body": post_data.decode('utf-8', errors='ignore')}
         
         response = {
             "method": "POST",
             "path": self.path,
             "headers": dict(self.headers),
+            "content_type": content_type,
             "body": body_json,
             "message": "POST request received successfully"
         }
