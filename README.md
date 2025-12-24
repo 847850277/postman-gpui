@@ -5,6 +5,8 @@ Postman GPUI is a simple graphical user interface application for making HTTP re
 ## Features
 
 - Input request details including URL, HTTP method, headers, and body.
+- **Multiple body types**: JSON, Form Data (URL-encoded), and Raw text
+- **Form Data Support**: Built-in form-data editor with key-value pairs and automatic `Content-Type` header
 - View responses from the server, including status codes and response bodies.
 - **Request History**: Click any history item to load the complete request (URL, parameters, headers, and body) back into the form
 - Organize requests into collections for easy management.
@@ -97,8 +99,19 @@ postman-gpui
 - Open the application and enter the desired URL in the URL input field.
 - Select the HTTP method (GET, POST, etc.) using the method selector.
 - Add any necessary headers using the headers editor.
-- Enter the request body if applicable.
+- **For POST requests**: Select the body type (JSON, Form Data, or Raw):
+  - **JSON**: Enter JSON formatted data
+  - **Form Data**: Use the built-in editor to add key-value pairs (Content-Type header is automatically added)
+  - **Raw**: Enter any raw text data
 - Click the "Send" button to make the request and view the response in the response panel.
+
+## Testing Form-Data
+
+To test form-data POST requests:
+
+1. Start the test server: `python test_server.py`
+2. Run the application: `cargo run`
+3. See [FORM_DATA_TEST_GUIDE.md](FORM_DATA_TEST_GUIDE.md) for detailed testing instructions
 
 ## Screenshot
 
