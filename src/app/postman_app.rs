@@ -582,17 +582,6 @@ impl PostmanApp {
                                     )
                                     .child(
                                         div()
-                                            .flex_1()
-                                            .px_3()
-                                            .py_2()
-                                            .bg(if *enabled { rgb(0x00ff_ffff) } else { rgb(0x00f8_f9fa) })
-                                            .border_1()
-                                            .border_color(if *enabled { rgb(0x0028_a745) } else { rgb(0x00cc_cccc) })
-                                            .text_color(if *enabled { rgb(0x0000_0000) } else { rgb(0x006c_757d) })
-                                            .child(value.clone()),
-                                    )
-                                    .child(
-                                        div()
                                             .w_16()
                                             .px_2()
                                             .py_1()
