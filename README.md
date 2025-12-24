@@ -6,8 +6,19 @@ Postman GPUI is a simple graphical user interface application for making HTTP re
 
 - Input request details including URL, HTTP method, headers, and body.
 - View responses from the server, including status codes and response bodies.
+- **Request History**: Click any history item to load the complete request (URL, parameters, headers, and body) back into the form
 - Organize requests into collections for easy management.
 - Reusable UI components for a consistent user experience.
+
+## Request History Feature
+
+The history list in the left sidebar shows all your previous requests. Simply **click on any history item** to:
+- Load the complete URL (including query parameters)
+- Load the HTTP method
+- Load all headers
+- Load the request body
+
+See [FEATURE_HISTORY_LIST.md](FEATURE_HISTORY_LIST.md) for detailed documentation on the history feature.
 
 ## Project Structure
 

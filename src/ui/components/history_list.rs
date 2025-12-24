@@ -16,6 +16,9 @@ fn get_method_color(method: &str) -> Rgba {
     }
 }
 
+/// Color for additional info text (headers/body indicators)
+const COLOR_INFO_TEXT: u32 = 0x0099_9999;
+
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
 pub enum HistoryListEvent {
@@ -63,6 +66,15 @@ impl HistoryList {
         cx.notify();
 
         if let Some(entry) = self.entries.get(index) {
+            println!("🔘 History item clicked:");
+            println!("   Index: {}", index);
+            println!("   Method: {}", entry.request.method);
+            println!("   URL: {}", entry.request.url);
+            println!("   Headers: {}", entry.request.headers.len());
+            if let Some(ref body) = entry.request.body {
+                println!("   Body: {} bytes", body.len());
+            }
+            println!("   ➡️ Loading request into form...");
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {
             // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
@@ -180,7 +192,41 @@ impl Render for HistoryList {
                                                     .text_size(px(11.0))
                                                     .overflow_hidden()
                                                     .child(entry.name.clone()),
-                                            ),
+                                            )
+                                            .children({
+                                                let has_headers = !entry.request.headers.is_empty();
+                                                let has_body = entry.request.body.is_some();
+
+                                                if has_headers || has_body {
+                                                    Some(
+                                                        div()
+                                                            .text_size(px(9.0))
+                                                            .text_color(rgb(COLOR_INFO_TEXT))
+                                                            .child(format!(
+                                                                "{}{}",
+                                                                if has_headers {
+                                                                    format!(
+                                                                        "{} headers",
+                                                                        entry.request.headers.len()
+                                                                    )
+                                                                } else {
+                                                                    String::new()
+                                                                },
+                                                                if has_body {
+                                                                    if has_headers {
+                                                                        " • has body"
+                                                                    } else {
+                                                                        "has body"
+                                                                    }
+                                                                } else {
+                                                                    ""
+                                                                }
+                                                            )),
+                                                    )
+                                                } else {
+                                                    None
+                                                }
+                                            }),
                                     )
                             })
                             .collect()
