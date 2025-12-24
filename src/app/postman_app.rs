@@ -23,6 +23,7 @@ const COLOR_CHECKBOX_ENABLED_BG: u32 = 0x0000_7acc;
 const COLOR_CHECKBOX_ENABLED_HOVER: u32 = 0x0000_56b3;
 const COLOR_CHECKBOX_DISABLED_BG: u32 = 0x00ff_ffff;
 const COLOR_CHECKBOX_DISABLED_HOVER: u32 = 0x00e9_ecef;
+const COLOR_CHECKBOX_TEXT: u32 = 0x00ff_ffff;
 const COLOR_HEADER_ENABLED_BG: u32 = 0x00ff_ffff;
 const COLOR_HEADER_ENABLED_BORDER: u32 = 0x0028_a745;
 const COLOR_HEADER_DISABLED_BG: u32 = 0x00f8_f9fa;
@@ -492,9 +493,9 @@ impl PostmanApp {
                                     .w_8()
                                     .px_2()
                                     .py_2()
-                                    .bg(rgb(0x00f8_f9fa))
+                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
                                     .border_1()
-                                    .border_color(rgb(0x00cc_cccc))
+                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                     .child(""),
                             )
                             .child(
@@ -502,9 +503,9 @@ impl PostmanApp {
                                     .flex_1()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0x00f8_f9fa))
+                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
                                     .border_1()
-                                    .border_color(rgb(0x00cc_cccc))
+                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                     .child("No headers set"),
                             )
                             .child(
@@ -512,9 +513,9 @@ impl PostmanApp {
                                     .flex_1()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0x00f8_f9fa))
+                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
                                     .border_1()
-                                    .border_color(rgb(0x00cc_cccc))
+                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                     .child(""),
                             )
                             .child(
@@ -522,9 +523,9 @@ impl PostmanApp {
                                     .w_16()
                                     .px_3()
                                     .py_2()
-                                    .bg(rgb(0x00f8_f9fa))
+                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
                                     .border_1()
-                                    .border_color(rgb(0x00cc_cccc))
+                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                     .child(""),
                             )]
                     } else {
@@ -545,12 +546,12 @@ impl PostmanApp {
                                             .justify_center()
                                             .bg(rgb(Self::checkbox_bg_color(*enabled)))
                                             .border_1()
-                                            .border_color(rgb(0x00cc_cccc))
+                                            .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                             .rounded_sm()
                                             .cursor_pointer()
                                             .hover(|style| style.bg(rgb(Self::checkbox_hover_bg_color(*enabled))))
                                             .child(if *enabled { "✓" } else { "" })
-                                            .text_color(rgb(0x00ff_ffff))
+                                            .text_color(rgb(COLOR_CHECKBOX_TEXT))
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
                                                 cx.listener(move |this, _event, _window, cx| {
