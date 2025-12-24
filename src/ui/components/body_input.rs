@@ -1587,6 +1587,4 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

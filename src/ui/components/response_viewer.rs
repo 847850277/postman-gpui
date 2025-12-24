@@ -1,4 +1,10 @@
-use gpui::{actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window};
+use gpui::{
+    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, CursorStyle,
+    Element, ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId,
+    InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine,
+    StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window,
+};
 use std::ops::Range;
 
 // Approximate font metrics for 12px monospace font
@@ -134,11 +140,16 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         self.is_selecting = true;
-        // if event.modifiers.shift {
-        //     self.response_select_to(self.index_for_mouse_position(event.position), cx);
-        // } else {
-        //     //self.response_move_to(self.json_index_for_mouse_position(event.position), cx);
-        // }
+        if event.modifiers.shift {
+            self.response_select_to(self.index_for_mouse_position(event.position), cx);
+        } else {
+            self.response_move_to(self.index_for_mouse_position(event.position), cx);
+        }
+    }
+
+    fn response_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.selected_range = offset..offset;
+        cx.notify();
     }
 
     fn on_mouse_up(
@@ -157,11 +168,8 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         if self.is_selecting {
-            // let index = self.index_for_mouse_position(event.position);
-            // let start = self.selected_range.start;
             let range = self.index_for_mouse_position(event.position);
             self.response_select_to(range, cx);
-            //cx.notify();
         }
     }
 
@@ -179,98 +187,7 @@ impl ResponseViewer {
         cx.notify();
     }
 
-    // fn response_index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-    //     if self.json_content.is_empty() {
-    //         return 0;
-    //     }
-    //
-    //     let Some(bounds) = self.json_last_bounds.as_ref() else {
-    //         return 0;
-    //     };
-    //
-    //     if position.y < bounds.top() {
-    //         return 0;
-    //     }
-    //     if position.y > bounds.bottom() {
-    //         return self.json_content.len();
-    //     }
-    //
-    //     // Find which line the mouse is on
-    //     let line_height = if !self.json_last_layout.is_empty() {
-    //         bounds.size.height / self.json_last_layout.len() as f32
-    //     } else {
-    //         return 0;
-    //     };
-    //
-    //     let line_index = ((position.y - bounds.top()) / line_height).floor() as usize;
-    //     let line_index = line_index.min(self.json_last_layout.len().saturating_sub(1));
-    //
-    //     let line = &self.json_last_layout[line_index];
-    //     let x_in_line = position.x - bounds.left();
-    //     let offset_in_line = line.closest_index_for_x(x_in_line);
-    //
-    //     // Calculate the absolute offset
-    //     let mut absolute_offset = 0;
-    //     for (i, layout_line) in self.json_last_layout.iter().enumerate() {
-    //         if i < line_index {
-    //             absolute_offset += layout_line.text.len() + 1; // +1 for newline
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //     absolute_offset + offset_in_line
-    // }
-
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        // let content = self.get_content();
-        // if content.is_empty() {
-        //     return 0;
-        // }
-        //
-        // let estimated_line = {
-        //     let mut line_estimate = 0;
-        //     for threshold in 1..=100 {
-        //         if position.y > px(CONTENT_PADDING_PX + APPROX_LINE_HEIGHT_PX * threshold as f32) {
-        //             line_estimate = threshold;
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        //     line_estimate
-        // };
-        //
-        // let estimated_column = {
-        //     let mut col_estimate = 0;
-        //     for threshold in 1..=200 {
-        //         if position.x > px(CONTENT_PADDING_PX + APPROX_CHAR_WIDTH_PX * threshold as f32) {
-        //             col_estimate = threshold;
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        //     col_estimate
-        // };
-        //
-        // let lines: Vec<&str> = content.lines().collect();
-        // let mut char_index = 0;
-        //
-        // for (i, line) in lines.iter().enumerate() {
-        //     if i < estimated_line {
-        //         char_index += line.chars().count() + 1;
-        //     } else if i == estimated_line {
-        //         let line_char_count = line.chars().count();
-        //         char_index += estimated_column.min(line_char_count);
-        //         break;
-        //     }
-        // }
-        //
-        // if estimated_line >= lines.len() {
-        //     char_index = content.chars().count();
-        // }
-        //
-        // char_index.min(content.chars().count())
-
-
         let content = self.get_content();
         if content.is_empty() {
             return 0;
@@ -317,6 +234,7 @@ impl ResponseViewer {
             .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .on_action(cx.listener(Self::copy))
             .on_action(cx.listener(Self::select_all))
