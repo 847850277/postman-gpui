@@ -18,6 +18,18 @@ use gpui::{
 // Maximum length for URL display in history
 const MAX_HISTORY_URL_LENGTH: usize = 40;
 
+// UI Color constants
+const COLOR_CHECKBOX_ENABLED_BG: u32 = 0x0000_7acc;
+const COLOR_CHECKBOX_ENABLED_HOVER: u32 = 0x0000_56b3;
+const COLOR_CHECKBOX_DISABLED_BG: u32 = 0x00ff_ffff;
+const COLOR_CHECKBOX_DISABLED_HOVER: u32 = 0x00e9_ecef;
+const COLOR_HEADER_ENABLED_BG: u32 = 0x00ff_ffff;
+const COLOR_HEADER_ENABLED_BORDER: u32 = 0x0028_a745;
+const COLOR_HEADER_DISABLED_BG: u32 = 0x00f8_f9fa;
+const COLOR_HEADER_DISABLED_BORDER: u32 = 0x00cc_cccc;
+const COLOR_TEXT_ENABLED: u32 = 0x0000_0000;
+const COLOR_TEXT_DISABLED: u32 = 0x006c_757d;
+
 pub struct PostmanApp {
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
@@ -176,10 +188,8 @@ impl PostmanApp {
 
         // Create a Request object for history
         let mut request = Request::new(&method, &url);
-        for (enabled, key, value) in &self.headers {
-            if *enabled {
-                request.add_header(key, value);
-            }
+        for (key, value) in &headers {
+            request.add_header(key, value);
         }
         if let Some(body_content) = &body {
             request.set_body(body_content);
@@ -411,6 +421,51 @@ impl PostmanApp {
         }
     }
 
+    // Helper function to get checkbox background color
+    fn checkbox_bg_color(enabled: bool) -> u32 {
+        if enabled {
+            COLOR_CHECKBOX_ENABLED_BG
+        } else {
+            COLOR_CHECKBOX_DISABLED_BG
+        }
+    }
+
+    // Helper function to get checkbox hover background color
+    fn checkbox_hover_bg_color(enabled: bool) -> u32 {
+        if enabled {
+            COLOR_CHECKBOX_ENABLED_HOVER
+        } else {
+            COLOR_CHECKBOX_DISABLED_HOVER
+        }
+    }
+
+    // Helper function to get header cell background color
+    fn header_cell_bg_color(enabled: bool) -> u32 {
+        if enabled {
+            COLOR_HEADER_ENABLED_BG
+        } else {
+            COLOR_HEADER_DISABLED_BG
+        }
+    }
+
+    // Helper function to get header cell border color
+    fn header_cell_border_color(enabled: bool) -> u32 {
+        if enabled {
+            COLOR_HEADER_ENABLED_BORDER
+        } else {
+            COLOR_HEADER_DISABLED_BORDER
+        }
+    }
+
+    // Helper function to get header text color
+    fn header_text_color(enabled: bool) -> u32 {
+        if enabled {
+            COLOR_TEXT_ENABLED
+        } else {
+            COLOR_TEXT_DISABLED
+        }
+    }
+
     fn render_headers_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
@@ -488,12 +543,12 @@ impl PostmanApp {
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .bg(if *enabled { rgb(0x0000_7acc) } else { rgb(0x00ff_ffff) })
+                                            .bg(rgb(Self::checkbox_bg_color(*enabled)))
                                             .border_1()
                                             .border_color(rgb(0x00cc_cccc))
                                             .rounded_sm()
                                             .cursor_pointer()
-                                            .hover(|style| style.bg(if *enabled { rgb(0x0000_56b3) } else { rgb(0x00e9_ecef) }))
+                                            .hover(|style| style.bg(rgb(Self::checkbox_hover_bg_color(*enabled))))
                                             .child(if *enabled { "✓" } else { "" })
                                             .text_color(rgb(0x00ff_ffff))
                                             .on_mouse_up(
@@ -508,11 +563,22 @@ impl PostmanApp {
                                             .flex_1()
                                             .px_3()
                                             .py_2()
-                                            .bg(if *enabled { rgb(0x00ff_ffff) } else { rgb(0x00f8_f9fa) })
+                                            .bg(rgb(Self::header_cell_bg_color(*enabled)))
                                             .border_1()
-                                            .border_color(if *enabled { rgb(0x0028_a745) } else { rgb(0x00cc_cccc) })
-                                            .text_color(if *enabled { rgb(0x0000_0000) } else { rgb(0x006c_757d) })
+                                            .border_color(rgb(Self::header_cell_border_color(*enabled)))
+                                            .text_color(rgb(Self::header_text_color(*enabled)))
                                             .child(key.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .px_3()
+                                            .py_2()
+                                            .bg(rgb(Self::header_cell_bg_color(*enabled)))
+                                            .border_1()
+                                            .border_color(rgb(Self::header_cell_border_color(*enabled)))
+                                            .text_color(rgb(Self::header_text_color(*enabled)))
+                                            .child(value.clone()),
                                     )
                                     .child(
                                         div()
