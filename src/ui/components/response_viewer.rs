@@ -1,9 +1,9 @@
 use gpui::{
-    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, Element,
-    ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId, InteractiveElement,
-    IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, StatefulInteractiveElement, Style,
-    Styled, TextAlign, TextRun, Window,
+    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, CursorStyle,
+    Element, ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId,
+    InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine,
+    StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window,
 };
 use std::ops::Range;
 
@@ -41,6 +41,7 @@ pub struct ResponseViewer {
     state: ResponseState,
     focus_handle: FocusHandle,
     selected_range: Range<usize>,
+    selection_reversed: bool,
     is_selecting: bool,
     last_bounds: Option<Bounds<Pixels>>,
     last_lines_layout: Vec<(ShapedLine, usize)>, // (shaped_line, char_offset)
@@ -58,6 +59,7 @@ impl ResponseViewer {
             state: ResponseState::NotSent,
             focus_handle: cx.focus_handle(),
             selected_range: 0..0,
+            selection_reversed: false,
             is_selecting: false,
             last_bounds: None,
             last_lines_layout: Vec::new(),
@@ -138,8 +140,15 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         self.is_selecting = true;
-        let index = self.index_for_mouse_position(event.position);
-        self.selected_range = index..index;
+        if event.modifiers.shift {
+            self.response_select_to(self.index_for_mouse_position(event.position), cx);
+        } else {
+            self.response_move_to(self.index_for_mouse_position(event.position), cx);
+        }
+    }
+
+    fn response_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.selected_range = offset..offset;
         cx.notify();
     }
 
@@ -159,17 +168,23 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         if self.is_selecting {
-            let index = self.index_for_mouse_position(event.position);
-            let selection_start = self.selected_range.start;
-
-            if index < selection_start {
-                self.selected_range = index..selection_start;
-            } else {
-                self.selected_range = selection_start..index;
-            }
-
-            cx.notify();
+            let offset = self.index_for_mouse_position(event.position);
+            self.response_select_to(offset, cx);
         }
+    }
+
+    fn response_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        if self.selection_reversed {
+            self.selected_range.start = offset;
+        } else {
+            self.selected_range.end = offset;
+        }
+
+        if self.selected_range.end < self.selected_range.start {
+            self.selection_reversed = !self.selection_reversed;
+            self.selected_range = self.selected_range.end..self.selected_range.start;
+        }
+        cx.notify();
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
@@ -178,48 +193,31 @@ impl ResponseViewer {
             return 0;
         }
 
-        let estimated_line = {
-            let mut line_estimate = 0;
-            for threshold in 1..=100 {
-                if position.y > px(CONTENT_PADDING_PX + APPROX_LINE_HEIGHT_PX * threshold as f32) {
-                    line_estimate = threshold;
-                } else {
-                    break;
-                }
-            }
-            line_estimate
+        let Some(bounds) = self.last_bounds.as_ref() else {
+            return 0;
         };
 
-        let estimated_column = {
-            let mut col_estimate = 0;
-            for threshold in 1..=200 {
-                if position.x > px(CONTENT_PADDING_PX + APPROX_CHAR_WIDTH_PX * threshold as f32) {
-                    col_estimate = threshold;
-                } else {
-                    break;
-                }
-            }
-            col_estimate
-        };
-
-        let lines: Vec<&str> = content.lines().collect();
-        let mut char_index = 0;
-
-        for (i, line) in lines.iter().enumerate() {
-            if i < estimated_line {
-                char_index += line.chars().count() + 1;
-            } else if i == estimated_line {
-                let line_char_count = line.chars().count();
-                char_index += estimated_column.min(line_char_count);
-                break;
-            }
+        if position.y < bounds.top() {
+            return 0;
+        }
+        if position.y > bounds.bottom() {
+            return content.chars().count();
         }
 
-        if estimated_line >= lines.len() {
-            char_index = content.chars().count();
+        if self.last_lines_layout.is_empty() {
+            return 0;
         }
 
-        char_index.min(content.chars().count())
+        let line_height = bounds.size.height / self.last_lines_layout.len() as f32;
+        let mut line_index = ((position.y - bounds.top()) / line_height).floor() as usize;
+        line_index = line_index.min(self.last_lines_layout.len().saturating_sub(1));
+
+        let (shaped_line, line_char_offset) = &self.last_lines_layout[line_index];
+        let x_in_line = position.x - bounds.left();
+        let offset_in_line = shaped_line.closest_index_for_x(x_in_line);
+
+        let absolute_offset = line_char_offset.saturating_add(offset_in_line);
+        absolute_offset.min(content.chars().count())
     }
 
     fn render_selectable_content(
@@ -229,9 +227,14 @@ impl ResponseViewer {
     ) -> impl IntoElement {
         div()
             .id("response-content")
+            .border_1()
+            .border_color(rgb(0x00cc_cccc))
+            .rounded_md()
+            .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .on_action(cx.listener(Self::copy))
             .on_action(cx.listener(Self::select_all))
@@ -241,8 +244,6 @@ impl ResponseViewer {
             .px_3()
             .py_2()
             .bg(rgb(0x00f8_f9fa))
-            .border_1()
-            .border_color(rgb(0x00cc_cccc))
             .overflow_scroll()
             .child(MultiLineTextElement {
                 viewer: cx.entity().clone(),
