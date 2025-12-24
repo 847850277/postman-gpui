@@ -22,8 +22,8 @@ pub struct PostmanApp {
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
 
-    // Headers
-    headers: Vec<(String, String)>,
+    // Headers - (enabled, key, value)
+    headers: Vec<(bool, String, String)>,
 
     // Body - 使用BodyInput组件替代字符串
     body_input: Entity<BodyInput>,
@@ -111,9 +111,9 @@ impl PostmanApp {
                     // 为POST请求设置默认Content-Type头
                     if self.headers.is_empty() {
                         self.headers
-                            .push(("Content-Type".to_string(), "application/json".to_string()));
+                            .push((true, "Content-Type".to_string(), "application/json".to_string()));
                         self.headers
-                            .push(("Accept".to_string(), "application/json".to_string()));
+                            .push((true, "Accept".to_string(), "application/json".to_string()));
                         println!("📝 PostmanApp - 为POST请求设置默认Headers:");
                         println!("   添加: Content-Type = application/json");
                         println!("   添加: Accept = application/json");
@@ -157,7 +157,11 @@ impl PostmanApp {
             .method_selector
             .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
-        let headers = self.headers.clone();
+        // Only include enabled headers
+        let headers: Vec<(String, String)> = self.headers.iter()
+            .filter(|(enabled, _, _)| *enabled)
+            .map(|(_, key, value)| (key.clone(), value.clone()))
+            .collect();
         let body = if method.to_uppercase() == "POST" {
             Some(self.body_input.read(cx).get_content().to_string())
         } else {
@@ -172,8 +176,10 @@ impl PostmanApp {
 
         // Create a Request object for history
         let mut request = Request::new(&method, &url);
-        for (key, value) in &headers {
-            request.add_header(key, value);
+        for (enabled, key, value) in &self.headers {
+            if *enabled {
+                request.add_header(key, value);
+            }
         }
         if let Some(body_content) = &body {
             request.set_body(body_content);
@@ -245,17 +251,17 @@ impl PostmanApp {
 
         if !key.is_empty() && !value.is_empty() {
             // 检查是否已存在相同的key
-            let existing_index = self.headers.iter().position(|(k, _)| k == &key);
+            let existing_index = self.headers.iter().position(|(_, k, _)| k == &key);
 
             if let Some(index) = existing_index {
-                let old_value = self.headers[index].1.clone(); // 克隆旧值避免借用冲突
-                self.headers[index].1 = value.clone();
+                let old_value = self.headers[index].2.clone(); // 克隆旧值避免借用冲突
+                self.headers[index].2 = value.clone();
                 println!("🔄 PostmanApp - 更新已存在的header:");
                 println!("   Key: {key}");
                 println!("   旧值: {old_value}");
                 println!("   新值: {value}");
             } else {
-                self.headers.push((key.clone(), value.clone()));
+                self.headers.push((true, key.clone(), value.clone())); // enabled by default
                 println!("✅ PostmanApp - 成功添加新header:");
                 println!("   Key: {key}");
                 println!("   Value: {value}");
@@ -270,8 +276,8 @@ impl PostmanApp {
 
             // 打印当前所有headers
             println!("📋 PostmanApp - 当前所有headers:");
-            for (i, (k, v)) in self.headers.iter().enumerate() {
-                println!("   {}. {} = {}", i + 1, k, v);
+            for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
+                println!("   {}. [{}] {} = {}", i + 1, if *enabled { "✓" } else { " " }, k, v);
             }
 
             cx.notify();
@@ -310,8 +316,9 @@ impl PostmanApp {
         if index < self.headers.len() {
             let removed = self.headers.remove(index);
             println!("✅ PostmanApp - 成功删除header:");
-            println!("   Key: {}", removed.0);
-            println!("   Value: {}", removed.1);
+            println!("   Enabled: {}", removed.0);
+            println!("   Key: {}", removed.1);
+            println!("   Value: {}", removed.2);
             println!("   剩余headers数量: {}", self.headers.len());
 
             // 打印剩余的headers
@@ -319,14 +326,36 @@ impl PostmanApp {
                 println!("📋 PostmanApp - 当前无headers");
             } else {
                 println!("📋 PostmanApp - 剩余headers:");
-                for (i, (k, v)) in self.headers.iter().enumerate() {
-                    println!("   {}. {} = {}", i + 1, k, v);
+                for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
+                    println!("   {}. [{}] {} = {}", i + 1, if *enabled { "✓" } else { " " }, k, v);
                 }
             }
 
             cx.notify();
         } else {
             println!("❌ PostmanApp - 删除header失败:");
+            println!(
+                "   原因: 索引 {} 超出范围 (当前headers数量: {})",
+                index,
+                self.headers.len()
+            );
+        }
+    }
+
+    // Toggle header enabled state
+    fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        println!("🔄 PostmanApp - 切换header状态，索引: {index}");
+
+        if index < self.headers.len() {
+            let current_state = self.headers[index].0;
+            self.headers[index].0 = !current_state;
+            println!("✅ PostmanApp - 成功切换header状态:");
+            println!("   Key: {}", self.headers[index].1);
+            println!("   从 {} 切换到 {}", current_state, !current_state);
+
+            cx.notify();
+        } else {
+            println!("❌ PostmanApp - 切换header失败:");
             println!(
                 "   原因: 索引 {} 超出范围 (当前headers数量: {})",
                 index,
@@ -360,8 +389,10 @@ impl PostmanApp {
                     input.set_url(&request.url, cx);
                 });
 
-                // Update headers
-                self.headers = request.headers.clone();
+                // Update headers - convert from Vec<(String, String)> to Vec<(bool, String, String)>
+                self.headers = request.headers.iter()
+                    .map(|(key, value)| (true, key.clone(), value.clone()))
+                    .collect();
 
                 // Update body
                 if let Some(body) = &request.body {
@@ -387,7 +418,7 @@ impl PostmanApp {
             .gap_3()
             .child(
                 div()
-                    .child("Headers")
+                    .child(format!("Headers ({})", self.headers.iter().filter(|(enabled, _, _)| *enabled).count()))
                     .text_size(px(16.0))
                     .font_weight(FontWeight::MEDIUM),
             )
@@ -401,6 +432,16 @@ impl PostmanApp {
                         vec![div()
                             .flex()
                             .gap_2()
+                            .child(
+                                div()
+                                    .w_8()
+                                    .px_2()
+                                    .py_2()
+                                    .bg(rgb(0x00f8_f9fa))
+                                    .border_1()
+                                    .border_color(rgb(0x00cc_cccc))
+                                    .child(""),
+                            )
                             .child(
                                 div()
                                     .flex_1()
@@ -435,18 +476,42 @@ impl PostmanApp {
                         self.headers
                             .iter()
                             .enumerate()
-                            .map(|(index, (key, value))| {
+                            .map(|(index, (enabled, key, value))| {
                                 div()
                                     .flex()
                                     .gap_2()
+                                    .child(
+                                        // Checkbox column
+                                        div()
+                                            .w_8()
+                                            .h_8()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .bg(if *enabled { rgb(0x0000_7acc) } else { rgb(0x00ff_ffff) })
+                                            .border_1()
+                                            .border_color(rgb(0x00cc_cccc))
+                                            .rounded_sm()
+                                            .cursor_pointer()
+                                            .hover(|style| style.bg(if *enabled { rgb(0x0000_56b3) } else { rgb(0x00e9_ecef) }))
+                                            .child(if *enabled { "✓" } else { "" })
+                                            .text_color(rgb(0x00ff_ffff))
+                                            .on_mouse_up(
+                                                gpui::MouseButton::Left,
+                                                cx.listener(move |this, _event, _window, cx| {
+                                                    this.toggle_header(index, cx);
+                                                }),
+                                            ),
+                                    )
                                     .child(
                                         div()
                                             .flex_1()
                                             .px_3()
                                             .py_2()
-                                            .bg(rgb(0x00ff_ffff))
+                                            .bg(if *enabled { rgb(0x00ff_ffff) } else { rgb(0x00f8_f9fa) })
                                             .border_1()
-                                            .border_color(rgb(0x0028_a745))
+                                            .border_color(if *enabled { rgb(0x0028_a745) } else { rgb(0x00cc_cccc) })
+                                            .text_color(if *enabled { rgb(0x0000_0000) } else { rgb(0x006c_757d) })
                                             .child(key.clone()),
                                     )
                                     .child(
@@ -454,9 +519,10 @@ impl PostmanApp {
                                             .flex_1()
                                             .px_3()
                                             .py_2()
-                                            .bg(rgb(0x00ff_ffff))
+                                            .bg(if *enabled { rgb(0x00ff_ffff) } else { rgb(0x00f8_f9fa) })
                                             .border_1()
-                                            .border_color(rgb(0x0028_a745))
+                                            .border_color(if *enabled { rgb(0x0028_a745) } else { rgb(0x00cc_cccc) })
+                                            .text_color(if *enabled { rgb(0x0000_0000) } else { rgb(0x006c_757d) })
                                             .child(value.clone()),
                                     )
                                     .child(
@@ -486,6 +552,10 @@ impl PostmanApp {
                 div()
                     .flex()
                     .gap_2()
+                    .child(
+                        // Empty checkbox column for alignment
+                        div().w_8()
+                    )
                     .child(self.header_key_input.clone())
                     .child(self.header_value_input.clone())
                     .child(
@@ -587,8 +657,9 @@ impl PostmanApp {
                     .text_size(px(12.0))
                     .text_color(rgb(0x006c_757d))
                     .child(format!(
-                        "Total headers: {} | Add headers by typing key and value above",
-                        self.headers.len()
+                        "Total headers: {} | Enabled: {} | Add headers by typing key and value above",
+                        self.headers.len(),
+                        self.headers.iter().filter(|(enabled, _, _)| *enabled).count()
                     )),
             )
     }
