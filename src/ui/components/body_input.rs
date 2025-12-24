@@ -1587,4 +1587,43 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_body_type_enum() {
+        // Test that BodyType enum variants exist
+        let json_type = BodyType::Json;
+        let form_data_type = BodyType::FormData;
+        let raw_type = BodyType::Raw;
+        
+        assert_eq!(json_type, BodyType::Json);
+        assert_eq!(form_data_type, BodyType::FormData);
+        assert_eq!(raw_type, BodyType::Raw);
+        assert_ne!(json_type, form_data_type);
+    }
+
+    #[test]
+    fn test_form_data_entry_creation() {
+        let entry = FormDataEntry {
+            key: "username".to_string(),
+            value: "john_doe".to_string(),
+            enabled: true,
+        };
+        
+        assert_eq!(entry.key, "username");
+        assert_eq!(entry.value, "john_doe");
+        assert!(entry.enabled);
+    }
+
+    #[test]
+    fn test_form_data_entry_disabled() {
+        let entry = FormDataEntry {
+            key: "api_key".to_string(),
+            value: "secret123".to_string(),
+            enabled: false,
+        };
+        
+        assert!(!entry.enabled);
+    }
+}
