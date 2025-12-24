@@ -63,6 +63,15 @@ impl HistoryList {
         cx.notify();
 
         if let Some(entry) = self.entries.get(index) {
+            println!("🔘 History item clicked:");
+            println!("   Index: {}", index);
+            println!("   Method: {}", entry.request.method);
+            println!("   URL: {}", entry.request.url);
+            println!("   Headers: {}", entry.request.headers.len());
+            if let Some(ref body) = entry.request.body {
+                println!("   Body: {} bytes", body.len());
+            }
+            println!("   ➡️ Loading request into form...");
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {
             // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
@@ -179,8 +188,33 @@ impl Render for HistoryList {
                                                 div()
                                                     .text_size(px(11.0))
                                                     .overflow_hidden()
+                                                    .text_ellipsis()
                                                     .child(entry.name.clone()),
-                                            ),
+                                            )
+                                            .when(!entry.request.headers.is_empty() || entry.request.body.is_some(), |div| {
+                                                div.child(
+                                                    div()
+                                                        .text_size(px(9.0))
+                                                        .text_color(rgb(0x0099_9999))
+                                                        .child(format!(
+                                                            "{}{}",
+                                                            if !entry.request.headers.is_empty() {
+                                                                format!("{} headers", entry.request.headers.len())
+                                                            } else {
+                                                                String::new()
+                                                            },
+                                                            if entry.request.body.is_some() {
+                                                                if !entry.request.headers.is_empty() {
+                                                                    " • has body"
+                                                                } else {
+                                                                    "has body"
+                                                                }
+                                                            } else {
+                                                                ""
+                                                            }
+                                                        ))
+                                                )
+                                            }),
                                     )
                             })
                             .collect()

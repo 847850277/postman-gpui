@@ -408,6 +408,18 @@ impl PostmanApp {
                 println!("   Method: {}", request.method);
                 println!("   URL: {}", request.url);
                 println!("   Headers: {}", request.headers.len());
+                
+                // Log query parameters if present in URL
+                if request.url.contains('?') {
+                    if let Some(query_str) = request.url.split('?').nth(1) {
+                        println!("   Query parameters: {}", query_str);
+                    }
+                }
+                
+                // Log body info
+                if let Some(ref body) = request.body {
+                    println!("   Body length: {} bytes", body.len());
+                }
 
                 // Update method selector - normalize method to uppercase
                 let method = request.method.to_uppercase();
@@ -438,7 +450,12 @@ impl PostmanApp {
                     });
                 }
 
-                println!("✅ PostmanApp - Request loaded from history");
+                println!("✅ PostmanApp - Request loaded from history successfully");
+                println!("   • URL loaded into URL input field");
+                println!("   • {} headers loaded", request.headers.len());
+                if request.body.is_some() {
+                    println!("   • Request body loaded");
+                }
                 cx.notify();
             }
         }
