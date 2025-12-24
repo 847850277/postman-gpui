@@ -8,6 +8,7 @@ use gpui::{
 };
 use std::ops::Range;
 use unicode_segmentation::*;
+use form_urlencoded;
 
 actions!(
     body_input,
@@ -343,12 +344,15 @@ impl BodyInput {
     }
 
     pub fn get_form_data_as_string(&self) -> String {
+        let encoder = form_urlencoded::Serializer::new(String::new());
         self.form_data_entries
             .iter()
             .filter(|entry| entry.enabled && !entry.key.is_empty())
-            .map(|entry| format!("{}={}", entry.key, entry.value))
-            .collect::<Vec<_>>()
-            .join("&")
+            .fold(encoder, |mut enc, entry| {
+                enc.append_pair(&entry.key, &entry.value);
+                enc
+            })
+            .finish()
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
@@ -1625,5 +1629,44 @@ mod tests {
         };
         
         assert!(!entry.enabled);
+    }
+
+    #[test]
+    fn test_form_data_url_encoding() {
+        // Test that special characters are properly URL-encoded
+        let mut input = BodyInput::new(&mut App::new());
+        input.form_data_entries = vec![
+            FormDataEntry {
+                key: "name".to_string(),
+                value: "John Doe".to_string(),  // Space should be encoded
+                enabled: true,
+            },
+            FormDataEntry {
+                key: "email".to_string(),
+                value: "test@example.com".to_string(),  // @ should be encoded
+                enabled: true,
+            },
+            FormDataEntry {
+                key: "special".to_string(),
+                value: "a&b=c".to_string(),  // & and = should be encoded
+                enabled: true,
+            },
+            FormDataEntry {
+                key: "disabled_key".to_string(),
+                value: "should_not_appear".to_string(),
+                enabled: false,  // This should not appear in output
+            },
+        ];
+        
+        let encoded = input.get_form_data_as_string();
+        
+        // Should not contain the disabled entry
+        assert!(!encoded.contains("disabled_key"));
+        assert!(!encoded.contains("should_not_appear"));
+        
+        // Should contain properly encoded values
+        assert!(encoded.contains("name=John+Doe") || encoded.contains("name=John%20Doe"));
+        assert!(encoded.contains("email=test%40example.com"));
+        assert!(encoded.contains("special=a%26b%3Dc"));
     }
 }
