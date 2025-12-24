@@ -168,8 +168,8 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         if self.is_selecting {
-            let range = self.index_for_mouse_position(event.position);
-            self.response_select_to(range, cx);
+            let offset = self.index_for_mouse_position(event.position);
+            self.response_select_to(offset, cx);
         }
     }
 
