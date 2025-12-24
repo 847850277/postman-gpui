@@ -191,29 +191,36 @@ impl Render for HistoryList {
                                                     .text_ellipsis()
                                                     .child(entry.name.clone()),
                                             )
-                                            .when(!entry.request.headers.is_empty() || entry.request.body.is_some(), |div| {
-                                                div.child(
-                                                    div()
-                                                        .text_size(px(9.0))
-                                                        .text_color(rgb(0x0099_9999))
-                                                        .child(format!(
-                                                            "{}{}",
-                                                            if !entry.request.headers.is_empty() {
-                                                                format!("{} headers", entry.request.headers.len())
-                                                            } else {
-                                                                String::new()
-                                                            },
-                                                            if entry.request.body.is_some() {
-                                                                if !entry.request.headers.is_empty() {
-                                                                    " • has body"
+                                            .children({
+                                                let has_headers = !entry.request.headers.is_empty();
+                                                let has_body = entry.request.body.is_some();
+                                                
+                                                if has_headers || has_body {
+                                                    Some(
+                                                        div()
+                                                            .text_size(px(9.0))
+                                                            .text_color(rgb(0x0099_9999))
+                                                            .child(format!(
+                                                                "{}{}",
+                                                                if has_headers {
+                                                                    format!("{} headers", entry.request.headers.len())
                                                                 } else {
-                                                                    "has body"
+                                                                    String::new()
+                                                                },
+                                                                if has_body {
+                                                                    if has_headers {
+                                                                        " • has body"
+                                                                    } else {
+                                                                        "has body"
+                                                                    }
+                                                                } else {
+                                                                    ""
                                                                 }
-                                                            } else {
-                                                                ""
-                                                            }
-                                                        ))
-                                                )
+                                                            ))
+                                                    )
+                                                } else {
+                                                    None
+                                                }
                                             }),
                                     )
                             })
