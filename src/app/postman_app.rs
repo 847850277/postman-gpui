@@ -123,10 +123,16 @@ impl PostmanApp {
 
                     // 为POST请求设置默认Content-Type头
                     if self.headers.is_empty() {
-                        self.headers
-                            .push((true, "Content-Type".to_string(), "application/json".to_string()));
-                        self.headers
-                            .push((true, "Accept".to_string(), "application/json".to_string()));
+                        self.headers.push((
+                            true,
+                            "Content-Type".to_string(),
+                            "application/json".to_string(),
+                        ));
+                        self.headers.push((
+                            true,
+                            "Accept".to_string(),
+                            "application/json".to_string(),
+                        ));
                         println!("📝 PostmanApp - 为POST请求设置默认Headers:");
                         println!("   添加: Content-Type = application/json");
                         println!("   添加: Accept = application/json");
@@ -171,7 +177,9 @@ impl PostmanApp {
             .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
         // Only include enabled headers
-        let headers: Vec<(String, String)> = self.headers.iter()
+        let headers: Vec<(String, String)> = self
+            .headers
+            .iter()
             .filter(|(enabled, _, _)| *enabled)
             .map(|(_, key, value)| (key.clone(), value.clone()))
             .collect();
@@ -288,7 +296,13 @@ impl PostmanApp {
             // 打印当前所有headers
             println!("📋 PostmanApp - 当前所有headers:");
             for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                println!("   {}. [{}] {} = {}", i + 1, if *enabled { "✓" } else { " " }, k, v);
+                println!(
+                    "   {}. [{}] {} = {}",
+                    i + 1,
+                    if *enabled { "✓" } else { " " },
+                    k,
+                    v
+                );
             }
 
             cx.notify();
@@ -338,7 +352,13 @@ impl PostmanApp {
             } else {
                 println!("📋 PostmanApp - 剩余headers:");
                 for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                    println!("   {}. [{}] {} = {}", i + 1, if *enabled { "✓" } else { " " }, k, v);
+                    println!(
+                        "   {}. [{}] {} = {}",
+                        i + 1,
+                        if *enabled { "✓" } else { " " },
+                        k,
+                        v
+                    );
                 }
             }
 
@@ -401,7 +421,9 @@ impl PostmanApp {
                 });
 
                 // Update headers - convert from Vec<(String, String)> to Vec<(bool, String, String)>
-                self.headers = request.headers.iter()
+                self.headers = request
+                    .headers
+                    .iter()
                     .map(|(key, value)| (true, key.clone(), value.clone()))
                     .collect();
 
@@ -474,7 +496,13 @@ impl PostmanApp {
             .gap_3()
             .child(
                 div()
-                    .child(format!("Headers ({})", self.headers.iter().filter(|(enabled, _, _)| *enabled).count()))
+                    .child(format!(
+                        "Headers ({})",
+                        self.headers
+                            .iter()
+                            .filter(|(enabled, _, _)| *enabled)
+                            .count()
+                    ))
                     .text_size(px(16.0))
                     .font_weight(FontWeight::MEDIUM),
             )
@@ -549,7 +577,11 @@ impl PostmanApp {
                                             .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
                                             .rounded_sm()
                                             .cursor_pointer()
-                                            .hover(|style| style.bg(rgb(Self::checkbox_hover_bg_color(*enabled))))
+                                            .hover(|style| {
+                                                style.bg(rgb(Self::checkbox_hover_bg_color(
+                                                    *enabled,
+                                                )))
+                                            })
                                             .child(if *enabled { "✓" } else { "" })
                                             .text_color(rgb(COLOR_CHECKBOX_TEXT))
                                             .on_mouse_up(
@@ -566,7 +598,9 @@ impl PostmanApp {
                                             .py_2()
                                             .bg(rgb(Self::header_cell_bg_color(*enabled)))
                                             .border_1()
-                                            .border_color(rgb(Self::header_cell_border_color(*enabled)))
+                                            .border_color(rgb(Self::header_cell_border_color(
+                                                *enabled,
+                                            )))
                                             .text_color(rgb(Self::header_text_color(*enabled)))
                                             .child(key.clone()),
                                     )
@@ -577,7 +611,9 @@ impl PostmanApp {
                                             .py_2()
                                             .bg(rgb(Self::header_cell_bg_color(*enabled)))
                                             .border_1()
-                                            .border_color(rgb(Self::header_cell_border_color(*enabled)))
+                                            .border_color(rgb(Self::header_cell_border_color(
+                                                *enabled,
+                                            )))
                                             .text_color(rgb(Self::header_text_color(*enabled)))
                                             .child(value.clone()),
                                     )
@@ -610,7 +646,7 @@ impl PostmanApp {
                     .gap_2()
                     .child(
                         // Empty checkbox column for alignment
-                        div().w_8()
+                        div().w_8(),
                     )
                     .child(self.header_key_input.clone())
                     .child(self.header_value_input.clone())
@@ -713,10 +749,13 @@ impl PostmanApp {
                     .text_size(px(12.0))
                     .text_color(rgb(0x006c_757d))
                     .child(format!(
-                        "Total headers: {} | Enabled: {} | Add headers by typing key and value above",
-                        self.headers.len(),
-                        self.headers.iter().filter(|(enabled, _, _)| *enabled).count()
-                    )),
+                    "Total headers: {} | Enabled: {} | Add headers by typing key and value above",
+                    self.headers.len(),
+                    self.headers
+                        .iter()
+                        .filter(|(enabled, _, _)| *enabled)
+                        .count()
+                )),
             )
     }
 
