@@ -408,14 +408,14 @@ impl PostmanApp {
                 println!("   Method: {}", request.method);
                 println!("   URL: {}", request.url);
                 println!("   Headers: {}", request.headers.len());
-                
+
                 // Log query parameters if present in URL
                 if request.url.contains('?') {
                     if let Some(query_str) = request.url.split('?').nth(1) {
                         println!("   Query parameters: {}", query_str);
                     }
                 }
-                
+
                 // Log body info
                 if let Some(ref body) = request.body {
                     println!("   Body length: {} bytes", body.len());

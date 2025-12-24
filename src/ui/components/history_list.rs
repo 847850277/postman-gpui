@@ -196,7 +196,7 @@ impl Render for HistoryList {
                                             .children({
                                                 let has_headers = !entry.request.headers.is_empty();
                                                 let has_body = entry.request.body.is_some();
-                                                
+
                                                 if has_headers || has_body {
                                                     Some(
                                                         div()
@@ -205,7 +205,10 @@ impl Render for HistoryList {
                                                             .child(format!(
                                                                 "{}{}",
                                                                 if has_headers {
-                                                                    format!("{} headers", entry.request.headers.len())
+                                                                    format!(
+                                                                        "{} headers",
+                                                                        entry.request.headers.len()
+                                                                    )
                                                                 } else {
                                                                     String::new()
                                                                 },
@@ -218,7 +221,7 @@ impl Render for HistoryList {
                                                                 } else {
                                                                     ""
                                                                 }
-                                                            ))
+                                                            )),
                                                     )
                                                 } else {
                                                     None
