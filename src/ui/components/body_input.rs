@@ -1665,7 +1665,8 @@ mod tests {
         assert!(!encoded.contains("should_not_appear"));
         
         // Should contain properly encoded values
-        assert!(encoded.contains("name=John+Doe") || encoded.contains("name=John%20Doe"));
+        // Note: form_urlencoded uses + for spaces in application/x-www-form-urlencoded
+        assert!(encoded.contains("name=John+Doe"));
         assert!(encoded.contains("email=test%40example.com"));
         assert!(encoded.contains("special=a%26b%3Dc"));
     }
