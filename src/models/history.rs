@@ -170,7 +170,7 @@ mod tests {
         }
         
         // Should be limited to max
-        assert_eq!(history.len(), 50); // DEFAULT_MAX_HISTORY_ENTRIES
+        assert_eq!(history.len(), DEFAULT_MAX_HISTORY_ENTRIES);
     }
 
     #[test]

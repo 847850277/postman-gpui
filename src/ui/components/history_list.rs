@@ -16,6 +16,9 @@ fn get_method_color(method: &str) -> Rgba {
     }
 }
 
+/// Color for additional info text (headers/body indicators)
+const COLOR_INFO_TEXT: u32 = 0x0099_9999;
+
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
 pub enum HistoryListEvent {
@@ -188,7 +191,6 @@ impl Render for HistoryList {
                                                 div()
                                                     .text_size(px(11.0))
                                                     .overflow_hidden()
-                                                    .text_ellipsis()
                                                     .child(entry.name.clone()),
                                             )
                                             .children({
@@ -199,7 +201,7 @@ impl Render for HistoryList {
                                                     Some(
                                                         div()
                                                             .text_size(px(9.0))
-                                                            .text_color(rgb(0x0099_9999))
+                                                            .text_color(rgb(COLOR_INFO_TEXT))
                                                             .child(format!(
                                                                 "{}{}",
                                                                 if has_headers {
