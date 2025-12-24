@@ -18,7 +18,6 @@ The history list in the left sidebar shows all your previous requests. Simply **
 - Load all headers
 - Load the request body
 
-See [FEATURE_HISTORY_LIST.md](FEATURE_HISTORY_LIST.md) for detailed documentation on the history feature.
 
 ## Project Structure
 
