@@ -4,6 +4,7 @@
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs
 import json
 import sys
 
@@ -40,7 +41,6 @@ class TestHandler(BaseHTTPRequestHandler):
         # Parse body based on content type
         if 'application/x-www-form-urlencoded' in content_type:
             # Parse form data
-            from urllib.parse import parse_qs
             try:
                 body_str = post_data.decode('utf-8')
                 parsed_form = parse_qs(body_str)

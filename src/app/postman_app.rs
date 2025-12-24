@@ -2,7 +2,7 @@ use crate::{
     http::executor::RequestExecutor,
     models::{Request, RequestHistory},
     ui::components::{
-        body_input::{setup_body_input_key_bindings, BodyInput},
+        body_input::{setup_body_input_key_bindings, BodyInput, BodyType},
         header_input::{setup_header_input_key_bindings, HeaderInput},
         history_list::{HistoryList, HistoryListEvent},
         method_selector::{MethodSelector, MethodSelectorEvent},
@@ -194,7 +194,6 @@ impl PostmanApp {
             .collect();
         
         // Auto-add Content-Type header for form-data if not already present
-        use crate::ui::components::body_input::BodyType;
         if method.to_uppercase() == "POST" && body_type == BodyType::FormData {
             let has_content_type = headers.iter().any(|(key, _)| 
                 key.to_lowercase() == "content-type"
