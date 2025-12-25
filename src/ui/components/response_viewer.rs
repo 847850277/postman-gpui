@@ -7,11 +7,6 @@ use gpui::{
 };
 use std::ops::Range;
 
-// Approximate font metrics for 12px monospace font
-const APPROX_CHAR_WIDTH_PX: f32 = 7.2;
-const APPROX_LINE_HEIGHT_PX: f32 = 16.0;
-const CONTENT_PADDING_PX: f32 = 12.0; // px_3() = 12px padding
-
 actions!(response_viewer, [Copy, SelectAll]);
 
 pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {

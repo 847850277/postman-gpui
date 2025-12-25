@@ -84,6 +84,24 @@ mod tests {
     }
 
     #[test]
+    fn test_set_form_data_body() {
+        let mut request = Request::new("POST", "https://api.example.com/submit");
+        let form_data = "username=john_doe&email=john@example.com&age=30";
+        request.set_body(form_data);
+        request.add_header("Content-Type", "application/x-www-form-urlencoded");
+
+        assert_eq!(request.body, Some(form_data.to_string()));
+        assert_eq!(request.headers.len(), 1);
+        assert_eq!(
+            request.headers[0],
+            (
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string()
+            )
+        );
+    }
+
+    #[test]
     fn test_headers_as_map() {
         let mut request = Request::new("GET", "https://api.example.com");
         request.add_header("Content-Type", "application/json");
