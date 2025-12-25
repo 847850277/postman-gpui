@@ -1,106 +1,40 @@
-// rust
-use std::any::Any;
-
-// 静态核心 trait：只定义一个简单的 render 方法
-pub trait Element: 'static + IntoElement {
-    fn render(&self) -> String;
-
-    // 提供一个方便方法把自己装箱成 AnyElement
-    fn into_any(self) -> AnyElement
-    where
-        Self: Sized,
-    {
-        AnyElement::new(self)
-    }
-}
-
-// 转换 trait：任何能转成 Element 的类型都实现它
-pub trait IntoElement: Sized {
-    type Element: Element;
-    fn into_element(self) -> Self::Element;
-
-    fn into_any_element(self) -> AnyElement {
-        self.into_element().into_any()
-    }
-}
-
-// 运行时 trait-object 接口
-trait ElementObject {
-    fn render(&self) -> String;
-    fn as_any(&self) -> &dyn Any;
-}
-
-// 把任意实现了 Element 的类型封装为 Drawable，以实现 ElementObject
-struct Drawable<E: Element> {
-    element: E,
-}
-
-impl<E: Element> ElementObject for Drawable<E> {
-    fn render(&self) -> String {
-        self.element.render()
-    }
-    fn as_any(&self) -> &dyn Any {
-        &self.element
-    }
-}
-
-// AnyElement：运行时容器，持有 Box<dyn ElementObject>
-pub struct AnyElement(Box<dyn ElementObject>);
-
-impl AnyElement {
-    pub fn new<E: Element>(element: E) -> Self {
-        AnyElement(Box::new(Drawable { element }))
-    }
-
-    pub fn render(&self) -> String {
-        self.0.render()
-    }
-
-    // 向下转换为具体类型的引用（如果可能）
-    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
-    }
-}
-
-// 示例具体类型：Label
-pub struct Label(pub String);
-
-// Label 可以直接作为 Element（实现生命周期方法）
-impl Element for Label {
-    fn render(&self) -> String {
-        format!("Label: {}", self.0)
-    }
-}
-
-// 以及实现 IntoElement，使得 Label 类型自身可用作 into_element
-impl IntoElement for Label {
-    type Element = Self;
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-// 允许从 String 直接转换为 Label（调用方可以传 String）
-impl IntoElement for String {
-    type Element = Label;
-    fn into_element(self) -> Label {
-        Label(self)
-    }
-}
-
 fn main() {
-    // 使用静态类型并装箱到 AnyElement
-    let a = Label("Alice".into()).into_any();
-    let b = String::from("Bob").into_any_element(); // 通过 IntoElement for String
+    // 直接使用 From
+    let a = MyString::from("hello from");
+    println!("a = {}", a.0);
 
-    let elements: Vec<AnyElement> = vec![a, b];
+    // 使用 Into（自动由 From 提供）
+    let b: MyString = "hello into".into();
+    //let b = "hello into".into(); 这种会报错，编译器无法推断类型
+    println!("b = {}", b.0);
+    
+    let c: String = a.into(); // MyString -> String
+    println!("c = {}", c);
 
-    for e in &elements {
-        println!("{}", e.render());
+    // Into 作为函数参数（可接受多种输入类型）
+    greet("Alice");
+    greet(String::from("Bob"));
+}
+
+// 自定义包装类型
+struct MyString(String);
+
+// 从 &str 转换为 MyString（实现 From）
+impl From<&str> for MyString {
+    fn from(s: &str) -> Self {
+        MyString(s.to_string())
     }
+}
 
-    // 尝试向下转换回 Label
-    if let Some(label) = elements[0].downcast_ref::<Label>() {
-        println!("downcasted: {}", label.0);
+// 从 MyString 转换回 String（也可以实现）
+impl From<MyString> for String {
+    fn from(ms: MyString) -> Self {
+        ms.0
     }
+}
+
+// 接受任意能转为 String 的类型
+fn greet(name: impl Into<String>) {
+    let s: String = name.into();
+    println!("Hello, {}!", s);
 }
