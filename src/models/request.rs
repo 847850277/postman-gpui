@@ -89,12 +89,15 @@ mod tests {
         let form_data = "username=john_doe&email=john@example.com&age=30";
         request.set_body(form_data);
         request.add_header("Content-Type", "application/x-www-form-urlencoded");
-        
+
         assert_eq!(request.body, Some(form_data.to_string()));
         assert_eq!(request.headers.len(), 1);
         assert_eq!(
             request.headers[0],
-            ("Content-Type".to_string(), "application/x-www-form-urlencoded".to_string())
+            (
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string()
+            )
         );
     }
 

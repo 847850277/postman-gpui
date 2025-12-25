@@ -1,3 +1,4 @@
+use form_urlencoded;
 use gpui::{
     actions, div, fill, hsla, point, prelude::FluentBuilder, px, relative, rgb, rgba, size, App,
     Bounds, ClipboardItem, Context, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
@@ -8,7 +9,6 @@ use gpui::{
 };
 use std::ops::Range;
 use unicode_segmentation::*;
-use form_urlencoded;
 
 actions!(
     body_input,
@@ -1600,7 +1600,7 @@ mod tests {
         let json_type = BodyType::Json;
         let form_data_type = BodyType::FormData;
         let raw_type = BodyType::Raw;
-        
+
         assert_eq!(json_type, BodyType::Json);
         assert_eq!(form_data_type, BodyType::FormData);
         assert_eq!(raw_type, BodyType::Raw);
@@ -1614,7 +1614,7 @@ mod tests {
             value: "john_doe".to_string(),
             enabled: true,
         };
-        
+
         assert_eq!(entry.key, "username");
         assert_eq!(entry.value, "john_doe");
         assert!(entry.enabled);
@@ -1627,7 +1627,7 @@ mod tests {
             value: "secret123".to_string(),
             enabled: false,
         };
-        
+
         assert!(!entry.enabled);
     }
 
@@ -1638,32 +1638,32 @@ mod tests {
         input.form_data_entries = vec![
             FormDataEntry {
                 key: "name".to_string(),
-                value: "John Doe".to_string(),  // Space should be encoded
+                value: "John Doe".to_string(), // Space should be encoded
                 enabled: true,
             },
             FormDataEntry {
                 key: "email".to_string(),
-                value: "test@example.com".to_string(),  // @ should be encoded
+                value: "test@example.com".to_string(), // @ should be encoded
                 enabled: true,
             },
             FormDataEntry {
                 key: "special".to_string(),
-                value: "a&b=c".to_string(),  // & and = should be encoded
+                value: "a&b=c".to_string(), // & and = should be encoded
                 enabled: true,
             },
             FormDataEntry {
                 key: "disabled_key".to_string(),
                 value: "should_not_appear".to_string(),
-                enabled: false,  // This should not appear in output
+                enabled: false, // This should not appear in output
             },
         ];
-        
+
         let encoded = input.get_form_data_as_string();
-        
+
         // Should not contain the disabled entry
         assert!(!encoded.contains("disabled_key"));
         assert!(!encoded.contains("should_not_appear"));
-        
+
         // Should contain properly encoded values
         // Note: form_urlencoded uses + for spaces in application/x-www-form-urlencoded
         assert!(encoded.contains("name=John+Doe"));

@@ -176,7 +176,7 @@ impl PostmanApp {
             .method_selector
             .update(cx, |selector, cx| selector.selected_method(cx));
         let url = self.url_input.read(cx).get_url().to_string();
-        
+
         // Get body type and content
         let body_type = self.body_input.read(cx).get_current_type().clone();
         let body = if method.to_uppercase() == "POST" {
@@ -184,7 +184,7 @@ impl PostmanApp {
         } else {
             None
         };
-        
+
         // Only include enabled headers
         let mut headers: Vec<(String, String)> = self
             .headers
@@ -192,14 +192,17 @@ impl PostmanApp {
             .filter(|(enabled, _, _)| *enabled)
             .map(|(_, key, value)| (key.clone(), value.clone()))
             .collect();
-        
+
         // Auto-add Content-Type header for form-data if not already present
         if method.to_uppercase() == "POST" && body_type == BodyType::FormData {
-            let has_content_type = headers.iter().any(|(key, _)| 
-                key.to_lowercase() == "content-type"
-            );
+            let has_content_type = headers
+                .iter()
+                .any(|(key, _)| key.to_lowercase() == "content-type");
             if !has_content_type {
-                headers.push(("Content-Type".to_string(), "application/x-www-form-urlencoded".to_string()));
+                headers.push((
+                    "Content-Type".to_string(),
+                    "application/x-www-form-urlencoded".to_string(),
+                ));
                 println!("📝 PostmanApp - Auto-added Content-Type header for form-data: application/x-www-form-urlencoded");
             }
         }
