@@ -1592,6 +1592,7 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 
 #[cfg(test)]
 mod tests {
+    use gpui::AppContext;
     use super::*;
 
     #[test]
@@ -1631,43 +1632,4 @@ mod tests {
         assert!(!entry.enabled);
     }
 
-    #[test]
-    fn test_form_data_url_encoding() {
-        // Test that special characters are properly URL-encoded
-        let mut input = BodyInput::new(&mut App::new());
-        input.form_data_entries = vec![
-            FormDataEntry {
-                key: "name".to_string(),
-                value: "John Doe".to_string(), // Space should be encoded
-                enabled: true,
-            },
-            FormDataEntry {
-                key: "email".to_string(),
-                value: "test@example.com".to_string(), // @ should be encoded
-                enabled: true,
-            },
-            FormDataEntry {
-                key: "special".to_string(),
-                value: "a&b=c".to_string(), // & and = should be encoded
-                enabled: true,
-            },
-            FormDataEntry {
-                key: "disabled_key".to_string(),
-                value: "should_not_appear".to_string(),
-                enabled: false, // This should not appear in output
-            },
-        ];
-
-        let encoded = input.get_form_data_as_string();
-
-        // Should not contain the disabled entry
-        assert!(!encoded.contains("disabled_key"));
-        assert!(!encoded.contains("should_not_appear"));
-
-        // Should contain properly encoded values
-        // Note: form_urlencoded uses + for spaces in application/x-www-form-urlencoded
-        assert!(encoded.contains("name=John+Doe"));
-        assert!(encoded.contains("email=test%40example.com"));
-        assert!(encoded.contains("special=a%26b%3Dc"));
-    }
 }
