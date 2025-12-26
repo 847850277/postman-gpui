@@ -17,8 +17,7 @@ pub struct MethodSelector {
 
 impl MethodSelector {
     pub fn new(cx: &mut Context<Self>) -> Self {
-        println!("🚀 MethodSelector::new - 创建方法选择器");
-
+        tracing::info!("🚀 MethodSelector::new - 创建方法选择器");
         let dropdown = cx.new(|cx| {
             let dropdown = Dropdown::new("method-dropdown", cx)
                 .with_options(vec![
@@ -33,12 +32,12 @@ impl MethodSelector {
                 .with_selected("GET")
                 .with_placeholder("Select HTTP Method");
 
-            println!("🚀 MethodSelector::new - 下拉菜单创建完成，默认选中: GET");
+            tracing::info!("🚀 MethodSelector::new - 下拉菜单创建完成，默认选中: GET");
             dropdown
         });
 
         let subscription = cx.subscribe(&dropdown, Self::on_dropdown_event);
-        println!("🚀 MethodSelector::new - 订阅下拉菜单事件完成");
+        tracing::info!("🚀 MethodSelector::new - 订阅下拉菜单事件完成");
 
         Self {
             dropdown,
@@ -48,18 +47,18 @@ impl MethodSelector {
 
     pub fn selected_method(&self, cx: &mut Context<Self>) -> String {
         let method = self.dropdown.read(cx).selected_value().to_string();
-        println!("📖 MethodSelector::selected_method - 当前选中方法: {method}");
-        println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
+        tracing::info!("📖 MethodSelector::selected_method - 当前选中方法: {method}");
+        //println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
         method
     }
 
     pub fn set_selected_method(&mut self, method: &str, cx: &mut Context<Self>) {
-        println!("📝 MethodSelector::set_selected_method - 设置方法: {method}");
-        println!("📝 调用栈: {:?}", std::backtrace::Backtrace::capture());
+        tracing::info!("📝 MethodSelector::set_selected_method - 设置方法: {method}");
+        //println!("📝 调用栈: {:?}", std::backtrace::Backtrace::capture());
         self.dropdown.update(cx, |dropdown, cx| {
             dropdown.set_selected(method, cx);
         });
-        println!("📝 MethodSelector::set_selected_method - 方法设置完成");
+        tracing::info!("📝 MethodSelector::set_selected_method - 方法设置完成");
     }
 
     fn on_dropdown_event(
@@ -68,14 +67,14 @@ impl MethodSelector {
         event: &DropdownEvent,
         cx: &mut Context<Self>,
     ) {
-        println!("📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {event:?}");
+        tracing::info!("📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {event:?}");
 
         match event {
             DropdownEvent::SelectionChanged(method) => {
-                println!("📡 MethodSelector::on_dropdown_event - 方法变更: {method}");
-                println!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
+                tracing::info!("📡 MethodSelector::on_dropdown_event - 方法变更: {method}");
+                tracing::info!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
                 cx.emit(MethodSelectorEvent::MethodChanged(method.clone()));
-                println!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
+                tracing::info!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
             }
         }
     }
