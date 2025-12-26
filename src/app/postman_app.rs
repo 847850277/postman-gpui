@@ -460,7 +460,23 @@ impl PostmanApp {
                 // Update body
                 if let Some(body) = &request.body {
                     self.body_input.update(cx, |input, cx| {
-                        input.set_content(body.clone(), cx);
+                        // 检测 body 类型
+                        let body_type = Self::detect_body_type(body);
+
+                        // 设置 body 类型
+                        input.set_type(body_type.clone(), cx);
+
+                        // 根据类型设置内容
+                        match body_type {
+                            BodyType::FormData => {
+                                // 解析 form data
+                                Self::parse_and_set_form_data(input, body, cx);
+                            }
+                            _ => {
+                                // JSON 或 Raw 直接设置内容
+                                input.set_content(body.clone(), cx);
+                            }
+                        }
                     });
                 } else {
                     self.body_input.update(cx, |input, cx| {
@@ -522,6 +538,56 @@ impl PostmanApp {
         } else {
             COLOR_TEXT_DISABLED
         }
+    }
+
+    // 检测 body 类型
+    fn detect_body_type(body: &str) -> BodyType {
+        // 尝试解析为 JSON
+        if body.trim_start().starts_with('{') || body.trim_start().starts_with('[') {
+            if serde_json::from_str::<serde_json::Value>(body).is_ok() {
+                return BodyType::Json;
+            }
+        }
+
+        // 检测是否是 URL encoded form data (key1=value1&key2=value2 格式)
+        if body.contains('=') && (body.contains('&') || !body.contains('\n')) {
+            // 简单检测：包含 = 且包含 & 或没有换行符
+            return BodyType::FormData;
+        }
+
+        // 默认为 Raw
+        BodyType::Raw
+    }
+
+    // 解析并设置 FormData
+    fn parse_and_set_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>) {
+        use crate::ui::components::body_input::FormDataEntry;
+        use form_urlencoded;
+
+        // 解析 URL encoded form data
+        let parsed = form_urlencoded::parse(body.as_bytes());
+
+        let mut entries: Vec<FormDataEntry> = Vec::new();
+
+        for (key, value) in parsed {
+            entries.push(FormDataEntry {
+                key: key.to_string(),
+                value: value.to_string(),
+                enabled: true,
+            });
+        }
+
+        // 如果没有解析到任何条目，至少添加一个空条目
+        if entries.is_empty() {
+            entries.push(FormDataEntry {
+                key: String::new(),
+                value: String::new(),
+                enabled: true,
+            });
+        }
+
+        // 设置 FormData 条目
+        input.set_form_data_entries(entries, cx);
     }
 
     fn render_headers_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
