@@ -7,7 +7,7 @@ fn main() {
     let b: MyString = "hello into".into();
     //let b = "hello into".into(); 这种会报错，编译器无法推断类型
     println!("b = {}", b.0);
-    
+
     let c: String = a.into(); // MyString -> String
     println!("c = {}", c);
 

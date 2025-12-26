@@ -72,6 +72,18 @@ pub struct BodyInput {
     json_last_layout: Vec<ShapedLine>,
     json_last_bounds: Option<Bounds<Pixels>>,
     json_is_selecting: bool,
+    // FormData key/value input fields
+    form_key_selected_range: Range<usize>,
+    form_key_selection_reversed: bool,
+    form_key_is_selecting: bool,
+    form_value_selected_range: Range<usize>,
+    form_value_selection_reversed: bool,
+    form_value_is_selecting: bool,
+    // FormData text layout for precise mouse positioning
+    form_key_last_layout: Option<ShapedLine>,
+    form_key_last_bounds: Option<Bounds<Pixels>>,
+    form_value_last_layout: Option<ShapedLine>,
+    form_value_last_bounds: Option<Bounds<Pixels>>,
 }
 
 impl EventEmitter<BodyInputEvent> for BodyInput {}
@@ -237,6 +249,16 @@ impl BodyInput {
             json_last_layout: Vec::new(),
             json_last_bounds: None,
             json_is_selecting: false,
+            form_key_selected_range: 0..0,
+            form_key_selection_reversed: false,
+            form_key_is_selecting: false,
+            form_value_selected_range: 0..0,
+            form_value_selection_reversed: false,
+            form_value_is_selecting: false,
+            form_key_last_layout: None,
+            form_key_last_bounds: None,
+            form_value_last_layout: None,
+            form_value_last_bounds: None,
         }
     }
 
@@ -355,6 +377,19 @@ impl BodyInput {
             .finish()
     }
 
+    pub fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
+        self.form_data_entries = entries;
+        if self.form_data_entries.is_empty() {
+            self.form_data_entries.push(FormDataEntry {
+                key: String::new(),
+                value: String::new(),
+                enabled: true,
+            });
+        }
+        cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+        cx.notify();
+    }
+
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         match &self.current_type {
             BodyType::Json => {
@@ -385,6 +420,11 @@ impl BodyInput {
             self.editing_key_index = Some(index);
             self.editing_value_index = None;
             self.temp_key_value = entry.key.clone();
+            // 初始化光标位置到文本末尾
+            let len = self.temp_key_value.len();
+            self.form_key_selected_range = len..len;
+            self.form_key_selection_reversed = false;
+            self.form_key_is_selecting = false;
             cx.notify();
         }
     }
@@ -399,6 +439,11 @@ impl BodyInput {
             self.editing_value_index = Some(index);
             self.editing_key_index = None;
             self.temp_value_value = entry.value.clone();
+            // 初始化光标位置到文本末尾
+            let len = self.temp_value_value.len();
+            self.form_value_selected_range = len..len;
+            self.form_value_selection_reversed = false;
+            self.form_value_is_selecting = false;
             cx.notify();
         }
     }
@@ -455,23 +500,39 @@ impl BodyInput {
         cx.notify();
     }
 
-    pub fn update_temp_key(&mut self, value: String, cx: &mut Context<Self>) {
-        self.temp_key_value = value;
-        cx.notify();
-    }
-
-    pub fn update_temp_value(&mut self, value: String, cx: &mut Context<Self>) {
-        self.temp_value_value = value;
-        cx.notify();
-    }
-
     // Action handlers for keyboard shortcuts
     fn backspace(&mut self, _: &Backspace, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(_index) = self.editing_key_index {
-            self.temp_key_value.pop();
+            if self.form_key_selected_range.is_empty() {
+                // 没有选择，删除光标前的一个字符
+                let cursor = self.form_key_cursor_offset();
+                if cursor > 0 {
+                    let prev = self.form_key_previous_boundary(cursor);
+                    self.temp_key_value.replace_range(prev..cursor, "");
+                    self.form_key_selected_range = prev..prev;
+                }
+            } else {
+                // 有选择，删除选中的文本
+                self.temp_key_value
+                    .replace_range(self.form_key_selected_range.clone(), "");
+                let start = self.form_key_selected_range.start;
+                self.form_key_selected_range = start..start;
+            }
             cx.notify();
         } else if let Some(_index) = self.editing_value_index {
-            self.temp_value_value.pop();
+            if self.form_value_selected_range.is_empty() {
+                let cursor = self.form_value_cursor_offset();
+                if cursor > 0 {
+                    let prev = self.form_value_previous_boundary(cursor);
+                    self.temp_value_value.replace_range(prev..cursor, "");
+                    self.form_value_selected_range = prev..prev;
+                }
+            } else {
+                self.temp_value_value
+                    .replace_range(self.form_value_selected_range.clone(), "");
+                let start = self.form_value_selected_range.start;
+                self.form_value_selected_range = start..start;
+            }
             cx.notify();
         }
     }
@@ -522,6 +583,104 @@ impl BodyInput {
         }
     }
 
+    fn left(&mut self, _: &Left, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            if self.form_key_selected_range.is_empty() {
+                self.form_key_move_to(
+                    self.form_key_previous_boundary(self.form_key_cursor_offset()),
+                    cx,
+                );
+            } else {
+                self.form_key_move_to(self.form_key_selected_range.start, cx);
+            }
+        } else if self.editing_value_index.is_some() {
+            if self.form_value_selected_range.is_empty() {
+                self.form_value_move_to(
+                    self.form_value_previous_boundary(self.form_value_cursor_offset()),
+                    cx,
+                );
+            } else {
+                self.form_value_move_to(self.form_value_selected_range.start, cx);
+            }
+        }
+    }
+
+    fn right(&mut self, _: &Right, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            if self.form_key_selected_range.is_empty() {
+                self.form_key_move_to(
+                    self.form_key_next_boundary(self.form_key_cursor_offset()),
+                    cx,
+                );
+            } else {
+                self.form_key_move_to(self.form_key_selected_range.end, cx);
+            }
+        } else if self.editing_value_index.is_some() {
+            if self.form_value_selected_range.is_empty() {
+                self.form_value_move_to(
+                    self.form_value_next_boundary(self.form_value_cursor_offset()),
+                    cx,
+                );
+            } else {
+                self.form_value_move_to(self.form_value_selected_range.end, cx);
+            }
+        }
+    }
+
+    fn select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            self.form_key_select_to(
+                self.form_key_previous_boundary(self.form_key_cursor_offset()),
+                cx,
+            );
+        } else if self.editing_value_index.is_some() {
+            self.form_value_select_to(
+                self.form_value_previous_boundary(self.form_value_cursor_offset()),
+                cx,
+            );
+        }
+    }
+
+    fn select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            self.form_key_select_to(
+                self.form_key_next_boundary(self.form_key_cursor_offset()),
+                cx,
+            );
+        } else if self.editing_value_index.is_some() {
+            self.form_value_select_to(
+                self.form_value_next_boundary(self.form_value_cursor_offset()),
+                cx,
+            );
+        }
+    }
+
+    fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            self.form_key_move_to(0, cx);
+            self.form_key_select_to(self.temp_key_value.len(), cx);
+        } else if self.editing_value_index.is_some() {
+            self.form_value_move_to(0, cx);
+            self.form_value_select_to(self.temp_value_value.len(), cx);
+        }
+    }
+
+    fn home(&mut self, _: &Home, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            self.form_key_move_to(0, cx);
+        } else if self.editing_value_index.is_some() {
+            self.form_value_move_to(0, cx);
+        }
+    }
+
+    fn end(&mut self, _: &End, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            self.form_key_move_to(self.temp_key_value.len(), cx);
+        } else if self.editing_value_index.is_some() {
+            self.form_value_move_to(self.temp_value_value.len(), cx);
+        }
+    }
+
     fn on_key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
         // 只在编辑模式下处理字符输入
         if self.editing_key_index.is_none() && self.editing_value_index.is_none() {
@@ -533,10 +692,17 @@ impl BodyInput {
             // 过滤掉特殊键和控制字符
             if key_char.len() == 1 && !key_char.chars().any(|c| c.is_control()) {
                 if self.editing_key_index.is_some() {
-                    self.temp_key_value.push_str(key_char);
+                    // 删除选中的文本（如果有），然后插入新字符
+                    let range = self.form_key_selected_range.clone();
+                    self.temp_key_value.replace_range(range.clone(), key_char);
+                    let new_pos = range.start + key_char.len();
+                    self.form_key_selected_range = new_pos..new_pos;
                     cx.notify();
                 } else if self.editing_value_index.is_some() {
-                    self.temp_value_value.push_str(key_char);
+                    let range = self.form_value_selected_range.clone();
+                    self.temp_value_value.replace_range(range.clone(), key_char);
+                    let new_pos = range.start + key_char.len();
+                    self.form_value_selected_range = new_pos..new_pos;
                     cx.notify();
                 }
             }
@@ -919,6 +1085,236 @@ impl BodyInput {
             self.json_select_to(self.json_index_for_mouse_position(event.position), cx);
         }
     }
+
+    // FormData key helper methods
+    fn form_key_cursor_offset(&self) -> usize {
+        if self.form_key_selection_reversed {
+            self.form_key_selected_range.start
+        } else {
+            self.form_key_selected_range.end
+        }
+    }
+
+    fn form_key_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.form_key_selected_range = offset..offset;
+        self.form_key_selection_reversed = false;
+        cx.notify();
+    }
+
+    fn form_key_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        if self.form_key_selection_reversed {
+            self.form_key_selected_range.start = offset;
+        } else {
+            self.form_key_selected_range.end = offset;
+        }
+
+        if self.form_key_selected_range.end < self.form_key_selected_range.start {
+            self.form_key_selection_reversed = !self.form_key_selection_reversed;
+            self.form_key_selected_range =
+                self.form_key_selected_range.end..self.form_key_selected_range.start;
+        }
+        cx.notify();
+    }
+
+    fn form_key_previous_boundary(&self, offset: usize) -> usize {
+        self.temp_key_value
+            .grapheme_indices(true)
+            .rev()
+            .find_map(|(idx, _)| (idx < offset).then_some(idx))
+            .unwrap_or(0)
+    }
+
+    fn form_key_next_boundary(&self, offset: usize) -> usize {
+        self.temp_key_value
+            .grapheme_indices(true)
+            .find_map(|(idx, _)| (idx > offset).then_some(idx))
+            .unwrap_or(self.temp_key_value.len())
+    }
+
+    // FormData value helper methods
+    fn form_value_cursor_offset(&self) -> usize {
+        if self.form_value_selection_reversed {
+            self.form_value_selected_range.start
+        } else {
+            self.form_value_selected_range.end
+        }
+    }
+
+    fn form_value_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.form_value_selected_range = offset..offset;
+        self.form_value_selection_reversed = false;
+        cx.notify();
+    }
+
+    fn form_value_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        if self.form_value_selection_reversed {
+            self.form_value_selected_range.start = offset;
+        } else {
+            self.form_value_selected_range.end = offset;
+        }
+
+        if self.form_value_selected_range.end < self.form_value_selected_range.start {
+            self.form_value_selection_reversed = !self.form_value_selection_reversed;
+            self.form_value_selected_range =
+                self.form_value_selected_range.end..self.form_value_selected_range.start;
+        }
+        cx.notify();
+    }
+
+    fn form_value_previous_boundary(&self, offset: usize) -> usize {
+        self.temp_value_value
+            .grapheme_indices(true)
+            .rev()
+            .find_map(|(idx, _)| (idx < offset).then_some(idx))
+            .unwrap_or(0)
+    }
+
+    fn form_value_next_boundary(&self, offset: usize) -> usize {
+        self.temp_value_value
+            .grapheme_indices(true)
+            .find_map(|(idx, _)| (idx > offset).then_some(idx))
+            .unwrap_or(self.temp_value_value.len())
+    }
+
+    // FormData key mouse event handlers
+    fn form_key_on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.editing_key_index.is_none() {
+            return;
+        }
+        self.form_key_is_selecting = true;
+
+        // 简单的文本索引估算（基于固定宽度字符）
+        // 在实际应用中，可能需要更精确的文本布局信息
+        let index = self.form_key_estimate_index_for_position(event.position);
+
+        if event.modifiers.shift {
+            self.form_key_select_to(index, cx);
+        } else {
+            self.form_key_move_to(index, cx);
+        }
+    }
+
+    fn form_key_on_mouse_up(
+        &mut self,
+        _: &MouseUpEvent,
+        _window: &mut Window,
+        _: &mut Context<Self>,
+    ) {
+        if self.editing_key_index.is_none() {
+            return;
+        }
+        self.form_key_is_selecting = false;
+    }
+
+    fn form_key_on_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.editing_key_index.is_none() {
+            return;
+        }
+        if self.form_key_is_selecting {
+            let index = self.form_key_estimate_index_for_position(event.position);
+            self.form_key_select_to(index, cx);
+        }
+    }
+
+    fn form_key_estimate_index_for_position(&self, position: Point<Pixels>) -> usize {
+        // 使用保存的文本布局信息进行精确计算
+        if self.temp_key_value.is_empty() {
+            return 0;
+        }
+
+        let Some(bounds) = self.form_key_last_bounds.as_ref() else {
+            return self.form_key_cursor_offset();
+        };
+
+        let Some(layout) = self.form_key_last_layout.as_ref() else {
+            return self.form_key_cursor_offset();
+        };
+
+        // 计算相对于文本框的 x 位置
+        let x_in_text = position.x - bounds.left();
+
+        // 使用 ShapedLine 的 closest_index_for_x 方法获取精确索引
+        layout.closest_index_for_x(x_in_text)
+    }
+
+    // FormData value mouse event handlers
+    fn form_value_on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.editing_value_index.is_none() {
+            return;
+        }
+        self.form_value_is_selecting = true;
+
+        let index = self.form_value_estimate_index_for_position(event.position);
+
+        if event.modifiers.shift {
+            self.form_value_select_to(index, cx);
+        } else {
+            self.form_value_move_to(index, cx);
+        }
+    }
+
+    fn form_value_on_mouse_up(
+        &mut self,
+        _: &MouseUpEvent,
+        _window: &mut Window,
+        _: &mut Context<Self>,
+    ) {
+        if self.editing_value_index.is_none() {
+            return;
+        }
+        self.form_value_is_selecting = false;
+    }
+
+    fn form_value_on_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.editing_value_index.is_none() {
+            return;
+        }
+        if self.form_value_is_selecting {
+            let index = self.form_value_estimate_index_for_position(event.position);
+            self.form_value_select_to(index, cx);
+        }
+    }
+
+    fn form_value_estimate_index_for_position(&self, position: Point<Pixels>) -> usize {
+        // 使用保存的文本布局信息进行精确计算
+        if self.temp_value_value.is_empty() {
+            return 0;
+        }
+
+        let Some(bounds) = self.form_value_last_bounds.as_ref() else {
+            return self.form_value_cursor_offset();
+        };
+
+        let Some(layout) = self.form_value_last_layout.as_ref() else {
+            return self.form_value_cursor_offset();
+        };
+
+        // 计算相对于文本框的 x 位置
+        let x_in_text = position.x - bounds.left();
+
+        // 使用 ShapedLine 的 closest_index_for_x 方法获取精确索引
+        layout.closest_index_for_x(x_in_text)
+    }
 }
 
 // Custom JsonTextElement for rendering JSON input with cursor and selection
@@ -1212,6 +1608,189 @@ impl JsonTextElement {
     }
 }
 
+// Custom FormTextElement for rendering FormData key/value with cursor and selection
+struct FormTextElement {
+    input: Entity<BodyInput>,
+    is_key: bool, // true for key, false for value
+}
+
+struct FormPrepaintState {
+    shaped_line: Option<ShapedLine>,
+    cursor: Option<PaintQuad>,
+    selection: Option<PaintQuad>,
+}
+
+impl IntoElement for FormTextElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for FormTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = FormPrepaintState;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        _cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = Style::default();
+        style.size.width = relative(1.).into();
+        let line_height = window.line_height();
+        style.size.height = line_height.into();
+
+        (window.request_layout(style, [], _cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let input = self.input.read(cx);
+        let (content, selected_range) = if self.is_key {
+            (&input.temp_key_value, &input.form_key_selected_range)
+        } else {
+            (&input.temp_value_value, &input.form_value_selected_range)
+        };
+
+        if content.is_empty() {
+            return FormPrepaintState {
+                shaped_line: None,
+                cursor: None,
+                selection: None,
+            };
+        }
+
+        let style = window.text_style();
+        let font_size = style.font_size.to_pixels(window.rem_size());
+        let line_str: SharedString = content.clone().into();
+
+        let run = TextRun {
+            len: line_str.len(),
+            font: style.font(),
+            color: style.color,
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+
+        let shaped_line = window
+            .text_system()
+            .shape_line(line_str, font_size, &[run], None);
+
+        let line_height = window.line_height();
+
+        // Calculate cursor or selection
+        let (selection_quad, cursor_quad) = if selected_range.is_empty() {
+            // Show cursor
+            let cursor_offset = if self.is_key {
+                input.form_key_cursor_offset()
+            } else {
+                input.form_value_cursor_offset()
+            };
+            let cursor_x = shaped_line.x_for_index(cursor_offset);
+
+            (
+                None,
+                Some(fill(
+                    Bounds::new(
+                        point(bounds.left() + cursor_x, bounds.top()),
+                        size(px(2.), line_height),
+                    ),
+                    rgb(0x0000_7acc),
+                )),
+            )
+        } else {
+            // Show selection
+            let start_x = shaped_line.x_for_index(selected_range.start);
+            let end_x = shaped_line.x_for_index(selected_range.end);
+
+            (
+                Some(fill(
+                    Bounds::from_corners(
+                        point(bounds.left() + start_x, bounds.top()),
+                        point(bounds.left() + end_x, bounds.top() + line_height),
+                    ),
+                    rgba(0x3366_ff33),
+                )),
+                None,
+            )
+        };
+
+        FormPrepaintState {
+            shaped_line: Some(shaped_line),
+            cursor: cursor_quad,
+            selection: selection_quad,
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        // Paint selection if any
+        if let Some(selection) = &prepaint.selection {
+            window.paint_quad(selection.clone());
+        }
+
+        // Paint text
+        if let Some(shaped_line) = &prepaint.shaped_line {
+            let line_height = window.line_height();
+            let _ = shaped_line.paint(
+                point(bounds.left(), bounds.top()),
+                line_height,
+                TextAlign::Left,
+                None,
+                window,
+                cx,
+            );
+        }
+
+        // Paint cursor if any and focused
+        let focus_handle = self.input.read(cx).focus_handle.clone();
+        if focus_handle.is_focused(window) {
+            if let Some(cursor) = prepaint.cursor.take() {
+                window.paint_quad(cursor);
+            }
+        }
+
+        // Save layout and bounds for mouse interaction
+        self.input.update(cx, |input, _cx| {
+            if self.is_key {
+                input.form_key_last_layout = prepaint.shaped_line.clone();
+                input.form_key_last_bounds = Some(bounds);
+            } else {
+                input.form_value_last_layout = prepaint.shaped_line.clone();
+                input.form_value_last_bounds = Some(bounds);
+            }
+        });
+    }
+}
+
 impl Render for BodyInput {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type.clone();
@@ -1357,6 +1936,13 @@ impl Render for BodyInput {
                     .on_action(cx.listener(Self::escape))
                     .on_action(cx.listener(Self::tab))
                     .on_action(cx.listener(Self::shift_tab))
+                    .on_action(cx.listener(Self::left))
+                    .on_action(cx.listener(Self::right))
+                    .on_action(cx.listener(Self::select_left))
+                    .on_action(cx.listener(Self::select_right))
+                    .on_action(cx.listener(Self::select_all))
+                    .on_action(cx.listener(Self::home))
+                    .on_action(cx.listener(Self::end))
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
@@ -1444,7 +2030,25 @@ impl Render for BodyInput {
                                         .text_size(px(14.0))
                                         .cursor(CursorStyle::IBeam)
                                         .when(self.editing_key_index == Some(index), |div| {
-                                            div.child(self.temp_key_value.clone())
+                                            div.child(FormTextElement {
+                                                input: cx.entity().clone(),
+                                                is_key: true,
+                                            })
+                                            .on_mouse_down(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_key_on_mouse_down),
+                                            )
+                                            .on_mouse_up(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_key_on_mouse_up),
+                                            )
+                                            .on_mouse_up_out(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_key_on_mouse_up),
+                                            )
+                                            .on_mouse_move(
+                                                cx.listener(Self::form_key_on_mouse_move),
+                                            )
                                         })
                                         .when(self.editing_key_index != Some(index), |div| {
                                             div.when(entry_key.is_empty(), |div| {
@@ -1480,7 +2084,25 @@ impl Render for BodyInput {
                                         .text_size(px(14.0))
                                         .cursor(CursorStyle::IBeam)
                                         .when(self.editing_value_index == Some(index), |div| {
-                                            div.child(self.temp_value_value.clone())
+                                            div.child(FormTextElement {
+                                                input: cx.entity().clone(),
+                                                is_key: false,
+                                            })
+                                            .on_mouse_down(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_value_on_mouse_down),
+                                            )
+                                            .on_mouse_up(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_value_on_mouse_up),
+                                            )
+                                            .on_mouse_up_out(
+                                                MouseButton::Left,
+                                                cx.listener(Self::form_value_on_mouse_up),
+                                            )
+                                            .on_mouse_move(
+                                                cx.listener(Self::form_value_on_mouse_move),
+                                            )
                                         })
                                         .when(self.editing_value_index != Some(index), |div| {
                                             div.when(entry_value.is_empty(), |div| {
@@ -1592,8 +2214,8 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 
 #[cfg(test)]
 mod tests {
-    use gpui::AppContext;
     use super::*;
+    use gpui::AppContext;
 
     #[test]
     fn test_body_type_enum() {
@@ -1631,5 +2253,4 @@ mod tests {
 
         assert!(!entry.enabled);
     }
-
 }
