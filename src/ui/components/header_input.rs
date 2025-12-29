@@ -144,7 +144,7 @@ impl HeaderInput {
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        println!(
+        tracing::info!(
             "📝 HeaderInput: Submit triggered with value: {}",
             self.content
         );
