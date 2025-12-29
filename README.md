@@ -105,6 +105,12 @@ postman-gpui
   - **Raw**: Enter any raw text data
 - Click the "Send" button to make the request and view the response in the response panel.
 
+## Keyboard Shortcuts
+
+- **Quit Application**: 
+  - macOS: `Cmd+Q`
+  - Windows/Linux: `Ctrl+Q`
+
 ## Screenshot
 
 ![alt text](image.png)

@@ -93,6 +93,12 @@ postman-gpui
 - 如果需要，输入请求体（支持 JSON 格式）
 - 点击"发送"按钮发送请求，并在响应面板中查看响应
 
+## 键盘快捷键
+
+- **退出应用程序**: 
+  - macOS: `Cmd+Q`
+  - Windows/Linux: `Ctrl+Q`
+
 ## 截图
 
 ![alt text](image.png)
