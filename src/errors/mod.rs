@@ -19,6 +19,8 @@ pub enum AppError {
     UrlEmpty,
     /// Network connection error
     NetworkError(String),
+    /// UI rendering error
+    RenderError(String),
 }
 
 impl fmt::Display for AppError {
@@ -29,6 +31,7 @@ impl fmt::Display for AppError {
             AppError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
             AppError::UrlEmpty => write!(f, "Error: URL cannot be empty"),
             AppError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
+            AppError::RenderError(msg) => write!(f, "Render Error: {}", msg),
         }
     }
 }
@@ -84,6 +87,9 @@ mod tests {
 
         let err = AppError::NetworkError("Connection timeout".to_string());
         assert_eq!(err.to_string(), "Network Error: Connection timeout");
+
+        let err = AppError::RenderError("Failed to render component".to_string());
+        assert_eq!(err.to_string(), "Render Error: Failed to render component");
     }
 
     #[test]
