@@ -259,7 +259,7 @@ impl PostmanApp {
             }
             Err(error_message) => {
                 self.response_viewer.update(cx, |viewer, cx| {
-                    viewer.set_error(error_message, cx);
+                    viewer.set_error(error_message.to_string(), cx);
                 });
             }
         }

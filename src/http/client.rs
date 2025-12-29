@@ -1,5 +1,6 @@
 // filepath: /postman-gpui/postman-gpui/src/http/client.rs
-use reqwest::{Client, Error};
+use crate::errors::AppError;
+use reqwest::Client;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -20,7 +21,7 @@ impl HttpClient {
         }
     }
 
-    pub async fn get(&self, url: &str) -> Result<String, Error> {
+    pub async fn get(&self, url: &str) -> Result<String, AppError> {
         self.get_with_headers(url, None).await
     }
 
@@ -28,7 +29,7 @@ impl HttpClient {
         &self,
         url: &str,
         headers: Option<HashMap<String, String>>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, AppError> {
         let mut request = self.client.get(url);
 
         if let Some(h) = headers {
@@ -47,7 +48,7 @@ impl HttpClient {
         url: &str,
         body: &str,
         headers: Option<HashMap<String, String>>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, AppError> {
         let mut request = self.client.post(url).body(body.to_string());
 
         if let Some(h) = headers {

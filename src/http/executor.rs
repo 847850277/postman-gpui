@@ -1,3 +1,4 @@
+use crate::errors::AppError;
 use crate::http::client::HttpClient;
 use crate::models::Request;
 use crate::utils::formatter::format_response_body;
@@ -36,7 +37,7 @@ impl RequestExecutor {
     }
 
     /// 执行 HTTP 请求（接受统一的 Request 模型）
-    pub fn execute_request(&self, request: &Request) -> Result<RequestResult, String> {
+    pub fn execute_request(&self, request: &Request) -> Result<RequestResult, AppError> {
         self.execute(
             &request.method,
             &request.url,
@@ -52,11 +53,11 @@ impl RequestExecutor {
         url: &str,
         headers: Vec<(String, String)>,
         body: Option<String>,
-    ) -> Result<RequestResult, String> {
+    ) -> Result<RequestResult, AppError> {
         // 验证URL
         if url.trim().is_empty() {
             tracing::info!("❌ RequestExecutor - URL不能为空");
-            return Err("Error: URL cannot be empty".to_string());
+            return Err(AppError::UrlEmpty);
         }
         tracing::info!("🚀 RequestExecutor - 开始发送请求");
         tracing::info!("📋 RequestExecutor - 请求详情:");
@@ -134,7 +135,9 @@ impl RequestExecutor {
             _ => {
                 tracing::info!("⚠️ RequestExecutor - 方法 {} 尚未实现", method);
                 tracing::info!("📋 RequestExecutor - 当前支持的方法: GET, POST");
-                return Err(format!("Method {method} not implemented yet"));
+                return Err(AppError::ValidationError(format!(
+                    "Method {method} not implemented yet"
+                )));
             }
         };
 
@@ -166,7 +169,7 @@ impl RequestExecutor {
                 tracing::info!("     - 服务器未响应");
                 tracing::info!("     - URL格式错误");
                 tracing::info!("     - 服务器返回错误状态码");
-                Err(format!("请求失败: {e}"))
+                Err(e)
             }
         }
     }
@@ -194,7 +197,9 @@ mod tests {
         let executor = RequestExecutor::new();
         let result = executor.execute("GET", "", vec![], None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("URL cannot be empty"));
+        if let Err(e) = result {
+            assert!(matches!(e, AppError::UrlEmpty));
+        }
     }
 
     #[test]
