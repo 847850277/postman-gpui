@@ -1,4 +1,4 @@
-use super::request::Request;
+use super::request::{HttpMethod, Request};
 use chrono::{DateTime, Utc};
 
 /// Maximum number of history entries to keep
@@ -106,7 +106,7 @@ mod tests {
         assert!(!history.is_empty());
 
         let entry = history.get(0).unwrap();
-        assert_eq!(entry.request.method, "GET");
+        assert_eq!(entry.request.method, HttpMethod::GET);
         assert_eq!(entry.request.url, "https://api.example.com/users");
         assert_eq!(entry.request.headers.len(), 1);
     }
@@ -135,7 +135,7 @@ mod tests {
         history.add(request, "https://api.example.com/users".to_string());
 
         let entry = history.get(0).unwrap();
-        assert_eq!(entry.request.method, "POST");
+        assert_eq!(entry.request.method, HttpMethod::POST);
         assert!(entry.request.body.is_some());
         let body = entry.request.body.as_ref().unwrap();
         assert!(body.contains("John"));
