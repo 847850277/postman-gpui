@@ -23,6 +23,10 @@
   - [x] 配置缓存优化构建速度
   - [x] 在 `RequestExecutor` 中添加 `execute_request` 方法支持新模型
   - [x] 为 Request 模型添加完整的单元测试
+- [x] **重组 UI 组件结构**
+  - [x] 创建 `input/`、`common/`、`display/` 子目录结构
+  - [x] 移动组件到对应子目录
+  - [x] 更新模块导出和引用路径
 
 ---
 
@@ -72,8 +76,8 @@
 - [ ] 更新 `RequestExecutor` 使用统一的错误类型
 - [ ] 更新 UI 组件的错误显示逻辑
 
-#### 5. 重组 UI 组件结构
-- [ ] 创建子目录结构：
+#### 5. ~~重组 UI 组件结构~~ ✅ 已完成
+- [x] 创建子目录结构：
   ```
   ui/components/
   ├── input/           # 输入相关组件
@@ -83,15 +87,15 @@
   │   └── header_input.rs
   ├── common/          # 通用组件
   │   ├── mod.rs
-  │   ├── dropdown.rs
-  │   └── button.rs
+  │   └── dropdown.rs
   └── display/         # 展示组件
       ├── mod.rs
       ├── response_viewer.rs
-      └── method_selector.rs
+      ├── method_selector.rs
+      └── history_list.rs
   ```
-- [ ] 更新 `ui/components/mod.rs` 的模块导出
-- [ ] 更新所有引用路径
+- [x] 更新 `ui/components/mod.rs` 的模块导出
+- [x] 更新所有引用路径
 
 #### 6. 添加配置管理模块
 - [ ] 创建 `src/config/mod.rs`

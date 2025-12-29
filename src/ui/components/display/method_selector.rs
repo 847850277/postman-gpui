@@ -3,7 +3,7 @@ use gpui::{
     Subscription, Window,
 };
 
-use super::dropdown::{Dropdown, DropdownEvent};
+use crate::ui::components::common::dropdown::{Dropdown, DropdownEvent};
 
 #[derive(Debug, Clone)]
 pub enum MethodSelectorEvent {
