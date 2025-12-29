@@ -1,5 +1,8 @@
-use super::request::{HttpMethod, Request};
+use super::request::Request;
 use chrono::{DateTime, Utc};
+
+#[cfg(test)]
+use super::request::HttpMethod;
 
 /// Maximum number of history entries to keep
 const DEFAULT_MAX_HISTORY_ENTRIES: usize = 50;
