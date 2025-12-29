@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::http::client::HttpClient;
-use crate::models::Request;
+use crate::models::{HttpMethod, Request};
 use crate::utils::formatter::format_response_body;
 use std::collections::HashMap;
 
@@ -39,7 +39,7 @@ impl RequestExecutor {
     /// 执行 HTTP 请求（接受统一的 Request 模型）
     pub fn execute_request(&self, request: &Request) -> Result<RequestResult, AppError> {
         self.execute(
-            &request.method,
+            request.method,
             &request.url,
             request.headers.clone(),
             request.body.clone(),
@@ -49,7 +49,7 @@ impl RequestExecutor {
     /// 执行 HTTP 请求（保留原有接口以兼容）
     pub fn execute(
         &self,
-        method: &str,
+        method: HttpMethod,
         url: &str,
         headers: Vec<(String, String)>,
         body: Option<String>,
@@ -95,8 +95,8 @@ impl RequestExecutor {
         // 使用 tokio 的 block_on 来同步执行异步请求
         let rt = tokio::runtime::Runtime::new().unwrap();
 
-        let result = match method.to_uppercase().as_str() {
-            "GET" => {
+        let result = match method {
+            HttpMethod::GET => {
                 // GET 请求
                 let header_map = if headers.is_empty() {
                     tracing::info!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
@@ -111,7 +111,7 @@ impl RequestExecutor {
                 };
                 rt.block_on(self.client.get_with_headers(url, header_map))
             }
-            "POST" => {
+            HttpMethod::POST => {
                 // POST 请求
                 let header_map = if headers.is_empty() {
                     tracing::info!("📝 RequestExecutor - 执行POST请求，无自定义headers");
@@ -144,7 +144,7 @@ impl RequestExecutor {
 
         match result {
             Ok(response_body) => {
-                tracing::info!("✅ RequestExecutor - {}请求成功!", method.to_uppercase());
+                tracing::info!("✅ RequestExecutor - {}请求成功!", method);
                 tracing::info!("📊 RequestExecutor - 响应信息:");
                 tracing::info!("   Status: 200 OK");
                 tracing::info!("   Response Length: {} bytes", response_body.len());
@@ -162,7 +162,7 @@ impl RequestExecutor {
                 Ok(RequestResult::success(formatted_body))
             }
             Err(e) => {
-                tracing::info!("❌ RequestExecutor - {}请求失败!", method.to_uppercase());
+                tracing::info!("❌ RequestExecutor - {}请求失败!", method);
                 tracing::info!("💥 RequestExecutor - 错误详情:");
                 tracing::info!("   Error: {}", e);
                 tracing::info!("   可能的原因:");
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_executor_execute_validates_empty_url() {
         let executor = RequestExecutor::new();
-        let result = executor.execute("GET", "", vec![], None);
+        let result = executor.execute(HttpMethod::GET, "", vec![], None);
         assert!(result.is_err());
         if let Err(e) = result {
             assert!(matches!(e, AppError::UrlEmpty));

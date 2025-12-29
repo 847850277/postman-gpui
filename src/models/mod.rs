@@ -8,4 +8,4 @@ pub mod workspace;
 // Re-export commonly used types
 pub use collection::Collection;
 pub use history::{HistoryEntry, RequestHistory};
-pub use request::Request;
+pub use request::{HttpMethod, Request};

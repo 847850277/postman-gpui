@@ -1,6 +1,6 @@
 use crate::{
     http::executor::RequestExecutor,
-    models::{Request, RequestHistory},
+    models::{HttpMethod, Request, RequestHistory},
     ui::components::{
         body_input::{setup_body_input_key_bindings, BodyInput, BodyType},
         header_input::{setup_header_input_key_bindings, HeaderInput},
@@ -116,7 +116,7 @@ impl PostmanApp {
                 tracing::info!("   当前body内容完整长度: {}", body_length);
 
                 // 根据方法类型设置默认请求体
-                if method.to_uppercase() == "POST" && self.body_input.read(cx).is_empty() {
+                if *method == HttpMethod::POST && self.body_input.read(cx).is_empty() {
                     let default_json = r#"{
                                                   "message": "Hello, World!",
                                                   "timestamp": "2025-07-15T14:30:00Z",
@@ -152,7 +152,7 @@ impl PostmanApp {
                     } else {
                         tracing::info!("ℹ️ PostmanApp - POST请求已有headers，跳过默认headers设置");
                     }
-                } else if method.to_uppercase() == "GET" {
+                } else if *method == HttpMethod::GET {
                     // GET请求通常不需要请求体
                     if !self.body_input.read(cx).is_empty() {
                         tracing::info!("ℹ️ PostmanApp - GET请求通常不使用请求体");
@@ -190,7 +190,7 @@ impl PostmanApp {
 
         // Get body type and content
         let body_type = self.body_input.read(cx).get_current_type().clone();
-        let body = if method.to_uppercase() == "POST" {
+        let body = if method == HttpMethod::POST {
             Some(self.body_input.read(cx).get_content().to_string())
         } else {
             None
@@ -205,7 +205,7 @@ impl PostmanApp {
             .collect();
 
         // Auto-add Content-Type header for form-data if not already present
-        if method.to_uppercase() == "POST" && body_type == BodyType::FormData {
+        if method == HttpMethod::POST && body_type == BodyType::FormData {
             let has_content_type = headers
                 .iter()
                 .any(|(key, _)| key.to_lowercase() == "content-type");
@@ -225,7 +225,7 @@ impl PostmanApp {
         cx.notify();
 
         // Create a Request object for history
-        let mut request = Request::new(&method, &url);
+        let mut request = Request::new(method, &url);
         for (key, value) in &headers {
             request.add_header(key, value);
         }
@@ -234,7 +234,7 @@ impl PostmanApp {
         }
 
         // 执行请求
-        let result = self.request_executor.execute(&method, &url, headers, body);
+        let result = self.request_executor.execute(method, &url, headers, body);
 
         // 处理结果
         match result {
@@ -448,9 +448,9 @@ impl PostmanApp {
                 }
 
                 // Update method selector - normalize method to uppercase
-                let method = request.method.to_uppercase();
+                let method = request.method;
                 self.method_selector.update(cx, |selector, cx| {
-                    selector.set_selected_method(&method, cx);
+                    selector.set_selected_method(method, cx);
                 });
 
                 // Update URL input
