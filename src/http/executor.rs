@@ -136,7 +136,8 @@ impl RequestExecutor {
                 tracing::info!("⚠️ RequestExecutor - 方法 {} 尚未实现", method);
                 tracing::info!("📋 RequestExecutor - 当前支持的方法: GET, POST");
                 return Err(AppError::ValidationError(format!(
-                    "Method {method} not implemented yet"
+                    "Unsupported HTTP method: {}. Supported methods are: GET, POST",
+                    method
                 )));
             }
         };
