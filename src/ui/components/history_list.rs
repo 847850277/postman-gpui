@@ -66,19 +66,16 @@ impl HistoryList {
         cx.notify();
 
         if let Some(entry) = self.entries.get(index) {
-            println!("🔘 History item clicked:");
-            println!("   Index: {}", index);
-            println!("   Method: {}", entry.request.method);
-            println!("   URL: {}", entry.request.url);
-            println!("   Headers: {}", entry.request.headers.len());
+            tracing::info!("🔘 History item clicked: Index: {}, Method: {}, URL: {}", index, entry.request.method, entry.request.url);
+            tracing::info!("   Headers: {}", entry.request.headers.len());
             if let Some(ref body) = entry.request.body {
-                println!("   Body: {} bytes", body.len());
+                tracing::info!("   Body: {} bytes", body.len());
             }
-            println!("   ➡️ Loading request into form...");
+            tracing::info!("   ➡️ Loading request into form...");
             HistoryListEvent::RequestSelected(entry.request.clone())
         } else {
             // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
-            eprintln!(
+            tracing::info!(
                 "Warning: Attempted to select history item at invalid index {} (entries length: {})",
                 index,
                 self.entries.len()

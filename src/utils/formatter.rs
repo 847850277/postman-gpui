@@ -56,9 +56,9 @@ mod tests {
     #[test]
     fn test_format_already_formatted_json() {
         let input = r#"{
-  "name": "John",
-  "age": 30
-}"#;
+                              "name": "John",
+                              "age": 30
+                            }"#;
         let output = format_response_body(input);
 
         // Should still be valid JSON

@@ -55,31 +55,30 @@ impl RequestExecutor {
     ) -> Result<RequestResult, String> {
         // 验证URL
         if url.trim().is_empty() {
-            println!("❌ RequestExecutor - URL不能为空");
+            tracing::info!("❌ RequestExecutor - URL不能为空");
             return Err("Error: URL cannot be empty".to_string());
         }
-
-        println!("🚀 RequestExecutor - 开始发送请求");
-        println!("📋 RequestExecutor - 请求详情:");
-        println!("   Method: {method}");
-        println!("   URL: {url}");
-        println!("   Headers Count: {}", headers.len());
+        tracing::info!("🚀 RequestExecutor - 开始发送请求");
+        tracing::info!("📋 RequestExecutor - 请求详情:");
+        tracing::info!("   Method: {}", method);
+        tracing::info!("   URL: {}", url);
+        tracing::info!("   Headers Count: {}", headers.len());
 
         // 打印所有headers
         if !headers.is_empty() {
-            println!("   Headers:");
+            tracing::info!("   Headers:");
             for (i, (key, value)) in headers.iter().enumerate() {
-                println!("     {}. {} = {}", i + 1, key, value);
+                tracing::info!("     {}. {} = {}", i + 1, key, value);
             }
         } else {
-            println!("   Headers: None");
+            tracing::info!("   Headers: None");
         }
 
         // 打印请求体信息
         if let Some(ref body_content) = body {
-            println!("   Body Length: {} bytes", body_content.len());
+            tracing::info!("   Body Length: {} bytes", body_content.len());
             if !body_content.is_empty() {
-                println!(
+                tracing::info!(
                     "   Body Preview: {}",
                     if body_content.len() > 200 {
                         format!("{}... (truncated)", &body_content[..200])
@@ -88,7 +87,7 @@ impl RequestExecutor {
                     }
                 );
             } else {
-                println!("   Body: Empty");
+                tracing::info!("   Body: Empty");
             }
         }
 
@@ -99,11 +98,11 @@ impl RequestExecutor {
             "GET" => {
                 // GET 请求
                 let header_map = if headers.is_empty() {
-                    println!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
+                    tracing::info!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
                     None
                 } else {
                     let map: HashMap<String, String> = headers.iter().cloned().collect();
-                    println!(
+                    tracing::info!(
                         "🔍 RequestExecutor - 执行GET请求，包含{}个自定义headers",
                         map.len()
                     );
@@ -114,38 +113,35 @@ impl RequestExecutor {
             "POST" => {
                 // POST 请求
                 let header_map = if headers.is_empty() {
-                    println!("📝 RequestExecutor - POST请求，无自定义headers");
+                    tracing::info!("📝 RequestExecutor - 执行POST请求，无自定义headers");
                     None
                 } else {
                     let map: HashMap<String, String> = headers.iter().cloned().collect();
-                    println!(
-                        "📝 RequestExecutor - POST请求，包含{}个自定义headers",
-                        map.len()
-                    );
+                    tracing::info!("📝 RequestExecutor - POST请求，包含{}个自定义headers",map.len());
                     Some(map)
                 };
 
                 let body_content = body.unwrap_or_default();
-                println!(
-                    "📤 RequestExecutor - 执行POST请求，Body大小: {} bytes",
+                tracing::info!(
+                    "📝 RequestExecutor - 执行POST请求，Body大小: {} bytes",
                     body_content.len()
                 );
                 rt.block_on(self.client.post(url, &body_content, header_map))
             }
             _ => {
-                println!("⚠️ RequestExecutor - 方法 {method} 尚未实现");
-                println!("📋 RequestExecutor - 当前支持的方法: GET, POST");
+                tracing::info!("⚠️ RequestExecutor - 方法 {} 尚未实现", method);
+                tracing::info!("📋 RequestExecutor - 当前支持的方法: GET, POST");
                 return Err(format!("Method {method} not implemented yet"));
             }
         };
 
         match result {
             Ok(response_body) => {
-                println!("✅ RequestExecutor - {}请求成功!", method.to_uppercase());
-                println!("📊 RequestExecutor - 响应信息:");
-                println!("   Status: 200 OK");
-                println!("   Response Length: {} bytes", response_body.len());
-                println!(
+                tracing::info!("✅ RequestExecutor - {}请求成功!", method.to_uppercase());
+                tracing::info!("📊 RequestExecutor - 响应信息:");
+                tracing::info!("   Status: 200 OK");
+                tracing::info!("   Response Length: {} bytes", response_body.len());
+                tracing::info!(
                     "   Response Preview: {}",
                     if response_body.len() > 300 {
                         format!("{}... (truncated)", &response_body[..300])
@@ -153,21 +149,20 @@ impl RequestExecutor {
                         response_body.clone()
                     }
                 );
-
                 // Format the response body (pretty-print JSON if applicable)
                 let formatted_body = format_response_body(&response_body);
 
                 Ok(RequestResult::success(formatted_body))
             }
             Err(e) => {
-                println!("❌ RequestExecutor - {}请求失败!", method.to_uppercase());
-                println!("💥 RequestExecutor - 错误详情:");
-                println!("   Error: {e}");
-                println!("   可能的原因:");
-                println!("     - 网络连接问题");
-                println!("     - 服务器未响应");
-                println!("     - URL格式错误");
-                println!("     - 服务器返回错误状态码");
+                tracing::info!("❌ RequestExecutor - {}请求失败!", method.to_uppercase());
+                tracing::info!("💥 RequestExecutor - 错误详情:");
+                tracing::info!("   Error: {}", e);
+                tracing::info!("   可能的原因:");
+                tracing::info!("     - 网络连接问题");
+                tracing::info!("     - 服务器未响应");
+                tracing::info!("     - URL格式错误");
+                tracing::info!("     - 服务器返回错误状态码");
                 Err(format!("请求失败: {e}"))
             }
         }

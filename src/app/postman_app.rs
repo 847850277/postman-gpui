@@ -95,22 +95,32 @@ impl PostmanApp {
     pub fn on_method_changed(&mut self, event: &MethodSelectorEvent, cx: &mut Context<Self>) {
         match event {
             MethodSelectorEvent::MethodChanged(method) => {
-                println!("🎯 PostmanApp - HTTP方法变更:");
-                println!("   新方法: {method}");
-                println!("   当前headers数量: {}", self.headers.len());
+                tracing::info!("🎯 PostmanApp - HTTP方法变更事件触发");
+                tracing::info!("   新方法: {method}");
+                tracing::info!("   当前headers数量: {}", self.headers.len());
 
                 let body_length = self.body_input.read(cx).get_content().len();
-                println!("   当前body长度: {body_length} bytes");
+
+                tracing::info!("   当前body类型: {:?}", self.body_input.read(cx).get_current_type());
+                tracing::info!("   当前body内容预览: {}", {
+                    let content = self.body_input.read(cx).get_content();
+                    if content.len() > 100 {
+                        format!("{}...", &content[..100])
+                    } else {
+                        content.clone()
+                    }
+                });
+                tracing::info!("   当前body内容完整长度: {}", body_length);
 
                 // 根据方法类型设置默认请求体
                 if method.to_uppercase() == "POST" && self.body_input.read(cx).is_empty() {
                     let default_json = r#"{
-  "message": "Hello, World!",
-  "timestamp": "2025-07-15T14:30:00Z",
-  "data": {
-    "key": "value"
-  }
-}"#
+                                                  "message": "Hello, World!",
+                                                  "timestamp": "2025-07-15T14:30:00Z",
+                                                  "data": {
+                                                    "key": "value"
+                                                  }
+                                                }"#
                     .to_string();
 
                     self.body_input.update(cx, |input, cx| {
@@ -118,9 +128,8 @@ impl PostmanApp {
                     });
 
                     let new_body_length = self.body_input.read(cx).get_content().len();
-                    println!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
-                    println!("   Body长度: {new_body_length} bytes");
-
+                    tracing::info!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
+                    tracing::info!("   Body长度: {new_body_length} bytes");
                     // 为POST请求设置默认Content-Type头
                     if self.headers.is_empty() {
                         self.headers.push((
@@ -133,25 +142,24 @@ impl PostmanApp {
                             "Accept".to_string(),
                             "application/json".to_string(),
                         ));
-                        println!("📝 PostmanApp - 为POST请求设置默认Headers:");
-                        println!("   添加: Content-Type = application/json");
-                        println!("   添加: Accept = application/json");
-                        println!("   当前headers总数: {}", self.headers.len());
+                        tracing::info!("📝 PostmanApp - 为POST请求设置默认Headers:");
+                        tracing::info!("   添加: Content-Type = application/json");
+                        tracing::info!("   添加: Accept = application/json");
+                        tracing::info!("   当前headers总数: {}", self.headers.len());
                     } else {
-                        println!("ℹ️ PostmanApp - 已有headers，跳过默认headers设置");
+                        tracing::info!("ℹ️ PostmanApp - POST请求已有headers，跳过默认headers设置");
                     }
                 } else if method.to_uppercase() == "GET" {
                     // GET请求通常不需要请求体
                     if !self.body_input.read(cx).is_empty() {
-                        println!("ℹ️ PostmanApp - GET请求通常不使用请求体");
-                        println!("   当前body长度: {body_length} bytes");
-                        println!("   建议: 清空请求体或改用POST方法");
+                        tracing::info!("ℹ️ PostmanApp - GET请求通常不使用请求体");
+                        tracing::info!("   当前body长度: {body_length} bytes");
+                        tracing::info!("   建议: 清空请求体或改用POST方法");
                     } else {
-                        println!("✅ PostmanApp - GET请求配置正确，无请求体");
+                        tracing::info!("✅ PostmanApp - GET请求配置正确，无请求体");
                     }
                 }
-
-                println!("🏁 PostmanApp - 方法变更处理完成");
+                tracing::info!("🏁 PostmanApp - 方法变更处理完成");
             }
         }
     }
@@ -160,12 +168,12 @@ impl PostmanApp {
     pub fn on_url_changed(&mut self, event: &UrlInputEvent) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
-                println!("🌐 PostmanApp - URL变更为: {url}");
+                tracing::info!("🌐 PostmanApp - URL变更为: {url}");
             }
             UrlInputEvent::SubmitRequested => {
-                println!("🚀 PostmanApp - 请求提交");
+                tracing::info!("🚀 PostmanApp - URL提交请求");
+                tracing::info!("🚀 PostmanApp - 发送请求");
                 // 注意：这里我们需要重新构造 Context，暂时简化处理
-                println!("🚀 PostmanApp - 发送请求");
             }
         }
     }
@@ -203,7 +211,7 @@ impl PostmanApp {
                     "Content-Type".to_string(),
                     "application/x-www-form-urlencoded".to_string(),
                 ));
-                println!("📝 PostmanApp - Auto-added Content-Type header for form-data: application/x-www-form-urlencoded");
+                tracing::info!("📝 PostmanApp - Auto-added Content-Type header for form-data: application/x-www-form-urlencoded");
             }
         }
 
@@ -252,8 +260,7 @@ impl PostmanApp {
                 });
             }
         }
-
-        println!("🏁 PostmanApp - 请求处理完成");
+        tracing::info!("🏁 PostmanApp - 请求处理完成");
         cx.notify();
     }
 
@@ -282,9 +289,9 @@ impl PostmanApp {
             .trim()
             .to_string();
 
-        println!("🔧 PostmanApp - 尝试添加header:");
-        println!("   Key: '{key}'");
-        println!("   Value: '{value}'");
+        tracing::info!("🎯 PostmanApp - 尝试添加header:");
+        tracing::info!("   Key: '{key}'");
+        tracing::info!("   Value: '{value}'");
 
         if !key.is_empty() && !value.is_empty() {
             // 检查是否已存在相同的key
@@ -293,16 +300,16 @@ impl PostmanApp {
             if let Some(index) = existing_index {
                 let old_value = self.headers[index].2.clone(); // 克隆旧值避免借用冲突
                 self.headers[index].2 = value.clone();
-                println!("🔄 PostmanApp - 更新已存在的header:");
-                println!("   Key: {key}");
-                println!("   旧值: {old_value}");
-                println!("   新值: {value}");
+                tracing::info!("🔄 PostmanApp - 更新已存在的header:");
+                tracing::info!("   Key: {key}");
+                tracing::info!("   旧值: {old_value}");
+                tracing::info!("   新值: {value}");
             } else {
                 self.headers.push((true, key.clone(), value.clone())); // enabled by default
-                println!("✅ PostmanApp - 成功添加新header:");
-                println!("   Key: {key}");
-                println!("   Value: {value}");
-                println!("   当前headers总数: {}", self.headers.len());
+                tracing::info!("✅ PostmanApp - 成功添加新header:");
+                tracing::info!("   Key: {key}");
+                tracing::info!("   Value: {value}");
+                tracing::info!("   当前headers总数: {}", self.headers.len());
             }
 
             // 清空输入框
@@ -312,9 +319,9 @@ impl PostmanApp {
                 .update(cx, |input, cx| input.clear(cx));
 
             // 打印当前所有headers
-            println!("📋 PostmanApp - 当前所有headers:");
+            tracing::info!("📋 PostmanApp - 当前所有headers:");
             for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                println!(
+                tracing::info!(
                     "   {}. [{}] {} = {}",
                     i + 1,
                     if *enabled { "✓" } else { " " },
@@ -325,22 +332,22 @@ impl PostmanApp {
 
             cx.notify();
         } else {
-            println!("⚠️ PostmanApp - 添加header失败:");
+            tracing::info!("⚠️ PostmanApp - 添加header失败:");
             if key.is_empty() {
-                println!("   原因: Header key不能为空");
+                tracing::info!("   原因: Header key不能为空");
             }
             if value.is_empty() {
-                println!("   原因: Header value不能为空");
+                tracing::info!("   原因: Header value不能为空");
             }
-            println!("   请确保key和value都有内容");
+            tracing::info!("   请确保key和value都有内容");
         }
     }
 
     // 通过输入框设置header值
     fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
-        println!("🎯 PostmanApp - 设置预设header到输入框:");
-        println!("   预设Key: {key}");
-        println!("   预设Value: {value}");
+        tracing::info!("🎯 PostmanApp - 预设header到输入框:");
+        tracing::info!("   预设Key: {key}");
+        tracing::info!("   预设Value: {value}");
 
         self.header_key_input.update(cx, |input, cx| {
             input.set_content(key.to_string(), cx);
@@ -348,29 +355,28 @@ impl PostmanApp {
         self.header_value_input.update(cx, |input, cx| {
             input.set_content(value.to_string(), cx);
         });
-
-        println!("✅ PostmanApp - 预设header已填入输入框，请点击Add按钮添加");
+        tracing::info!("✅ PostmanApp - 预设header已填入输入框，请点击Add按钮添加");
     }
 
     // 删除header
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        println!("🗑️ PostmanApp - 尝试删除header，索引: {index}");
+        tracing::info!("🗑️ PostmanApp - 尝试删除header，索引: {index}");
 
         if index < self.headers.len() {
             let removed = self.headers.remove(index);
-            println!("✅ PostmanApp - 成功删除header:");
-            println!("   Enabled: {}", removed.0);
-            println!("   Key: {}", removed.1);
-            println!("   Value: {}", removed.2);
-            println!("   剩余headers数量: {}", self.headers.len());
+            tracing::info!("✅ PostmanApp - 成功删除header:");
+            tracing::info!("   Enabled: {}", removed.0);
+            tracing::info!("   Key: {}", removed.1);
+            tracing::info!("   Value: {}", removed.2);
+            tracing::info!("   剩余headers数量: {}", self.headers.len());
 
             // 打印剩余的headers
             if self.headers.is_empty() {
-                println!("📋 PostmanApp - 当前无headers");
+                tracing::info!("📋 PostmanApp - 当前无headers");
             } else {
-                println!("📋 PostmanApp - 剩余headers:");
+                tracing::info!("📋 PostmanApp - 剩余headers:");
                 for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                    println!(
+                    tracing::info!(
                         "   {}. [{}] {} = {}",
                         i + 1,
                         if *enabled { "✓" } else { " " },
@@ -382,8 +388,8 @@ impl PostmanApp {
 
             cx.notify();
         } else {
-            println!("❌ PostmanApp - 删除header失败:");
-            println!(
+            tracing::info!("❌ PostmanApp - 删除header失败:");
+            tracing::info!(
                 "   原因: 索引 {} 超出范围 (当前headers数量: {})",
                 index,
                 self.headers.len()
@@ -393,19 +399,18 @@ impl PostmanApp {
 
     // Toggle header enabled state
     fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        println!("🔄 PostmanApp - 切换header状态，索引: {index}");
-
+        tracing::info!("🔄 PostmanApp - 切换header状态，索引: {index}");
         if index < self.headers.len() {
             let current_state = self.headers[index].0;
             self.headers[index].0 = !current_state;
-            println!("✅ PostmanApp - 成功切换header状态:");
-            println!("   Key: {}", self.headers[index].1);
-            println!("   从 {} 切换到 {}", current_state, !current_state);
+            tracing::info!("✅ PostmanApp - 成功切换header状态:");
+            tracing::info!("   Key: {}", self.headers[index].1);
+            tracing::info!("   从 {} 切换到 {}", current_state, !current_state);
 
             cx.notify();
         } else {
-            println!("❌ PostmanApp - 切换header失败:");
-            println!(
+            tracing::info!("❌ PostmanApp - 切换header失败:");
+            tracing::info!(
                 "   原因: 索引 {} 超出范围 (当前headers数量: {})",
                 index,
                 self.headers.len()
@@ -422,21 +427,21 @@ impl PostmanApp {
     ) {
         match event {
             HistoryListEvent::RequestSelected(request) => {
-                println!("📋 PostmanApp - Loading request from history:");
-                println!("   Method: {}", request.method);
-                println!("   URL: {}", request.url);
-                println!("   Headers: {}", request.headers.len());
+                tracing::info!("📋 PostmanApp - 从历史记录加载请求:");
+                tracing::info!("   Method: {}", request.method);
+                tracing::info!("   URL: {}", request.url);
+                tracing::info!("   Headers Count: {}", request.headers.len());
 
                 // Log query parameters if present in URL
                 if request.url.contains('?') {
                     if let Some(query_str) = request.url.split('?').nth(1) {
-                        println!("   Query parameters: {}", query_str);
+                        tracing::info!("   Query parameters: {}", query_str);
                     }
                 }
 
                 // Log body info
                 if let Some(ref body) = request.body {
-                    println!("   Body length: {} bytes", body.len());
+                    tracing::info!("   Body length: {} bytes", body.len());
                 }
 
                 // Update method selector - normalize method to uppercase
@@ -484,12 +489,13 @@ impl PostmanApp {
                     });
                 }
 
-                println!("✅ PostmanApp - Request loaded from history successfully");
-                println!("   • URL loaded into URL input field");
-                println!("   • {} headers loaded", request.headers.len());
+                tracing::info!("🏁 PostmanApp - 请求从历史记录加载完成");
+                tracing::info!("   URL已加载到URL输入框");
+                tracing::info!("   Headers数量: {}", request.headers.len());
                 if request.body.is_some() {
-                    println!("   • Request body loaded");
+                    tracing::info!("   请求体已加载");
                 }
+
                 cx.notify();
             }
         }

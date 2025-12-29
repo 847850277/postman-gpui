@@ -105,14 +105,6 @@ postman-gpui
   - **Raw**: Enter any raw text data
 - Click the "Send" button to make the request and view the response in the response panel.
 
-## Testing Form-Data
-
-To test form-data POST requests:
-
-1. Start the test server: `python test_server.py`
-2. Run the application: `cargo run`
-3. See [FORM_DATA_TEST_GUIDE.md](FORM_DATA_TEST_GUIDE.md) for detailed testing instructions
-
 ## Screenshot
 
 ![alt text](image.png)
