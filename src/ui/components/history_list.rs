@@ -66,7 +66,12 @@ impl HistoryList {
         cx.notify();
 
         if let Some(entry) = self.entries.get(index) {
-            tracing::info!("🔘 History item clicked: Index: {}, Method: {}, URL: {}", index, entry.request.method, entry.request.url);
+            tracing::info!(
+                "🔘 History item clicked: Index: {}, Method: {}, URL: {}",
+                index,
+                entry.request.method,
+                entry.request.url
+            );
             tracing::info!("   Headers: {}", entry.request.headers.len());
             if let Some(ref body) = entry.request.body {
                 tracing::info!("   Body: {} bytes", body.len());

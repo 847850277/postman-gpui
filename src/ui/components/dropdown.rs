@@ -57,7 +57,10 @@ impl Dropdown {
     pub fn set_selected(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
         let new_value = value.into();
         tracing::info!("🔽 Dropdown::set_selected - 设置值: {new_value}");
-        tracing::info!("🔽 Dropdown::set_selected - 当前值: {}", self.selected_value);
+        tracing::info!(
+            "🔽 Dropdown::set_selected - 当前值: {}",
+            self.selected_value
+        );
         tracing::info!("🔽 Dropdown::set_selected - 选项列表: {:?}", self.options);
 
         if self.selected_value != new_value && self.options.contains(&new_value) {

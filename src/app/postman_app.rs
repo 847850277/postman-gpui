@@ -101,7 +101,10 @@ impl PostmanApp {
 
                 let body_length = self.body_input.read(cx).get_content().len();
 
-                tracing::info!("   当前body类型: {:?}", self.body_input.read(cx).get_current_type());
+                tracing::info!(
+                    "   当前body类型: {:?}",
+                    self.body_input.read(cx).get_current_type()
+                );
                 tracing::info!("   当前body内容预览: {}", {
                     let content = self.body_input.read(cx).get_content();
                     if content.len() > 100 {
