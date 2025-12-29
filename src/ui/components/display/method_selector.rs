@@ -45,7 +45,7 @@ impl MethodSelector {
 
     pub fn selected_method(&self, cx: &mut Context<Self>) -> HttpMethod {
         let method_str = self.dropdown.read(cx).selected_value().to_string();
-        let method = HttpMethod::from_str(&method_str).unwrap_or(HttpMethod::GET);
+        let method = method_str.as_str().into();
         tracing::info!("📖 MethodSelector::selected_method - 当前选中方法: {method}");
         //println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
         method
@@ -71,7 +71,7 @@ impl MethodSelector {
         match event {
             DropdownEvent::SelectionChanged(method_str) => {
                 tracing::info!("📡 MethodSelector::on_dropdown_event - 方法变更: {method_str}");
-                let method = HttpMethod::from_str(method_str).unwrap_or(HttpMethod::GET);
+                let method: HttpMethod = method_str.as_str().into();
                 tracing::info!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
                 cx.emit(MethodSelectorEvent::MethodChanged(method));
                 tracing::info!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
