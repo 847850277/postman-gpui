@@ -117,7 +117,10 @@ impl RequestExecutor {
                     None
                 } else {
                     let map: HashMap<String, String> = headers.iter().cloned().collect();
-                    tracing::info!("📝 RequestExecutor - POST请求，包含{}个自定义headers",map.len());
+                    tracing::info!(
+                        "📝 RequestExecutor - POST请求，包含{}个自定义headers",
+                        map.len()
+                    );
                     Some(map)
                 };
 
