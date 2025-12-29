@@ -11,9 +11,20 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    actions, div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
+
+// Define Quit action for the application
+actions!(postman_app, [Quit]);
+
+// Setup key bindings for quitting the application
+pub fn setup_postman_app_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("cmd-q", Quit, None),  // macOS
+        KeyBinding::new("ctrl-q", Quit, None), // Linux/Windows
+    ]
+}
 
 // Maximum length for URL display in history
 const MAX_HISTORY_URL_LENGTH: usize = 40;
@@ -59,6 +70,7 @@ pub struct PostmanApp {
 impl PostmanApp {
     pub fn new(cx: &mut App) -> Self {
         // 设置键盘绑定 - 在创建组件之前
+        cx.bind_keys(setup_postman_app_key_bindings());
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
@@ -176,6 +188,12 @@ impl PostmanApp {
                 // 注意：这里我们需要重新构造 Context，暂时简化处理
             }
         }
+    }
+
+    // Handle Quit action
+    fn quit(&mut self, _: &Quit, _window: &mut Window, cx: &mut Context<Self>) {
+        tracing::info!("👋 PostmanApp - 退出应用程序");
+        cx.quit();
     }
 
     // 发送请求
@@ -975,6 +993,7 @@ impl Render for PostmanApp {
             .flex()
             .bg(rgb(0x00f0_f0f0))
             .size_full()
+            .on_action(cx.listener(Self::quit))
             .child(
                 // Left sidebar - History List
                 self.history_list.clone(),
