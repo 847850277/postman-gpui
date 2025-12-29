@@ -105,6 +105,11 @@ postman-gpui
   - **Raw**: Enter any raw text data
 - Click the "Send" button to make the request and view the response in the response panel.
 
+## Application Menu
+
+- **Menu Button**: Click the "☰ Menu" button in the top-right corner
+  - **Exit**: Close the application
+
 ## Keyboard Shortcuts
 
 - **Quit Application**: 

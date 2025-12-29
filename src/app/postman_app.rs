@@ -11,8 +11,9 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement,
-    IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    actions, anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, App, AppContext,
+    Context, Entity, FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement,
+    Render, StatefulInteractiveElement, Styled, Window,
 };
 
 // Define Quit action for the application
@@ -65,6 +66,10 @@ pub struct PostmanApp {
     // Request history
     request_history: RequestHistory,
     history_list: Entity<HistoryList>,
+
+    // Application menu state
+    is_menu_open: bool,
+    menu_button_bounds: gpui::Bounds<gpui::Pixels>,
 }
 
 impl PostmanApp {
@@ -100,6 +105,8 @@ impl PostmanApp {
             header_value_input,
             request_history: RequestHistory::new(),
             history_list,
+            is_menu_open: false,
+            menu_button_bounds: gpui::Bounds::default(),
         }
     }
 
@@ -193,6 +200,29 @@ impl PostmanApp {
     // Handle Quit action
     fn quit(&mut self, _: &Quit, _window: &mut Window, cx: &mut Context<Self>) {
         tracing::info!("👋 PostmanApp - Quitting application");
+        cx.quit();
+    }
+
+    // Toggle application menu
+    fn toggle_menu(
+        &mut self,
+        _: &gpui::MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.is_menu_open = !self.is_menu_open;
+        cx.notify();
+    }
+
+    // Handle Exit menu item click
+    fn on_exit_clicked(
+        &mut self,
+        _: &gpui::MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        tracing::info!("👋 PostmanApp - Exit menu item clicked");
+        self.is_menu_open = false;
         cx.quit();
     }
 
@@ -979,6 +1009,76 @@ impl PostmanApp {
                     ),
             )
     }
+
+    // Render application menu button
+    fn render_menu_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let view = cx.entity().clone();
+        
+        div()
+            .id("app-menu-button")
+            .flex()
+            .items_center()
+            .justify_center()
+            .px_3()
+            .py_1()
+            .bg(rgb(if self.is_menu_open { 0x00e0e0e0 } else { 0x00f0f0f0 }))
+            .border_1()
+            .border_color(rgb(0x00cccccc))
+            .rounded_md()
+            .cursor_pointer()
+            .hover(|style| style.bg(rgb(0x00e0e0e0)))
+            .child("☰ Menu")
+            .text_size(px(14.0))
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(Self::toggle_menu),
+            )
+            .child(
+                canvas(
+                    move |bounds, _, cx| {
+                        view.update(cx, |app, _| app.menu_button_bounds = bounds)
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+    }
+
+    // Render dropdown menu
+    fn render_menu_dropdown(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let bounds = self.menu_button_bounds;
+        
+        deferred(
+            anchored()
+                .snap_to_window_with_margin(px(8.))
+                .child(
+                    div()
+                        .absolute()
+                        .top(bounds.bottom() + px(2.))
+                        .left(bounds.left())
+                        .min_w(px(150.))
+                        .bg(rgb(0x00ffffff))
+                        .border_1()
+                        .border_color(rgb(0x00cccccc))
+                        .rounded_md()
+                        .shadow_lg()
+                        .child(
+                            div()
+                                .w_full()
+                                .px_3()
+                                .py_2()
+                                .cursor_pointer()
+                                .hover(|style| style.bg(rgb(0x00f0f0f0)))
+                                .child("Exit")
+                                .on_mouse_up(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(Self::on_exit_clicked),
+                                ),
+                        ),
+                ),
+        )
+    }
 }
 
 impl Render for PostmanApp {
@@ -1020,12 +1120,10 @@ impl Render for PostmanApp {
                             )
                             .child(
                                 div()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(0x006c_757d))
-                                    .child(if cfg!(target_os = "macos") {
-                                        "Press Cmd+Q to quit"
-                                    } else {
-                                        "Press Ctrl+Q to quit"
+                                    .relative()
+                                    .child(self.render_menu_button(cx))
+                                    .when(self.is_menu_open, |this| {
+                                        this.child(self.render_menu_dropdown(cx))
                                     }),
                             ),
                     )
