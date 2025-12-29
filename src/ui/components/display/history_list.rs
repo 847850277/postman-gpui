@@ -12,7 +12,8 @@ fn get_method_color(method: HttpMethod) -> Rgba {
         HttpMethod::PUT => rgb(0x00fd_7e14),
         HttpMethod::DELETE => rgb(0x00dc_3545),
         HttpMethod::PATCH => rgb(0x006f_42c1),
-        _ => rgb(0x006c_757d),
+        HttpMethod::HEAD => rgb(0x006c_757d),
+        HttpMethod::OPTIONS => rgb(0x006c_757d),
     }
 }
 

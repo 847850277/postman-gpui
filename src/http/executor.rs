@@ -132,7 +132,7 @@ impl RequestExecutor {
                 );
                 rt.block_on(self.client.post(url, &body_content, header_map))
             }
-            _ => {
+            HttpMethod::PUT | HttpMethod::DELETE | HttpMethod::PATCH | HttpMethod::HEAD | HttpMethod::OPTIONS => {
                 tracing::info!("⚠️ RequestExecutor - 方法 {} 尚未实现", method);
                 tracing::info!("📋 RequestExecutor - 当前支持的方法: GET, POST");
                 return Err(AppError::ValidationError(format!(
