@@ -192,7 +192,7 @@ impl PostmanApp {
 
     // Handle Quit action
     fn quit(&mut self, _: &Quit, _window: &mut Window, cx: &mut Context<Self>) {
-        tracing::info!("👋 PostmanApp - 退出应用程序");
+        tracing::info!("👋 PostmanApp - Quitting application");
         cx.quit();
     }
 
@@ -1022,7 +1022,11 @@ impl Render for PostmanApp {
                                 div()
                                     .text_size(px(12.0))
                                     .text_color(rgb(0x006c_757d))
-                                    .child("Press Cmd+Q (Mac) or Ctrl+Q (Windows/Linux) to quit"),
+                                    .child(if cfg!(target_os = "macos") {
+                                        "Press Cmd+Q to quit"
+                                    } else {
+                                        "Press Ctrl+Q to quit"
+                                    }),
                             ),
                     )
                     .child(
