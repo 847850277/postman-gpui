@@ -1,8 +1,9 @@
 // src/ui/components/mod.rs
-pub mod body_input;
-pub mod dropdown;
-pub mod header_input;
-pub mod history_list;
-pub mod method_selector;
-pub mod response_viewer;
-pub mod url_input;
+pub mod input;
+pub mod common;
+pub mod display;
+
+// Re-export commonly used types for backward compatibility
+pub use input::{body_input, header_input, url_input};
+pub use common::dropdown;
+pub use display::{history_list, method_selector, response_viewer};
