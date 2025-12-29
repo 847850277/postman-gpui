@@ -30,6 +30,9 @@ pub fn setup_postman_app_key_bindings() -> Vec<KeyBinding> {
 // Maximum length for URL display in history
 const MAX_HISTORY_URL_LENGTH: usize = 40;
 
+// Menu dropdown offset from button
+const MENU_DROPDOWN_OFFSET_PX: f32 = 2.0;
+
 // UI Color constants
 const COLOR_CHECKBOX_ENABLED_BG: u32 = 0x0000_7acc;
 const COLOR_CHECKBOX_ENABLED_HOVER: u32 = 0x0000_56b3;
@@ -1055,7 +1058,7 @@ impl PostmanApp {
                 .child(
                     div()
                         .absolute()
-                        .top(bounds.bottom() + px(2.))
+                        .top(bounds.bottom() + px(MENU_DROPDOWN_OFFSET_PX))
                         .left(bounds.left())
                         .min_w(px(150.))
                         .bg(rgb(0x00ffffff))
