@@ -3,11 +3,12 @@ use gpui::{
     Subscription, Window,
 };
 
+use crate::models::HttpMethod;
 use crate::ui::components::common::dropdown::{Dropdown, DropdownEvent};
 
 #[derive(Debug, Clone)]
 pub enum MethodSelectorEvent {
-    MethodChanged(String),
+    MethodChanged(HttpMethod),
 }
 
 pub struct MethodSelector {
@@ -20,15 +21,12 @@ impl MethodSelector {
         tracing::info!("🚀 MethodSelector::new - 创建方法选择器");
         let dropdown = cx.new(|cx| {
             let dropdown = Dropdown::new("method-dropdown", cx)
-                .with_options(vec![
-                    "GET".to_string(),
-                    "POST".to_string(),
-                    "PUT".to_string(),
-                    "DELETE".to_string(),
-                    "PATCH".to_string(),
-                    "HEAD".to_string(),
-                    "OPTIONS".to_string(),
-                ])
+                .with_options(
+                    HttpMethod::all()
+                        .iter()
+                        .map(|m| m.to_string())
+                        .collect::<Vec<String>>(),
+                )
                 .with_selected("GET")
                 .with_placeholder("Select HTTP Method");
 
@@ -45,18 +43,19 @@ impl MethodSelector {
         }
     }
 
-    pub fn selected_method(&self, cx: &mut Context<Self>) -> String {
-        let method = self.dropdown.read(cx).selected_value().to_string();
+    pub fn selected_method(&self, cx: &mut Context<Self>) -> HttpMethod {
+        let method_str = self.dropdown.read(cx).selected_value().to_string();
+        let method = method_str.as_str().into();
         tracing::info!("📖 MethodSelector::selected_method - 当前选中方法: {method}");
         //println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
         method
     }
 
-    pub fn set_selected_method(&mut self, method: &str, cx: &mut Context<Self>) {
+    pub fn set_selected_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
         tracing::info!("📝 MethodSelector::set_selected_method - 设置方法: {method}");
         //println!("📝 调用栈: {:?}", std::backtrace::Backtrace::capture());
         self.dropdown.update(cx, |dropdown, cx| {
-            dropdown.set_selected(method, cx);
+            dropdown.set_selected(&method.to_string(), cx);
         });
         tracing::info!("📝 MethodSelector::set_selected_method - 方法设置完成");
     }
@@ -70,10 +69,11 @@ impl MethodSelector {
         tracing::info!("📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {event:?}");
 
         match event {
-            DropdownEvent::SelectionChanged(method) => {
-                tracing::info!("📡 MethodSelector::on_dropdown_event - 方法变更: {method}");
+            DropdownEvent::SelectionChanged(method_str) => {
+                tracing::info!("📡 MethodSelector::on_dropdown_event - 方法变更: {method_str}");
+                let method: HttpMethod = method_str.as_str().into();
                 tracing::info!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
-                cx.emit(MethodSelectorEvent::MethodChanged(method.clone()));
+                cx.emit(MethodSelectorEvent::MethodChanged(method));
                 tracing::info!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
             }
         }

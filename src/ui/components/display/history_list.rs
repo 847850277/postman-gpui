@@ -1,18 +1,19 @@
-use crate::models::{HistoryEntry, Request};
+use crate::models::{HistoryEntry, HttpMethod, Request};
 use gpui::{
     div, px, rgb, Context, EventEmitter, InteractiveElement, IntoElement, ParentElement, Render,
     Rgba, StatefulInteractiveElement, Styled, Window,
 };
 
 /// Get color for HTTP method
-fn get_method_color(method: &str) -> Rgba {
-    match method.to_uppercase().as_str() {
-        "GET" => rgb(0x0028_a745),
-        "POST" => rgb(0x0000_7acc),
-        "PUT" => rgb(0x00fd_7e14),
-        "DELETE" => rgb(0x00dc_3545),
-        "PATCH" => rgb(0x006f_42c1),
-        _ => rgb(0x006c_757d),
+fn get_method_color(method: HttpMethod) -> Rgba {
+    match method {
+        HttpMethod::GET => rgb(0x0028_a745),
+        HttpMethod::POST => rgb(0x0000_7acc),
+        HttpMethod::PUT => rgb(0x00fd_7e14),
+        HttpMethod::DELETE => rgb(0x00dc_3545),
+        HttpMethod::PATCH => rgb(0x006f_42c1),
+        HttpMethod::HEAD => rgb(0x006c_757d),
+        HttpMethod::OPTIONS => rgb(0x006c_757d),
     }
 }
 
@@ -135,7 +136,7 @@ impl Render for HistoryList {
                             .enumerate()
                             .map(|(index, entry)| {
                                 let is_selected = self.selected_index == Some(index);
-                                let method_color = get_method_color(&entry.request.method);
+                                let method_color = get_method_color(entry.request.method);
 
                                 let bg_color = if is_selected {
                                     rgb(0x00e7_f1ff)
@@ -180,7 +181,9 @@ impl Render for HistoryList {
                                                             .text_size(px(10.0))
                                                             .font_weight(gpui::FontWeight::BOLD)
                                                             .text_color(method_color)
-                                                            .child(entry.request.method.clone()),
+                                                            .child(
+                                                                entry.request.method.to_string(),
+                                                            ),
                                                     )
                                                     .child(
                                                         div()
