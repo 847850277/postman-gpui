@@ -1009,9 +1009,21 @@ impl Render for PostmanApp {
                     .child(
                         // Header
                         div()
-                            .child("Postman GPUI")
-                            .text_size(px(24.0))
-                            .font_weight(FontWeight::BOLD),
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .child("Postman GPUI")
+                                    .text_size(px(24.0))
+                                    .font_weight(FontWeight::BOLD),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .text_color(rgb(0x006c_757d))
+                                    .child("Press Cmd+Q (Mac) or Ctrl+Q (Windows/Linux) to quit"),
+                            ),
                     )
                     .child(
                         // Request Panel
