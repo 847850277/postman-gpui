@@ -180,7 +180,9 @@ impl Render for HistoryList {
                                                             .text_size(px(10.0))
                                                             .font_weight(gpui::FontWeight::BOLD)
                                                             .text_color(method_color)
-                                                            .child(entry.request.method.to_string()),
+                                                            .child(
+                                                                entry.request.method.to_string(),
+                                                            ),
                                                     )
                                                     .child(
                                                         div()

@@ -222,7 +222,7 @@ mod tests {
     fn test_http_method_from_string() {
         let method: HttpMethod = "GET".into();
         assert_eq!(method, HttpMethod::GET);
-        
+
         let method: HttpMethod = "post".to_string().into();
         assert_eq!(method, HttpMethod::POST);
     }
