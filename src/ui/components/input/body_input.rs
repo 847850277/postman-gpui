@@ -415,6 +415,9 @@ impl BodyInput {
         if self.editing_value_index.is_some() {
             self.finish_value_editing_only(cx);
         }
+        if self.editing_key_index.is_some() && self.editing_key_index != Some(index) {
+            self.finish_key_editing_only(cx);
+        }
 
         if let Some(entry) = self.form_data_entries.get(index) {
             self.editing_key_index = Some(index);
@@ -433,6 +436,9 @@ impl BodyInput {
         // 首先完成任何现有的编辑
         if self.editing_key_index.is_some() {
             self.finish_key_editing_only(cx);
+        }
+        if self.editing_value_index.is_some() && self.editing_value_index != Some(index) {
+            self.finish_value_editing_only(cx);
         }
 
         if let Some(entry) = self.form_data_entries.get(index) {
@@ -1823,6 +1829,13 @@ impl Render for BodyInput {
                                     .hover(|style| style.bg(rgb(0x00e9_ecef)))
                             })
                             .child("JSON")
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    // Finish any pending form-data editing before switching tabs
+                                    this.finish_editing(cx);
+                                }),
+                            )
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
@@ -1844,6 +1857,13 @@ impl Render for BodyInput {
                                     .hover(|style| style.bg(rgb(0x00e9_ecef)))
                             })
                             .child("Form Data")
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    // Finish any pending form-data editing before switching tabs
+                                    this.finish_editing(cx);
+                                }),
+                            )
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
@@ -1865,6 +1885,13 @@ impl Render for BodyInput {
                                     .hover(|style| style.bg(rgb(0x00e9_ecef)))
                             })
                             .child("Raw")
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    // Finish any pending form-data editing before switching tabs
+                                    this.finish_editing(cx);
+                                }),
+                            )
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
@@ -2006,6 +2033,13 @@ impl Render for BodyInput {
                                                 div().w_2().h_2().bg(rgb(0x00ff_ffff)).m_auto(),
                                             )
                                         })
+                                        .on_mouse_down(
+                                            gpui::MouseButton::Left,
+                                            cx.listener(move |this, _event, _window, cx| {
+                                                // Finish any pending editing before toggling
+                                                this.finish_editing(cx);
+                                            }),
+                                        )
                                         .on_mouse_up(
                                             gpui::MouseButton::Left,
                                             cx.listener(move |this, _event, _window, cx| {
@@ -2133,6 +2167,13 @@ impl Render for BodyInput {
                                         .hover(|style| style.bg(rgb(0x00c8_2333)))
                                         .child("Delete")
                                         .text_size(px(12.0))
+                                        .on_mouse_down(
+                                            gpui::MouseButton::Left,
+                                            cx.listener(move |this, _event, _window, cx| {
+                                                // Finish any pending editing before deleting
+                                                this.finish_editing(cx);
+                                            }),
+                                        )
                                         .on_mouse_up(
                                             gpui::MouseButton::Left,
                                             cx.listener(move |this, _event, _window, cx| {
@@ -2153,6 +2194,13 @@ impl Render for BodyInput {
                             .hover(|style| style.bg(rgb(0x0021_8838)))
                             .child("Add Row")
                             .text_size(px(14.0))
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _event, _window, cx| {
+                                    // Finish any pending editing before adding row
+                                    this.finish_editing(cx);
+                                }),
+                            )
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
