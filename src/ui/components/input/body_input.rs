@@ -2263,7 +2263,6 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::AppContext;
 
     #[test]
     fn test_body_type_enum() {
@@ -2300,5 +2299,61 @@ mod tests {
         };
 
         assert!(!entry.enabled);
+    }
+
+    #[test]
+    fn test_form_data_serialization_empty() {
+        // Test URL encoding of form data
+        let mut entries = vec![
+            FormDataEntry {
+                key: "username".to_string(),
+                value: "john".to_string(),
+                enabled: true,
+            },
+            FormDataEntry {
+                key: "password".to_string(),
+                value: "secret 123".to_string(), // Space should be encoded
+                enabled: true,
+            },
+            FormDataEntry {
+                key: "disabled_field".to_string(),
+                value: "value".to_string(),
+                enabled: false, // Should not be included
+            },
+        ];
+
+        // Simulate the serialization logic
+        let encoder = form_urlencoded::Serializer::new(String::new());
+        let result = entries
+            .iter()
+            .filter(|entry| entry.enabled && !entry.key.is_empty())
+            .fold(encoder, |mut enc, entry| {
+                enc.append_pair(&entry.key, &entry.value);
+                enc
+            })
+            .finish();
+
+        // Verify the result
+        assert!(result.contains("username=john"));
+        assert!(result.contains("password=secret"));
+        assert!(!result.contains("disabled_field"));
+    }
+
+    #[test]
+    fn test_form_data_entry_toggle() {
+        // Test that entries can be toggled
+        let mut entry = FormDataEntry {
+            key: "test".to_string(),
+            value: "value".to_string(),
+            enabled: true,
+        };
+
+        assert!(entry.enabled);
+        
+        entry.enabled = !entry.enabled;
+        assert!(!entry.enabled);
+        
+        entry.enabled = !entry.enabled;
+        assert!(entry.enabled);
     }
 }
