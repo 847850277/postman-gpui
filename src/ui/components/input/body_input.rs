@@ -2304,7 +2304,7 @@ mod tests {
     #[test]
     fn test_form_data_serialization_empty() {
         // Test URL encoding of form data
-        let mut entries = vec![
+        let entries = vec![
             FormDataEntry {
                 key: "username".to_string(),
                 value: "john".to_string(),
