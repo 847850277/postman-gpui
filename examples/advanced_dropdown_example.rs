@@ -1,7 +1,7 @@
 use gpui::{
     anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext,
-    Application, ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement,
-    Render, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
+    ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
+    StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
 };
 
 pub struct AdvancedDropdown {
@@ -275,7 +275,7 @@ impl Render for DropdownExample {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    gpui_platform::application().run(|cx: &mut App| {
         let bounds = gpui::Bounds::centered(None, size(px(900.), px(700.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),

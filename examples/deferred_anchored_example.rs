@@ -1,6 +1,6 @@
 use gpui::{
-    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, Application,
-    ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
+    anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, ClickEvent,
+    Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
     StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
 };
 
@@ -195,7 +195,7 @@ impl Render for DeferredAnchoredExample {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    gpui_platform::application().run(|cx: &mut App| {
         let bounds = gpui::Bounds::centered(None, size(px(800.), px(600.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),

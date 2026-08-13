@@ -2,7 +2,7 @@ use gpui::prelude::FluentBuilder;
 use gpui::{
     div, prelude::*, rgb, Context, FontWeight, IntoElement, ParentElement, Render, Styled, Window,
 };
-use gpui::{px, size, App, Application, Bounds, WindowBounds, WindowOptions};
+use gpui::{px, size, App, Bounds, WindowBounds, WindowOptions};
 use postman_gpui::ui::components::url_input::{setup_url_input_key_bindings, UrlInput};
 
 struct TextInputDemo {
@@ -84,7 +84,7 @@ impl Render for TextInputDemo {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    gpui_platform::application().run(|cx: &mut App| {
         // 设置键盘绑定 - 这是关键！
         cx.bind_keys(setup_url_input_key_bindings());
 
