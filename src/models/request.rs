@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 
 /// HTTP 请求方法枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,20 +15,6 @@ pub enum HttpMethod {
 }
 
 impl HttpMethod {
-    /// 从字符串解析 HTTP 方法（不区分大小写）
-    pub fn from_str(s: &str) -> Result<Self, String> {
-        match s.to_uppercase().as_str() {
-            "GET" => Ok(HttpMethod::GET),
-            "POST" => Ok(HttpMethod::POST),
-            "PUT" => Ok(HttpMethod::PUT),
-            "DELETE" => Ok(HttpMethod::DELETE),
-            "PATCH" => Ok(HttpMethod::PATCH),
-            "HEAD" => Ok(HttpMethod::HEAD),
-            "OPTIONS" => Ok(HttpMethod::OPTIONS),
-            _ => Err(format!("Unsupported HTTP method: {}", s)),
-        }
-    }
-
     /// 获取所有支持的 HTTP 方法
     pub fn all() -> Vec<HttpMethod> {
         vec![
@@ -47,6 +34,24 @@ impl HttpMethod {
     }
 }
 
+impl FromStr for HttpMethod {
+    type Err = String;
+
+    /// Parse an HTTP method case-insensitively.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "GET" => Ok(HttpMethod::GET),
+            "POST" => Ok(HttpMethod::POST),
+            "PUT" => Ok(HttpMethod::PUT),
+            "DELETE" => Ok(HttpMethod::DELETE),
+            "PATCH" => Ok(HttpMethod::PATCH),
+            "HEAD" => Ok(HttpMethod::HEAD),
+            "OPTIONS" => Ok(HttpMethod::OPTIONS),
+            _ => Err(format!("Unsupported HTTP method: {}", s)),
+        }
+    }
+}
+
 impl fmt::Display for HttpMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -63,13 +68,13 @@ impl fmt::Display for HttpMethod {
 
 impl From<&str> for HttpMethod {
     fn from(s: &str) -> Self {
-        HttpMethod::from_str(s).unwrap_or(HttpMethod::GET)
+        s.parse().unwrap_or(HttpMethod::GET)
     }
 }
 
 impl From<String> for HttpMethod {
     fn from(s: String) -> Self {
-        HttpMethod::from_str(&s).unwrap_or(HttpMethod::GET)
+        s.parse().unwrap_or(HttpMethod::GET)
     }
 }
 
@@ -216,11 +221,11 @@ mod tests {
 
     #[test]
     fn test_http_method_from_str() {
-        assert_eq!(HttpMethod::from_str("GET").unwrap(), HttpMethod::GET);
-        assert_eq!(HttpMethod::from_str("get").unwrap(), HttpMethod::GET);
-        assert_eq!(HttpMethod::from_str("post").unwrap(), HttpMethod::POST);
-        assert_eq!(HttpMethod::from_str("PUT").unwrap(), HttpMethod::PUT);
-        assert!(HttpMethod::from_str("INVALID").is_err());
+        assert_eq!("GET".parse::<HttpMethod>().unwrap(), HttpMethod::GET);
+        assert_eq!("get".parse::<HttpMethod>().unwrap(), HttpMethod::GET);
+        assert_eq!("post".parse::<HttpMethod>().unwrap(), HttpMethod::POST);
+        assert_eq!("PUT".parse::<HttpMethod>().unwrap(), HttpMethod::PUT);
+        assert!("INVALID".parse::<HttpMethod>().is_err());
     }
 
     #[test]

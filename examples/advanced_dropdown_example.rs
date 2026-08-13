@@ -1,6 +1,6 @@
 use gpui::{
     anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext,
-    ClickEvent, Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
+    ClickEvent, Context, InteractiveElement, IntoElement, ParentElement, Render,
     StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
 };
 
@@ -42,11 +42,6 @@ impl AdvancedDropdown {
         cx.notify();
     }
 
-    fn close_dropdown(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        self.is_open = false;
-        cx.notify();
-    }
-
     fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().clone();
         let display_text = self
@@ -56,7 +51,7 @@ impl AdvancedDropdown {
             .unwrap_or_else(|| format!("Select {}", self.label));
 
         div()
-            .id("dropdown-button")
+            .id(self.id.clone())
             .flex()
             .items_center()
             .justify_between()

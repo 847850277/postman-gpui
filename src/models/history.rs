@@ -168,7 +168,7 @@ mod tests {
 
         // Add more than max entries
         for i in 0..60 {
-            let request = Request::new("GET", &format!("https://api.example.com/{}", i));
+            let request = Request::new("GET", format!("https://api.example.com/{}", i));
             history.add(request, format!("Request {}", i));
         }
 

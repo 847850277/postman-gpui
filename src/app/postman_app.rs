@@ -564,7 +564,7 @@ impl PostmanApp {
                 tabs.into_iter()
                     .map(|(index, method, title, dirty, active)| {
                         div()
-                            .debug_selector(move || format!("request-tab-{index}").into())
+                            .debug_selector(move || format!("request-tab-{index}"))
                             .h_full()
                             .max_w(px(280.0))
                             .flex()
@@ -596,7 +596,7 @@ impl PostmanApp {
                             })
                             .child(
                                 div()
-                                    .debug_selector(move || format!("close-tab-{index}").into())
+                                    .debug_selector(move || format!("close-tab-{index}"))
                                     .size(px(20.0))
                                     .flex()
                                     .items_center()

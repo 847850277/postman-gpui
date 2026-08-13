@@ -344,7 +344,7 @@ impl Element for MultiLineTextElement {
 
             let shaped_line = window.text_system().shape_line(
                 (*line).to_string().into(),
-                font_size.into(),
+                font_size,
                 &[run],
                 None,
             );
@@ -383,7 +383,7 @@ impl Element for MultiLineTextElement {
                         };
                         let temp_line = window.text_system().shape_line(
                             line_text.into(),
-                            font_size.into(),
+                            font_size,
                             &[temp_run],
                             None,
                         );
@@ -440,7 +440,7 @@ impl Element for MultiLineTextElement {
                         };
                         let temp_line = window.text_system().shape_line(
                             text_before.into(),
-                            font_size.into(),
+                            font_size,
                             &[temp_run],
                             None,
                         );
@@ -463,7 +463,7 @@ impl Element for MultiLineTextElement {
                         };
                         let temp_line = window.text_system().shape_line(
                             text_before.into(),
-                            font_size.into(),
+                            font_size,
                             &[temp_run],
                             None,
                         );

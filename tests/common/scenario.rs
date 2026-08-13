@@ -6,7 +6,10 @@ use postman_gpui::{
     models::{HttpMethod, Request},
 };
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 const SCENARIO_SCHEMA_VERSION: u32 = 2;
 

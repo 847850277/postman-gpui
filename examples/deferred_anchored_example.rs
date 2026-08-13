@@ -1,7 +1,7 @@
 use gpui::{
     anchored, deferred, div, prelude::FluentBuilder, px, rgb, size, App, AppContext, ClickEvent,
-    Context, Element, InteractiveElement, IntoElement, ParentElement, Render,
-    StatefulInteractiveElement, Styled, Window, WindowBounds, WindowOptions,
+    Context, InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement,
+    Styled, Window, WindowBounds, WindowOptions,
 };
 
 #[derive(Clone)]
@@ -29,11 +29,6 @@ impl TooltipButton {
 
     fn toggle_tooltip(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
         self.show_tooltip = !self.show_tooltip;
-        cx.notify();
-    }
-
-    fn hide_tooltip(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        self.show_tooltip = false;
         cx.notify();
     }
 
@@ -65,7 +60,7 @@ impl TooltipButton {
             )
     }
 
-    fn render_tooltip(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_tooltip(&self, _cx: &mut Context<Self>) -> impl IntoElement {
         let bounds = self.button_bounds;
 
         // 关键：使用 deferred + anchored 组合

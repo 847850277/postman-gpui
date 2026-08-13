@@ -176,10 +176,9 @@ impl EntityInputHandler for BodyInput {
             .or(self.json_marked_range.clone())
             .unwrap_or(self.json_selected_range.clone());
 
-        self.json_content = (self.json_content[0..range.start].to_owned()
+        self.json_content = self.json_content[0..range.start].to_owned()
             + new_text
-            + &self.json_content[range.end..])
-            .into();
+            + &self.json_content[range.end..];
         self.json_marked_range = Some(range.start..range.start + new_text.len());
         self.json_selected_range = new_selected_range_utf16
             .as_ref()
@@ -1039,10 +1038,9 @@ impl BodyInput {
             .or(self.json_marked_range.clone())
             .unwrap_or(self.json_selected_range.clone());
 
-        self.json_content = (self.json_content[0..range.start].to_owned()
+        self.json_content = self.json_content[0..range.start].to_owned()
             + new_text
-            + &self.json_content[range.end..])
-            .into();
+            + &self.json_content[range.end..];
         self.json_selected_range = range.start + new_text.len()..range.start + new_text.len();
         self.json_marked_range.take();
 

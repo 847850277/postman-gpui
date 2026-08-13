@@ -242,7 +242,7 @@ impl Render for HistoryList {
                                 };
 
                                 div()
-                                    .debug_selector(move || format!("history-item-{index}").into())
+                                    .debug_selector(move || format!("history-item-{index}"))
                                     .h(px(48.0))
                                     .flex_none()
                                     .flex()

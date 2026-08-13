@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.97.0"
 
 jobs:
   request-scenarios:
@@ -21,7 +22,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: ${{ env.RUST_TOOLCHAIN }}
         override: true
 
     - name: Cache cargo registry
@@ -47,12 +48,7 @@ jobs:
 
   build-and-test:
     name: Build and Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest]
-        #os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable]
+    runs-on: macos-latest
 
     steps:
     - name: Checkout code
@@ -62,7 +58,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: ${{ matrix.rust }}
+        toolchain: ${{ env.RUST_TOOLCHAIN }}
         override: true
         components: rustfmt, clippy
 
@@ -86,61 +82,18 @@ jobs:
 
     - name: Check code formatting
       run: cargo fmt -- --check
-      continue-on-error: true
 
     - name: Run clippy
-      run: cargo clippy -- -D warnings
-      continue-on-error: true
+      run: cargo clippy --all-targets --all-features -- -D warnings
 
     - name: Build project
       run: cargo build --verbose
 
-    - name: Run library and UI tests
-      run: |
-        cargo test --lib --verbose
-        cargo test --test ui_layout --test ui_send --test ui_workspace --verbose
+    - name: Run all tests
+      run: cargo test --all-targets --all-features --verbose
 
     - name: Build release
       run: cargo build --release --verbose
-
-  # Run the application (only on macOS for testing)
-  run-app:
-    name: Run Application (Test)
-    runs-on: macos-latest
-    needs: [build-and-test, request-scenarios]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
-
-    - name: Install dependencies
-      run: |
-        # macOS dependencies are handled by Xcode Command Line Tools
-        # Install coreutils for timeout command
-        brew install coreutils
-
-    - name: Build project
-      run: cargo build --release
-
-    - name: Test run (should start and exit cleanly)
-      run: |
-        echo "Testing application startup..."
-        gtimeout 5s cargo run --release || exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-          echo "Application started successfully (timed out as expected)"
-          exit 0
-        else
-          echo "Application exited with code: $exit_code"
-          exit $exit_code
-        fi
-      continue-on-error: true
 
   # Security audit
   security-audit:
@@ -154,12 +107,11 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: ${{ env.RUST_TOOLCHAIN }}
         override: true
 
     - name: Install cargo-audit
-      run: cargo install cargo-audit
+      run: cargo install cargo-audit --locked
 
     - name: Run security audit
       run: cargo audit
-      continue-on-error: true
