@@ -26,6 +26,13 @@ pub enum BodyKind {
     Raw,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ContentTypeSource {
+    Unset,
+    Automatic,
+    User,
+}
+
 /// A row in the params/headers editor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KeyValueRow {
@@ -83,6 +90,7 @@ pub struct RequestViewModel {
     headers: Vec<KeyValueRow>,
     body: String,
     body_kind: BodyKind,
+    content_type_source: ContentTypeSource,
     bearer_token: String,
     pre_request_script: String,
     tests_script: String,
@@ -105,6 +113,7 @@ impl RequestViewModel {
             headers: Vec::new(),
             body: String::new(),
             body_kind: BodyKind::Json,
+            content_type_source: ContentTypeSource::Unset,
             bearer_token: String::new(),
             pre_request_script: String::new(),
             tests_script: String::new(),
@@ -171,14 +180,16 @@ impl RequestViewModel {
         self.dirty = true;
 
         if method == HttpMethod::POST && self.body.trim().is_empty() {
+            let add_default_accept = self.headers.is_empty();
             self.body = default_json_body();
             self.body_kind = BodyKind::Json;
-            if self.headers.is_empty() {
-                self.headers = vec![
-                    KeyValueRow::enabled("Content-Type", "application/json"),
-                    KeyValueRow::enabled("Accept", "application/json"),
-                ];
+            self.sync_automatic_content_type();
+            if add_default_accept {
+                self.headers
+                    .push(KeyValueRow::enabled("Accept", "application/json"));
             }
+        } else {
+            self.sync_automatic_content_type();
         }
     }
 
@@ -205,6 +216,7 @@ impl RequestViewModel {
             self.body_kind = body_kind;
             self.dirty = true;
         }
+        self.sync_automatic_content_type();
     }
 
     pub fn set_bearer_token(&mut self, token: impl Into<String>) {
@@ -273,17 +285,28 @@ impl RequestViewModel {
         if key.trim().is_empty() || value.trim().is_empty() {
             return;
         }
-        if let Some(row) = self.headers.iter_mut().find(|row| row.key == key) {
+        let is_content_type = key.eq_ignore_ascii_case("content-type");
+        if let Some(row) = self
+            .headers
+            .iter_mut()
+            .find(|row| row.key.eq_ignore_ascii_case(&key))
+        {
             row.value = value;
             row.enabled = true;
         } else {
             self.headers.push(KeyValueRow::enabled(key, value));
+        }
+        if is_content_type {
+            self.content_type_source = ContentTypeSource::User;
         }
         self.dirty = true;
     }
 
     pub fn toggle_header(&mut self, index: usize) {
         if let Some(row) = self.headers.get_mut(index) {
+            if row.key.eq_ignore_ascii_case("content-type") {
+                self.content_type_source = ContentTypeSource::User;
+            }
             row.enabled = !row.enabled;
             self.dirty = true;
         }
@@ -291,6 +314,9 @@ impl RequestViewModel {
 
     pub fn remove_header(&mut self, index: usize) {
         if index < self.headers.len() {
+            if self.headers[index].key.eq_ignore_ascii_case("content-type") {
+                self.content_type_source = ContentTypeSource::User;
+            }
             self.headers.remove(index);
             self.dirty = true;
         }
@@ -303,6 +329,7 @@ impl RequestViewModel {
         self.headers.clear();
         self.body.clear();
         self.body_kind = BodyKind::Json;
+        self.content_type_source = ContentTypeSource::Unset;
         self.bearer_token.clear();
         self.pre_request_script.clear();
         self.tests_script.clear();
@@ -329,6 +356,9 @@ impl RequestViewModel {
             .collect();
         self.body = request.body.clone().unwrap_or_default();
         self.body_kind = detect_body_kind(&self.body);
+        // A loaded request is an exact saved draft. Its Content-Type, including
+        // an intentional absence, must not be replaced by automatic defaults.
+        self.content_type_source = ContentTypeSource::User;
         self.request_pane = if self.body.is_empty() {
             RequestPane::Headers
         } else {
@@ -406,17 +436,66 @@ impl RequestViewModel {
         }
 
         if self.method.allows_body() {
-            if self.body_kind == BodyKind::FormData
+            if self.content_type_source != ContentTypeSource::User
                 && !request
                     .headers
                     .iter()
                     .any(|(key, _)| key.eq_ignore_ascii_case("content-type"))
             {
-                request.add_header("Content-Type", "application/x-www-form-urlencoded");
+                if let Some(value) = content_type_for(self.body_kind) {
+                    request.add_header("Content-Type", value);
+                }
             }
             request.body = Some(self.body.clone());
         }
         request
+    }
+
+    fn sync_automatic_content_type(&mut self) {
+        if self.content_type_source == ContentTypeSource::User {
+            return;
+        }
+
+        let desired = if self.method.allows_body() {
+            content_type_for(self.body_kind)
+        } else {
+            None
+        };
+        let content_type_index = self
+            .headers
+            .iter()
+            .position(|row| row.key.eq_ignore_ascii_case("content-type"));
+
+        match (self.content_type_source, content_type_index, desired) {
+            (ContentTypeSource::User, _, _) => unreachable!("handled above"),
+            (ContentTypeSource::Unset, Some(_), _) => {
+                // This can only come from a loaded or legacy draft; preserve it.
+                self.content_type_source = ContentTypeSource::User;
+            }
+            (_, Some(index), Some(value)) => {
+                let row = &mut self.headers[index];
+                if row.value != value || !row.enabled {
+                    row.value = value.to_string();
+                    row.enabled = true;
+                    self.dirty = true;
+                }
+                self.content_type_source = ContentTypeSource::Automatic;
+            }
+            (_, None, Some(value)) => {
+                self.headers
+                    .push(KeyValueRow::enabled("Content-Type", value));
+                self.content_type_source = ContentTypeSource::Automatic;
+                self.dirty = true;
+            }
+            (ContentTypeSource::Automatic, Some(index), None) => {
+                self.headers.remove(index);
+                self.content_type_source = ContentTypeSource::Unset;
+                self.dirty = true;
+            }
+            (_, None, None) => {
+                self.content_type_source = ContentTypeSource::Unset;
+            }
+        }
     }
 
     fn sync_url_from_params(&mut self) {
@@ -598,6 +677,14 @@ fn normalize_bearer_token(value: &str) -> String {
         .to_string()
 }
 
+fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
+    match body_kind {
+        BodyKind::Json => Some("application/json"),
+        BodyKind::FormData => Some("application/x-www-form-urlencoded"),
+        BodyKind::Raw => None,
+    }
+}
+
 fn default_json_body() -> String {
     r#"{
   "message": "Hello, World!",
@@ -685,6 +772,119 @@ mod tests {
 
         assert!(matches!(workspace.response(), ResponseState::Error { .. }));
         assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
+    fn switching_post_body_to_form_data_replaces_json_content_type() {
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            result: Err(AppError::UrlEmpty),
+        }));
+        vm.set_method(HttpMethod::POST);
+        assert!(vm
+            .headers()
+            .iter()
+            .any(|row| { row.key == "Content-Type" && row.value == "application/json" }));
+
+        vm.set_body("name=Ada&active=true");
+        vm.set_body_kind(BodyKind::FormData);
+
+        assert_eq!(
+            vm.headers()
+                .iter()
+                .find(|row| row.key == "Content-Type")
+                .map(|row| row.value.as_str()),
+            Some("application/x-www-form-urlencoded")
+        );
+        assert!(vm
+            .headers()
+            .iter()
+            .any(|row| row.key == "Accept" && row.value == "application/json"));
+    }
+
+    #[test]
+    fn put_with_default_json_kind_gets_an_automatic_content_type() {
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            result: Err(AppError::UrlEmpty),
+        }));
+
+        vm.set_method(HttpMethod::PUT);
+        vm.set_body_kind(BodyKind::Json);
+
+        assert!(vm.headers().iter().any(|row| {
+            row.key.eq_ignore_ascii_case("content-type") && row.value == "application/json"
+        }));
+    }
+
+    #[test]
+    fn switching_to_raw_removes_only_an_automatic_content_type() {
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            result: Err(AppError::UrlEmpty),
+        }));
+        vm.set_method(HttpMethod::POST);
+
+        vm.set_body_kind(BodyKind::Raw);
+
+        assert!(!vm
+            .headers()
+            .iter()
+            .any(|row| row.key.eq_ignore_ascii_case("content-type")));
+        assert!(vm
+            .headers()
+            .iter()
+            .any(|row| row.key.eq_ignore_ascii_case("accept")));
+    }
+
+    #[test]
+    fn manual_content_type_is_case_insensitive_and_survives_body_kind_changes() {
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            result: Err(AppError::UrlEmpty),
+        }));
+        vm.set_method(HttpMethod::POST);
+
+        vm.upsert_header("content-type", "application/vnd.example+json");
+        vm.set_body_kind(BodyKind::FormData);
+        vm.set_body_kind(BodyKind::Raw);
+
+        let content_types: Vec<_> = vm
+            .headers()
+            .iter()
+            .filter(|row| row.key.eq_ignore_ascii_case("content-type"))
+            .collect();
+        assert_eq!(content_types.len(), 1);
+        assert_eq!(content_types[0].value, "application/vnd.example+json");
+    }
+
+    #[test]
+    fn removing_an_automatic_content_type_is_a_user_override() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: seen.clone(),
+            result: Ok(RequestResult::success(String::new())),
+        }));
+        vm.set_method(HttpMethod::POST);
+        vm.set_url("https://example.com/manual-content-type");
+        let content_type_index = vm
+            .headers()
+            .iter()
+            .position(|row| row.key.eq_ignore_ascii_case("content-type"))
+            .expect("POST should add an automatic Content-Type");
+
+        vm.remove_header(content_type_index);
+        vm.set_body_kind(BodyKind::FormData);
+        vm.send();
+
+        assert!(!vm
+            .headers()
+            .iter()
+            .any(|row| row.key.eq_ignore_ascii_case("content-type")));
+        assert!(!seen.lock().unwrap()[0]
+            .headers
+            .iter()
+            .any(|(key, _)| key.eq_ignore_ascii_case("content-type")));
     }
 
     #[test]

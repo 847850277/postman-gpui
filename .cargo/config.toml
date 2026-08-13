@@ -1,0 +1,2 @@
+[alias]
+scenarios = "test --test request_scenarios"
