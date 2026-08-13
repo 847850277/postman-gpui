@@ -1,7 +1,7 @@
 use crate::{
     app::{
-        view_model::detect_body_kind, BodyKind, KeyValueRow, RequestPane, RequestViewModel,
-        ResponseState,
+        view_model::detect_body_kind, BodyKind, KeyValueRow, RequestPane, ResponseState,
+        WorkspaceViewModel,
     },
     models::HttpMethod,
     ui::{
@@ -28,12 +28,15 @@ use gpui::{
 };
 
 pub struct PostmanApp {
-    view_model: RequestViewModel,
+    view_model: WorkspaceViewModel,
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
     body_input: Entity<BodyInput>,
     row_key_input: Entity<HeaderInput>,
     row_value_input: Entity<HeaderInput>,
+    authorization_input: Entity<HeaderInput>,
+    script_input: Entity<BodyInput>,
+    tests_input: Entity<BodyInput>,
     history_list: Entity<HistoryList>,
     response_viewer: Entity<ResponseViewer>,
     _subscriptions: Vec<Subscription>,
@@ -55,7 +58,19 @@ impl PostmanApp {
         });
         let row_key_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Key"));
         let row_value_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Value"));
-        let history_list = cx.new(|_| HistoryList::new());
+        let authorization_input =
+            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Enter bearer token"));
+        let script_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Pre-request script")
+                .with_type_tabs(false)
+        });
+        let tests_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Response tests")
+                .with_type_tabs(false)
+        });
+        let history_list = cx.new(HistoryList::new);
         let response_viewer = cx.new(ResponseViewer::new);
 
         let subscriptions = vec![
@@ -64,16 +79,22 @@ impl PostmanApp {
             cx.subscribe(&body_input, Self::on_body_event),
             cx.subscribe(&row_key_input, Self::on_row_input_event),
             cx.subscribe(&row_value_input, Self::on_row_input_event),
+            cx.subscribe(&authorization_input, Self::on_authorization_event),
+            cx.subscribe(&script_input, Self::on_script_event),
+            cx.subscribe(&tests_input, Self::on_tests_event),
             cx.subscribe(&history_list, Self::on_history_selected),
         ];
 
         Self {
-            view_model: RequestViewModel::new(),
+            view_model: WorkspaceViewModel::new(),
             method_selector,
             url_input,
             body_input,
             row_key_input,
             row_value_input,
+            authorization_input,
+            script_input,
+            tests_input,
             history_list,
             response_viewer,
             _subscriptions: subscriptions,
@@ -136,6 +157,40 @@ impl PostmanApp {
         if matches!(event, HeaderInputEvent::SubmitRequested) {
             self.add_current_row(cx);
         }
+    }
+
+    fn on_authorization_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(token) = event {
+            self.view_model.set_bearer_token(token);
+            cx.notify();
+        }
+    }
+
+    fn on_script_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let BodyInputEvent::ValueChanged(script) = event;
+        self.view_model.set_pre_request_script(script);
+        cx.notify();
+    }
+
+    fn on_tests_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let BodyInputEvent::ValueChanged(script) = event;
+        self.view_model.set_tests_script(script);
+        cx.notify();
     }
 
     fn on_history_selected(
@@ -210,6 +265,53 @@ impl PostmanApp {
         self.view_model.history_len()
     }
 
+    pub fn visible_history_len(&self, cx: &App) -> usize {
+        self.history_list.read(cx).visible_entry_count()
+    }
+
+    pub fn tab_count(&self) -> usize {
+        self.view_model.tab_count()
+    }
+
+    pub fn active_tab_index(&self) -> usize {
+        self.view_model.active_tab_index()
+    }
+
+    pub fn current_url(&self) -> &str {
+        self.view_model.url()
+    }
+
+    pub fn current_bearer_token(&self) -> &str {
+        self.view_model.bearer_token()
+    }
+
+    pub fn current_pre_request_script(&self) -> &str {
+        self.view_model.pre_request_script()
+    }
+
+    pub fn current_tests_script(&self) -> &str {
+        self.view_model.tests_script()
+    }
+
+    pub fn set_bearer_token(&mut self, token: &str, cx: &mut Context<Self>) {
+        self.view_model.set_bearer_token(token);
+        let token = self.view_model.bearer_token().to_string();
+        self.authorization_input
+            .update(cx, |input, cx| input.set_content(token, cx));
+    }
+
+    pub fn set_pre_request_script(&mut self, script: &str, cx: &mut Context<Self>) {
+        self.view_model.set_pre_request_script(script);
+        self.script_input
+            .update(cx, |input, cx| input.set_content(script.to_string(), cx));
+    }
+
+    pub fn set_tests_script(&mut self, script: &str, cx: &mut Context<Self>) {
+        self.view_model.set_tests_script(script);
+        self.tests_input
+            .update(cx, |input, cx| input.set_content(script.to_string(), cx));
+    }
+
     fn on_send_clicked(
         &mut self,
         _event: &gpui::MouseUpEvent,
@@ -238,7 +340,10 @@ impl PostmanApp {
                 self.sync_url_control(cx);
             }
             RequestPane::Headers => self.view_model.upsert_header(key, value),
-            RequestPane::Authorization | RequestPane::Body => return,
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => return,
         }
         self.row_key_input.update(cx, |input, cx| input.clear(cx));
         self.row_value_input.update(cx, |input, cx| input.clear(cx));
@@ -277,7 +382,7 @@ impl PostmanApp {
     fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
         self.view_model.set_body_kind(kind);
         self.body_input.update(cx, |input, cx| {
-            input.set_type(body_type_from_kind(kind), cx)
+            input.set_type_silent(body_type_from_kind(kind), cx)
         });
         cx.notify();
     }
@@ -301,9 +406,33 @@ impl PostmanApp {
 
     fn new_request(&mut self, cx: &mut Context<Self>) {
         self.view_model.new_request();
+        self.clear_staged_row(cx);
         self.sync_controls_from_view_model(cx);
         self.sync_output_views(cx);
         cx.notify();
+    }
+
+    fn select_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.view_model.select_tab(index) {
+            self.clear_staged_row(cx);
+            self.sync_controls_from_view_model(cx);
+            self.sync_output_views(cx);
+            cx.notify();
+        }
+    }
+
+    fn close_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.view_model.close_tab(index) {
+            self.clear_staged_row(cx);
+            self.sync_controls_from_view_model(cx);
+            self.sync_output_views(cx);
+            cx.notify();
+        }
+    }
+
+    fn clear_staged_row(&self, cx: &mut Context<Self>) {
+        self.row_key_input.update(cx, |input, cx| input.clear(cx));
+        self.row_value_input.update(cx, |input, cx| input.clear(cx));
     }
 
     fn sync_url_control(&self, cx: &mut Context<Self>) {
@@ -337,6 +466,22 @@ impl PostmanApp {
                 input.set_content(body, cx);
             }
         });
+
+        let bearer_token = self.view_model.bearer_token().to_string();
+        self.authorization_input
+            .update(cx, |input, cx| input.set_content(bearer_token, cx));
+
+        let pre_request_script = self.view_model.pre_request_script().to_string();
+        self.script_input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::Json, cx);
+            input.set_content(pre_request_script, cx);
+        });
+
+        let tests_script = self.view_model.tests_script().to_string();
+        self.tests_input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::Json, cx);
+            input.set_content(tests_script, cx);
+        });
     }
 
     fn request_tab(
@@ -346,7 +491,9 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self.view_model.request_pane() == pane;
+        let selector = request_pane_selector(pane);
         div()
+            .debug_selector(move || selector.into())
             .h_full()
             .flex()
             .items_center()
@@ -430,9 +577,22 @@ impl PostmanApp {
     }
 
     fn render_request_tabs_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let method = self.view_model.method().to_string();
-        let title = self.view_model.tab_title();
-        let dirty = self.view_model.is_dirty();
+        let active_index = self.view_model.active_tab_index();
+        let tabs: Vec<_> = self
+            .view_model
+            .tabs()
+            .iter()
+            .enumerate()
+            .map(|(index, request)| {
+                (
+                    index,
+                    request.method(),
+                    request.tab_title(),
+                    request.is_dirty(),
+                    index == active_index,
+                )
+            })
+            .collect();
 
         div()
             .debug_selector(|| "request-tabs-bar".into())
@@ -446,35 +606,68 @@ impl PostmanApp {
             .bg(rgb(PANEL))
             .border_b_1()
             .border_color(rgb(LINE))
-            .child(
-                div()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .bg(rgb(PANEL))
-                    .rounded_t_lg()
-                    .font_family(FONT_UI)
-                    .text_size(px(12.0))
-                    .child(
+            .children(
+                tabs.into_iter()
+                    .map(|(index, method, title, dirty, active)| {
                         div()
-                            .text_color(rgb(method_color(self.view_model.method())))
-                            .font_weight(FontWeight::BOLD)
-                            .child(method),
-                    )
-                    .child(
-                        div()
-                            .max_w(px(260.0))
-                            .overflow_hidden()
-                            .text_color(rgb(SUBTEXT))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(title),
-                    )
-                    .when(dirty, |tab| {
-                        tab.child(div().size(px(6.0)).rounded_full().bg(rgb(ACCENT)))
-                    })
-                    .child(div().text_color(rgb(MUTED)).child("×")),
+                            .debug_selector(move || format!("request-tab-{index}").into())
+                            .h_full()
+                            .max_w(px(280.0))
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .px_3()
+                            .bg(rgb(if active { PANEL } else { PANEL_ALT }))
+                            .rounded_t_lg()
+                            .font_family(FONT_UI)
+                            .text_size(px(12.0))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(PANEL)))
+                            .child(
+                                div()
+                                    .text_color(rgb(method_color(method)))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child(method.to_string()),
+                            )
+                            .child(
+                                div()
+                                    .max_w(px(180.0))
+                                    .overflow_hidden()
+                                    .text_color(rgb(if active { SUBTEXT } else { MUTED }))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(title),
+                            )
+                            .when(dirty, |tab| {
+                                tab.child(div().size(px(6.0)).rounded_full().bg(rgb(ACCENT)))
+                            })
+                            .child(
+                                div()
+                                    .debug_selector(move || format!("close-tab-{index}").into())
+                                    .size(px(20.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_md()
+                                    .text_color(rgb(MUTED))
+                                    .hover(|style| {
+                                        style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK))
+                                    })
+                                    .child("×")
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(move |this, _, _, cx| {
+                                            cx.stop_propagation();
+                                            this.close_request_tab(index, cx);
+                                        }),
+                                    ),
+                            )
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(move |this, _, _, cx| {
+                                    this.select_request_tab(index, cx)
+                                }),
+                            )
+                    }),
             )
             .child(
                 div()
@@ -549,37 +742,47 @@ impl PostmanApp {
             .border_b_1()
             .border_color(rgb(LINE))
             .child(self.request_tab(RequestPane::Params, "Params", cx))
-            .child(self.request_tab(RequestPane::Authorization, "Authorization (Bearer)", cx))
+            .child(self.request_tab(
+                RequestPane::Authorization,
+                if self.view_model.bearer_token().is_empty() {
+                    "Authorization (Bearer)".to_string()
+                } else {
+                    "Authorization (Bearer) ●".to_string()
+                },
+                cx,
+            ))
             .child(self.request_tab(
                 RequestPane::Headers,
                 format!("Headers ({header_count})"),
                 cx,
             ))
-            .child(self.request_tab(RequestPane::Body, "Body ●", cx))
-            .child(
-                div()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .px_2()
-                    .font_family(FONT_UI)
-                    .text_size(px(13.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(rgb(MUTED))
-                    .child("Scripts"),
-            )
-            .child(
-                div()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .px_2()
-                    .font_family(FONT_UI)
-                    .text_size(px(13.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(rgb(MUTED))
-                    .child("Tests"),
-            )
+            .child(self.request_tab(
+                RequestPane::Body,
+                if self.view_model.body().is_empty() {
+                    "Body".to_string()
+                } else {
+                    "Body ●".to_string()
+                },
+                cx,
+            ))
+            .child(self.request_tab(
+                RequestPane::Scripts,
+                if self.view_model.pre_request_script().is_empty() {
+                    "Scripts".to_string()
+                } else {
+                    "Scripts ●".to_string()
+                },
+                cx,
+            ))
+            .child(self.request_tab(
+                RequestPane::Tests,
+                if self.view_model.tests_script().is_empty() {
+                    "Tests".to_string()
+                } else {
+                    "Tests ●".to_string()
+                },
+                cx,
+            ))
     }
 
     fn render_request_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -613,6 +816,18 @@ impl PostmanApp {
                     cx,
                 ),
                 RequestPane::Body => self.render_body_editor(cx),
+                RequestPane::Scripts => self.render_script_editor(
+                    "Pre-request script",
+                    "Saved with this request tab.",
+                    self.script_input.clone(),
+                    "script-editor",
+                ),
+                RequestPane::Tests => self.render_script_editor(
+                    "Response tests",
+                    "Saved with this request tab for the test runner.",
+                    self.tests_input.clone(),
+                    "tests-editor",
+                ),
             })
     }
 
@@ -624,27 +839,29 @@ impl PostmanApp {
             .bg(rgb(CODE_BG))
             .child(
                 div()
-                    .h(px(44.0))
+                    .h(px(48.0))
                     .flex()
                     .items_center()
-                    .justify_between()
+                    .gap_4()
                     .px_3()
                     .rounded_lg()
                     .bg(rgb(CODE_PANEL))
                     .child(
                         div()
+                            .w(px(120.0))
+                            .flex_none()
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(12.0))
                             .text_color(rgb(0x0093_c5fd))
-                            .child("Authorization"),
+                            .child("Bearer token"),
                     )
                     .child(
                         div()
-                            .font_family(FONT_MONO)
-                            .text_size(px(12.0))
-                            .text_color(rgb(LINE))
-                            .child("Bearer {{access_token}}"),
+                            .debug_selector(|| "authorization-input".into())
+                            .h(px(34.0))
+                            .flex_1()
+                            .child(self.authorization_input.clone()),
                     ),
             )
             .child(
@@ -653,7 +870,47 @@ impl PostmanApp {
                     .font_family(FONT_UI)
                     .text_size(px(12.0))
                     .text_color(rgb(MUTED))
-                    .child("Use Headers to set a real Authorization value."),
+                    .child("The request will include Authorization: Bearer <token>."),
+            )
+            .into_any_element()
+    }
+
+    fn render_script_editor(
+        &self,
+        title: &'static str,
+        hint: &'static str,
+        input: Entity<BodyInput>,
+        selector: &'static str,
+    ) -> gpui::AnyElement {
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .p_3()
+            .bg(rgb(CODE_BG))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .font_family(FONT_UI)
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(CODE_TEXT))
+                            .child(title),
+                    )
+                    .child(div().text_size(px(11.0)).text_color(rgb(MUTED)).child(hint)),
+            )
+            .child(
+                div()
+                    .debug_selector(move || selector.into())
+                    .flex_1()
+                    .min_h_0()
+                    .child(input),
             )
             .into_any_element()
     }
@@ -1088,5 +1345,16 @@ fn method_color(method: HttpMethod) -> u32 {
         HttpMethod::DELETE => ERROR,
         HttpMethod::PATCH => 0x007c_3aed,
         HttpMethod::HEAD | HttpMethod::OPTIONS => SUBTEXT,
+    }
+}
+
+fn request_pane_selector(pane: RequestPane) -> &'static str {
+    match pane {
+        RequestPane::Params => "request-pane-params",
+        RequestPane::Authorization => "request-pane-authorization",
+        RequestPane::Headers => "request-pane-headers",
+        RequestPane::Body => "request-pane-body",
+        RequestPane::Scripts => "request-pane-scripts",
+        RequestPane::Tests => "request-pane-tests",
     }
 }

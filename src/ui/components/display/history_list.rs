@@ -1,11 +1,12 @@
 use crate::models::{HistoryEntry, HttpMethod, Request};
+use crate::ui::components::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
     ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT,
     SUBTEXT, TEXT,
 };
 use gpui::{
-    div, px, rgb, Context, EventEmitter, InteractiveElement, IntoElement, ParentElement, Render,
-    Rgba, StatefulInteractiveElement, Styled, Window,
+    div, px, rgb, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    ParentElement, Render, Rgba, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 /// Get color for HTTP method
@@ -31,15 +32,35 @@ pub enum HistoryListEvent {
 pub struct HistoryList {
     entries: Vec<HistoryEntry>,
     selected_index: Option<usize>,
+    search_query: String,
+    search_input: Entity<HeaderInput>,
+    _search_subscription: Subscription,
 }
 
 impl EventEmitter<HistoryListEvent> for HistoryList {}
 
 impl HistoryList {
-    pub fn new() -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
+        let search_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Search history"));
+        let search_subscription = cx.subscribe(&search_input, Self::on_search_input_event);
         Self {
             entries: Vec::new(),
             selected_index: None,
+            search_query: String::new(),
+            search_input,
+            _search_subscription: search_subscription,
+        }
+    }
+
+    fn on_search_input_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(query) = event {
+            self.search_query = query.trim().to_lowercase();
+            cx.notify();
         }
     }
 
@@ -61,6 +82,38 @@ impl HistoryList {
         self.entries.clear();
         self.selected_index = None;
         cx.notify();
+    }
+
+    pub fn visible_entry_count(&self) -> usize {
+        self.entries
+            .iter()
+            .filter(|entry| self.matches_query(entry))
+            .count()
+    }
+
+    fn matches_query(&self, entry: &HistoryEntry) -> bool {
+        if self.search_query.is_empty() {
+            return true;
+        }
+        let query = &self.search_query;
+        entry.name.to_lowercase().contains(query)
+            || entry.request.url.to_lowercase().contains(query)
+            || entry
+                .request
+                .method
+                .to_string()
+                .to_lowercase()
+                .contains(query)
+            || entry.request.headers.iter().any(|(key, value)| {
+                key.to_lowercase().contains(query) || value.to_lowercase().contains(query)
+            })
+            || entry
+                .request
+                .body
+                .as_deref()
+                .unwrap_or_default()
+                .to_lowercase()
+                .contains(query)
     }
 
     fn on_item_clicked(&mut self, index: usize, cx: &mut Context<Self>) -> HistoryListEvent {
@@ -94,6 +147,14 @@ impl HistoryList {
 
 impl Render for HistoryList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let visible_entries: Vec<(usize, HistoryEntry)> = self
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| self.matches_query(entry))
+            .map(|(index, entry)| (index, entry.clone()))
+            .collect();
+        let has_history = !self.entries.is_empty();
         div()
             .id("history-list")
             .debug_selector(|| "history-panel".into())
@@ -124,6 +185,7 @@ impl Render for HistoryList {
             )
             .child(
                 div()
+                    .debug_selector(|| "history-search-input".into())
                     .h(px(40.0))
                     .flex_none()
                     .flex()
@@ -133,10 +195,7 @@ impl Render for HistoryList {
                     .bg(rgb(PANEL_ALT))
                     .border_1()
                     .border_color(rgb(LINE))
-                    .font_family(FONT_UI)
-                    .text_size(px(13.0))
-                    .text_color(rgb(MUTED))
-                    .child("Search history"),
+                    .child(self.search_input.clone()),
             )
             .child(
                 div()
@@ -148,7 +207,7 @@ impl Render for HistoryList {
                     .gap_1()
                     .py_1()
                     .overflow_scroll()
-                    .children(if self.entries.is_empty() {
+                    .children(if visible_entries.is_empty() {
                         vec![div()
                             .flex()
                             .flex_col()
@@ -163,18 +222,22 @@ impl Render for HistoryList {
                                     .text_size(px(13.0))
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .text_color(rgb(TEXT))
-                                    .child("No requests yet"),
+                                    .child(if has_history {
+                                        "No matching requests"
+                                    } else {
+                                        "No requests yet"
+                                    }),
                             )
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(MUTED))
-                                    .child("Completed requests will appear here."),
-                            )]
+                            .child(div().text_size(px(12.0)).text_color(rgb(MUTED)).child(
+                                if has_history {
+                                    "Try another method, URL, header, or body value."
+                                } else {
+                                    "Completed requests will appear here."
+                                },
+                            ))]
                     } else {
-                        self.entries
-                            .iter()
-                            .enumerate()
+                        visible_entries
+                            .into_iter()
                             .map(|(index, entry)| {
                                 let is_selected = self.selected_index == Some(index);
                                 let method_color = get_method_color(entry.request.method);
@@ -186,6 +249,7 @@ impl Render for HistoryList {
                                 };
 
                                 div()
+                                    .debug_selector(move || format!("history-item-{index}").into())
                                     .h(px(48.0))
                                     .flex_none()
                                     .flex()
