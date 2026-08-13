@@ -1,4 +1,8 @@
 use crate::models::{HistoryEntry, HttpMethod, Request};
+use crate::ui::theme::{
+    ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT,
+    SUBTEXT, TEXT,
+};
 use gpui::{
     div, px, rgb, Context, EventEmitter, InteractiveElement, IntoElement, ParentElement, Render,
     Rgba, StatefulInteractiveElement, Styled, Window,
@@ -7,18 +11,15 @@ use gpui::{
 /// Get color for HTTP method
 fn get_method_color(method: HttpMethod) -> Rgba {
     match method {
-        HttpMethod::GET => rgb(0x0028_a745),
-        HttpMethod::POST => rgb(0x0000_7acc),
-        HttpMethod::PUT => rgb(0x00fd_7e14),
-        HttpMethod::DELETE => rgb(0x00dc_3545),
-        HttpMethod::PATCH => rgb(0x006f_42c1),
-        HttpMethod::HEAD => rgb(0x006c_757d),
-        HttpMethod::OPTIONS => rgb(0x006c_757d),
+        HttpMethod::GET => rgb(0x0016_a34a),
+        HttpMethod::POST => rgb(ACCENT),
+        HttpMethod::PUT => rgb(0x0025_63eb),
+        HttpMethod::DELETE => rgb(0x00dc_2626),
+        HttpMethod::PATCH => rgb(0x007c_3aed),
+        HttpMethod::HEAD => rgb(SUBTEXT),
+        HttpMethod::OPTIONS => rgb(SUBTEXT),
     }
 }
-
-/// Color for additional info text (headers/body indicators)
-const COLOR_INFO_TEXT: u32 = 0x0099_9999;
 
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
@@ -95,41 +96,81 @@ impl Render for HistoryList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .id("history-list")
+            .debug_selector(|| "history-panel".into())
             .flex()
             .flex_col()
-            .w_64() // Fixed width for sidebar
+            .w(px(320.0))
             .h_full()
-            .bg(rgb(0x00f8_f9fa))
+            .flex_none()
+            .gap_3()
+            .p_4()
+            .bg(rgb(PANEL))
             .border_r_1()
-            .border_color(rgb(0x00cc_cccc))
-            .overflow_scroll()
+            .border_color(rgb(LINE))
             .child(
-                // Header
                 div()
-                    .px_3()
-                    .py_3()
-                    .bg(rgb(0x00e9_ecef))
-                    .border_b_1()
-                    .border_color(rgb(0x00cc_cccc))
-                    .child(
-                        div()
-                            .text_size(px(14.0))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child("Request History"),
-                    ),
+                    .font_family(FONT_HEADING)
+                    .text_size(px(20.0))
+                    .font_weight(gpui::FontWeight::BOLD)
+                    .text_color(rgb(TEXT))
+                    .child("History"),
             )
             .child(
-                // History items
                 div()
+                    .font_family(FONT_UI)
+                    .text_size(px(13.0))
+                    .text_color(rgb(MUTED))
+                    .child("Recent requests and responses"),
+            )
+            .child(
+                div()
+                    .h(px(40.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .px_3()
+                    .rounded_lg()
+                    .bg(rgb(PANEL_ALT))
+                    .border_1()
+                    .border_color(rgb(LINE))
+                    .font_family(FONT_UI)
+                    .text_size(px(13.0))
+                    .text_color(rgb(MUTED))
+                    .child("Search history"),
+            )
+            .child(
+                div()
+                    .id("history-scroll")
+                    .flex_1()
+                    .min_h_0()
                     .flex()
                     .flex_col()
+                    .gap_1()
+                    .py_1()
+                    .overflow_scroll()
                     .children(if self.entries.is_empty() {
                         vec![div()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
                             .px_3()
                             .py_4()
-                            .text_size(px(12.0))
-                            .text_color(rgb(0x006c_757d))
-                            .child("No requests yet")]
+                            .rounded_lg()
+                            .bg(rgb(PANEL_ALT))
+                            .font_family(FONT_UI)
+                            .child(
+                                div()
+                                    .text_size(px(13.0))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .text_color(rgb(TEXT))
+                                    .child("No requests yet"),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .text_color(rgb(MUTED))
+                                    .child("Completed requests will appear here."),
+                            )]
                     } else {
                         self.entries
                             .iter()
@@ -139,23 +180,25 @@ impl Render for HistoryList {
                                 let method_color = get_method_color(entry.request.method);
 
                                 let bg_color = if is_selected {
-                                    rgb(0x00e7_f1ff)
+                                    rgb(ACCENT_SOFT)
                                 } else {
-                                    rgb(0x00f8_f9fa)
+                                    rgb(PANEL)
                                 };
 
                                 div()
+                                    .h(px(48.0))
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
                                     .px_3()
-                                    .py_2()
-                                    .border_b_1()
-                                    .border_color(rgb(0x00de_e2e6))
+                                    .rounded_lg()
                                     .cursor_pointer()
                                     .bg(bg_color)
                                     .hover(|style| {
                                         if is_selected {
-                                            style.bg(rgb(0x00e7_f1ff))
+                                            style.bg(rgb(ACCENT_SOFT))
                                         } else {
-                                            style.bg(rgb(0x00ff_ffff))
+                                            style.bg(rgb(PANEL_ALT))
                                         }
                                     })
                                     .on_mouse_up(
@@ -170,6 +213,8 @@ impl Render for HistoryList {
                                             .flex()
                                             .flex_col()
                                             .gap_1()
+                                            .w_full()
+                                            .font_family(FONT_UI)
                                             .child(
                                                 div()
                                                     .flex()
@@ -177,7 +222,6 @@ impl Render for HistoryList {
                                                     .items_center()
                                                     .child(
                                                         div()
-                                                            .px_1()
                                                             .text_size(px(10.0))
                                                             .font_weight(gpui::FontWeight::BOLD)
                                                             .text_color(method_color)
@@ -188,50 +232,22 @@ impl Render for HistoryList {
                                                     .child(
                                                         div()
                                                             .text_size(px(10.0))
-                                                            .text_color(rgb(0x006c_757d))
+                                                            .text_color(rgb(MUTED))
                                                             .child(entry.formatted_time()),
                                                     ),
                                             )
                                             .child(
                                                 div()
-                                                    .text_size(px(11.0))
+                                                    .text_size(px(12.0))
+                                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                                    .text_color(rgb(if is_selected {
+                                                        ACCENT_DARK
+                                                    } else {
+                                                        TEXT
+                                                    }))
                                                     .overflow_hidden()
                                                     .child(entry.name.clone()),
-                                            )
-                                            .children({
-                                                let has_headers = !entry.request.headers.is_empty();
-                                                let has_body = entry.request.body.is_some();
-
-                                                if has_headers || has_body {
-                                                    Some(
-                                                        div()
-                                                            .text_size(px(9.0))
-                                                            .text_color(rgb(COLOR_INFO_TEXT))
-                                                            .child(format!(
-                                                                "{}{}",
-                                                                if has_headers {
-                                                                    format!(
-                                                                        "{} headers",
-                                                                        entry.request.headers.len()
-                                                                    )
-                                                                } else {
-                                                                    String::new()
-                                                                },
-                                                                if has_body {
-                                                                    if has_headers {
-                                                                        " • has body"
-                                                                    } else {
-                                                                        "has body"
-                                                                    }
-                                                                } else {
-                                                                    ""
-                                                                }
-                                                            )),
-                                                    )
-                                                } else {
-                                                    None
-                                                }
-                                            }),
+                                            ),
                                     )
                             })
                             .collect()

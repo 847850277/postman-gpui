@@ -4,6 +4,8 @@ use gpui::{
     ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
+use crate::ui::theme::{ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, LINE, PANEL, SUBTEXT};
+
 #[derive(Debug, Clone)]
 pub enum DropdownEvent {
     SelectionChanged(String),
@@ -114,6 +116,7 @@ impl Dropdown {
     }
 
     fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let dropdown = cx.entity().clone();
         let display_text = if self.selected_value.is_empty() {
             self.placeholder
                 .as_ref()
@@ -129,27 +132,29 @@ impl Dropdown {
             .items_center()
             .justify_between()
             .w_full()
-            .min_w_32() // 设置最小宽度
+            .h_full()
             .px_3()
-            .py_2()
-            .bg(rgb(0x00ff_ffff))
+            .bg(rgb(ACCENT_SOFT))
             .border_1()
             .border_color(if self.is_open {
-                rgb(0x0000_7bff)
+                rgb(ACCENT)
             } else {
-                rgb(0x00cc_cccc)
+                rgb(ACCENT_SOFT)
             })
-            .rounded_md()
+            .rounded_lg()
             .cursor_pointer()
-            .hover(|style| style.border_color(rgb(0x0000_7bff)))
+            .font_family(FONT_HEADING)
+            .text_size(px(15.0))
+            .font_weight(gpui::FontWeight::BOLD)
+            .hover(|style| style.border_color(rgb(ACCENT)))
             .on_click(cx.listener(Self::toggle_dropdown))
             .child(
                 div()
                     .flex_1()
                     .text_color(if self.selected_value.is_empty() {
-                        rgb(0x0099_9999)
+                        rgb(SUBTEXT)
                     } else {
-                        rgb(0x0033_3333)
+                        rgb(ACCENT_DARK)
                     })
                     .child(display_text),
             )
@@ -157,14 +162,19 @@ impl Dropdown {
                 div()
                     .w_4()
                     .h_4()
-                    .child(if self.is_open { "▲" } else { "▼" })
-                    .text_color(rgb(0x0066_6666)),
+                    .child(if self.is_open { "▴" } else { "▾" })
+                    .text_color(rgb(ACCENT_DARK)),
             )
             .child(
                 // 使用 canvas 获取按钮的精确位置
-                canvas(move |_bounds, _, _| {}, |_, _, _, _| {})
-                    .absolute()
-                    .size_full(),
+                canvas(
+                    move |bounds, _, cx| {
+                        dropdown.update(cx, |dropdown, _| dropdown.button_bounds = bounds)
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
             )
     }
 
@@ -180,15 +190,14 @@ impl Dropdown {
                         .absolute()
                         .top(bounds.bottom() + px(2.)) // 在按钮下方 2px 处显示
                         .left(bounds.left())
-                        .min_w(px(200.)) // 设置最小宽度 200px
-                        .w(bounds.size.width) // 与按钮同宽
-                        .bg(rgb(0x00ff_ffff))
+                        .w(px(120.0))
+                        .bg(rgb(PANEL))
                         .border_1()
-                        .border_color(rgb(0x00cc_cccc))
-                        .rounded_md()
+                        .border_color(rgb(LINE))
+                        .rounded_lg()
                         .shadow_lg()
-                        .max_h_48()
-                        .max_h(px(300.)) // 增加最大高度到 300px
+                        .max_h(px(260.))
+                        .overflow_hidden()
                         .children(self.options.iter().enumerate().map(|(index, option)| {
                             let is_selected = option == &self.selected_value;
                             let option_clone = option.clone();
@@ -196,25 +205,34 @@ impl Dropdown {
                             div()
                                 .id(("dropdown-option", index))
                                 .w_full()
+                                .h(px(34.0))
+                                .flex()
+                                .items_center()
                                 .px_3()
-                                .py_2()
                                 .cursor_pointer()
                                 .bg(if is_selected {
-                                    rgb(0x00f0_f8ff)
+                                    rgb(0x00ff_f7ed)
                                 } else {
-                                    rgb(0x00ff_ffff)
+                                    rgb(PANEL)
                                 })
                                 .hover(|style| {
                                     if !is_selected {
-                                        style.bg(rgb(0x00f5_f5f5))
+                                        style.bg(rgb(ACCENT_SOFT))
                                     } else {
                                         style
                                     }
                                 })
                                 .text_color(if is_selected {
-                                    rgb(0x0000_7bff)
+                                    rgb(ACCENT_DARK)
                                 } else {
-                                    rgb(0x0033_3333)
+                                    rgb(SUBTEXT)
+                                })
+                                .font_family(FONT_HEADING)
+                                .text_size(px(13.0))
+                                .font_weight(if is_selected {
+                                    gpui::FontWeight::BOLD
+                                } else {
+                                    gpui::FontWeight::SEMIBOLD
                                 })
                                 // 修复点击事件
                                 .on_mouse_down(
@@ -235,7 +253,7 @@ impl Dropdown {
                                             .absolute()
                                             .right_2()
                                             .child("✓")
-                                            .text_color(rgb(0x0000_7bff)),
+                                            .text_color(rgb(ACCENT)),
                                     )
                                 })
                         })),

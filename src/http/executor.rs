@@ -8,18 +8,27 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct RequestResult {
     pub status: u16,
+    pub headers: Vec<(String, String)>,
     pub body: String,
+    pub elapsed_ms: u128,
 }
 
 impl RequestResult {
     pub fn success(body: String) -> Self {
-        Self { status: 200, body }
+        Self {
+            status: 200,
+            headers: Vec::new(),
+            body,
+            elapsed_ms: 0,
+        }
     }
 
     pub fn error(message: String) -> Self {
         Self {
             status: 0,
+            headers: Vec::new(),
             body: message,
+            elapsed_ms: 0,
         }
     }
 }
@@ -92,78 +101,40 @@ impl RequestExecutor {
             }
         }
 
-        // 使用 tokio 的 block_on 来同步执行异步请求
-        let rt = tokio::runtime::Runtime::new().unwrap();
-
-        let result = match method {
-            HttpMethod::GET => {
-                // GET 请求
-                let header_map = if headers.is_empty() {
-                    tracing::info!("🔍 RequestExecutor - 执行GET请求，无自定义headers");
-                    None
-                } else {
-                    let map: HashMap<String, String> = headers.iter().cloned().collect();
-                    tracing::info!(
-                        "🔍 RequestExecutor - 执行GET请求，包含{}个自定义headers",
-                        map.len()
-                    );
-                    Some(map)
-                };
-                rt.block_on(self.client.get_with_headers(url, header_map))
-            }
-            HttpMethod::POST => {
-                // POST 请求
-                let header_map = if headers.is_empty() {
-                    tracing::info!("📝 RequestExecutor - 执行POST请求，无自定义headers");
-                    None
-                } else {
-                    let map: HashMap<String, String> = headers.iter().cloned().collect();
-                    tracing::info!(
-                        "📝 RequestExecutor - POST请求，包含{}个自定义headers",
-                        map.len()
-                    );
-                    Some(map)
-                };
-
-                let body_content = body.unwrap_or_default();
-                tracing::info!(
-                    "📝 RequestExecutor - 执行POST请求，Body大小: {} bytes",
-                    body_content.len()
-                );
-                rt.block_on(self.client.post(url, &body_content, header_map))
-            }
-            HttpMethod::PUT
-            | HttpMethod::DELETE
-            | HttpMethod::PATCH
-            | HttpMethod::HEAD
-            | HttpMethod::OPTIONS => {
-                tracing::info!("⚠️ RequestExecutor - 方法 {} 尚未实现", method);
-                tracing::info!("📋 RequestExecutor - 当前支持的方法: GET, POST");
-                return Err(AppError::ValidationError(format!(
-                    "Unsupported HTTP method: {}. Supported methods are: GET, POST",
-                    method
-                )));
-            }
+        let header_map = if headers.is_empty() {
+            None
+        } else {
+            Some(headers.iter().cloned().collect::<HashMap<_, _>>())
         };
 
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let started = std::time::Instant::now();
+        let result = rt.block_on(self.client.request(method, url, header_map, body));
+        let elapsed_ms = started.elapsed().as_millis();
+
         match result {
-            Ok(response_body) => {
-                tracing::info!("✅ RequestExecutor - {}请求成功!", method);
+            Ok(response) => {
+                tracing::info!("✅ RequestExecutor - {}请求完成!", method);
                 tracing::info!("📊 RequestExecutor - 响应信息:");
-                tracing::info!("   Status: 200 OK");
-                tracing::info!("   Response Length: {} bytes", response_body.len());
+                tracing::info!("   Status: {}", response.status());
+                tracing::info!("   Elapsed: {} ms", elapsed_ms);
+                tracing::info!("   Response Length: {} bytes", response.body().len());
                 tracing::info!(
                     "   Response Preview: {}",
-                    if response_body.len() > 300 {
-                        format!("{}... (truncated)", &response_body[..300])
+                    if response.body().len() > 300 {
+                        format!("{}... (truncated)", &response.body()[..300])
                     } else {
-                        response_body.clone()
+                        response.body().to_string()
                     }
                 );
-                // Format the response body (pretty-print JSON if applicable)
-                let formatted_body = format_response_body(&response_body);
+                let formatted_body = format_response_body(response.body());
 
-                Ok(RequestResult::success(formatted_body))
+                Ok(RequestResult {
+                    status: response.status(),
+                    headers: response.headers().to_vec(),
+                    body: formatted_body,
+                    elapsed_ms,
+                })
             }
             Err(e) => {
                 tracing::info!("❌ RequestExecutor - {}请求失败!", method);
@@ -209,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_executor_execute_request_model() {
-        let executor = RequestExecutor::new();
+        let _executor = RequestExecutor::new();
         let mut request = Request::new("GET", "https://httpbin.org/get");
         request.add_header("User-Agent", "test-agent");
 

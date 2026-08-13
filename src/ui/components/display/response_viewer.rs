@@ -1,11 +1,19 @@
 use gpui::{
-    actions, div, fill, point, px, rgb, rgba, App, Bounds, ClipboardItem, Context, CursorStyle,
-    Element, ElementId, Entity, FocusHandle, Focusable, FontWeight, GlobalElementId,
-    InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine,
-    StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window,
+    actions, div, fill, point, prelude::FluentBuilder, px, rgb, rgba, App, Bounds, ClipboardItem,
+    Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight,
+    GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
+    ShapedLine, StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window,
 };
 use std::ops::Range;
+
+use crate::{
+    app::ResponseState,
+    ui::theme::{
+        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, OK, PANEL,
+        PANEL_ALT, SUBTEXT, TEXT,
+    },
+};
 
 actions!(response_viewer, [Copy, SelectAll]);
 
@@ -18,22 +26,16 @@ pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
     ]
 }
 
-/// Response 状态
-#[derive(Clone, Debug)]
-pub enum ResponseState {
-    /// 未发送请求
-    NotSent,
-    /// 加载中
-    Loading,
-    /// 已收到响应
-    Success { status: u16, body: String },
-    /// 请求失败
-    Error { message: String },
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ResponsePane {
+    Body,
+    Headers,
 }
 
 /// Response 查看器组件
 pub struct ResponseViewer {
     state: ResponseState,
+    pane: ResponsePane,
     focus_handle: FocusHandle,
     selected_range: Range<usize>,
     selection_reversed: bool,
@@ -52,6 +54,7 @@ impl ResponseViewer {
     pub fn new(cx: &mut Context<Self>) -> Self {
         Self {
             state: ResponseState::NotSent,
+            pane: ResponsePane::Body,
             focus_handle: cx.focus_handle(),
             selected_range: 0..0,
             selection_reversed: false,
@@ -68,8 +71,21 @@ impl ResponseViewer {
     }
 
     /// 设置成功响应
-    pub fn set_success(&mut self, status: u16, body: String, cx: &mut Context<Self>) {
-        self.state = ResponseState::Success { status, body };
+    pub fn set_success(
+        &mut self,
+        status: u16,
+        body: String,
+        headers: Vec<(String, String)>,
+        elapsed_ms: u128,
+        cx: &mut Context<Self>,
+    ) {
+        self.state = ResponseState::Success {
+            status,
+            body,
+            headers,
+            elapsed_ms,
+        };
+        self.pane = ResponsePane::Body;
         self.selected_range = 0..0;
         cx.notify();
     }
@@ -93,12 +109,60 @@ impl ResponseViewer {
         &self.state
     }
 
+    /// Apply state produced by the ViewModel. Selection state remains owned by the View.
+    pub fn set_state(&mut self, state: ResponseState, cx: &mut Context<Self>) {
+        if self.state != state {
+            self.state = state;
+            self.pane = ResponsePane::Body;
+            self.selected_range = 0..0;
+            cx.notify();
+        }
+    }
+
     fn get_content(&self) -> String {
-        match &self.state {
-            ResponseState::Success { body, .. } => body.clone(),
-            ResponseState::Error { message } => message.clone(),
+        match (&self.state, self.pane) {
+            (ResponseState::Success { body, .. }, ResponsePane::Body) => body.clone(),
+            (ResponseState::Success { headers, .. }, ResponsePane::Headers) => headers
+                .iter()
+                .map(|(k, v)| format!("{k}: {v}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            (ResponseState::Error { message }, _) => message.clone(),
             _ => String::new(),
         }
+    }
+
+    fn pane_tab(
+        &self,
+        pane: ResponsePane,
+        label: &'static str,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let active = self.pane == pane;
+        div()
+            .h_full()
+            .flex()
+            .items_center()
+            .px_2()
+            .cursor_pointer()
+            .when(active, |d| {
+                d.text_color(rgb(TEXT)).font_weight(FontWeight::SEMIBOLD)
+            })
+            .when(!active, |d| {
+                d.text_color(rgb(MUTED))
+                    .hover(|s| s.text_color(rgb(SUBTEXT)))
+            })
+            .text_size(px(12.0))
+            .font_family(FONT_UI)
+            .child(label)
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    this.pane = pane;
+                    this.selected_range = 0..0;
+                    cx.notify();
+                }),
+            )
     }
 
     fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
@@ -222,9 +286,7 @@ impl ResponseViewer {
     ) -> impl IntoElement {
         div()
             .id("response-content")
-            .border_1()
-            .border_color(rgb(0x00cc_cccc))
-            .rounded_md()
+            .debug_selector(|| "response-content".into())
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
@@ -235,10 +297,13 @@ impl ResponseViewer {
             .on_action(cx.listener(Self::select_all))
             .cursor_text()
             .w_full()
-            .h_64()
-            .px_3()
-            .py_2()
-            .bg(rgb(0x00f8_f9fa))
+            .h_full()
+            .min_h_0()
+            .p_3()
+            .bg(rgb(CODE_BG))
+            .text_color(rgb(CODE_TEXT))
+            .font_family(FONT_MONO)
+            .text_size(px(13.0))
             .overflow_scroll()
             .child(MultiLineTextElement {
                 viewer: cx.entity().clone(),
@@ -310,7 +375,7 @@ impl Element for MultiLineTextElement {
         let selected_range = viewer.selected_range.clone();
 
         let style = window.text_style();
-        let font_size = px(12.0);
+        let font_size = px(13.0);
         let line_height = window.line_height();
 
         let lines: Vec<&str> = content.lines().collect();
@@ -520,85 +585,194 @@ impl Element for MultiLineTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let state = self.state.clone();
+        let pane = self.pane;
+        let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
+        let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
+
+        let (status, elapsed, size, status_color) = match &state {
+            ResponseState::Success {
+                status,
+                body,
+                elapsed_ms,
+                ..
+            } => (
+                status_label(*status),
+                format!("{elapsed_ms} ms"),
+                format_bytes(body.len()),
+                if *status < 400 { OK } else { ERROR },
+            ),
+            ResponseState::Loading => ("Sending…".to_string(), String::new(), String::new(), MUTED),
+            ResponseState::Error { .. } => (
+                "Request failed".to_string(),
+                String::new(),
+                String::new(),
+                ERROR,
+            ),
+            ResponseState::NotSent => ("Not sent".to_string(), String::new(), String::new(), MUTED),
+        };
+
         div()
             .flex()
             .flex_col()
-            .gap_2()
+            .size_full()
+            .min_h_0()
+            .bg(rgb(PANEL))
+            .border_1()
+            .border_color(rgb(LINE))
+            .rounded(px(14.0))
+            .overflow_hidden()
             .child(
                 div()
-                    .child("Response")
-                    .text_size(px(16.0))
-                    .font_weight(FontWeight::MEDIUM),
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .h_12()
+                    .px_4()
+                    .bg(rgb(PANEL_ALT))
+                    .border_b_1()
+                    .border_color(rgb(LINE))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .h_full()
+                            .gap_3()
+                            .child(
+                                div()
+                                    .child("Response")
+                                    .text_size(px(16.0))
+                                    .font_family(FONT_HEADING)
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(TEXT)),
+                            )
+                            .when(matches!(&state, ResponseState::Success { .. }), |row| {
+                                row.child(div().flex().h_full().child(body_tab).child(headers_tab))
+                            }),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_4()
+                            .font_family(FONT_UI)
+                            .text_size(px(13.0))
+                            .child(
+                                div()
+                                    .text_color(rgb(status_color))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child(status),
+                            )
+                            .when(!elapsed.is_empty(), |row| {
+                                row.child(
+                                    div()
+                                        .text_color(rgb(SUBTEXT))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(elapsed),
+                                )
+                            })
+                            .when(!size.is_empty(), |row| {
+                                row.child(
+                                    div()
+                                        .text_color(rgb(SUBTEXT))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(size),
+                                )
+                            }),
+                    ),
             )
-            .child(match &self.state {
-                ResponseState::NotSent => {
-                    // 未发送请求状态
+            .child(match state {
+                ResponseState::NotSent => div()
+                    .w_full()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .flex_col()
+                    .items_start()
+                    .justify_start()
+                    .gap_2()
+                    .p_5()
+                    .bg(rgb(0x00f1_f5f9))
+                    .child(
+                        div()
+                            .font_family(FONT_HEADING)
+                            .text_size(px(20.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(TEXT))
+                            .child("Send a request to view response"),
+                    )
+                    .child(
+                        div()
+                            .font_family(FONT_UI)
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(rgb(SUBTEXT))
+                            .child("Status, headers, and payload will appear here."),
+                    ),
+                ResponseState::Loading => div()
+                    .w_full()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(rgb(CODE_BG))
+                    .font_family(FONT_MONO)
+                    .text_size(px(13.0))
+                    .text_color(rgb(CODE_TEXT))
+                    .child("Waiting for the server…"),
+                ResponseState::Success { body, headers, .. } => {
+                    let header_text = if headers.is_empty() {
+                        "No response headers".to_string()
+                    } else {
+                        headers
+                            .iter()
+                            .map(|(k, v)| format!("{k}: {v}"))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    };
+                    let content = match pane {
+                        ResponsePane::Body => body.clone(),
+                        ResponsePane::Headers => header_text,
+                    };
                     div()
-                        .w_full()
-                        .h_64()
-                        .px_3()
-                        .py_2()
-                        .bg(rgb(0x00f8_f9fa))
-                        .border_1()
-                        .border_color(rgb(0x00cc_cccc))
-                        .child("No response yet...")
+                        .flex_1()
+                        .min_h_0()
+                        .child(self.render_selectable_content(&content, cx))
                 }
-                ResponseState::Loading => {
-                    // 加载中状态
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_2()
-                        .child(
-                            div()
-                                .child("🔄 发送请求中...")
-                                .text_color(rgb(0x0000_7acc))
-                                .font_weight(FontWeight::MEDIUM),
-                        )
-                        .child(
-                            div()
-                                .w_full()
-                                .h_64()
-                                .px_3()
-                                .py_2()
-                                .bg(rgb(0x00f8_f9fa))
-                                .border_1()
-                                .border_color(rgb(0x00cc_cccc))
-                                .child("请稍等，正在处理请求..."),
-                        )
-                }
-                ResponseState::Success { status, body } => {
-                    // 成功响应状态
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_2()
-                        .child(
-                            div()
-                                .child(format!("Status: {status}"))
-                                .text_color(if *status < 400 {
-                                    rgb(0x0028_a745) // 成功
-                                } else {
-                                    rgb(0x00dc_3545) // 客户端/服务器错误
-                                })
-                                .font_weight(FontWeight::MEDIUM),
-                        )
-                        .child(self.render_selectable_content(body, cx))
-                }
-                ResponseState::Error { message } => {
-                    // 错误状态
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_2()
-                        .child(
-                            div()
-                                .child("Status: Error")
-                                .text_color(rgb(0x00dc_3545))
-                                .font_weight(FontWeight::MEDIUM),
-                        )
-                        .child(self.render_selectable_content(message, cx))
-                }
+                ResponseState::Error { message } => div()
+                    .flex_1()
+                    .min_h_0()
+                    .child(self.render_selectable_content(&message, cx)),
             })
+    }
+}
+
+fn status_label(status: u16) -> String {
+    let reason = match status {
+        200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
+        204 => "No Content",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        409 => "Conflict",
+        422 => "Unprocessable Entity",
+        429 => "Too Many Requests",
+        500 => "Server Error",
+        502 => "Bad Gateway",
+        503 => "Unavailable",
+        _ => "Response",
+    };
+    format!("{status} {reason}")
+}
+
+fn format_bytes(bytes: usize) -> String {
+    if bytes >= 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{bytes} B")
     }
 }

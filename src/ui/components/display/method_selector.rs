@@ -5,6 +5,7 @@ use gpui::{
 
 use crate::models::HttpMethod;
 use crate::ui::components::common::dropdown::{Dropdown, DropdownEvent};
+use crate::ui::theme::{ACCENT_SOFT, FONT_HEADING};
 
 #[derive(Debug, Clone)]
 pub enum MethodSelectorEvent {
@@ -85,7 +86,12 @@ impl EventEmitter<MethodSelectorEvent> for MethodSelector {}
 impl Render for MethodSelector {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .w_32() // 固定宽度
+            .w(gpui::px(120.0))
+            .h_full()
+            .flex_none()
+            .bg(gpui::rgb(ACCENT_SOFT))
+            .rounded_lg()
+            .font_family(FONT_HEADING)
             .child(self.dropdown.clone())
     }
 }

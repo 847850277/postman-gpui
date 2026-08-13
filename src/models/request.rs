@@ -40,6 +40,11 @@ impl HttpMethod {
             HttpMethod::OPTIONS,
         ]
     }
+
+    /// Methods that carry a request body in this client.
+    pub fn allows_body(self) -> bool {
+        matches!(self, Self::POST | Self::PUT | Self::PATCH)
+    }
 }
 
 impl fmt::Display for HttpMethod {
@@ -225,6 +230,15 @@ mod tests {
 
         let method: HttpMethod = "post".to_string().into();
         assert_eq!(method, HttpMethod::POST);
+    }
+
+    #[test]
+    fn test_http_method_allows_body() {
+        assert!(!HttpMethod::GET.allows_body());
+        assert!(!HttpMethod::HEAD.allows_body());
+        assert!(HttpMethod::POST.allows_body());
+        assert!(HttpMethod::PUT.allows_body());
+        assert!(HttpMethod::PATCH.allows_body());
     }
 
     #[test]

@@ -1,1052 +1,1092 @@
 use crate::{
-    http::executor::RequestExecutor,
-    models::{HttpMethod, Request, RequestHistory},
-    ui::components::{
-        body_input::{setup_body_input_key_bindings, BodyInput, BodyType},
-        header_input::{setup_header_input_key_bindings, HeaderInput},
-        history_list::{HistoryList, HistoryListEvent},
-        method_selector::{MethodSelector, MethodSelectorEvent},
-        response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
-        url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
+    app::{
+        view_model::detect_body_kind, BodyKind, KeyValueRow, RequestPane, RequestViewModel,
+        ResponseState,
+    },
+    models::HttpMethod,
+    ui::{
+        components::{
+            body_input::{
+                setup_body_input_key_bindings, BodyInput, BodyInputEvent, BodyType, FormDataEntry,
+            },
+            header_input::{setup_header_input_key_bindings, HeaderInput, HeaderInputEvent},
+            history_list::{HistoryList, HistoryListEvent},
+            method_selector::{MethodSelector, MethodSelectorEvent},
+            response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
+            url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
+        },
+        theme::{
+            ACCENT, ACCENT_DARK, ACCENT_SOFT, BG, CODE_BG, CODE_PANEL, CODE_TEXT, ERROR,
+            FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        },
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    div, prelude::FluentBuilder, px, rgb, App, AppContext, Context, Entity, FontWeight,
+    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
+    Subscription, Window,
 };
 
-// Maximum length for URL display in history
-const MAX_HISTORY_URL_LENGTH: usize = 40;
-
-// UI Color constants
-const COLOR_CHECKBOX_ENABLED_BG: u32 = 0x0000_7acc;
-const COLOR_CHECKBOX_ENABLED_HOVER: u32 = 0x0000_56b3;
-const COLOR_CHECKBOX_DISABLED_BG: u32 = 0x00ff_ffff;
-const COLOR_CHECKBOX_DISABLED_HOVER: u32 = 0x00e9_ecef;
-const COLOR_CHECKBOX_TEXT: u32 = 0x00ff_ffff;
-const COLOR_HEADER_ENABLED_BG: u32 = 0x00ff_ffff;
-const COLOR_HEADER_ENABLED_BORDER: u32 = 0x0028_a745;
-const COLOR_HEADER_DISABLED_BG: u32 = 0x00f8_f9fa;
-const COLOR_HEADER_DISABLED_BORDER: u32 = 0x00cc_cccc;
-const COLOR_TEXT_ENABLED: u32 = 0x0000_0000;
-const COLOR_TEXT_DISABLED: u32 = 0x006c_757d;
-
 pub struct PostmanApp {
+    view_model: RequestViewModel,
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
-
-    // Headers - (enabled, key, value)
-    headers: Vec<(bool, String, String)>,
-
-    // Body - 使用BodyInput组件替代字符串
     body_input: Entity<BodyInput>,
-
-    // HTTP Request Executor
-    request_executor: RequestExecutor,
-
-    // Response viewer component
-    response_viewer: Entity<ResponseViewer>,
-
-    // Headers输入组件
-    header_key_input: Entity<HeaderInput>,
-    header_value_input: Entity<HeaderInput>,
-
-    // Request history
-    request_history: RequestHistory,
+    row_key_input: Entity<HeaderInput>,
+    row_value_input: Entity<HeaderInput>,
     history_list: Entity<HistoryList>,
+    response_viewer: Entity<ResponseViewer>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl PostmanApp {
-    pub fn new(cx: &mut App) -> Self {
-        // 设置键盘绑定 - 在创建组件之前
+    pub fn new(cx: &mut Context<Self>) -> Self {
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
         cx.bind_keys(setup_response_viewer_key_bindings());
 
         let method_selector = cx.new(MethodSelector::new);
-        let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL..."));
-        let header_key_input =
-            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Header Key (e.g., Authorization)"));
-        let header_value_input = cx.new(|cx| {
-            HeaderInput::new(cx).with_placeholder("Header Value (e.g., Bearer token123)")
-        });
+        let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
         let body_input = cx.new(|cx| {
-            BodyInput::new(cx).with_placeholder("Enter request body (JSON, form data, etc.)...")
+            BodyInput::new(cx)
+                .with_placeholder("Enter request body (JSON, form data, etc.)")
+                .with_type_tabs(false)
         });
+        let row_key_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Key"));
+        let row_value_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Value"));
+        let history_list = cx.new(|_| HistoryList::new());
         let response_viewer = cx.new(ResponseViewer::new);
-        let history_list = cx.new(|_cx| HistoryList::new());
 
-        PostmanApp {
+        let subscriptions = vec![
+            cx.subscribe(&method_selector, Self::on_method_changed),
+            cx.subscribe(&url_input, Self::on_url_event),
+            cx.subscribe(&body_input, Self::on_body_event),
+            cx.subscribe(&row_key_input, Self::on_row_input_event),
+            cx.subscribe(&row_value_input, Self::on_row_input_event),
+            cx.subscribe(&history_list, Self::on_history_selected),
+        ];
+
+        Self {
+            view_model: RequestViewModel::new(),
             method_selector,
             url_input,
-            headers: Vec::new(),
             body_input,
-            request_executor: RequestExecutor::new(),
-            response_viewer,
-            header_key_input,
-            header_value_input,
-            request_history: RequestHistory::new(),
+            row_key_input,
+            row_value_input,
             history_list,
+            response_viewer,
+            _subscriptions: subscriptions,
         }
     }
 
-    // 处理方法变更事件
-    pub fn on_method_changed(&mut self, event: &MethodSelectorEvent, cx: &mut Context<Self>) {
-        match event {
-            MethodSelectorEvent::MethodChanged(method) => {
-                tracing::info!("🎯 PostmanApp - HTTP方法变更事件触发");
-                tracing::info!("   新方法: {method}");
-                tracing::info!("   当前headers数量: {}", self.headers.len());
-
-                let body_length = self.body_input.read(cx).get_content().len();
-
-                tracing::info!(
-                    "   当前body类型: {:?}",
-                    self.body_input.read(cx).get_current_type()
-                );
-                tracing::info!("   当前body内容预览: {}", {
-                    let content = self.body_input.read(cx).get_content();
-                    if content.len() > 100 {
-                        format!("{}...", &content[..100])
-                    } else {
-                        content.clone()
-                    }
-                });
-                tracing::info!("   当前body内容完整长度: {}", body_length);
-
-                // 根据方法类型设置默认请求体
-                if *method == HttpMethod::POST && self.body_input.read(cx).is_empty() {
-                    let default_json = r#"{
-                                                  "message": "Hello, World!",
-                                                  "timestamp": "2025-07-15T14:30:00Z",
-                                                  "data": {
-                                                    "key": "value"
-                                                  }
-                                                }"#
-                    .to_string();
-
-                    self.body_input.update(cx, |input, cx| {
-                        input.set_content(default_json, cx);
-                    });
-
-                    let new_body_length = self.body_input.read(cx).get_content().len();
-                    tracing::info!("📝 PostmanApp - 为POST请求设置默认JSON请求体:");
-                    tracing::info!("   Body长度: {new_body_length} bytes");
-                    // 为POST请求设置默认Content-Type头
-                    if self.headers.is_empty() {
-                        self.headers.push((
-                            true,
-                            "Content-Type".to_string(),
-                            "application/json".to_string(),
-                        ));
-                        self.headers.push((
-                            true,
-                            "Accept".to_string(),
-                            "application/json".to_string(),
-                        ));
-                        tracing::info!("📝 PostmanApp - 为POST请求设置默认Headers:");
-                        tracing::info!("   添加: Content-Type = application/json");
-                        tracing::info!("   添加: Accept = application/json");
-                        tracing::info!("   当前headers总数: {}", self.headers.len());
-                    } else {
-                        tracing::info!("ℹ️ PostmanApp - POST请求已有headers，跳过默认headers设置");
-                    }
-                } else if *method == HttpMethod::GET {
-                    // GET请求通常不需要请求体
-                    if !self.body_input.read(cx).is_empty() {
-                        tracing::info!("ℹ️ PostmanApp - GET请求通常不使用请求体");
-                        tracing::info!("   当前body长度: {body_length} bytes");
-                        tracing::info!("   建议: 清空请求体或改用POST方法");
-                    } else {
-                        tracing::info!("✅ PostmanApp - GET请求配置正确，无请求体");
-                    }
-                }
-                tracing::info!("🏁 PostmanApp - 方法变更处理完成");
-            }
-        }
-    }
-
-    // 处理URL变更事件
-    pub fn on_url_changed(&mut self, event: &UrlInputEvent) {
-        match event {
-            UrlInputEvent::UrlChanged(url) => {
-                tracing::info!("🌐 PostmanApp - URL变更为: {url}");
-            }
-            UrlInputEvent::SubmitRequested => {
-                tracing::info!("🚀 PostmanApp - URL提交请求");
-                tracing::info!("🚀 PostmanApp - 发送请求");
-                // 注意：这里我们需要重新构造 Context，暂时简化处理
-            }
-        }
-    }
-
-    // 发送请求
-    fn send_request(&mut self, cx: &mut Context<Self>) {
-        let method = self
-            .method_selector
-            .update(cx, |selector, cx| selector.selected_method(cx));
-        let url = self.url_input.read(cx).get_url().to_string();
-
-        // Get body type and content
-        let body_type = self.body_input.read(cx).get_current_type().clone();
-        let body = if method == HttpMethod::POST {
-            Some(self.body_input.read(cx).get_content().to_string())
-        } else {
-            None
-        };
-
-        // Only include enabled headers
-        let mut headers: Vec<(String, String)> = self
-            .headers
-            .iter()
-            .filter(|(enabled, _, _)| *enabled)
-            .map(|(_, key, value)| (key.clone(), value.clone()))
-            .collect();
-
-        // Auto-add Content-Type header for form-data if not already present
-        if method == HttpMethod::POST && body_type == BodyType::FormData {
-            let has_content_type = headers
-                .iter()
-                .any(|(key, _)| key.to_lowercase() == "content-type");
-            if !has_content_type {
-                headers.push((
-                    "Content-Type".to_string(),
-                    "application/x-www-form-urlencoded".to_string(),
-                ));
-                tracing::info!("📝 PostmanApp - Auto-added Content-Type header for form-data: application/x-www-form-urlencoded");
-            }
-        }
-
-        // 设置加载状态
-        self.response_viewer.update(cx, |viewer, cx| {
-            viewer.set_loading(cx);
-        });
-        cx.notify();
-
-        // Create a Request object for history
-        let mut request = Request::new(method, &url);
-        for (key, value) in &headers {
-            request.add_header(key, value);
-        }
-        if let Some(body_content) = &body {
-            request.set_body(body_content);
-        }
-
-        // 执行请求
-        let result = self.request_executor.execute(method, &url, headers, body);
-
-        // 处理结果
-        match result {
-            Ok(request_result) => {
-                // Add to history on success
-                let url_display = if url.len() > MAX_HISTORY_URL_LENGTH {
-                    let truncated: String = url.chars().take(MAX_HISTORY_URL_LENGTH).collect();
-                    format!("{}...", truncated)
-                } else {
-                    url.clone()
-                };
-                self.request_history.add(request, url_display);
-
-                // Update history list UI
-                self.history_list.update(cx, |list, cx| {
-                    list.set_entries(self.request_history.entries().to_vec(), cx);
-                });
-
-                self.response_viewer.update(cx, |viewer, cx| {
-                    viewer.set_success(request_result.status, request_result.body, cx);
-                });
-            }
-            Err(error_message) => {
-                self.response_viewer.update(cx, |viewer, cx| {
-                    viewer.set_error(error_message.to_string(), cx);
-                });
-            }
-        }
-        tracing::info!("🏁 PostmanApp - 请求处理完成");
-        cx.notify();
-    }
-
-    // 处理 Send 按钮点击
-    fn on_send_clicked(
+    fn on_method_changed(
         &mut self,
-        _event: &gpui::MouseUpEvent,
-        _window: &mut gpui::Window,
+        _selector: Entity<MethodSelector>,
+        event: &MethodSelectorEvent,
         cx: &mut Context<Self>,
     ) {
-        self.send_request(cx);
+        let MethodSelectorEvent::MethodChanged(method) = event;
+        let previous_body = self.view_model.body().to_string();
+        self.view_model.set_method(*method);
+        if self.view_model.body() != previous_body {
+            let body = self.view_model.body().to_string();
+            self.body_input.update(cx, |input, cx| {
+                input.set_type(BodyType::Json, cx);
+                input.set_content(body, cx);
+            });
+        }
+        cx.notify();
     }
 
-    // 添加header
-    fn add_header(&mut self, cx: &mut Context<Self>) {
-        let key = self
-            .header_key_input
-            .read(cx)
-            .get_content()
-            .trim()
-            .to_string();
-        let value = self
-            .header_value_input
-            .read(cx)
-            .get_content()
-            .trim()
-            .to_string();
-
-        tracing::info!("🎯 PostmanApp - 尝试添加header:");
-        tracing::info!("   Key: '{key}'");
-        tracing::info!("   Value: '{value}'");
-
-        if !key.is_empty() && !value.is_empty() {
-            // 检查是否已存在相同的key
-            let existing_index = self.headers.iter().position(|(_, k, _)| k == &key);
-
-            if let Some(index) = existing_index {
-                let old_value = self.headers[index].2.clone(); // 克隆旧值避免借用冲突
-                self.headers[index].2 = value.clone();
-                tracing::info!("🔄 PostmanApp - 更新已存在的header:");
-                tracing::info!("   Key: {key}");
-                tracing::info!("   旧值: {old_value}");
-                tracing::info!("   新值: {value}");
-            } else {
-                self.headers.push((true, key.clone(), value.clone())); // enabled by default
-                tracing::info!("✅ PostmanApp - 成功添加新header:");
-                tracing::info!("   Key: {key}");
-                tracing::info!("   Value: {value}");
-                tracing::info!("   当前headers总数: {}", self.headers.len());
+    fn on_url_event(
+        &mut self,
+        _input: Entity<UrlInput>,
+        event: &UrlInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            UrlInputEvent::UrlChanged(url) => {
+                self.view_model.set_url(url);
+                cx.notify();
             }
-
-            // 清空输入框
-            self.header_key_input
-                .update(cx, |input, cx| input.clear(cx));
-            self.header_value_input
-                .update(cx, |input, cx| input.clear(cx));
-
-            // 打印当前所有headers
-            tracing::info!("📋 PostmanApp - 当前所有headers:");
-            for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                tracing::info!(
-                    "   {}. [{}] {} = {}",
-                    i + 1,
-                    if *enabled { "✓" } else { " " },
-                    k,
-                    v
-                );
-            }
-
-            cx.notify();
-        } else {
-            tracing::info!("⚠️ PostmanApp - 添加header失败:");
-            if key.is_empty() {
-                tracing::info!("   原因: Header key不能为空");
-            }
-            if value.is_empty() {
-                tracing::info!("   原因: Header value不能为空");
-            }
-            tracing::info!("   请确保key和value都有内容");
+            UrlInputEvent::SubmitRequested => self.click_send(cx),
         }
     }
 
-    // 通过输入框设置header值
-    fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
-        tracing::info!("🎯 PostmanApp - 预设header到输入框:");
-        tracing::info!("   预设Key: {key}");
-        tracing::info!("   预设Value: {value}");
-
-        self.header_key_input.update(cx, |input, cx| {
-            input.set_content(key.to_string(), cx);
-        });
-        self.header_value_input.update(cx, |input, cx| {
-            input.set_content(value.to_string(), cx);
-        });
-        tracing::info!("✅ PostmanApp - 预设header已填入输入框，请点击Add按钮添加");
+    fn on_body_event(
+        &mut self,
+        input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let BodyInputEvent::ValueChanged(value) = event;
+        self.view_model.set_body(value);
+        self.view_model
+            .set_body_kind(body_kind_from_input(input.read(cx).get_current_type()));
+        cx.notify();
     }
 
-    // 删除header
-    fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        tracing::info!("🗑️ PostmanApp - 尝试删除header，索引: {index}");
-
-        if index < self.headers.len() {
-            let removed = self.headers.remove(index);
-            tracing::info!("✅ PostmanApp - 成功删除header:");
-            tracing::info!("   Enabled: {}", removed.0);
-            tracing::info!("   Key: {}", removed.1);
-            tracing::info!("   Value: {}", removed.2);
-            tracing::info!("   剩余headers数量: {}", self.headers.len());
-
-            // 打印剩余的headers
-            if self.headers.is_empty() {
-                tracing::info!("📋 PostmanApp - 当前无headers");
-            } else {
-                tracing::info!("📋 PostmanApp - 剩余headers:");
-                for (i, (enabled, k, v)) in self.headers.iter().enumerate() {
-                    tracing::info!(
-                        "   {}. [{}] {} = {}",
-                        i + 1,
-                        if *enabled { "✓" } else { " " },
-                        k,
-                        v
-                    );
-                }
-            }
-
-            cx.notify();
-        } else {
-            tracing::info!("❌ PostmanApp - 删除header失败:");
-            tracing::info!(
-                "   原因: 索引 {} 超出范围 (当前headers数量: {})",
-                index,
-                self.headers.len()
-            );
+    fn on_row_input_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if matches!(event, HeaderInputEvent::SubmitRequested) {
+            self.add_current_row(cx);
         }
     }
 
-    // Toggle header enabled state
-    fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        tracing::info!("🔄 PostmanApp - 切换header状态，索引: {index}");
-        if index < self.headers.len() {
-            let current_state = self.headers[index].0;
-            self.headers[index].0 = !current_state;
-            tracing::info!("✅ PostmanApp - 成功切换header状态:");
-            tracing::info!("   Key: {}", self.headers[index].1);
-            tracing::info!("   从 {} 切换到 {}", current_state, !current_state);
-
-            cx.notify();
-        } else {
-            tracing::info!("❌ PostmanApp - 切换header失败:");
-            tracing::info!(
-                "   原因: 索引 {} 超出范围 (当前headers数量: {})",
-                index,
-                self.headers.len()
-            );
-        }
-    }
-
-    // Handle history item selection
     fn on_history_selected(
         &mut self,
-        _history_list: gpui::Entity<HistoryList>,
+        _list: Entity<HistoryList>,
         event: &HistoryListEvent,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            HistoryListEvent::RequestSelected(request) => {
-                tracing::info!("📋 PostmanApp - 从历史记录加载请求:");
-                tracing::info!("   Method: {}", request.method);
-                tracing::info!("   URL: {}", request.url);
-                tracing::info!("   Headers Count: {}", request.headers.len());
-
-                // Log query parameters if present in URL
-                if request.url.contains('?') {
-                    if let Some(query_str) = request.url.split('?').nth(1) {
-                        tracing::info!("   Query parameters: {}", query_str);
-                    }
-                }
-
-                // Log body info
-                if let Some(ref body) = request.body {
-                    tracing::info!("   Body length: {} bytes", body.len());
-                }
-
-                // Update method selector - normalize method to uppercase
-                let method = request.method;
-                self.method_selector.update(cx, |selector, cx| {
-                    selector.set_selected_method(method, cx);
-                });
-
-                // Update URL input
-                self.url_input.update(cx, |input, cx| {
-                    input.set_url(&request.url, cx);
-                });
-
-                // Update headers - convert from Vec<(String, String)> to Vec<(bool, String, String)>
-                self.headers = request
-                    .headers
-                    .iter()
-                    .map(|(key, value)| (true, key.clone(), value.clone()))
-                    .collect();
-
-                // Update body
-                if let Some(body) = &request.body {
-                    self.body_input.update(cx, |input, cx| {
-                        // 检测 body 类型
-                        let body_type = Self::detect_body_type(body);
-
-                        // 设置 body 类型
-                        input.set_type(body_type.clone(), cx);
-
-                        // 根据类型设置内容
-                        match body_type {
-                            BodyType::FormData => {
-                                // 解析 form data
-                                Self::parse_and_set_form_data(input, body, cx);
-                            }
-                            _ => {
-                                // JSON 或 Raw 直接设置内容
-                                input.set_content(body.clone(), cx);
-                            }
-                        }
-                    });
-                } else {
-                    self.body_input.update(cx, |input, cx| {
-                        input.clear(cx);
-                    });
-                }
-
-                tracing::info!("🏁 PostmanApp - 请求从历史记录加载完成");
-                tracing::info!("   URL已加载到URL输入框");
-                tracing::info!("   Headers数量: {}", request.headers.len());
-                if request.body.is_some() {
-                    tracing::info!("   请求体已加载");
-                }
-
-                cx.notify();
-            }
-        }
+        let HistoryListEvent::RequestSelected(request) = event;
+        self.view_model.load_request(request);
+        self.sync_controls_from_view_model(cx);
+        self.sync_output_views(cx);
+        cx.notify();
     }
 
-    // Helper function to get checkbox background color
-    fn checkbox_bg_color(enabled: bool) -> u32 {
-        if enabled {
-            COLOR_CHECKBOX_ENABLED_BG
-        } else {
-            COLOR_CHECKBOX_DISABLED_BG
-        }
+    pub fn type_url(&mut self, url: &str, cx: &mut Context<Self>) {
+        self.view_model.set_url(url);
+        self.url_input
+            .update(cx, |input, cx| input.set_url(url, cx));
     }
 
-    // Helper function to get checkbox hover background color
-    fn checkbox_hover_bg_color(enabled: bool) -> u32 {
-        if enabled {
-            COLOR_CHECKBOX_ENABLED_HOVER
-        } else {
-            COLOR_CHECKBOX_DISABLED_HOVER
-        }
+    pub fn set_body(&mut self, body: &str, cx: &mut Context<Self>) {
+        self.view_model.set_body(body);
+        self.view_model.set_body_kind(detect_body_kind(body));
+        let body_type = body_type_from_kind(self.view_model.body_kind());
+        self.body_input.update(cx, |input, cx| {
+            input.set_type_silent(body_type, cx);
+            input.set_content(body.to_string(), cx);
+        });
     }
 
-    // Helper function to get header cell background color
-    fn header_cell_bg_color(enabled: bool) -> u32 {
-        if enabled {
-            COLOR_HEADER_ENABLED_BG
-        } else {
-            COLOR_HEADER_DISABLED_BG
-        }
-    }
-
-    // Helper function to get header cell border color
-    fn header_cell_border_color(enabled: bool) -> u32 {
-        if enabled {
-            COLOR_HEADER_ENABLED_BORDER
-        } else {
-            COLOR_HEADER_DISABLED_BORDER
-        }
-    }
-
-    // Helper function to get header text color
-    fn header_text_color(enabled: bool) -> u32 {
-        if enabled {
-            COLOR_TEXT_ENABLED
-        } else {
-            COLOR_TEXT_DISABLED
-        }
-    }
-
-    // 检测 body 类型
-    fn detect_body_type(body: &str) -> BodyType {
-        // 尝试解析为 JSON
-        if body.trim_start().starts_with('{') || body.trim_start().starts_with('[') {
-            if serde_json::from_str::<serde_json::Value>(body).is_ok() {
-                return BodyType::Json;
-            }
-        }
-
-        // 检测是否是 URL encoded form data (key1=value1&key2=value2 格式)
-        if body.contains('=') && (body.contains('&') || !body.contains('\n')) {
-            // 简单检测：包含 = 且包含 & 或没有换行符
-            return BodyType::FormData;
-        }
-
-        // 默认为 Raw
-        BodyType::Raw
-    }
-
-    // 解析并设置 FormData
-    fn parse_and_set_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>) {
-        use crate::ui::components::body_input::FormDataEntry;
-        use form_urlencoded;
-
-        // 解析 URL encoded form data
-        let parsed = form_urlencoded::parse(body.as_bytes());
-
-        let mut entries: Vec<FormDataEntry> = Vec::new();
-
-        for (key, value) in parsed {
-            entries.push(FormDataEntry {
-                key: key.to_string(),
-                value: value.to_string(),
-                enabled: true,
+    pub fn choose_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
+        let previous_body = self.view_model.body().to_string();
+        self.view_model.set_method(method);
+        if self.view_model.body() != previous_body {
+            let body = self.view_model.body().to_string();
+            self.body_input.update(cx, |input, cx| {
+                input.set_type_silent(BodyType::Json, cx);
+                input.set_content(body, cx);
             });
         }
-
-        // 如果没有解析到任何条目，至少添加一个空条目
-        if entries.is_empty() {
-            entries.push(FormDataEntry {
-                key: String::new(),
-                value: String::new(),
-                enabled: true,
-            });
-        }
-
-        // 设置 FormData 条目
-        input.set_form_data_entries(entries, cx);
+        self.method_selector.update(cx, |selector, cx| {
+            selector.set_selected_method(method, cx);
+        });
     }
 
-    fn render_headers_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub fn click_send(&mut self, cx: &mut Context<Self>) {
+        self.view_model.set_method(
+            self.method_selector
+                .update(cx, |selector, cx| selector.selected_method(cx)),
+        );
+        self.view_model
+            .set_url(self.url_input.read(cx).get_url().to_string());
+        self.view_model
+            .set_body(self.body_input.read(cx).get_content());
+        self.view_model.set_body_kind(body_kind_from_input(
+            self.body_input.read(cx).get_current_type(),
+        ));
+
+        self.response_viewer
+            .update(cx, |viewer, cx| viewer.set_loading(cx));
+        self.view_model.send();
+        self.sync_output_views(cx);
+        cx.notify();
+    }
+
+    pub fn response_state(&self, _cx: &App) -> ResponseState {
+        self.view_model.response().clone()
+    }
+
+    pub fn history_len(&self) -> usize {
+        self.view_model.history_len()
+    }
+
+    fn on_send_clicked(
+        &mut self,
+        _event: &gpui::MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.click_send(cx);
+    }
+
+    fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
+        self.view_model.set_request_pane(pane);
+        cx.notify();
+    }
+
+    fn add_current_row(&mut self, cx: &mut Context<Self>) {
+        let key = self.row_key_input.read(cx).get_content().trim().to_string();
+        let value = self
+            .row_value_input
+            .read(cx)
+            .get_content()
+            .trim()
+            .to_string();
+        match self.view_model.request_pane() {
+            RequestPane::Params => {
+                self.view_model.upsert_param(key, value);
+                self.sync_url_control(cx);
+            }
+            RequestPane::Headers => self.view_model.upsert_header(key, value),
+            RequestPane::Authorization | RequestPane::Body => return,
+        }
+        self.row_key_input.update(cx, |input, cx| input.clear(cx));
+        self.row_value_input.update(cx, |input, cx| input.clear(cx));
+        cx.notify();
+    }
+
+    fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.view_model.toggle_param(index);
+        self.sync_url_control(cx);
+        cx.notify();
+    }
+
+    fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.view_model.remove_param(index);
+        self.sync_url_control(cx);
+        cx.notify();
+    }
+
+    fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.view_model.toggle_header(index);
+        cx.notify();
+    }
+
+    fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.view_model.remove_header(index);
+        cx.notify();
+    }
+
+    fn set_header_input_values(&mut self, key: &str, value: &str, cx: &mut Context<Self>) {
+        self.row_key_input
+            .update(cx, |input, cx| input.set_content(key.to_string(), cx));
+        self.row_value_input
+            .update(cx, |input, cx| input.set_content(value.to_string(), cx));
+    }
+
+    fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
+        self.view_model.set_body_kind(kind);
+        self.body_input.update(cx, |input, cx| {
+            input.set_type(body_type_from_kind(kind), cx)
+        });
+        cx.notify();
+    }
+
+    fn use_sample_json(&mut self, cx: &mut Context<Self>) {
+        self.set_body(
+            r#"{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "active": true
+}"#,
+            cx,
+        );
+    }
+
+    fn clear_body(&mut self, cx: &mut Context<Self>) {
+        self.view_model.set_body("");
+        self.body_input.update(cx, |input, cx| input.clear(cx));
+        cx.notify();
+    }
+
+    fn new_request(&mut self, cx: &mut Context<Self>) {
+        self.view_model.new_request();
+        self.sync_controls_from_view_model(cx);
+        self.sync_output_views(cx);
+        cx.notify();
+    }
+
+    fn sync_url_control(&self, cx: &mut Context<Self>) {
+        let url = self.view_model.url().to_string();
+        self.url_input
+            .update(cx, |input, cx| input.set_url(url, cx));
+    }
+
+    fn sync_output_views(&self, cx: &mut Context<Self>) {
+        self.response_viewer.update(cx, |viewer, cx| {
+            viewer.set_state(self.view_model.response().clone(), cx)
+        });
+        self.history_list.update(cx, |list, cx| {
+            list.set_entries(self.view_model.history().to_vec(), cx)
+        });
+    }
+
+    fn sync_controls_from_view_model(&self, cx: &mut Context<Self>) {
+        let method = self.view_model.method();
+        self.method_selector
+            .update(cx, |selector, cx| selector.set_selected_method(method, cx));
+        self.sync_url_control(cx);
+
+        let body = self.view_model.body().to_string();
+        let kind = self.view_model.body_kind();
+        self.body_input.update(cx, |input, cx| {
+            input.set_type_silent(body_type_from_kind(kind), cx);
+            if kind == BodyKind::FormData {
+                set_form_data(input, &body, cx);
+            } else {
+                input.set_content(body, cx);
+            }
+        });
+    }
+
+    fn request_tab(
+        &self,
+        pane: RequestPane,
+        label: impl Into<String>,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let active = self.view_model.request_pane() == pane;
         div()
+            .h_full()
+            .flex()
+            .items_center()
+            .px_2()
+            .cursor_pointer()
+            .font_family(FONT_UI)
+            .text_size(px(13.0))
+            .font_weight(if active {
+                FontWeight::BOLD
+            } else {
+                FontWeight::SEMIBOLD
+            })
+            .text_color(rgb(if active { TEXT } else { MUTED }))
+            .hover(|style| style.text_color(rgb(TEXT)))
+            .child(label.into())
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(move |this, _, _, cx| this.set_request_pane(pane, cx)),
+            )
+    }
+
+    fn render_top_header(&self) -> impl IntoElement {
+        div()
+            .debug_selector(|| "top-header".into())
+            .h(px(72.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .px_5()
+            .bg(rgb(PANEL))
+            .border_b_1()
+            .border_color(rgb(LINE))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT)))
+                    .child(
+                        div()
+                            .font_family(FONT_HEADING)
+                            .text_size(px(22.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(TEXT))
+                            .child("Postman GPUI"),
+                    ),
+            )
+    }
+
+    fn render_left_rail(&self) -> impl IntoElement {
+        let slots = ["⌂", "↻", "◫", "◇", "⌘", "⚙", "?"];
+        div()
+            .debug_selector(|| "left-rail".into())
+            .w(px(72.0))
+            .h_full()
+            .flex_none()
             .flex()
             .flex_col()
-            .gap_3()
-            .child(
+            .items_center()
+            .gap_4()
+            .px_2()
+            .py_3()
+            .bg(rgb(PANEL))
+            .border_r_1()
+            .border_color(rgb(LINE))
+            .children(slots.into_iter().enumerate().map(|(index, label)| {
                 div()
-                    .child(format!(
-                        "Headers ({})",
-                        self.headers
-                            .iter()
-                            .filter(|(enabled, _, _)| *enabled)
-                            .count()
-                    ))
+                    .id(("rail-slot", index))
+                    .size(px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(if index == 1 { ACCENT_SOFT } else { PANEL_ALT }))
+                    .text_color(rgb(if index == 1 { ACCENT_DARK } else { SUBTEXT }))
+                    .font_family(FONT_UI)
                     .text_size(px(16.0))
-                    .font_weight(FontWeight::MEDIUM),
-            )
-            // 现有headers列表
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(label)
+            }))
+    }
+
+    fn render_request_tabs_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let method = self.view_model.method().to_string();
+        let title = self.view_model.tab_title();
+        let dirty = self.view_model.is_dirty();
+
+        div()
+            .debug_selector(|| "request-tabs-bar".into())
+            .h(px(54.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap_2()
+            .px_3()
+            .py_2()
+            .bg(rgb(PANEL))
+            .border_b_1()
+            .border_color(rgb(LINE))
             .child(
                 div()
+                    .h_full()
                     .flex()
-                    .flex_col()
+                    .items_center()
                     .gap_2()
-                    .children(if self.headers.is_empty() {
-                        vec![div()
-                            .flex()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .w_8()
-                                    .px_2()
-                                    .py_2()
-                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
-                                    .border_1()
-                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
-                                    .child(""),
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .px_3()
-                                    .py_2()
-                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
-                                    .border_1()
-                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
-                                    .child("No headers set"),
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .px_3()
-                                    .py_2()
-                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
-                                    .border_1()
-                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
-                                    .child(""),
-                            )
-                            .child(
-                                div()
-                                    .w_16()
-                                    .px_3()
-                                    .py_2()
-                                    .bg(rgb(COLOR_HEADER_DISABLED_BG))
-                                    .border_1()
-                                    .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
-                                    .child(""),
-                            )]
-                    } else {
-                        self.headers
-                            .iter()
-                            .enumerate()
-                            .map(|(index, (enabled, key, value))| {
-                                div()
-                                    .flex()
-                                    .gap_2()
-                                    .child(
-                                        // Checkbox column
-                                        div()
-                                            .w_8()
-                                            .h_8()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .bg(rgb(Self::checkbox_bg_color(*enabled)))
-                                            .border_1()
-                                            .border_color(rgb(COLOR_HEADER_DISABLED_BORDER))
-                                            .rounded_sm()
-                                            .cursor_pointer()
-                                            .hover(|style| {
-                                                style.bg(rgb(Self::checkbox_hover_bg_color(
-                                                    *enabled,
-                                                )))
-                                            })
-                                            .child(if *enabled { "✓" } else { "" })
-                                            .text_color(rgb(COLOR_CHECKBOX_TEXT))
-                                            .on_mouse_up(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(move |this, _event, _window, cx| {
-                                                    this.toggle_header(index, cx);
-                                                }),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .px_3()
-                                            .py_2()
-                                            .bg(rgb(Self::header_cell_bg_color(*enabled)))
-                                            .border_1()
-                                            .border_color(rgb(Self::header_cell_border_color(
-                                                *enabled,
-                                            )))
-                                            .text_color(rgb(Self::header_text_color(*enabled)))
-                                            .child(key.clone()),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .px_3()
-                                            .py_2()
-                                            .bg(rgb(Self::header_cell_bg_color(*enabled)))
-                                            .border_1()
-                                            .border_color(rgb(Self::header_cell_border_color(
-                                                *enabled,
-                                            )))
-                                            .text_color(rgb(Self::header_text_color(*enabled)))
-                                            .child(value.clone()),
-                                    )
-                                    .child(
-                                        div()
-                                            .w_16()
-                                            .px_2()
-                                            .py_1()
-                                            .bg(rgb(0x00dc_3545))
-                                            .text_color(rgb(0x00ff_ffff))
-                                            .rounded_md()
-                                            .cursor_pointer()
-                                            .hover(|style| style.bg(rgb(0x00c8_2333)))
-                                            .child("Delete")
-                                            .on_mouse_up(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(move |this, _event, _window, cx| {
-                                                    this.remove_header(index, cx);
-                                                }),
-                                            ),
-                                    )
-                            })
-                            .collect()
-                    }),
-            )
-            // 添加新header的输入框
-            .child(
-                div()
-                    .flex()
-                    .gap_2()
-                    .child(
-                        // Empty checkbox column for alignment
-                        div().w_8(),
-                    )
-                    .child(self.header_key_input.clone())
-                    .child(self.header_value_input.clone())
-                    .child(
-                        div()
-                            .w_16()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x0028_a745))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x0021_8838)))
-                            .child("Add")
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.add_header(cx);
-                                }),
-                            ),
-                    ),
-            )
-            // 快速添加预设headers
-            .child(
-                div()
-                    .flex()
-                    .gap_2()
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(rgb(0x006c_757d))
-                            .child("Quick add: "),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x006c_757d))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x005a_6268)))
-                            .child("JSON")
-                            .text_size(px(12.0))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_header_input_values(
-                                        "Content-Type",
-                                        "application/json",
-                                        cx,
-                                    );
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x006c_757d))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x005a_6268)))
-                            .child("Auth")
-                            .text_size(px(12.0))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_header_input_values("Authorization", "Bearer ", cx);
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x006c_757d))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x005a_6268)))
-                            .child("CORS")
-                            .text_size(px(12.0))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_header_input_values(
-                                        "Access-Control-Allow-Origin",
-                                        "*",
-                                        cx,
-                                    );
-                                }),
-                            ),
-                    ),
-            )
-            // 统计信息
-            .child(
-                div()
+                    .px_3()
+                    .bg(rgb(PANEL))
+                    .rounded_t_lg()
+                    .font_family(FONT_UI)
                     .text_size(px(12.0))
-                    .text_color(rgb(0x006c_757d))
-                    .child(format!(
-                    "Total headers: {} | Enabled: {} | Add headers by typing key and value above",
-                    self.headers.len(),
-                    self.headers
-                        .iter()
-                        .filter(|(enabled, _, _)| *enabled)
-                        .count()
-                )),
+                    .child(
+                        div()
+                            .text_color(rgb(method_color(self.view_model.method())))
+                            .font_weight(FontWeight::BOLD)
+                            .child(method),
+                    )
+                    .child(
+                        div()
+                            .max_w(px(260.0))
+                            .overflow_hidden()
+                            .text_color(rgb(SUBTEXT))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(title),
+                    )
+                    .when(dirty, |tab| {
+                        tab.child(div().size(px(6.0)).rounded_full().bg(rgb(ACCENT)))
+                    })
+                    .child(div().text_color(rgb(MUTED)).child("×")),
+            )
+            .child(
+                div()
+                    .debug_selector(|| "new-tab-button".into())
+                    .size(px(32.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(PANEL_ALT))
+                    .text_color(rgb(SUBTEXT))
+                    .font_family(FONT_HEADING)
+                    .text_size(px(20.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                    .child("+")
+                    .on_mouse_up(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.new_request(cx)),
+                    ),
             )
     }
 
-    fn render_body_editor(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_request_head(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .debug_selector(|| "request-head".into())
+            .h(px(46.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(self.method_selector.clone())
+            .child(self.url_input.clone())
+            .child(
+                div()
+                    .debug_selector(|| "send-button".into())
+                    .w(px(110.0))
+                    .h_full()
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(ACCENT))
+                    .text_color(rgb(PANEL))
+                    .font_family(FONT_HEADING)
+                    .text_size(px(15.0))
+                    .font_weight(FontWeight::BOLD)
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgb(ACCENT_DARK)))
+                    .child("Send")
+                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
+            )
+    }
+
+    fn render_request_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let header_count = self
+            .view_model
+            .headers()
+            .iter()
+            .filter(|row| row.enabled)
+            .count();
+        div()
+            .h(px(44.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap_2()
+            .px_3()
+            .bg(rgb(PANEL_ALT))
+            .border_b_1()
+            .border_color(rgb(LINE))
+            .child(self.request_tab(RequestPane::Params, "Params", cx))
+            .child(self.request_tab(RequestPane::Authorization, "Authorization (Bearer)", cx))
+            .child(self.request_tab(
+                RequestPane::Headers,
+                format!("Headers ({header_count})"),
+                cx,
+            ))
+            .child(self.request_tab(RequestPane::Body, "Body ●", cx))
+            .child(
+                div()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .px_2()
+                    .font_family(FONT_UI)
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(MUTED))
+                    .child("Scripts"),
+            )
+            .child(
+                div()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .px_2()
+                    .font_family(FONT_UI)
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(MUTED))
+                    .child("Tests"),
+            )
+    }
+
+    fn render_request_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .debug_selector(|| "request-panel".into())
+            .h(px(360.0))
+            .flex_none()
+            .flex()
+            .flex_col()
+            .min_w_0()
+            .bg(rgb(PANEL))
+            .border_1()
+            .border_color(rgb(LINE))
+            .rounded(px(14.0))
+            .overflow_hidden()
+            .child(self.render_request_menu(cx))
+            .child(match self.view_model.request_pane() {
+                RequestPane::Params => self.render_key_value_editor(
+                    "Query parameters",
+                    self.view_model.params(),
+                    Self::toggle_param,
+                    Self::remove_param,
+                    cx,
+                ),
+                RequestPane::Authorization => self.render_authorization_editor(cx),
+                RequestPane::Headers => self.render_key_value_editor(
+                    "Request headers",
+                    self.view_model.headers(),
+                    Self::toggle_header,
+                    Self::remove_header,
+                    cx,
+                ),
+                RequestPane::Body => self.render_body_editor(cx),
+            })
+    }
+
+    fn render_authorization_editor(&self, _cx: &mut Context<Self>) -> gpui::AnyElement {
+        div()
+            .flex_1()
+            .min_h_0()
+            .p_4()
+            .bg(rgb(CODE_BG))
+            .child(
+                div()
+                    .h(px(44.0))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .px_3()
+                    .rounded_lg()
+                    .bg(rgb(CODE_PANEL))
+                    .child(
+                        div()
+                            .font_family(FONT_UI)
+                            .font_weight(FontWeight::BOLD)
+                            .text_size(px(12.0))
+                            .text_color(rgb(0x0093_c5fd))
+                            .child("Authorization"),
+                    )
+                    .child(
+                        div()
+                            .font_family(FONT_MONO)
+                            .text_size(px(12.0))
+                            .text_color(rgb(LINE))
+                            .child("Bearer {{access_token}}"),
+                    ),
+            )
+            .child(
+                div()
+                    .mt_3()
+                    .font_family(FONT_UI)
+                    .text_size(px(12.0))
+                    .text_color(rgb(MUTED))
+                    .child("Use Headers to set a real Authorization value."),
+            )
+            .into_any_element()
+    }
+
+    fn render_key_value_editor(
+        &self,
+        title: &'static str,
+        rows: &[KeyValueRow],
+        toggle: fn(&mut Self, usize, &mut Context<Self>),
+        remove: fn(&mut Self, usize, &mut Context<Self>),
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let enabled = rows.iter().filter(|row| row.enabled).count();
+        div()
+            .id("key-value-editor-scroll")
+            .flex_1()
+            .min_h_0()
             .flex()
             .flex_col()
             .gap_2()
-            .child(
-                div()
-                    .child("Request Body")
-                    .text_size(px(16.0))
-                    .font_weight(FontWeight::MEDIUM),
-            )
-            .child(self.body_input.clone())
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .text_color(rgb(0x006c_757d))
-                    .child(match self.body_input.read(cx).get_current_type() {
-                        crate::ui::components::body_input::BodyType::Json => {
-                            format!(
-                                "JSON body length: {} characters",
-                                self.body_input.read(cx).get_json_content().len()
-                            )
-                        }
-                        crate::ui::components::body_input::BodyType::FormData => {
-                            format!(
-                                "Form data entries: {}",
-                                self.body_input.read(cx).get_form_data_entries().len()
-                            )
-                        }
-                        crate::ui::components::body_input::BodyType::Raw => {
-                            format!(
-                                "Raw body length: {} characters",
-                                self.body_input.read(cx).get_content().len()
-                            )
-                        }
-                    }),
-            )
+            .p_3()
+            .overflow_scroll()
             .child(
                 div()
                     .flex()
-                    .gap_2()
+                    .items_center()
+                    .justify_between()
+                    .font_family(FONT_UI)
+                    .text_size(px(12.0))
                     .child(
                         div()
-                            .text_size(px(12.0))
-                            .text_color(rgb(0x006c_757d))
-                            .child("Quick actions: "),
+                            .text_color(rgb(TEXT))
+                            .font_weight(FontWeight::BOLD)
+                            .child(title),
                     )
                     .child(
                         div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x0017_a2b8))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
+                            .text_color(rgb(MUTED))
+                            .child(format!("{enabled} enabled")),
+                    ),
+            )
+            .children(rows.iter().enumerate().map(|(index, row)| {
+                let is_enabled = row.enabled;
+                div()
+                    .h(px(36.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .font_family(FONT_MONO)
+                    .text_size(px(12.0))
+                    .child(
+                        div()
+                            .size(px(18.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_sm()
+                            .border_1()
+                            .border_color(rgb(if is_enabled { ACCENT } else { LINE }))
+                            .bg(rgb(if is_enabled { ACCENT } else { PANEL }))
+                            .text_color(rgb(PANEL))
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x0013_8496)))
-                            .child("Sample JSON")
-                            .text_size(px(12.0))
+                            .child(if is_enabled { "✓" } else { "" })
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    let sample_json = r#"{
-                                                                "name": "John Doe",
-                                                                "email": "john.doe@example.com",
-                                                                "age": 30
-                                                                }"#
-                                    .to_string();
-                                    this.body_input.update(cx, |input, cx| {
-                                        input.set_content(sample_json, cx);
-                                    });
-                                }),
+                                cx.listener(move |this, _, _, cx| toggle(this, index, cx)),
                             ),
                     )
                     .child(
                         div()
-                            .px_2()
-                            .py_1()
-                            .bg(rgb(0x00dc_3545))
-                            .text_color(rgb(0x00ff_ffff))
-                            .rounded_md()
+                            .h_full()
+                            .flex_1()
+                            .flex()
+                            .items_center()
+                            .px_3()
+                            .rounded_lg()
+                            .border_1()
+                            .border_color(rgb(LINE))
+                            .bg(rgb(PANEL_ALT))
+                            .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
+                            .child(row.key.clone()),
+                    )
+                    .child(
+                        div()
+                            .h_full()
+                            .flex_1()
+                            .flex()
+                            .items_center()
+                            .px_3()
+                            .rounded_lg()
+                            .border_1()
+                            .border_color(rgb(LINE))
+                            .bg(rgb(PANEL_ALT))
+                            .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
+                            .child(row.value.clone()),
+                    )
+                    .child(
+                        div()
+                            .size(px(32.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_lg()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x00c8_2333)))
-                            .child("Clear")
-                            .text_size(px(12.0))
+                            .text_color(rgb(MUTED))
+                            .hover(|style| style.bg(rgb(0x00fe_f2f2)).text_color(rgb(ERROR)))
+                            .child("×")
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.body_input.update(cx, |input, cx| {
-                                        input.clear(cx);
-                                    });
-                                }),
+                                cx.listener(move |this, _, _, cx| remove(this, index, cx)),
+                            ),
+                    )
+            }))
+            .when(rows.is_empty(), |editor| {
+                editor.child(
+                    div()
+                        .h(px(44.0))
+                        .flex()
+                        .items_center()
+                        .px_3()
+                        .rounded_lg()
+                        .bg(rgb(PANEL_ALT))
+                        .font_family(FONT_UI)
+                        .text_size(px(12.0))
+                        .text_color(rgb(MUTED))
+                        .child("No rows yet — add a key and value below."),
+                )
+            })
+            .child(
+                div()
+                    .h(px(38.0))
+                    .flex_none()
+                    .flex()
+                    .gap_2()
+                    .child(div().w(px(18.0)))
+                    .child(self.row_key_input.clone())
+                    .child(self.row_value_input.clone())
+                    .child(
+                        div()
+                            .w(px(64.0))
+                            .h_full()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_lg()
+                            .bg(rgb(ACCENT))
+                            .text_color(rgb(PANEL))
+                            .font_family(FONT_UI)
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::BOLD)
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(ACCENT_DARK)))
+                            .child("Add")
+                            .on_mouse_up(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _, _, cx| this.add_current_row(cx)),
+                            ),
+                    ),
+            )
+            .when(
+                self.view_model.request_pane() == RequestPane::Headers,
+                |editor| {
+                    editor.child(
+                        div()
+                            .flex()
+                            .gap_2()
+                            .font_family(FONT_UI)
+                            .text_size(px(11.0))
+                            .child(
+                                div()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_md()
+                                    .bg(rgb(PANEL_ALT))
+                                    .text_color(rgb(SUBTEXT))
+                                    .cursor_pointer()
+                                    .child("JSON")
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| {
+                                            this.set_header_input_values(
+                                                "Content-Type",
+                                                "application/json",
+                                                cx,
+                                            )
+                                        }),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_md()
+                                    .bg(rgb(PANEL_ALT))
+                                    .text_color(rgb(SUBTEXT))
+                                    .cursor_pointer()
+                                    .child("Bearer token")
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| {
+                                            this.set_header_input_values(
+                                                "Authorization",
+                                                "Bearer ",
+                                                cx,
+                                            )
+                                        }),
+                                    ),
+                            ),
+                    )
+                },
+            )
+            .into_any_element()
+    }
+
+    fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let kind = self.view_model.body_kind();
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .bg(rgb(CODE_BG))
+            .child(
+                div()
+                    .h(px(40.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .px_4()
+                    .bg(rgb(PANEL))
+                    .border_b_1()
+                    .border_color(rgb(LINE))
+                    .child(self.body_kind_option("○", "none", None, kind, cx))
+                    .child(self.body_kind_option(
+                        "○",
+                        "form-data",
+                        Some(BodyKind::FormData),
+                        kind,
+                        cx,
+                    ))
+                    .child(self.body_kind_option(
+                        "○",
+                        "x-www-form-urlencoded",
+                        Some(BodyKind::FormData),
+                        kind,
+                        cx,
+                    ))
+                    .child(self.body_kind_option("●", "raw", Some(BodyKind::Raw), kind, cx))
+                    .child(self.body_kind_option("●", "JSON ▾", Some(BodyKind::Json), kind, cx)),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .flex_col()
+                    .p_3()
+                    .bg(rgb(CODE_BG))
+                    .child(div().flex_1().min_h_0().child(self.body_input.clone()))
+                    .child(
+                        div()
+                            .flex()
+                            .justify_end()
+                            .gap_2()
+                            .mt_2()
+                            .font_family(FONT_UI)
+                            .text_size(px(11.0))
+                            .child(
+                                div()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_md()
+                                    .bg(rgb(CODE_PANEL))
+                                    .text_color(rgb(CODE_TEXT))
+                                    .cursor_pointer()
+                                    .child("Sample JSON")
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| this.use_sample_json(cx)),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_md()
+                                    .bg(rgb(CODE_PANEL))
+                                    .text_color(rgb(MUTED))
+                                    .cursor_pointer()
+                                    .child("Clear")
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| this.clear_body(cx)),
+                                    ),
+                            ),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn body_kind_option(
+        &self,
+        marker: &'static str,
+        label: &'static str,
+        option: Option<BodyKind>,
+        selected: BodyKind,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let active = option == Some(selected);
+        let element = div()
+            .flex()
+            .items_center()
+            .gap_1()
+            .font_family(FONT_UI)
+            .text_size(px(12.0))
+            .font_weight(if active {
+                FontWeight::BOLD
+            } else {
+                FontWeight::NORMAL
+            })
+            .text_color(rgb(if active { TEXT } else { SUBTEXT }))
+            .child(
+                div()
+                    .text_color(rgb(if active { 0x0025_63eb } else { MUTED }))
+                    .child(marker),
+            )
+            .child(label);
+        if let Some(kind) = option {
+            element.cursor_pointer().on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(move |this, _, _, cx| this.set_body_kind(kind, cx)),
+            )
+        } else {
+            element
+        }
+    }
+}
+
+impl Render for PostmanApp {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .id("main-container")
+            .size_full()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .bg(rgb(BG))
+            .text_color(rgb(TEXT))
+            .font_family(FONT_UI)
+            .child(self.render_top_header())
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .child(self.render_left_rail())
+                    .child(self.history_list.clone())
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .min_h_0()
+                            .flex()
+                            .flex_col()
+                            .bg(rgb(BG))
+                            .child(self.render_request_tabs_bar(cx))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_h_0()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_3()
+                                    .p_3()
+                                    .child(self.render_request_head(cx))
+                                    .child(self.render_request_panel(cx))
+                                    .child(
+                                        div()
+                                            .id("response-container")
+                                            .debug_selector(|| "response-container".into())
+                                            .flex_1()
+                                            .min_h_0()
+                                            .child(self.response_viewer.clone()),
+                                    ),
                             ),
                     ),
             )
     }
 }
 
-impl Render for PostmanApp {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Subscribe to history list events
-        let history_list_clone = self.history_list.clone();
-        cx.subscribe(&history_list_clone, Self::on_history_selected)
-            .detach();
+fn body_kind_from_input(body_type: &BodyType) -> BodyKind {
+    match body_type {
+        BodyType::Json => BodyKind::Json,
+        BodyType::FormData => BodyKind::FormData,
+        BodyType::Raw => BodyKind::Raw,
+    }
+}
 
-        div()
-            .id("main-container")
-            .flex()
-            .bg(rgb(0x00f0_f0f0))
-            .size_full()
-            .child(
-                // Left sidebar - History List
-                self.history_list.clone(),
-            )
-            .child(
-                // Main content area
-                div()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .p_4()
-                    .gap_4()
-                    .child(
-                        // Header
-                        div()
-                            .child("Postman GPUI")
-                            .text_size(px(24.0))
-                            .font_weight(FontWeight::BOLD),
-                    )
-                    .child(
-                        // Request Panel
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_4()
-                            .p_4()
-                            .bg(rgb(0x00ff_ffff))
-                            .border_1()
-                            .border_color(rgb(0x00cc_cccc))
-                            .child(
-                                // Method and URL row
-                                div()
-                                    .flex()
-                                    .gap_4()
-                                    .child(self.method_selector.clone())
-                                    .child(self.url_input.clone()) // 使用 UrlInput 组件替代 render_url_input
-                                    .child(
-                                        div()
-                                            .child("Send")
-                                            .bg(rgb(0x0000_7acc))
-                                            .text_color(rgb(0x00ff_ffff))
-                                            .px_4()
-                                            .py_2()
-                                            .rounded_md()
-                                            .cursor_pointer()
-                                            .hover(|style| style.bg(rgb(0x0000_56b3)))
-                                            .on_mouse_up(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(Self::on_send_clicked),
-                                            ),
-                                    ),
-                            )
-                            .child(self.render_headers_editor(cx))
-                            .child(self.render_body_editor(cx)),
-                    )
-                    .child(
-                        // Response Panel
-                        div()
-                            .id("response-container")
-                            .overflow_scroll()
-                            .flex()
-                            .flex_col()
-                            .gap_4()
-                            .p_4()
-                            .bg(rgb(0x00ff_ffff))
-                            .border_1()
-                            .border_color(rgb(0x00cc_cccc))
-                            .child(self.response_viewer.clone()),
-                    ),
-            )
+fn body_type_from_kind(kind: BodyKind) -> BodyType {
+    match kind {
+        BodyKind::Json => BodyType::Json,
+        BodyKind::FormData => BodyType::FormData,
+        BodyKind::Raw => BodyType::Raw,
+    }
+}
+
+fn set_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>) {
+    let mut entries: Vec<FormDataEntry> = form_urlencoded::parse(body.as_bytes())
+        .map(|(key, value)| FormDataEntry {
+            key: key.into_owned(),
+            value: value.into_owned(),
+            enabled: true,
+        })
+        .collect();
+    if entries.is_empty() {
+        entries.push(FormDataEntry {
+            key: String::new(),
+            value: String::new(),
+            enabled: true,
+        });
+    }
+    input.set_form_data_entries(entries, cx);
+}
+
+fn method_color(method: HttpMethod) -> u32 {
+    match method {
+        HttpMethod::GET => 0x0016_a34a,
+        HttpMethod::POST => ACCENT,
+        HttpMethod::PUT => 0x0025_63eb,
+        HttpMethod::DELETE => ERROR,
+        HttpMethod::PATCH => 0x007c_3aed,
+        HttpMethod::HEAD | HttpMethod::OPTIONS => SUBTEXT,
     }
 }

@@ -638,17 +638,22 @@ impl Focusable for UrlInput {
 impl Render for UrlInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .debug_selector(|| "url-input".into())
             .flex_1()
+            .h_full()
+            .flex()
+            .items_center()
             .px_4()
-            .py_2()
             .bg(rgb(0x00ff_ffff))
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                rgb(0x0000_7acc)
+                rgb(0x00f9_7316)
             } else {
-                rgb(0x00cc_cccc)
+                rgb(0x00e2_e8f0)
             })
-            .rounded_md()
+            .rounded_lg()
+            .font_family("Menlo")
+            .text_size(px(13.0))
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::backspace))

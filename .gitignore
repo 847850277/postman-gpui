@@ -34,3 +34,5 @@ pids
 # Build outputs
 /dist/
 /build/
+
+.idea

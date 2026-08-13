@@ -57,6 +57,7 @@ pub struct FormDataEntry {
 
 pub struct BodyInput {
     focus_handle: FocusHandle,
+    show_type_tabs: bool,
     current_type: BodyType,
     json_content: String,
     form_data_entries: Vec<FormDataEntry>,
@@ -231,6 +232,7 @@ impl BodyInput {
     pub fn new(cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
+            show_type_tabs: true,
             current_type: BodyType::Json,
             json_content: String::new(),
             form_data_entries: vec![FormDataEntry {
@@ -266,6 +268,11 @@ impl BodyInput {
         self
     }
 
+    pub fn with_type_tabs(mut self, show_type_tabs: bool) -> Self {
+        self.show_type_tabs = show_type_tabs;
+        self
+    }
+
     pub fn get_current_type(&self) -> &BodyType {
         &self.current_type
     }
@@ -298,6 +305,14 @@ impl BodyInput {
                 BodyType::FormData => self.get_form_data_as_string(),
             };
             cx.emit(BodyInputEvent::ValueChanged(content));
+            cx.notify();
+        }
+    }
+
+    /// Change editor presentation without emitting a draft-value event.
+    pub fn set_type_silent(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
+        if self.current_type != body_type {
+            self.current_type = body_type;
             cx.notify();
         }
     }
@@ -1800,103 +1815,118 @@ impl Render for BodyInput {
         div()
             .flex()
             .flex_col()
-            .gap_3()
+            .gap_0()
             .w_full()
             .h_full()
+            .min_h_0()
+            .bg(rgb(0x000f_172a))
             // Tab headers
-            .child(
-                div()
-                    .flex()
-                    .border_b_1()
-                    .border_color(rgb(0x00dd_dddd))
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .cursor_pointer()
-                            .when(current_type == BodyType::Json, |div| {
-                                div.bg(rgb(0x0000_7acc)).text_color(rgb(0x00ff_ffff))
-                            })
-                            .when(current_type != BodyType::Json, |div| {
-                                div.bg(rgb(0x00f8_f9fa))
-                                    .text_color(rgb(0x006c_757d))
-                                    .hover(|style| style.bg(rgb(0x00e9_ecef)))
-                            })
-                            .child("JSON")
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_type(BodyType::Json, cx);
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .cursor_pointer()
-                            .when(current_type == BodyType::FormData, |div| {
-                                div.bg(rgb(0x0000_7acc)).text_color(rgb(0x00ff_ffff))
-                            })
-                            .when(current_type != BodyType::FormData, |div| {
-                                div.bg(rgb(0x00f8_f9fa))
-                                    .text_color(rgb(0x006c_757d))
-                                    .hover(|style| style.bg(rgb(0x00e9_ecef)))
-                            })
-                            .child("Form Data")
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_type(BodyType::FormData, cx);
-                                }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .cursor_pointer()
-                            .when(current_type == BodyType::Raw, |div| {
-                                div.bg(rgb(0x0000_7acc)).text_color(rgb(0x00ff_ffff))
-                            })
-                            .when(current_type != BodyType::Raw, |div| {
-                                div.bg(rgb(0x00f8_f9fa))
-                                    .text_color(rgb(0x006c_757d))
-                                    .hover(|style| style.bg(rgb(0x00e9_ecef)))
-                            })
-                            .child("Raw")
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _event, _window, cx| {
-                                    this.set_type(BodyType::Raw, cx);
-                                }),
-                            ),
-                    ),
-            )
+            .when(self.show_type_tabs, |root| {
+                root.child(
+                    div()
+                        .h(px(40.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .gap_4()
+                        .px_4()
+                        .bg(rgb(0x00ff_ffff))
+                        .border_b_1()
+                        .border_color(rgb(0x00e2_e8f0))
+                        .child(
+                            div()
+                                .cursor_pointer()
+                                .font_family("Helvetica Neue")
+                                .text_size(px(12.0))
+                                .when(current_type == BodyType::Json, |div| {
+                                    div.text_color(rgb(0x0025_63eb))
+                                        .font_weight(gpui::FontWeight::BOLD)
+                                })
+                                .when(current_type != BodyType::Json, |div| {
+                                    div.text_color(rgb(0x0047_5569))
+                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                })
+                                .child("● JSON ▾")
+                                .on_mouse_up(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(|this, _event, _window, cx| {
+                                        this.set_type(BodyType::Json, cx);
+                                    }),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .cursor_pointer()
+                                .font_family("Helvetica Neue")
+                                .text_size(px(12.0))
+                                .when(current_type == BodyType::FormData, |div| {
+                                    div.text_color(rgb(0x0025_63eb))
+                                        .font_weight(gpui::FontWeight::BOLD)
+                                })
+                                .when(current_type != BodyType::FormData, |div| {
+                                    div.text_color(rgb(0x0047_5569))
+                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                })
+                                .child("○ form-data")
+                                .on_mouse_up(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(|this, _event, _window, cx| {
+                                        this.set_type(BodyType::FormData, cx);
+                                    }),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .cursor_pointer()
+                                .font_family("Helvetica Neue")
+                                .text_size(px(12.0))
+                                .when(current_type == BodyType::Raw, |div| {
+                                    div.text_color(rgb(0x0025_63eb))
+                                        .font_weight(gpui::FontWeight::BOLD)
+                                })
+                                .when(current_type != BodyType::Raw, |div| {
+                                    div.text_color(rgb(0x0047_5569))
+                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                })
+                                .child("○ raw")
+                                .on_mouse_up(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(|this, _event, _window, cx| {
+                                        this.set_type(BodyType::Raw, cx);
+                                    }),
+                                ),
+                        ),
+                )
+            })
             // Content area
             .child(match current_type {
                 BodyType::Json => div()
+                    .flex_1()
+                    .min_h_0()
                     .flex()
                     .flex_col()
-                    .gap_2()
                     .child(
                         div()
                             .w_full()
-                            .min_h_16()
+                            .h_full()
+                            .min_h_0()
                             .px_3()
                             .py_2()
-                            .bg(rgb(0x00ff_ffff))
+                            .bg(rgb(0x000b_1328))
                             .border_1()
                             .border_color(
                                 if self.focus_handle.is_focused(_window)
                                     && self.current_type == BodyType::Json
                                 {
-                                    rgb(0x0000_7acc)
+                                    rgb(0x0025_63eb)
                                 } else {
-                                    rgb(0x00cc_cccc)
+                                    rgb(0x000b_1328)
                                 },
                             )
-                            .rounded_md()
+                            .rounded_lg()
+                            .font_family("Menlo")
+                            .text_size(px(13.0))
+                            .text_color(rgb(0x00ba_e6fd))
                             .cursor(CursorStyle::IBeam)
                             .track_focus(&self.focus_handle(cx))
                             .on_action(cx.listener(Self::json_backspace))
@@ -2215,7 +2245,6 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::AppContext;
 
     #[test]
     fn test_body_type_enum() {

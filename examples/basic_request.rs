@@ -9,11 +9,7 @@ fn main() {
             ..Default::default()
         };
 
-        cx.open_window(option, |_window, cx| {
-            // 创建视图
-            let postman_app = PostmanApp::new(cx);
-            cx.new(|_| postman_app)
-        })
-        .expect("failed to open window");
+        cx.open_window(option, |_window, cx| cx.new(PostmanApp::new))
+            .expect("failed to open window");
     });
 }
