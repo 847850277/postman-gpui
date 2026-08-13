@@ -38,7 +38,9 @@ The alias expands to:
 cargo test --test request_scenarios
 ```
 
-The scenarios also run as part of the normal `cargo test` suite.
+Locally, `cargo test` still runs this suite with the rest of the tests.
+CI runs it as a separate **Request Scenario Contract** job so a contract
+failure is visible on its own and does not share a log with the GPUI UI tests.
 
 ## Isolation model
 
