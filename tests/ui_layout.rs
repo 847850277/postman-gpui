@@ -1,6 +1,6 @@
 //! Visual-contract checks derived from `design.pen`.
 
-use gpui::{px, TestAppContext};
+use gpui::{px, Modifiers, TestAppContext};
 use postman_gpui::app::PostmanApp;
 
 #[gpui::test]
@@ -46,4 +46,22 @@ fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
     assert_eq!(new_tab.size.height, px(32.0));
     assert_eq!(send.size.width, px(110.0));
     assert_eq!(send.size.height, px(46.0));
+}
+
+#[gpui::test]
+fn method_menu_opens_directly_below_its_button(cx: &mut TestAppContext) {
+    let (_app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+
+    let button = cx
+        .debug_bounds("method-dropdown-button")
+        .expect("method dropdown button should render");
+    cx.simulate_click(button.center(), Modifiers::none());
+
+    let menu = cx
+        .debug_bounds("method-dropdown-menu")
+        .expect("method dropdown menu should open");
+
+    assert_eq!(menu.origin.x, button.origin.x);
+    assert_eq!(menu.origin.y, button.bottom() + px(2.0));
+    assert_eq!(menu.size.width, button.size.width);
 }

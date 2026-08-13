@@ -1,6 +1,6 @@
 use gpui::{
-    anchored, canvas, deferred, div, prelude::FluentBuilder, px, rgb, ClickEvent, Context,
-    ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    anchored, canvas, deferred, div, point, prelude::FluentBuilder, px, rgb, Anchor, ClickEvent,
+    Context, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
@@ -116,7 +116,6 @@ impl Dropdown {
     }
 
     fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let dropdown = cx.entity().clone();
         let display_text = if self.selected_value.is_empty() {
             self.placeholder
                 .as_ref()
@@ -128,6 +127,8 @@ impl Dropdown {
 
         div()
             .id("dropdown-button")
+            .debug_selector(|| "method-dropdown-button".into())
+            .relative()
             .flex()
             .items_center()
             .justify_between()
@@ -165,32 +166,25 @@ impl Dropdown {
                     .child(if self.is_open { "▴" } else { "▾" })
                     .text_color(rgb(ACCENT_DARK)),
             )
-            .child(
-                // 使用 canvas 获取按钮的精确位置
-                canvas(
-                    move |bounds, _, cx| {
-                        dropdown.update(cx, |dropdown, _| dropdown.button_bounds = bounds)
-                    },
-                    |_, _, _, _| {},
-                )
-                .absolute()
-                .size_full(),
-            )
     }
 
     fn render_dropdown_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let bounds = self.button_bounds;
-        // 使用 deferred + anchored 确保菜单显示在最顶层
-        // 关键：使用 deferred + anchored 组合确保在顶层渲染
+        let menu_width = if bounds.size.width > px(0.0) {
+            bounds.size.width
+        } else {
+            px(120.0)
+        };
+
         deferred(
             anchored()
-                .snap_to_window_with_margin(px(8.)) // 确保不会超出窗口边界
+                .anchor(Anchor::TopLeft)
+                .position(point(bounds.left(), bounds.bottom() + px(2.0)))
+                .snap_to_window_with_margin(px(8.))
                 .child(
                     div()
-                        .absolute()
-                        .top(bounds.bottom() + px(2.)) // 在按钮下方 2px 处显示
-                        .left(bounds.left())
-                        .w(px(120.0))
+                        .debug_selector(|| "method-dropdown-menu".into())
+                        .w(menu_width)
                         .bg(rgb(PANEL))
                         .border_1()
                         .border_color(rgb(LINE))
@@ -276,12 +270,26 @@ impl Focusable for Dropdown {
 
 impl Render for Dropdown {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let dropdown = cx.entity().clone();
+
         div()
             .id(self.id.clone())
             .relative()
             .w_full()
             .track_focus(&self.focus_handle)
             .child(self.render_dropdown_button(cx))
+            .child(
+                canvas(
+                    move |bounds, _, cx| {
+                        dropdown.update(cx, |dropdown, _| dropdown.button_bounds = bounds)
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            )
             .when(self.is_open, |this| {
                 this.child(self.render_dropdown_menu(cx))
             })
