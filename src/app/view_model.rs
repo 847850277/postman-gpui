@@ -71,10 +71,11 @@ impl RequestService for RequestExecutor {
     }
 }
 
-/// Source of truth for one request workspace.
+/// Source of truth for one request draft.
 ///
 /// GPUI entities live in the View. This type intentionally has no GPUI dependency, so
-/// request construction, history, and response transitions can be tested in isolation.
+/// request construction and response transitions can be tested in isolation.
+/// Completed sends are recorded on `WorkspaceViewModel`, not here.
 pub struct RequestViewModel {
     method: HttpMethod,
     url: String,
@@ -87,7 +88,6 @@ pub struct RequestViewModel {
     tests_script: String,
     request_pane: RequestPane,
     response: ResponseState,
-    history: RequestHistory,
     dirty: bool,
     service: Box<dyn RequestService>,
 }
@@ -110,7 +110,6 @@ impl RequestViewModel {
             tests_script: String::new(),
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
-            history: RequestHistory::new(),
             dirty: false,
             service,
         }
@@ -158,14 +157,6 @@ impl RequestViewModel {
 
     pub fn response(&self) -> &ResponseState {
         &self.response
-    }
-
-    pub fn history(&self) -> &[HistoryEntry] {
-        self.history.entries()
-    }
-
-    pub fn history_len(&self) -> usize {
-        self.history.len()
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -357,7 +348,6 @@ impl RequestViewModel {
 
         match self.service.execute(&request) {
             Ok(result) => {
-                self.history.add(request.clone(), history_label(&self.url));
                 self.response = ResponseState::Success {
                     status: result.status,
                     body: result.body,
@@ -652,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn send_builds_request_and_transitions_response_and_history() {
+    fn send_builds_request_and_transitions_response() {
         let seen = Arc::new(Mutex::new(Vec::new()));
         let mut vm = RequestViewModel::with_service(Box::new(FakeService {
             seen: seen.clone(),
@@ -681,20 +671,20 @@ mod tests {
             vm.response(),
             ResponseState::Success { status: 201, .. }
         ));
-        assert_eq!(vm.history_len(), 1);
         assert!(!vm.is_dirty());
     }
 
     #[test]
     fn failed_send_does_not_enter_history() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+        let request = RequestViewModel::with_service(Box::new(FakeService {
             seen: Arc::new(Mutex::new(Vec::new())),
             result: Err(AppError::UrlEmpty),
         }));
-        vm.send();
+        let mut workspace = WorkspaceViewModel::with_request(request);
+        workspace.send();
 
-        assert!(matches!(vm.response(), ResponseState::Error { .. }));
-        assert_eq!(vm.history_len(), 0);
+        assert!(matches!(workspace.response(), ResponseState::Error { .. }));
+        assert_eq!(workspace.history_len(), 0);
     }
 
     #[test]

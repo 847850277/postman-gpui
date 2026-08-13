@@ -6,7 +6,7 @@ Postman GPUI 是一个受 Postman 启发的简单图形用户界面应用程序�
 
 - 输入请求详细信息，包括 URL、HTTP 方法、请求头和请求体
 - 查看服务器响应，包括状态码和响应体
-- 将请求组织到集合中以便于管理
+- 请求历史：点击历史项可将完整请求加载回表单
 - 可重用的 UI 组件，提供一致的用户体验
 - 完整的键盘快捷键支持
 - 专业的 JSON 编辑器，支持多行编辑和语法高亮
@@ -39,8 +39,8 @@ postman-gpui
 │   │   └── response.rs  # HTTP 响应模型
 │   ├── models           # 数据模型
 │   │   ├── mod.rs
-│   │   ├── collection.rs # 请求集合管理
-│   │   └── workspace.rs  # 工作空间数据结构
+│   │   ├── history.rs    # 已发送请求历史
+│   │   └── request.rs    # HTTP 请求模型
 │   ├── assets           # 应用程序资源
 │   │   └── mod.rs
 │   └── utils            # 工具函数

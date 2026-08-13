@@ -9,7 +9,6 @@ Postman GPUI is a simple graphical user interface application for making HTTP re
 - **Form Data Support**: Built-in form-data editor with key-value pairs and automatic `Content-Type` header
 - View responses from the server, including status codes and response bodies.
 - **Request History**: Click any history item to load the complete request (URL, parameters, headers, and body) back into the form
-- Organize requests into collections for easy management.
 - Reusable UI components for a consistent user experience.
 
 ## Request History Feature
@@ -48,8 +47,8 @@ postman-gpui
 │   │   └── response.rs  # HTTP response models
 │   ├── models           # Data models
 │   │   ├── mod.rs
-│   │   ├── collection.rs # Request collection management
-│   │   └── workspace.rs  # Workspace data structures
+│   │   ├── history.rs    # Sent-request history
+│   │   └── request.rs    # HTTP request model
 │   ├── assets           # Application assets
 │   │   └── mod.rs
 │   └── utils            # Utility functions
