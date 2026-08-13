@@ -74,13 +74,27 @@ impl HeaderInput {
     pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let new_content: SharedString = content.into().into();
         if self.content != new_content {
-            self.content = new_content.clone();
-            let cursor_position = self.selected_range.start.min(self.content.len());
-            self.selected_range = cursor_position..cursor_position;
-            self.selection_reversed = false;
+            self.replace_projected_content(new_content.clone());
             cx.emit(HeaderInputEvent::ValueChanged(new_content.to_string()));
             cx.notify();
         }
+    }
+
+    /// Projects a ViewModel value into the editor buffer without producing a user edit event.
+    pub fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+        let new_content: SharedString = content.into().into();
+        if self.content != new_content {
+            self.replace_projected_content(new_content);
+            cx.notify();
+        }
+    }
+
+    fn replace_projected_content(&mut self, content: SharedString) {
+        self.content = content;
+        let cursor_position = self.selected_range.start.min(self.content.len());
+        self.selected_range = cursor_position..cursor_position;
+        self.selection_reversed = false;
+        self.marked_range = None;
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {

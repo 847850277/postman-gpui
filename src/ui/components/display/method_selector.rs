@@ -44,21 +44,11 @@ impl MethodSelector {
         }
     }
 
-    pub fn selected_method(&self, cx: &mut Context<Self>) -> HttpMethod {
-        let method_str = self.dropdown.read(cx).selected_value().to_string();
-        let method = method_str.as_str().into();
-        tracing::info!("📖 MethodSelector::selected_method - 当前选中方法: {method}");
-        //println!("📖 调用栈: {:?}", std::backtrace::Backtrace::capture());
-        method
-    }
-
-    pub fn set_selected_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
-        tracing::info!("📝 MethodSelector::set_selected_method - 设置方法: {method}");
-        //println!("📝 调用栈: {:?}", std::backtrace::Backtrace::capture());
+    /// Projects the ViewModel method into the dropdown without emitting a user event.
+    pub fn project_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
         self.dropdown.update(cx, |dropdown, cx| {
-            dropdown.set_selected(&method.to_string(), cx);
+            dropdown.project_selected(method.to_string(), cx);
         });
-        tracing::info!("📝 MethodSelector::set_selected_method - 方法设置完成");
     }
 
     fn on_dropdown_event(

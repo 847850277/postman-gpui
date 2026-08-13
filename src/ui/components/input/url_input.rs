@@ -67,20 +67,35 @@ impl UrlInput {
         self
     }
 
-    pub fn get_url(&self) -> &str {
-        &self.content
-    }
-
     pub fn set_url(&mut self, url: impl Into<String>, cx: &mut Context<Self>) {
         let new_url: SharedString = url.into().into();
         if self.content != new_url {
-            self.content = new_url.clone();
-            let cursor_position = self.selected_range.start.min(self.content.len());
-            self.selected_range = cursor_position..cursor_position;
-            self.selection_reversed = false;
+            self.replace_projected_url(new_url.clone());
             cx.emit(UrlInputEvent::UrlChanged(new_url.to_string()));
             cx.notify();
         }
+    }
+
+    /// Projects the ViewModel value into the editor buffer without producing a user edit event.
+    pub fn project_url(&mut self, url: impl Into<String>, cx: &mut Context<Self>) {
+        let new_url: SharedString = url.into().into();
+        if self.content != new_url {
+            self.replace_projected_url(new_url);
+            cx.notify();
+        }
+    }
+
+    fn replace_projected_url(&mut self, url: SharedString) {
+        self.content = url;
+        let cursor_position = self.selected_range.start.min(self.content.len());
+        self.selected_range = cursor_position..cursor_position;
+        self.selection_reversed = false;
+        self.marked_range = None;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn editor_buffer(&self) -> &str {
+        &self.content
     }
 
     // Action handlers - 这些方法处理键盘动作

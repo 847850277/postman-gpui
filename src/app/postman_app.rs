@@ -28,7 +28,7 @@ use gpui::{
 };
 
 pub struct PostmanApp {
-    view_model: WorkspaceViewModel,
+    view_model: Entity<WorkspaceViewModel>,
     method_selector: Entity<MethodSelector>,
     url_input: Entity<UrlInput>,
     body_input: Entity<BodyInput>,
@@ -49,6 +49,7 @@ impl PostmanApp {
         cx.bind_keys(setup_body_input_key_bindings());
         cx.bind_keys(setup_response_viewer_key_bindings());
 
+        let view_model = cx.new(|_| WorkspaceViewModel::new());
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
         let body_input = cx.new(|cx| {
@@ -70,8 +71,8 @@ impl PostmanApp {
                 .with_placeholder("Response tests")
                 .with_type_tabs(false)
         });
-        let history_list = cx.new(HistoryList::new);
-        let response_viewer = cx.new(ResponseViewer::new);
+        let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), cx));
+        let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
 
         let subscriptions = vec![
             cx.subscribe(&method_selector, Self::on_method_changed),
@@ -83,10 +84,14 @@ impl PostmanApp {
             cx.subscribe(&script_input, Self::on_script_event),
             cx.subscribe(&tests_input, Self::on_tests_event),
             cx.subscribe(&history_list, Self::on_history_selected),
+            cx.observe(&view_model, |this, _, cx| {
+                this.project_active_request(cx);
+                cx.notify();
+            }),
         ];
 
         Self {
-            view_model: WorkspaceViewModel::new(),
+            view_model,
             method_selector,
             url_input,
             body_input,
@@ -101,6 +106,18 @@ impl PostmanApp {
         }
     }
 
+    fn update_view_model<R>(
+        &self,
+        cx: &mut Context<Self>,
+        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
+    ) -> R {
+        self.view_model.update(cx, |view_model, cx| {
+            let result = update(view_model);
+            cx.notify();
+            result
+        })
+    }
+
     fn on_method_changed(
         &mut self,
         _selector: Entity<MethodSelector>,
@@ -108,15 +125,7 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         let MethodSelectorEvent::MethodChanged(method) = event;
-        let previous_body = self.view_model.body().to_string();
-        self.view_model.set_method(*method);
-        if self.view_model.body() != previous_body {
-            let body = self.view_model.body().to_string();
-            self.body_input.update(cx, |input, cx| {
-                input.set_type(BodyType::Json, cx);
-                input.set_content(body, cx);
-            });
-        }
+        self.update_view_model(cx, |view_model| view_model.set_method(*method));
         cx.notify();
     }
 
@@ -128,7 +137,7 @@ impl PostmanApp {
     ) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
-                self.view_model.set_url(url);
+                self.update_view_model(cx, |view_model| view_model.set_url(url));
                 cx.notify();
             }
             UrlInputEvent::SubmitRequested => self.click_send(cx),
@@ -137,14 +146,12 @@ impl PostmanApp {
 
     fn on_body_event(
         &mut self,
-        input: Entity<BodyInput>,
+        _input: Entity<BodyInput>,
         event: &BodyInputEvent,
         cx: &mut Context<Self>,
     ) {
         let BodyInputEvent::ValueChanged(value) = event;
-        self.view_model.set_body(value);
-        self.view_model
-            .set_body_kind(body_kind_from_input(input.read(cx).get_current_type()));
+        self.update_view_model(cx, |view_model| view_model.set_body(value));
         cx.notify();
     }
 
@@ -166,7 +173,7 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         if let HeaderInputEvent::ValueChanged(token) = event {
-            self.view_model.set_bearer_token(token);
+            self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
             cx.notify();
         }
     }
@@ -178,7 +185,7 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         let BodyInputEvent::ValueChanged(script) = event;
-        self.view_model.set_pre_request_script(script);
+        self.update_view_model(cx, |view_model| view_model.set_pre_request_script(script));
         cx.notify();
     }
 
@@ -189,7 +196,7 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         let BodyInputEvent::ValueChanged(script) = event;
-        self.view_model.set_tests_script(script);
+        self.update_view_model(cx, |view_model| view_model.set_tests_script(script));
         cx.notify();
     }
 
@@ -200,116 +207,76 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         let HistoryListEvent::RequestSelected(request) = event;
-        self.view_model.load_request(request);
-        self.sync_controls_from_view_model(cx);
-        self.sync_output_views(cx);
+        self.update_view_model(cx, |view_model| view_model.load_request(request));
         cx.notify();
     }
 
     pub fn type_url(&mut self, url: &str, cx: &mut Context<Self>) {
-        self.view_model.set_url(url);
-        self.url_input
-            .update(cx, |input, cx| input.set_url(url, cx));
+        self.update_view_model(cx, |view_model| view_model.set_url(url));
     }
 
     pub fn set_body(&mut self, body: &str, cx: &mut Context<Self>) {
-        self.view_model.set_body(body);
-        self.view_model.set_body_kind(detect_body_kind(body));
-        let body_type = body_type_from_kind(self.view_model.body_kind());
-        self.body_input.update(cx, |input, cx| {
-            input.set_type_silent(body_type, cx);
-            input.set_content(body.to_string(), cx);
+        self.update_view_model(cx, |view_model| {
+            view_model.set_body(body);
+            view_model.set_body_kind(detect_body_kind(body));
         });
     }
 
     pub fn choose_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
-        let previous_body = self.view_model.body().to_string();
-        self.view_model.set_method(method);
-        if self.view_model.body() != previous_body {
-            let body = self.view_model.body().to_string();
-            self.body_input.update(cx, |input, cx| {
-                input.set_type_silent(BodyType::Json, cx);
-                input.set_content(body, cx);
-            });
-        }
-        self.method_selector.update(cx, |selector, cx| {
-            selector.set_selected_method(method, cx);
-        });
+        self.update_view_model(cx, |view_model| view_model.set_method(method));
     }
 
     pub fn click_send(&mut self, cx: &mut Context<Self>) {
-        self.view_model.set_method(
-            self.method_selector
-                .update(cx, |selector, cx| selector.selected_method(cx)),
-        );
-        self.view_model
-            .set_url(self.url_input.read(cx).get_url().to_string());
-        self.view_model
-            .set_body(self.body_input.read(cx).get_content());
-        self.view_model.set_body_kind(body_kind_from_input(
-            self.body_input.read(cx).get_current_type(),
-        ));
-
-        self.response_viewer
-            .update(cx, |viewer, cx| viewer.set_loading(cx));
-        self.view_model.send();
-        self.sync_output_views(cx);
+        self.update_view_model(cx, WorkspaceViewModel::send);
         cx.notify();
     }
 
-    pub fn response_state(&self, _cx: &App) -> ResponseState {
-        self.view_model.response().clone()
+    pub fn response_state(&self, cx: &App) -> ResponseState {
+        self.view_model.read(cx).response().clone()
     }
 
-    pub fn history_len(&self) -> usize {
-        self.view_model.history_len()
+    pub fn history_len(&self, cx: &App) -> usize {
+        self.view_model.read(cx).history_len()
     }
 
     pub fn visible_history_len(&self, cx: &App) -> usize {
-        self.history_list.read(cx).visible_entry_count()
+        self.history_list.read(cx).visible_entry_count(cx)
     }
 
-    pub fn tab_count(&self) -> usize {
-        self.view_model.tab_count()
+    pub fn tab_count(&self, cx: &App) -> usize {
+        self.view_model.read(cx).tab_count()
     }
 
-    pub fn active_tab_index(&self) -> usize {
-        self.view_model.active_tab_index()
+    pub fn active_tab_index(&self, cx: &App) -> usize {
+        self.view_model.read(cx).active_tab_index()
     }
 
-    pub fn current_url(&self) -> &str {
-        self.view_model.url()
+    pub fn current_url(&self, cx: &App) -> String {
+        self.view_model.read(cx).url().to_string()
     }
 
-    pub fn current_bearer_token(&self) -> &str {
-        self.view_model.bearer_token()
+    pub fn current_bearer_token(&self, cx: &App) -> String {
+        self.view_model.read(cx).bearer_token().to_string()
     }
 
-    pub fn current_pre_request_script(&self) -> &str {
-        self.view_model.pre_request_script()
+    pub fn current_pre_request_script(&self, cx: &App) -> String {
+        self.view_model.read(cx).pre_request_script().to_string()
     }
 
-    pub fn current_tests_script(&self) -> &str {
-        self.view_model.tests_script()
+    pub fn current_tests_script(&self, cx: &App) -> String {
+        self.view_model.read(cx).tests_script().to_string()
     }
 
     pub fn set_bearer_token(&mut self, token: &str, cx: &mut Context<Self>) {
-        self.view_model.set_bearer_token(token);
-        let token = self.view_model.bearer_token().to_string();
-        self.authorization_input
-            .update(cx, |input, cx| input.set_content(token, cx));
+        self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
     }
 
     pub fn set_pre_request_script(&mut self, script: &str, cx: &mut Context<Self>) {
-        self.view_model.set_pre_request_script(script);
-        self.script_input
-            .update(cx, |input, cx| input.set_content(script.to_string(), cx));
+        self.update_view_model(cx, |view_model| view_model.set_pre_request_script(script));
     }
 
     pub fn set_tests_script(&mut self, script: &str, cx: &mut Context<Self>) {
-        self.view_model.set_tests_script(script);
-        self.tests_input
-            .update(cx, |input, cx| input.set_content(script.to_string(), cx));
+        self.update_view_model(cx, |view_model| view_model.set_tests_script(script));
     }
 
     fn on_send_clicked(
@@ -322,7 +289,7 @@ impl PostmanApp {
     }
 
     fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
-        self.view_model.set_request_pane(pane);
+        self.update_view_model(cx, |view_model| view_model.set_request_pane(pane));
         cx.notify();
     }
 
@@ -334,12 +301,14 @@ impl PostmanApp {
             .get_content()
             .trim()
             .to_string();
-        match self.view_model.request_pane() {
+        let request_pane = self.view_model.read(cx).request_pane();
+        match request_pane {
             RequestPane::Params => {
-                self.view_model.upsert_param(key, value);
-                self.sync_url_control(cx);
+                self.update_view_model(cx, |view_model| view_model.upsert_param(key, value));
             }
-            RequestPane::Headers => self.view_model.upsert_header(key, value),
+            RequestPane::Headers => {
+                self.update_view_model(cx, |view_model| view_model.upsert_header(key, value));
+            }
             RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
@@ -351,24 +320,22 @@ impl PostmanApp {
     }
 
     fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.view_model.toggle_param(index);
-        self.sync_url_control(cx);
+        self.update_view_model(cx, |view_model| view_model.toggle_param(index));
         cx.notify();
     }
 
     fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.view_model.remove_param(index);
-        self.sync_url_control(cx);
+        self.update_view_model(cx, |view_model| view_model.remove_param(index));
         cx.notify();
     }
 
     fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.view_model.toggle_header(index);
+        self.update_view_model(cx, |view_model| view_model.toggle_header(index));
         cx.notify();
     }
 
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.view_model.remove_header(index);
+        self.update_view_model(cx, |view_model| view_model.remove_header(index));
         cx.notify();
     }
 
@@ -380,10 +347,7 @@ impl PostmanApp {
     }
 
     fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
-        self.view_model.set_body_kind(kind);
-        self.body_input.update(cx, |input, cx| {
-            input.set_type_silent(body_type_from_kind(kind), cx)
-        });
+        self.update_view_model(cx, |view_model| view_model.set_body_kind(kind));
         cx.notify();
     }
 
@@ -399,33 +363,26 @@ impl PostmanApp {
     }
 
     fn clear_body(&mut self, cx: &mut Context<Self>) {
-        self.view_model.set_body("");
-        self.body_input.update(cx, |input, cx| input.clear(cx));
+        self.update_view_model(cx, |view_model| view_model.set_body(""));
         cx.notify();
     }
 
     fn new_request(&mut self, cx: &mut Context<Self>) {
-        self.view_model.new_request();
+        self.update_view_model(cx, WorkspaceViewModel::new_request);
         self.clear_staged_row(cx);
-        self.sync_controls_from_view_model(cx);
-        self.sync_output_views(cx);
         cx.notify();
     }
 
     fn select_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.view_model.select_tab(index) {
+        if self.update_view_model(cx, |view_model| view_model.select_tab(index)) {
             self.clear_staged_row(cx);
-            self.sync_controls_from_view_model(cx);
-            self.sync_output_views(cx);
             cx.notify();
         }
     }
 
     fn close_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.view_model.close_tab(index) {
+        if self.update_view_model(cx, |view_model| view_model.close_tab(index)) {
             self.clear_staged_row(cx);
-            self.sync_controls_from_view_model(cx);
-            self.sync_output_views(cx);
             cx.notify();
         }
     }
@@ -435,52 +392,47 @@ impl PostmanApp {
         self.row_value_input.update(cx, |input, cx| input.clear(cx));
     }
 
-    fn sync_url_control(&self, cx: &mut Context<Self>) {
-        let url = self.view_model.url().to_string();
-        self.url_input
-            .update(cx, |input, cx| input.set_url(url, cx));
-    }
+    /// One-way VM -> editor projection. Editor buffers retain cursor/selection state, but they
+    /// never participate in request construction.
+    fn project_active_request(&self, cx: &mut Context<Self>) {
+        let (method, url, body, kind, bearer_token, pre_request_script, tests_script) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.method(),
+                view_model.url().to_string(),
+                view_model.body().to_string(),
+                view_model.body_kind(),
+                view_model.bearer_token().to_string(),
+                view_model.pre_request_script().to_string(),
+                view_model.tests_script().to_string(),
+            )
+        };
 
-    fn sync_output_views(&self, cx: &mut Context<Self>) {
-        self.response_viewer.update(cx, |viewer, cx| {
-            viewer.set_state(self.view_model.response().clone(), cx)
-        });
-        self.history_list.update(cx, |list, cx| {
-            list.set_entries(self.view_model.history().to_vec(), cx)
-        });
-    }
-
-    fn sync_controls_from_view_model(&self, cx: &mut Context<Self>) {
-        let method = self.view_model.method();
         self.method_selector
-            .update(cx, |selector, cx| selector.set_selected_method(method, cx));
-        self.sync_url_control(cx);
+            .update(cx, |selector, cx| selector.project_method(method, cx));
+        self.url_input
+            .update(cx, |input, cx| input.project_url(url, cx));
 
-        let body = self.view_model.body().to_string();
-        let kind = self.view_model.body_kind();
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(kind), cx);
             if kind == BodyKind::FormData {
-                set_form_data(input, &body, cx);
+                project_form_data(input, &body, cx);
             } else {
-                input.set_content(body, cx);
+                input.project_content(body, cx);
             }
         });
 
-        let bearer_token = self.view_model.bearer_token().to_string();
         self.authorization_input
-            .update(cx, |input, cx| input.set_content(bearer_token, cx));
+            .update(cx, |input, cx| input.project_content(bearer_token, cx));
 
-        let pre_request_script = self.view_model.pre_request_script().to_string();
         self.script_input.update(cx, |input, cx| {
             input.set_type_silent(BodyType::Json, cx);
-            input.set_content(pre_request_script, cx);
+            input.project_content(pre_request_script, cx);
         });
 
-        let tests_script = self.view_model.tests_script().to_string();
         self.tests_input.update(cx, |input, cx| {
             input.set_type_silent(BodyType::Json, cx);
-            input.set_content(tests_script, cx);
+            input.project_content(tests_script, cx);
         });
     }
 
@@ -490,7 +442,7 @@ impl PostmanApp {
         label: impl Into<String>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let active = self.view_model.request_pane() == pane;
+        let active = self.view_model.read(cx).request_pane() == pane;
         let selector = request_pane_selector(pane);
         div()
             .debug_selector(move || selector.into())
@@ -577,22 +529,24 @@ impl PostmanApp {
     }
 
     fn render_request_tabs_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let active_index = self.view_model.active_tab_index();
-        let tabs: Vec<_> = self
-            .view_model
-            .tabs()
-            .iter()
-            .enumerate()
-            .map(|(index, request)| {
-                (
-                    index,
-                    request.method(),
-                    request.tab_title(),
-                    request.is_dirty(),
-                    index == active_index,
-                )
-            })
-            .collect();
+        let tabs: Vec<_> = {
+            let view_model = self.view_model.read(cx);
+            let active_index = view_model.active_tab_index();
+            view_model
+                .tabs()
+                .iter()
+                .enumerate()
+                .map(|(index, request)| {
+                    (
+                        index,
+                        request.method(),
+                        request.tab_title(),
+                        request.is_dirty(),
+                        index == active_index,
+                    )
+                })
+                .collect()
+        };
 
         div()
             .debug_selector(|| "request-tabs-bar".into())
@@ -725,12 +679,20 @@ impl PostmanApp {
     }
 
     fn render_request_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let header_count = self
-            .view_model
-            .headers()
-            .iter()
-            .filter(|row| row.enabled)
-            .count();
+        let (header_count, has_bearer, has_body, has_script, has_tests) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model
+                    .headers()
+                    .iter()
+                    .filter(|row| row.enabled)
+                    .count(),
+                !view_model.bearer_token().is_empty(),
+                !view_model.body().is_empty(),
+                !view_model.pre_request_script().is_empty(),
+                !view_model.tests_script().is_empty(),
+            )
+        };
         div()
             .h(px(44.0))
             .flex_none()
@@ -744,10 +706,10 @@ impl PostmanApp {
             .child(self.request_tab(RequestPane::Params, "Params", cx))
             .child(self.request_tab(
                 RequestPane::Authorization,
-                if self.view_model.bearer_token().is_empty() {
-                    "Authorization (Bearer)".to_string()
-                } else {
+                if has_bearer {
                     "Authorization (Bearer) ●".to_string()
+                } else {
+                    "Authorization (Bearer)".to_string()
                 },
                 cx,
             ))
@@ -758,34 +720,72 @@ impl PostmanApp {
             ))
             .child(self.request_tab(
                 RequestPane::Body,
-                if self.view_model.body().is_empty() {
-                    "Body".to_string()
-                } else {
+                if has_body {
                     "Body ●".to_string()
+                } else {
+                    "Body".to_string()
                 },
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Scripts,
-                if self.view_model.pre_request_script().is_empty() {
-                    "Scripts".to_string()
-                } else {
+                if has_script {
                     "Scripts ●".to_string()
+                } else {
+                    "Scripts".to_string()
                 },
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Tests,
-                if self.view_model.tests_script().is_empty() {
-                    "Tests".to_string()
-                } else {
+                if has_tests {
                     "Tests ●".to_string()
+                } else {
+                    "Tests".to_string()
                 },
                 cx,
             ))
     }
 
     fn render_request_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let request_pane = self.view_model.read(cx).request_pane();
+        let editor = match request_pane {
+            RequestPane::Params => {
+                let rows = self.view_model.read(cx).params().to_vec();
+                self.render_key_value_editor(
+                    "Query parameters",
+                    rows,
+                    Self::toggle_param,
+                    Self::remove_param,
+                    cx,
+                )
+            }
+            RequestPane::Authorization => self.render_authorization_editor(cx),
+            RequestPane::Headers => {
+                let rows = self.view_model.read(cx).headers().to_vec();
+                self.render_key_value_editor(
+                    "Request headers",
+                    rows,
+                    Self::toggle_header,
+                    Self::remove_header,
+                    cx,
+                )
+            }
+            RequestPane::Body => self.render_body_editor(cx),
+            RequestPane::Scripts => self.render_script_editor(
+                "Pre-request script",
+                "Saved with this request tab.",
+                self.script_input.clone(),
+                "script-editor",
+            ),
+            RequestPane::Tests => self.render_script_editor(
+                "Response tests",
+                "Saved with this request tab for the test runner.",
+                self.tests_input.clone(),
+                "tests-editor",
+            ),
+        };
+
         div()
             .debug_selector(|| "request-panel".into())
             .h(px(360.0))
@@ -799,36 +799,7 @@ impl PostmanApp {
             .rounded(px(14.0))
             .overflow_hidden()
             .child(self.render_request_menu(cx))
-            .child(match self.view_model.request_pane() {
-                RequestPane::Params => self.render_key_value_editor(
-                    "Query parameters",
-                    self.view_model.params(),
-                    Self::toggle_param,
-                    Self::remove_param,
-                    cx,
-                ),
-                RequestPane::Authorization => self.render_authorization_editor(cx),
-                RequestPane::Headers => self.render_key_value_editor(
-                    "Request headers",
-                    self.view_model.headers(),
-                    Self::toggle_header,
-                    Self::remove_header,
-                    cx,
-                ),
-                RequestPane::Body => self.render_body_editor(cx),
-                RequestPane::Scripts => self.render_script_editor(
-                    "Pre-request script",
-                    "Saved with this request tab.",
-                    self.script_input.clone(),
-                    "script-editor",
-                ),
-                RequestPane::Tests => self.render_script_editor(
-                    "Response tests",
-                    "Saved with this request tab for the test runner.",
-                    self.tests_input.clone(),
-                    "tests-editor",
-                ),
-            })
+            .child(editor)
     }
 
     fn render_authorization_editor(&self, _cx: &mut Context<Self>) -> gpui::AnyElement {
@@ -918,7 +889,7 @@ impl PostmanApp {
     fn render_key_value_editor(
         &self,
         title: &'static str,
-        rows: &[KeyValueRow],
+        rows: Vec<KeyValueRow>,
         toggle: fn(&mut Self, usize, &mut Context<Self>),
         remove: fn(&mut Self, usize, &mut Context<Self>),
         cx: &mut Context<Self>,
@@ -1072,7 +1043,7 @@ impl PostmanApp {
                     ),
             )
             .when(
-                self.view_model.request_pane() == RequestPane::Headers,
+                self.view_model.read(cx).request_pane() == RequestPane::Headers,
                 |editor| {
                     editor.child(
                         div()
@@ -1127,7 +1098,7 @@ impl PostmanApp {
     }
 
     fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let kind = self.view_model.body_kind();
+        let kind = self.view_model.read(cx).body_kind();
         div()
             .flex_1()
             .min_h_0()
@@ -1303,14 +1274,6 @@ impl Render for PostmanApp {
     }
 }
 
-fn body_kind_from_input(body_type: &BodyType) -> BodyKind {
-    match body_type {
-        BodyType::Json => BodyKind::Json,
-        BodyType::FormData => BodyKind::FormData,
-        BodyType::Raw => BodyKind::Raw,
-    }
-}
-
 fn body_type_from_kind(kind: BodyKind) -> BodyType {
     match kind {
         BodyKind::Json => BodyType::Json,
@@ -1319,7 +1282,7 @@ fn body_type_from_kind(kind: BodyKind) -> BodyType {
     }
 }
 
-fn set_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>) {
+fn project_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>) {
     let mut entries: Vec<FormDataEntry> = form_urlencoded::parse(body.as_bytes())
         .map(|(key, value)| FormDataEntry {
             key: key.into_owned(),
@@ -1334,7 +1297,7 @@ fn set_form_data(input: &mut BodyInput, body: &str, cx: &mut Context<BodyInput>)
             enabled: true,
         });
     }
-    input.set_form_data_entries(entries, cx);
+    input.project_form_data_entries(entries, cx);
 }
 
 fn method_color(method: HttpMethod) -> u32 {
@@ -1356,5 +1319,105 @@ fn request_pane_selector(pane: RequestPane) -> &'static str {
         RequestPane::Body => "request-pane-body",
         RequestPane::Scripts => "request-pane-scripts",
         RequestPane::Tests => "request-pane-tests",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::TestAppContext;
+    use mockito::Matcher;
+
+    #[gpui::test]
+    fn send_uses_view_model_when_editor_buffers_are_stale(cx: &mut TestAppContext) {
+        let mut server = mockito::Server::new();
+        let expected_body = r#"{"source":"view-model"}"#;
+        let request = server
+            .mock("POST", "/single-source")
+            .match_body(Matcher::Exact(expected_body.to_string()))
+            .with_status(200)
+            .with_body("single-source-ok")
+            .create();
+        let url = format!("{}/single-source", server.url());
+        let (app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+
+        app.update(cx, |app, cx| {
+            app.choose_method(HttpMethod::POST, cx);
+            app.type_url(&url, cx);
+            app.set_body(expected_body, cx);
+        });
+
+        app.update(cx, |app, cx| {
+            app.method_selector.update(cx, |selector, cx| {
+                selector.project_method(HttpMethod::GET, cx)
+            });
+            app.url_input.update(cx, |input, cx| {
+                input.project_url("http://127.0.0.1:1/stale-control", cx)
+            });
+            app.body_input
+                .update(cx, |input, cx| input.project_content("stale-body", cx));
+
+            assert_eq!(
+                app.url_input.read(cx).editor_buffer(),
+                "http://127.0.0.1:1/stale-control"
+            );
+            assert_eq!(app.body_input.read(cx).editor_buffer(), "stale-body");
+
+            app.click_send(cx);
+        });
+
+        assert!(matches!(
+            app.read_with(cx, |app, cx| app.response_state(cx)),
+            ResponseState::Success { status: 200, .. }
+        ));
+        request.assert();
+    }
+
+    #[gpui::test]
+    fn active_tab_is_projected_into_editor_buffers(cx: &mut TestAppContext) {
+        let (app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+
+        app.update(cx, |app, cx| {
+            app.type_url("https://first.example/users", cx);
+            app.set_body(r#"{"tab":1}"#, cx);
+        });
+        app.update(cx, |app, cx| app.new_request(cx));
+        app.update(cx, |app, cx| {
+            app.type_url("https://second.example/orders", cx);
+            app.set_body(r#"{"tab":2}"#, cx);
+        });
+
+        let second_projection = app.read_with(cx, |app, cx| {
+            (
+                app.current_url(cx),
+                app.url_input.read(cx).editor_buffer().to_string(),
+                app.body_input.read(cx).editor_buffer(),
+            )
+        });
+        assert_eq!(
+            second_projection,
+            (
+                "https://second.example/orders".to_string(),
+                "https://second.example/orders".to_string(),
+                r#"{"tab":2}"#.to_string(),
+            )
+        );
+
+        app.update(cx, |app, cx| app.select_request_tab(0, cx));
+        let first_projection = app.read_with(cx, |app, cx| {
+            (
+                app.current_url(cx),
+                app.url_input.read(cx).editor_buffer().to_string(),
+                app.body_input.read(cx).editor_buffer(),
+            )
+        });
+        assert_eq!(
+            first_projection,
+            (
+                "https://first.example/users".to_string(),
+                "https://first.example/users".to_string(),
+                r#"{"tab":1}"#.to_string(),
+            )
+        );
     }
 }

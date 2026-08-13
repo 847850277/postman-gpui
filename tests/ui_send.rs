@@ -29,7 +29,7 @@ fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
         other => panic!("expected Error in the response panel, got {other:?}"),
     }
 
-    let history_len = app.read_with(cx, |app, _| app.history_len());
+    let history_len = app.read_with(cx, |app, cx| app.history_len(cx));
     assert_eq!(history_len, 0, "failed send must not appear in history");
 }
 
@@ -62,7 +62,7 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
         other => panic!("404 is a response, not a send failure: {other:?}"),
     }
 
-    let history_len = app.read_with(cx, |app, _| app.history_len());
+    let history_len = app.read_with(cx, |app, cx| app.history_len(cx));
     assert_eq!(
         history_len, 1,
         "a completed HTTP exchange should appear in history"
@@ -155,7 +155,7 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
         "successful response body should be rendered in the window"
     );
 
-    let history_len = app.read_with(cx, |app, _| app.history_len());
+    let history_len = app.read_with(cx, |app, cx| app.history_len(cx));
     assert_eq!(
         history_len, 1,
         "the completed HTTP exchange should appear in history"

@@ -15,11 +15,8 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         .debug_bounds("new-tab-button")
         .expect("new tab button should render");
     cx.simulate_click(new_tab.center(), Modifiers::none());
-    assert_eq!(app.read_with(cx, |app, _| app.tab_count()), 2);
-    assert_eq!(
-        app.read_with(cx, |app, _| app.current_url().to_string()),
-        ""
-    );
+    assert_eq!(app.read_with(cx, |app, cx| app.tab_count(cx)), 2);
+    assert_eq!(app.read_with(cx, |app, cx| app.current_url(cx)), "");
 
     app.update(cx, |app, cx| {
         app.type_url("https://second.example/orders", cx);
@@ -29,7 +26,7 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         .expect("first request tab should render");
     cx.simulate_click(first_tab.center(), Modifiers::none());
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_url().to_string()),
+        app.read_with(cx, |app, cx| app.current_url(cx)),
         "https://first.example/users"
     );
 
@@ -37,9 +34,9 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         .debug_bounds("close-tab-0")
         .expect("first tab close button should render");
     cx.simulate_click(close_first.center(), Modifiers::none());
-    assert_eq!(app.read_with(cx, |app, _| app.tab_count()), 1);
+    assert_eq!(app.read_with(cx, |app, cx| app.tab_count(cx)), 1);
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_url().to_string()),
+        app.read_with(cx, |app, cx| app.current_url(cx)),
         "https://second.example/orders"
     );
 }
@@ -65,7 +62,7 @@ fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
         app.type_url(&format!("{}/beta-resource", server.url()), cx);
         app.click_send(cx);
     });
-    assert_eq!(app.read_with(cx, |app, _| app.history_len()), 2);
+    assert_eq!(app.read_with(cx, |app, cx| app.history_len(cx)), 2);
     assert_eq!(app.read_with(cx, |app, cx| app.visible_history_len(cx)), 2);
 
     let search = cx
@@ -106,7 +103,7 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
         app.click_send(cx);
     });
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_bearer_token().to_string()),
+        app.read_with(cx, |app, cx| app.current_bearer_token(cx)),
         "ui-secret"
     );
     secured.assert();
@@ -141,7 +138,7 @@ fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
         .expect("new tab button should render");
     cx.simulate_click(new_tab.center(), Modifiers::none());
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_pre_request_script().to_string()),
+        app.read_with(cx, |app, cx| app.current_pre_request_script(cx)),
         ""
     );
 
@@ -150,11 +147,11 @@ fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
         .expect("first request tab should render");
     cx.simulate_click(first_tab.center(), Modifiers::none());
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_pre_request_script().to_string()),
+        app.read_with(cx, |app, cx| app.current_pre_request_script(cx)),
         "const token = 'first';"
     );
     assert_eq!(
-        app.read_with(cx, |app, _| app.current_tests_script().to_string()),
+        app.read_with(cx, |app, cx| app.current_tests_script(cx)),
         "status === 200"
     );
 }

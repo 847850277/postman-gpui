@@ -52,10 +52,6 @@ impl Dropdown {
         self
     }
 
-    pub fn selected_value(&self) -> &str {
-        &self.selected_value
-    }
-
     pub fn set_selected(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
         let new_value = value.into();
         tracing::info!("🔽 Dropdown::set_selected - 设置值: {new_value}");
@@ -76,6 +72,15 @@ impl Dropdown {
             );
         } else {
             tracing::info!("🔽 Dropdown::set_selected - 值未变化或无效，跳过更新");
+        }
+    }
+
+    /// Projects a selected value without emitting a selection event.
+    pub fn project_selected(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
+        let value = value.into();
+        if self.selected_value != value && self.options.contains(&value) {
+            self.selected_value = value;
+            cx.notify();
         }
     }
 

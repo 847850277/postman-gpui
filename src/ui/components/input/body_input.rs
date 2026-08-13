@@ -48,7 +48,7 @@ pub enum BodyInputEvent {
     ValueChanged(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormDataEntry {
     pub key: String,
     pub value: String,
@@ -273,29 +273,6 @@ impl BodyInput {
         self
     }
 
-    pub fn get_current_type(&self) -> &BodyType {
-        &self.current_type
-    }
-
-    pub fn get_json_content(&self) -> &str {
-        &self.json_content
-    }
-
-    pub fn get_form_data_entries(&self) -> &[FormDataEntry] {
-        &self.form_data_entries
-    }
-
-    pub fn is_empty(&self) -> bool {
-        match &self.current_type {
-            BodyType::Json => self.json_content.is_empty(),
-            BodyType::Raw => self.raw_content.is_empty(),
-            BodyType::FormData => self
-                .form_data_entries
-                .iter()
-                .all(|entry| entry.key.is_empty() && entry.value.is_empty()),
-        }
-    }
-
     pub fn set_type(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
         if self.current_type != body_type {
             self.current_type = body_type;
@@ -314,14 +291,6 @@ impl BodyInput {
         if self.current_type != body_type {
             self.current_type = body_type;
             cx.notify();
-        }
-    }
-
-    pub fn get_content(&self) -> String {
-        match &self.current_type {
-            BodyType::Json => self.json_content.clone(),
-            BodyType::Raw => self.raw_content.clone(),
-            BodyType::FormData => self.get_form_data_as_string(),
         }
     }
 
@@ -346,6 +315,46 @@ impl BodyInput {
             BodyType::FormData => {
                 // FormData does not support direct content setting
             }
+        }
+    }
+
+    /// Projects a ViewModel value into the active editor buffer without emitting an edit event.
+    pub fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+        let new_content = content.into();
+        let changed = match &self.current_type {
+            BodyType::Json => {
+                if self.json_content == new_content {
+                    false
+                } else {
+                    self.json_content = new_content;
+                    let cursor = self.json_selected_range.start.min(self.json_content.len());
+                    self.json_selected_range = cursor..cursor;
+                    self.json_selection_reversed = false;
+                    self.json_marked_range = None;
+                    true
+                }
+            }
+            BodyType::Raw => {
+                if self.raw_content == new_content {
+                    false
+                } else {
+                    self.raw_content = new_content;
+                    true
+                }
+            }
+            BodyType::FormData => false,
+        };
+        if changed {
+            cx.notify();
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn editor_buffer(&self) -> String {
+        match self.current_type {
+            BodyType::Json => self.json_content.clone(),
+            BodyType::Raw => self.raw_content.clone(),
+            BodyType::FormData => self.get_form_data_as_string(),
         }
     }
 
@@ -403,6 +412,27 @@ impl BodyInput {
         }
         cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
         cx.notify();
+    }
+
+    /// Projects parsed form data without turning the projection into a user edit event.
+    pub fn project_form_data_entries(
+        &mut self,
+        mut entries: Vec<FormDataEntry>,
+        cx: &mut Context<Self>,
+    ) {
+        if entries.is_empty() {
+            entries.push(FormDataEntry {
+                key: String::new(),
+                value: String::new(),
+                enabled: true,
+            });
+        }
+        if self.form_data_entries != entries {
+            self.form_data_entries = entries;
+            self.editing_key_index = None;
+            self.editing_value_index = None;
+            cx.notify();
+        }
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {

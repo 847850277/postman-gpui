@@ -1,3 +1,4 @@
+use crate::app::WorkspaceViewModel;
 use crate::models::{HistoryEntry, HttpMethod, Request};
 use crate::ui::components::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
@@ -5,7 +6,7 @@ use crate::ui::theme::{
     SUBTEXT, TEXT,
 };
 use gpui::{
-    div, px, rgb, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    div, px, rgb, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
     ParentElement, Render, Rgba, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
@@ -30,25 +31,28 @@ pub enum HistoryListEvent {
 
 /// History list component for displaying request history
 pub struct HistoryList {
-    entries: Vec<HistoryEntry>,
+    view_model: Entity<WorkspaceViewModel>,
     selected_index: Option<usize>,
     search_query: String,
     search_input: Entity<HeaderInput>,
     _search_subscription: Subscription,
+    _view_model_subscription: Subscription,
 }
 
 impl EventEmitter<HistoryListEvent> for HistoryList {}
 
 impl HistoryList {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Search history"));
         let search_subscription = cx.subscribe(&search_input, Self::on_search_input_event);
+        let view_model_subscription = cx.observe(&view_model, |_, _, cx| cx.notify());
         Self {
-            entries: Vec::new(),
+            view_model,
             selected_index: None,
             search_query: String::new(),
             search_input,
             _search_subscription: search_subscription,
+            _view_model_subscription: view_model_subscription,
         }
     }
 
@@ -64,28 +68,10 @@ impl HistoryList {
         }
     }
 
-    /// Update the history entries
-    pub fn set_entries(&mut self, entries: Vec<HistoryEntry>, cx: &mut Context<Self>) {
-        self.entries = entries;
-        cx.notify();
-    }
-
-    /// Get the currently selected request
-    pub fn selected_request(&self) -> Option<&Request> {
-        self.selected_index
-            .and_then(|idx| self.entries.get(idx))
-            .map(|entry| &entry.request)
-    }
-
-    /// Clear all entries
-    pub fn clear(&mut self, cx: &mut Context<Self>) {
-        self.entries.clear();
-        self.selected_index = None;
-        cx.notify();
-    }
-
-    pub fn visible_entry_count(&self) -> usize {
-        self.entries
+    pub fn visible_entry_count(&self, cx: &App) -> usize {
+        self.view_model
+            .read(cx)
+            .history()
             .iter()
             .filter(|entry| self.matches_query(entry))
             .count()
@@ -120,25 +106,32 @@ impl HistoryList {
         self.selected_index = Some(index);
         cx.notify();
 
-        if let Some(entry) = self.entries.get(index) {
+        let request = self
+            .view_model
+            .read(cx)
+            .history()
+            .get(index)
+            .map(|entry| entry.request.clone());
+
+        if let Some(request) = request {
             tracing::info!(
                 "🔘 History item clicked: Index: {}, Method: {}, URL: {}",
                 index,
-                entry.request.method,
-                entry.request.url
+                request.method,
+                request.url
             );
-            tracing::info!("   Headers: {}", entry.request.headers.len());
-            if let Some(ref body) = entry.request.body {
+            tracing::info!("   Headers: {}", request.headers.len());
+            if let Some(ref body) = request.body {
                 tracing::info!("   Body: {} bytes", body.len());
             }
             tracing::info!("   ➡️ Loading request into form...");
-            HistoryListEvent::RequestSelected(entry.request.clone())
+            HistoryListEvent::RequestSelected(request)
         } else {
             // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
             tracing::info!(
                 "Warning: Attempted to select history item at invalid index {} (entries length: {})",
                 index,
-                self.entries.len()
+                self.view_model.read(cx).history_len()
             );
             HistoryListEvent::RequestSelected(Request::default())
         }
@@ -147,14 +140,14 @@ impl HistoryList {
 
 impl Render for HistoryList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let visible_entries: Vec<(usize, HistoryEntry)> = self
-            .entries
+        let entries = self.view_model.read(cx).history().to_vec();
+        let visible_entries: Vec<(usize, HistoryEntry)> = entries
             .iter()
             .enumerate()
             .filter(|(_, entry)| self.matches_query(entry))
             .map(|(index, entry)| (index, entry.clone()))
             .collect();
-        let has_history = !self.entries.is_empty();
+        let has_history = !entries.is_empty();
         div()
             .id("history-list")
             .debug_selector(|| "history-panel".into())

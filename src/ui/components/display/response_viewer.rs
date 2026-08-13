@@ -3,12 +3,13 @@ use gpui::{
     Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight,
     GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
-    ShapedLine, StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, Window,
+    ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign, TextRun,
+    Window,
 };
 use std::ops::Range;
 
 use crate::{
-    app::ResponseState,
+    app::{ResponseState, WorkspaceViewModel},
     ui::theme::{
         CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, OK, PANEL,
         PANEL_ALT, SUBTEXT, TEXT,
@@ -34,7 +35,7 @@ enum ResponsePane {
 
 /// Response 查看器组件
 pub struct ResponseViewer {
-    state: ResponseState,
+    view_model: Entity<WorkspaceViewModel>,
     pane: ResponsePane,
     focus_handle: FocusHandle,
     selected_range: Range<usize>,
@@ -42,6 +43,7 @@ pub struct ResponseViewer {
     is_selecting: bool,
     last_bounds: Option<Bounds<Pixels>>,
     last_lines_layout: Vec<(ShapedLine, usize)>, // (shaped_line, char_offset)
+    _view_model_subscription: Subscription,
 }
 
 impl Focusable for ResponseViewer {
@@ -51,9 +53,10 @@ impl Focusable for ResponseViewer {
 }
 
 impl ResponseViewer {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+        let view_model_subscription = cx.observe(&view_model, |_, _, cx| cx.notify());
         Self {
-            state: ResponseState::NotSent,
+            view_model,
             pane: ResponsePane::Body,
             focus_handle: cx.focus_handle(),
             selected_range: 0..0,
@@ -61,66 +64,13 @@ impl ResponseViewer {
             is_selecting: false,
             last_bounds: None,
             last_lines_layout: Vec::new(),
+            _view_model_subscription: view_model_subscription,
         }
     }
 
-    /// 设置为加载状态
-    pub fn set_loading(&mut self, cx: &mut Context<Self>) {
-        self.state = ResponseState::Loading;
-        cx.notify();
-    }
-
-    /// 设置成功响应
-    pub fn set_success(
-        &mut self,
-        status: u16,
-        body: String,
-        headers: Vec<(String, String)>,
-        elapsed_ms: u128,
-        cx: &mut Context<Self>,
-    ) {
-        self.state = ResponseState::Success {
-            status,
-            body,
-            headers,
-            elapsed_ms,
-        };
-        self.pane = ResponsePane::Body;
-        self.selected_range = 0..0;
-        cx.notify();
-    }
-
-    /// 设置错误状态
-    pub fn set_error(&mut self, message: String, cx: &mut Context<Self>) {
-        self.state = ResponseState::Error { message };
-        self.selected_range = 0..0;
-        cx.notify();
-    }
-
-    /// 清空响应
-    pub fn clear(&mut self, cx: &mut Context<Self>) {
-        self.state = ResponseState::NotSent;
-        self.selected_range = 0..0;
-        cx.notify();
-    }
-
-    /// 获取当前状态
-    pub fn get_state(&self) -> &ResponseState {
-        &self.state
-    }
-
-    /// Apply state produced by the ViewModel. Selection state remains owned by the View.
-    pub fn set_state(&mut self, state: ResponseState, cx: &mut Context<Self>) {
-        if self.state != state {
-            self.state = state;
-            self.pane = ResponsePane::Body;
-            self.selected_range = 0..0;
-            cx.notify();
-        }
-    }
-
-    fn get_content(&self) -> String {
-        match (&self.state, self.pane) {
+    fn get_content(&self, cx: &App) -> String {
+        let view_model = self.view_model.read(cx);
+        match (view_model.response(), self.pane) {
             (ResponseState::Success { body, .. }, ResponsePane::Body) => body.clone(),
             (ResponseState::Success { headers, .. }, ResponsePane::Headers) => headers
                 .iter()
@@ -167,7 +117,7 @@ impl ResponseViewer {
 
     fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
         if !self.selected_range.is_empty() {
-            let content = self.get_content();
+            let content = self.get_content(cx);
             if !content.is_empty() {
                 let selected_text: String = content
                     .chars()
@@ -187,7 +137,7 @@ impl ResponseViewer {
     }
 
     fn select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
-        let content = self.get_content();
+        let content = self.get_content(cx);
         self.selected_range = 0..content.chars().count();
         cx.notify();
     }
@@ -200,9 +150,9 @@ impl ResponseViewer {
     ) {
         self.is_selecting = true;
         if event.modifiers.shift {
-            self.response_select_to(self.index_for_mouse_position(event.position), cx);
+            self.response_select_to(self.index_for_mouse_position(event.position, cx), cx);
         } else {
-            self.response_move_to(self.index_for_mouse_position(event.position), cx);
+            self.response_move_to(self.index_for_mouse_position(event.position, cx), cx);
         }
     }
 
@@ -227,7 +177,7 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         if self.is_selecting {
-            let offset = self.index_for_mouse_position(event.position);
+            let offset = self.index_for_mouse_position(event.position, cx);
             self.response_select_to(offset, cx);
         }
     }
@@ -246,8 +196,8 @@ impl ResponseViewer {
         cx.notify();
     }
 
-    fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        let content = self.get_content();
+    fn index_for_mouse_position(&self, position: Point<Pixels>, cx: &App) -> usize {
+        let content = self.get_content(cx);
         if content.is_empty() {
             return 0;
         }
@@ -353,7 +303,7 @@ impl Element for MultiLineTextElement {
         style.size.width = gpui::relative(1.).into();
 
         let viewer = self.viewer.read(cx);
-        let content = viewer.get_content();
+        let content = viewer.get_content(cx);
         let line_count = content.lines().count().max(1);
         let line_height = window.line_height();
         style.size.height = (line_height * line_count as f32).into();
@@ -371,7 +321,7 @@ impl Element for MultiLineTextElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let viewer = self.viewer.read(cx);
-        let content = viewer.get_content();
+        let content = viewer.get_content(cx);
         let selected_range = viewer.selected_range.clone();
 
         let style = window.text_style();
@@ -585,7 +535,7 @@ impl Element for MultiLineTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let state = self.state.clone();
+        let state = self.view_model.read(cx).response().clone();
         let pane = self.pane;
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
         let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
