@@ -218,6 +218,51 @@ fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppCon
 }
 
 #[gpui::test]
+fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAppContext) {
+    const KEY_SELECTORS: [&str; 8] = [
+        "body-form-key-0",
+        "body-form-key-1",
+        "body-form-key-2",
+        "body-form-key-3",
+        "body-form-key-4",
+        "body-form-key-5",
+        "body-form-key-6",
+        "body-form-key-7",
+    ];
+    const VALUE_SELECTORS: [&str; 8] = [
+        "body-form-value-0",
+        "body-form-value-1",
+        "body-form-value-2",
+        "body-form-value-3",
+        "body-form-value-4",
+        "body-form-value-5",
+        "body-form-value-6",
+        "body-form-value-7",
+    ];
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-url-encoded").unwrap();
+    for index in 0..KEY_SELECTORS.len() {
+        if index > 0 {
+            click(cx, "body-form-add-row").unwrap();
+        }
+        type_into(cx, KEY_SELECTORS[index], &format!("k{index}")).unwrap();
+        type_into(cx, VALUE_SELECTORS[index], &format!("v{index}")).unwrap();
+        cx.simulate_keystrokes("enter");
+    }
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        "k0=v0&k1=v1&k2=v2&k3=v3&k4=v4&k5=v5&k6=v6&k7=v7"
+    );
+}
+
+#[gpui::test]
 fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     let fixture_path = std::env::temp_dir().join(format!(
         "postman-gpui-ui-upload-{}-{}.txt",

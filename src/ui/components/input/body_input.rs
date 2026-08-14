@@ -4,11 +4,16 @@ use gpui::{
     Bounds, ClipboardItem, Context, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, InteractiveElement,
     IntoElement, KeyBinding, KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style,
-    Styled, TextAlign, TextRun, UTF16Selection, Window,
+    MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ScrollHandle, ShapedLine,
+    SharedString, StatefulInteractiveElement, Style, Styled, TextAlign, TextRun, UTF16Selection,
+    Window,
 };
 use std::{ops::Range, path::PathBuf};
 use unicode_segmentation::*;
+
+use crate::ui::components::common::edit_context_menu::{
+    edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
+};
 
 actions!(
     body_input,
@@ -106,6 +111,7 @@ pub struct BodyInput {
     show_type_tabs: bool,
     current_type: BodyType,
     form_data_allows_files: bool,
+    form_data_scroll: ScrollHandle,
     json_content: String,
     form_data_entries: Vec<FormDataEntry>,
     editing_key_index: Option<usize>,
@@ -131,6 +137,7 @@ pub struct BodyInput {
     form_key_last_bounds: Option<Bounds<Pixels>>,
     form_value_last_layout: Option<ShapedLine>,
     form_value_last_bounds: Option<Bounds<Pixels>>,
+    context_menu_position: Option<Point<Pixels>>,
 }
 
 impl EventEmitter<BodyInputEvent> for BodyInput {}
@@ -280,6 +287,7 @@ impl BodyInput {
             show_type_tabs: true,
             current_type: BodyType::Json,
             form_data_allows_files: false,
+            form_data_scroll: ScrollHandle::new(),
             json_content: String::new(),
             form_data_entries: vec![FormDataEntry {
                 key: String::new(),
@@ -307,6 +315,7 @@ impl BodyInput {
             form_key_last_bounds: None,
             form_value_last_layout: None,
             form_value_last_bounds: None,
+            context_menu_position: None,
         }
     }
 
@@ -397,6 +406,7 @@ impl BodyInput {
     pub fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
         self.form_data_entries
             .push(FormDataEntry::text("", "", true));
+        self.form_data_scroll.scroll_to_bottom();
         cx.notify();
     }
 
@@ -700,6 +710,10 @@ impl BodyInput {
     }
 
     fn escape(&mut self, _: &Escape, _: &mut Window, cx: &mut Context<Self>) {
+        if self.context_menu_position.take().is_some() {
+            cx.notify();
+            return;
+        }
         if self.editing_key_index.is_some() || self.editing_value_index.is_some() {
             self.cancel_editing(cx);
         }
@@ -813,6 +827,60 @@ impl BodyInput {
         } else if self.editing_value_index.is_some() {
             self.form_value_move_to(0, cx);
             self.form_value_select_to(self.temp_value_value.len(), cx);
+        }
+    }
+
+    fn form_paste(&mut self, _: &Paste, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+            let single_line = text
+                .chars()
+                .filter(|character| !matches!(character, '\r' | '\n'))
+                .collect::<String>();
+            self.replace_form_selection(&single_line, cx);
+        }
+    }
+
+    fn form_copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
+        let selected_text = if self.editing_key_index.is_some()
+            && !self.form_key_selected_range.is_empty()
+        {
+            Some(self.temp_key_value[self.form_key_selected_range.clone()].to_string())
+        } else if self.editing_value_index.is_some() && !self.form_value_selected_range.is_empty() {
+            Some(self.temp_value_value[self.form_value_selected_range.clone()].to_string())
+        } else {
+            None
+        };
+
+        if let Some(selected_text) = selected_text {
+            cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
+        }
+    }
+
+    fn form_cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
+        let has_selection = (self.editing_key_index.is_some()
+            && !self.form_key_selected_range.is_empty())
+            || (self.editing_value_index.is_some() && !self.form_value_selected_range.is_empty());
+        if has_selection {
+            self.form_copy(&Copy, window, cx);
+            self.replace_form_selection("", cx);
+        }
+    }
+
+    fn replace_form_selection(&mut self, text: &str, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            let range = self.form_key_selected_range.clone();
+            self.temp_key_value.replace_range(range.clone(), text);
+            let cursor = range.start + text.len();
+            self.form_key_selected_range = cursor..cursor;
+            self.form_key_selection_reversed = false;
+            cx.notify();
+        } else if self.editing_value_index.is_some() {
+            let range = self.form_value_selected_range.clone();
+            self.temp_value_value.replace_range(range.clone(), text);
+            let cursor = range.start + text.len();
+            self.form_value_selected_range = cursor..cursor;
+            self.form_value_selection_reversed = false;
+            cx.notify();
         }
     }
 
@@ -1206,6 +1274,7 @@ impl BodyInput {
         if self.current_type == BodyType::FormData {
             return;
         }
+        self.context_menu_position = None;
         self.json_is_selecting = true;
 
         if event.modifiers.shift {
@@ -1336,6 +1405,7 @@ impl BodyInput {
         if self.editing_key_index.is_none() {
             return;
         }
+        self.context_menu_position = None;
         self.form_key_is_selecting = true;
 
         // 简单的文本索引估算（基于固定宽度字符）
@@ -1407,6 +1477,7 @@ impl BodyInput {
         if self.editing_value_index.is_none() {
             return;
         }
+        self.context_menu_position = None;
         self.form_value_is_selecting = true;
 
         let index = self.form_value_estimate_index_for_position(event.position);
@@ -1464,6 +1535,67 @@ impl BodyInput {
 
         // 使用 ShapedLine 的 closest_index_for_x 方法获取精确索引
         layout.closest_index_for_x(x_in_text)
+    }
+
+    fn open_json_context_menu(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        self.json_is_selecting = false;
+        self.context_menu_position = Some(event.position);
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    fn open_form_context_menu(
+        &mut self,
+        index: usize,
+        is_key: bool,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        if is_key {
+            if self.editing_key_index != Some(index) {
+                self.start_editing_key(index, cx);
+            }
+            self.form_key_is_selecting = false;
+        } else {
+            if self.editing_value_index != Some(index) {
+                self.start_editing_value(index, cx);
+            }
+            self.form_value_is_selecting = false;
+        }
+        self.context_menu_position = Some(event.position);
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    fn handle_context_menu_action(
+        &mut self,
+        action: EditContextAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match (self.current_type, action) {
+            (_, EditContextAction::Dismiss) => {}
+            (BodyType::FormData, EditContextAction::Cut) => self.form_cut(&Cut, window, cx),
+            (BodyType::FormData, EditContextAction::Copy) => self.form_copy(&Copy, window, cx),
+            (BodyType::FormData, EditContextAction::Paste) => self.form_paste(&Paste, window, cx),
+            (BodyType::FormData, EditContextAction::SelectAll) => {
+                self.select_all(&SelectAll, window, cx)
+            }
+            (_, EditContextAction::Cut) => self.json_cut(&Cut, window, cx),
+            (_, EditContextAction::Copy) => self.json_copy(&Copy, window, cx),
+            (_, EditContextAction::Paste) => self.json_paste(&Paste, window, cx),
+            (_, EditContextAction::SelectAll) => self.json_select_all(&SelectAll, window, cx),
+        }
+        self.context_menu_position = None;
+        cx.notify();
     }
 }
 
@@ -1942,10 +2074,11 @@ impl Element for FormTextElement {
 }
 
 impl Render for BodyInput {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type;
         let form_data_entries = self.form_data_entries.clone();
         let form_data_allows_files = self.form_data_allows_files;
+        let context_menu_position = self.context_menu_position;
 
         div()
             .flex()
@@ -2050,7 +2183,7 @@ impl Render for BodyInput {
                             .bg(rgb(0x000b_1328))
                             .border_1()
                             .border_color(
-                                if self.focus_handle.is_focused(_window)
+                                if self.focus_handle.is_focused(window)
                                     && self.current_type != BodyType::FormData
                                 {
                                     rgb(0x0025_63eb)
@@ -2082,6 +2215,10 @@ impl Render for BodyInput {
                             .on_action(cx.listener(Self::json_copy))
                             .on_action(cx.listener(Self::json_enter))
                             .on_mouse_down(MouseButton::Left, cx.listener(Self::json_on_mouse_down))
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(Self::open_json_context_menu),
+                            )
                             .on_mouse_up(MouseButton::Left, cx.listener(Self::json_on_mouse_up))
                             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::json_on_mouse_up))
                             .on_mouse_move(cx.listener(Self::json_on_mouse_move))
@@ -2091,6 +2228,12 @@ impl Render for BodyInput {
                     )
                     .into_any_element(),
                 BodyType::FormData => div()
+                    .id("body-form-scroll")
+                    .debug_selector(|| "body-form-scroll".into())
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.form_data_scroll)
                     .flex()
                     .flex_col()
                     .gap_2()
@@ -2108,9 +2251,13 @@ impl Render for BodyInput {
                     .on_action(cx.listener(Self::select_all))
                     .on_action(cx.listener(Self::home))
                     .on_action(cx.listener(Self::end))
+                    .on_action(cx.listener(Self::form_paste))
+                    .on_action(cx.listener(Self::form_cut))
+                    .on_action(cx.listener(Self::form_copy))
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
+                            .flex_none()
                             .flex()
                             .gap_2()
                             .items_center()
@@ -2242,7 +2389,15 @@ impl Render for BodyInput {
                                                     this.focus_handle.focus(window, cx);
                                                 }),
                                             )
-                                        }),
+                                        })
+                                        .on_mouse_down(
+                                            MouseButton::Right,
+                                            cx.listener(move |this, event, window, cx| {
+                                                this.open_form_context_menu(
+                                                    index, true, event, window, cx,
+                                                );
+                                            }),
+                                        ),
                                 )
                                 .when(form_data_allows_files, |row| {
                                     row.child(
@@ -2369,6 +2524,16 @@ impl Render for BodyInput {
                                                     this.choose_form_data_file(index, window, cx);
                                                 }),
                                             )
+                                        })
+                                        .when(!entry_is_file, |div| {
+                                            div.on_mouse_down(
+                                                MouseButton::Right,
+                                                cx.listener(move |this, event, window, cx| {
+                                                    this.open_form_context_menu(
+                                                        index, false, event, window, cx,
+                                                    );
+                                                }),
+                                            )
                                         }),
                                 )
                                 .child(
@@ -2413,6 +2578,16 @@ impl Render for BodyInput {
                     )
                     .into_any_element(),
             })
+            .when_some(context_menu_position, |root, position| {
+                root.child(edit_context_menu(
+                    position,
+                    "body-edit-menu",
+                    EDITABLE_ACTIONS,
+                    Self::handle_context_menu_action,
+                    window,
+                    cx,
+                ))
+            })
     }
 }
 
@@ -2433,9 +2608,13 @@ pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("shift-up", SelectUp, None),
         KeyBinding::new("shift-down", SelectDown, None),
         KeyBinding::new("cmd-a", SelectAll, None),
+        KeyBinding::new("ctrl-a", SelectAll, None),
         KeyBinding::new("cmd-v", Paste, None),
+        KeyBinding::new("ctrl-v", Paste, None),
         KeyBinding::new("cmd-c", Copy, None),
+        KeyBinding::new("ctrl-c", Copy, None),
         KeyBinding::new("cmd-x", Cut, None),
+        KeyBinding::new("ctrl-x", Cut, None),
         KeyBinding::new("home", Home, None),
         KeyBinding::new("end", End, None),
     ]

@@ -79,6 +79,47 @@
       }
     },
     {
+      "name": "HTTPBingo receives the HTML form submission at POST /post",
+      "draft": {
+        "method": "POST",
+        "path": "/post",
+        "body": "custname=Ada+Lovelace&custtel=%2B86+123456&custemail=ada%40example.com&size=large&topping=bacon&topping=cheese&delivery=18%3A30&comments=Ring+the+bell",
+        "body_kind": "url_encoded"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/post",
+          "headers": [
+            ["Content-Type", "application/x-www-form-urlencoded"],
+            ["Accept", "application/json"]
+          ],
+          "body": "custname=Ada+Lovelace&custtel=%2B86+123456&custemail=ada%40example.com&size=large&topping=bacon&topping=cheese&delivery=18%3A30&comments=Ring+the+bell"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "url": "https://httpbingo.org/post",
+            "headers": {
+              "Content-Type": ["application/x-www-form-urlencoded"]
+            },
+            "form": {
+              "custname": ["Ada Lovelace"],
+              "custtel": ["+86 123456"],
+              "custemail": ["ada@example.com"],
+              "size": ["large"],
+              "topping": ["bacon", "cheese"],
+              "delivery": ["18:30"],
+              "comments": ["Ring the bell"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
       "name": "HTTPBingo receives a raw PUT body without generated content type",
       "draft": {
         "method": "PUT",

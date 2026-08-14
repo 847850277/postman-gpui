@@ -1,9 +1,9 @@
+use crate::utils::log::display_url_for_log;
 use crate::{
     errors::AppError,
     http::executor::RequestResult,
     models::{HistoryEntry, HttpMethod, MultipartPart, Request, RequestBody, RequestHistory},
 };
-use crate::utils::log::display_url_for_log;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
     fmt,

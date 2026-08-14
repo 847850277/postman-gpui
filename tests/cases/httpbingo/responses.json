@@ -3,6 +3,27 @@
   "target": "httpbingo",
   "cases": [
     {
+      "name": "HTTPBingo serves the HTML form that submits to POST /post",
+      "draft": {
+        "method": "GET",
+        "path": "/forms/post"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/forms/post",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_contains": "<form method=\"post\" action=\"/post\">"
+        },
+        "history_len": 1
+      }
+    },
+    {
       "name": "HTTPBingo non-2xx status is still a completed response",
       "draft": {
         "method": "GET",

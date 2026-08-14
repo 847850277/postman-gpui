@@ -10,6 +10,9 @@ use std::ops::Range;
 
 use crate::{
     app::{ResponseState, WorkspaceViewModel},
+    ui::components::common::edit_context_menu::{
+        edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
+    },
     ui::theme::{
         CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, OK, PANEL,
         PANEL_ALT, SUBTEXT, TEXT,
@@ -43,6 +46,7 @@ pub struct ResponseViewer {
     is_selecting: bool,
     last_bounds: Option<Bounds<Pixels>>,
     last_lines_layout: Vec<(ShapedLine, usize)>, // (shaped_line, char_offset)
+    context_menu_position: Option<Point<Pixels>>,
     _view_model_subscription: Subscription,
 }
 
@@ -64,6 +68,7 @@ impl ResponseViewer {
             is_selecting: false,
             last_bounds: None,
             last_lines_layout: Vec::new(),
+            context_menu_position: None,
             _view_model_subscription: view_model_subscription,
         }
     }
@@ -149,6 +154,7 @@ impl ResponseViewer {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.context_menu_position = None;
         self.is_selecting = true;
         if event.modifiers.shift {
             self.response_select_to(self.index_for_mouse_position(event.position, cx), cx);
@@ -181,6 +187,34 @@ impl ResponseViewer {
             let offset = self.index_for_mouse_position(event.position, cx);
             self.response_select_to(offset, cx);
         }
+    }
+
+    fn open_context_menu(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        self.is_selecting = false;
+        self.context_menu_position = Some(event.position);
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    fn handle_context_menu_action(
+        &mut self,
+        action: EditContextAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match action {
+            EditContextAction::Copy => self.copy(&Copy, window, cx),
+            EditContextAction::SelectAll => self.select_all(&SelectAll, window, cx),
+            EditContextAction::Cut | EditContextAction::Paste | EditContextAction::Dismiss => {}
+        }
+        self.context_menu_position = None;
+        cx.notify();
     }
 
     fn response_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
@@ -241,6 +275,7 @@ impl ResponseViewer {
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+            .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
@@ -535,9 +570,10 @@ impl Element for MultiLineTextElement {
 }
 
 impl Render for ResponseViewer {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let state = self.view_model.read(cx).response().clone();
         let pane = self.pane;
+        let context_menu_position = self.context_menu_position;
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
         let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
 
@@ -575,7 +611,9 @@ impl Render for ResponseViewer {
             .border_1()
             .border_color(rgb(LINE))
             .rounded(px(14.0))
-            .overflow_hidden()
+            .when(context_menu_position.is_none(), |root| {
+                root.overflow_hidden()
+            })
             .child(
                 div()
                     .flex()
@@ -702,6 +740,16 @@ impl Render for ResponseViewer {
                     .flex_1()
                     .min_h_0()
                     .child(self.render_selectable_content(&message, cx)),
+            })
+            .when_some(context_menu_position, |root, position| {
+                root.child(edit_context_menu(
+                    position,
+                    "response-edit-menu",
+                    READ_ONLY_ACTIONS,
+                    Self::handle_context_menu_action,
+                    window,
+                    cx,
+                ))
             })
     }
 }

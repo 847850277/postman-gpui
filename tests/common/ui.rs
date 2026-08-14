@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gpui::{Modifiers, VisualTestContext};
+use gpui::{Modifiers, MouseButton, VisualTestContext};
 
 pub fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), String> {
     let bounds = cx
@@ -10,6 +10,17 @@ pub fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), S
     // GPUI's visual test platform queues mouse-up work until the next window update. Touching the
     // rendered frame here makes each driver click one complete user action instead of allowing two
     // adjacent clicks to observe the same pre-click frame.
+    let _ = cx.debug_bounds(selector);
+    Ok(())
+}
+
+pub fn right_click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), String> {
+    let bounds = cx
+        .debug_bounds(selector)
+        .ok_or_else(|| format!("application control `{selector}` is not rendered"))?;
+    let position = bounds.center();
+    cx.simulate_mouse_down(position, MouseButton::Right, Modifiers::none());
+    cx.simulate_mouse_up(position, MouseButton::Right, Modifiers::none());
     let _ = cx.debug_bounds(selector);
     Ok(())
 }

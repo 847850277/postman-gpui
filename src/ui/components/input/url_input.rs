@@ -9,6 +9,10 @@ use gpui::{
 use std::ops::Range;
 use unicode_segmentation::*;
 
+use crate::ui::components::common::edit_context_menu::{
+    edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
+};
+
 // 定义actions - 这些是键盘快捷键对应的动作
 actions!(
     url_input,
@@ -45,6 +49,7 @@ pub struct UrlInput {
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
+    context_menu_position: Option<Point<Pixels>>,
 }
 
 impl UrlInput {
@@ -59,6 +64,7 @@ impl UrlInput {
             last_layout: None,
             last_bounds: None,
             is_selecting: false,
+            context_menu_position: None,
         }
     }
 
@@ -179,6 +185,7 @@ impl UrlInput {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.context_menu_position = None;
         self.is_selecting = true;
 
         if event.modifiers.shift {
@@ -196,6 +203,36 @@ impl UrlInput {
         if self.is_selecting {
             self.select_to(self.index_for_mouse_position(event.position), cx);
         }
+    }
+
+    fn open_context_menu(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        self.is_selecting = false;
+        self.context_menu_position = Some(event.position);
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    fn handle_context_menu_action(
+        &mut self,
+        action: EditContextAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match action {
+            EditContextAction::Cut => self.cut(&Cut, window, cx),
+            EditContextAction::Copy => self.copy(&Copy, window, cx),
+            EditContextAction::Paste => self.paste(&Paste, window, cx),
+            EditContextAction::SelectAll => self.select_all(&SelectAll, window, cx),
+            EditContextAction::Dismiss => {}
+        }
+        self.context_menu_position = None;
+        cx.notify();
     }
 
     // Helper methods
@@ -646,6 +683,7 @@ impl Focusable for UrlInput {
 
 impl Render for UrlInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let context_menu_position = self.context_menu_position;
         div()
             .debug_selector(|| "url-input".into())
             .flex_1()
@@ -679,11 +717,22 @@ impl Render for UrlInput {
             .on_action(cx.listener(Self::copy))
             .on_action(cx.listener(Self::submit))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+            .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .child(UrlTextElement {
                 input: cx.entity().clone(),
+            })
+            .when_some(context_menu_position, |root, position| {
+                root.child(edit_context_menu(
+                    position,
+                    "url-edit-menu",
+                    EDITABLE_ACTIONS,
+                    Self::handle_context_menu_action,
+                    window,
+                    cx,
+                ))
             })
     }
 }
@@ -698,9 +747,13 @@ pub fn setup_url_input_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("shift-left", SelectLeft, None),
         KeyBinding::new("shift-right", SelectRight, None),
         KeyBinding::new("cmd-a", SelectAll, None),
+        KeyBinding::new("ctrl-a", SelectAll, None),
         KeyBinding::new("cmd-v", Paste, None),
+        KeyBinding::new("ctrl-v", Paste, None),
         KeyBinding::new("cmd-c", Copy, None),
+        KeyBinding::new("ctrl-c", Copy, None),
         KeyBinding::new("cmd-x", Cut, None),
+        KeyBinding::new("ctrl-x", Cut, None),
         KeyBinding::new("home", Home, None),
         KeyBinding::new("end", End, None),
         KeyBinding::new("enter", Submit, None),
