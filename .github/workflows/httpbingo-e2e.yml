@@ -1,6 +1,7 @@
 name: HTTPBingo E2E
 
 on:
+  pull_request:
   workflow_dispatch:
   schedule:
     # Weekdays at 03:17 UTC (11:17 Asia/Shanghai). A non-round minute reduces
@@ -11,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: httpbingo-e2e
-  cancel-in-progress: false
+  group: httpbingo-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always

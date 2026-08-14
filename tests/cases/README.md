@@ -111,11 +111,11 @@ The HTTPBingo test is ignored during ordinary `cargo test` runs because it
 requires a public service and currently takes about 20–30 seconds. The explicit
 command treats network or HTTPBingo failures as real test failures.
 
-CI runs the same command in the standalone `HTTPBingo E2E` workflow. It can be
-started manually with `workflow_dispatch` and runs automatically on weekdays at
-03:17 UTC. Because it depends on a public service, it is deliberately separate
-from the required pull-request checks; a failure remains visible without making
-an unrelated HTTPBingo outage block every pull request.
+CI runs the same command in the standalone `HTTPBingo E2E` workflow. It runs for
+every pull request, can be started manually with `workflow_dispatch`, and runs
+automatically on weekdays at 03:17 UTC. A new commit to the same pull request
+cancels its stale E2E run and starts the updated one. Because this check depends
+on a public service, an HTTPBingo outage can make the pull-request check fail.
 
 Locally, `cargo test` still runs the deterministic suite with the rest of the tests.
 CI runs it as a separate **Request Scenario Contract** job so a contract
