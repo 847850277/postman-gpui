@@ -41,6 +41,7 @@ impl std::error::Error for AppError {}
 // Implement From trait for reqwest::Error
 impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
+        let err = err.without_url();
         if err.is_timeout() {
             AppError::NetworkError(format!("Request timeout: {}", err))
         } else if err.is_connect() {

@@ -78,6 +78,7 @@ impl ResponseViewer {
                 .collect::<Vec<_>>()
                 .join("\n"),
             (ResponseState::Error { message }, _) => message.clone(),
+            (ResponseState::Cancelled, _) => "Request cancelled".to_string(),
             _ => String::new(),
         }
     }
@@ -553,6 +554,9 @@ impl Render for ResponseViewer {
                 if *status < 400 { OK } else { ERROR },
             ),
             ResponseState::Loading => ("Sending…".to_string(), String::new(), String::new(), MUTED),
+            ResponseState::Cancelled => {
+                ("Cancelled".to_string(), String::new(), String::new(), MUTED)
+            }
             ResponseState::Error { .. } => (
                 "Request failed".to_string(),
                 String::new(),
@@ -671,6 +675,10 @@ impl Render for ResponseViewer {
                     .text_size(px(13.0))
                     .text_color(rgb(CODE_TEXT))
                     .child("Waiting for the server…"),
+                ResponseState::Cancelled => div()
+                    .flex_1()
+                    .min_h_0()
+                    .child(self.render_selectable_content("Request cancelled", cx)),
                 ResponseState::Success { body, headers, .. } => {
                     let header_text = if headers.is_empty() {
                         "No response headers".to_string()

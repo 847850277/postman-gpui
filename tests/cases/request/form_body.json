@@ -8,7 +8,7 @@
         "method": "PUT",
         "path": "/profile",
         "body": "name=Ada+Lovelace&active=true",
-        "body_kind": "form_data"
+        "body_kind": "url_encoded"
       },
       "mock": {
         "status": 200,
@@ -35,7 +35,7 @@
         "method": "POST",
         "path": "/submit",
         "body": "name=Ada&active=true",
-        "body_kind": "form_data"
+        "body_kind": "url_encoded"
       },
       "mock": {
         "status": 200,

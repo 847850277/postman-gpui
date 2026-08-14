@@ -3,8 +3,8 @@
 mod common;
 
 use common::scenario::{
-    assert_response_state, expected_request, load_suites, KeyValueSpec, RequestScenario,
-    ResponseSpec, ScenarioTarget,
+    assert_requests_equivalent, assert_response_state, expected_request, load_suites, DraftSpec,
+    KeyValueSpec, RequestScenario, ResponseSpec, ScenarioTarget,
 };
 use gpui::{Entity, Modifiers, TestAppContext, VisualTestContext};
 use postman_gpui::{
@@ -52,6 +52,42 @@ const HEADER_TOGGLE_SELECTORS: [&str; 16] = [
     "header-row-toggle-13",
     "header-row-toggle-14",
     "header-row-toggle-15",
+];
+const BODY_FORM_KEY_SELECTORS: [&str; 16] = [
+    "body-form-key-0",
+    "body-form-key-1",
+    "body-form-key-2",
+    "body-form-key-3",
+    "body-form-key-4",
+    "body-form-key-5",
+    "body-form-key-6",
+    "body-form-key-7",
+    "body-form-key-8",
+    "body-form-key-9",
+    "body-form-key-10",
+    "body-form-key-11",
+    "body-form-key-12",
+    "body-form-key-13",
+    "body-form-key-14",
+    "body-form-key-15",
+];
+const BODY_FORM_VALUE_SELECTORS: [&str; 16] = [
+    "body-form-value-0",
+    "body-form-value-1",
+    "body-form-value-2",
+    "body-form-value-3",
+    "body-form-value-4",
+    "body-form-value-5",
+    "body-form-value-6",
+    "body-form-value-7",
+    "body-form-value-8",
+    "body-form-value-9",
+    "body-form-value-10",
+    "body-form-value-11",
+    "body-form-value-12",
+    "body-form-value-13",
+    "body-form-value-14",
+    "body-form-value-15",
 ];
 
 #[derive(Clone, Copy)]
@@ -136,13 +172,7 @@ fn run_application_scenario(
         type_into(cx, "basic-auth-password-input", &credentials.password)?;
     }
 
-    if let Some(body) = &scenario.draft.body {
-        click(cx, "request-pane-body")?;
-        app.update(cx, |app, cx| app.set_body(body, cx));
-    }
-    if let Some(kind) = &scenario.draft.body_kind {
-        click(cx, body_kind_selector(kind)?)?;
-    }
+    apply_body(cx, &scenario.draft)?;
 
     let assembled_url = app.read_with(cx, |app, cx| app.current_url(cx));
     if assembled_url != expected.url {
@@ -153,6 +183,7 @@ fn run_application_scenario(
     }
 
     click(cx, "send-button")?;
+    cx.run_until_parked();
 
     let response = app.read_with(cx, |app, cx| app.response_state(cx));
     assert_response_state(&response, &scenario.expect.response)?;
@@ -177,11 +208,19 @@ fn run_application_scenario(
     }
 
     let recorded_request = app.read_with(cx, |app, cx| app.latest_history_request(cx));
-    let expected_recorded_request = (scenario.expect.history_len > 0).then_some(expected);
-    if recorded_request != expected_recorded_request {
-        return Err(format!(
-            "request recorded by the real application does not match the scenario\n  expected: {expected_recorded_request:#?}\n  actual:   {recorded_request:#?}"
-        ));
+    match (scenario.expect.history_len > 0, recorded_request) {
+        (true, Some(actual)) => {
+            assert_requests_equivalent(&actual, &expected).map_err(|error| {
+                format!("request recorded by the real application is incorrect: {error}")
+            })?
+        }
+        (true, None) => return Err("request history is missing the completed request".to_string()),
+        (false, Some(actual)) => {
+            return Err(format!(
+                "request history unexpectedly contains a request: {actual:#?}"
+            ));
+        }
+        (false, None) => {}
     }
 
     Ok(())
@@ -269,10 +308,74 @@ fn row_toggle_selector(editor: RowEditor, index: usize) -> Result<&'static str, 
 fn body_kind_selector(value: &str) -> Result<&'static str, String> {
     match value.to_ascii_lowercase().as_str() {
         "json" => Ok("body-kind-json"),
-        "form_data" => Ok("body-kind-form-data"),
+        "url_encoded" => Ok("body-kind-url-encoded"),
+        "multipart" => Ok("body-kind-form-data"),
+        "none" => Ok("body-kind-none"),
         "raw" => Ok("body-kind-raw"),
         _ => Err(format!("invalid body kind `{value}`")),
     }
+}
+
+fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), String> {
+    let Some(kind) = draft.body_kind.as_deref() else {
+        if draft.body.is_some() {
+            return Err("a UI body scenario must declare `body_kind`".to_string());
+        }
+        return Ok(());
+    };
+
+    click(cx, "request-pane-body")?;
+
+    match kind.to_ascii_lowercase().as_str() {
+        "none" => {
+            click(cx, body_kind_selector(kind)?)?;
+            if draft.body.as_deref().is_some_and(|body| !body.is_empty()) {
+                return Err("a `none` body cannot contain a payload".to_string());
+            }
+        }
+        "json" | "raw" => {
+            click(cx, body_kind_selector(kind)?)?;
+            let body = draft
+                .body
+                .as_deref()
+                .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
+            click(cx, "body-input")?;
+            cx.simulate_keystrokes("cmd-a");
+            cx.simulate_input(body);
+        }
+        "url_encoded" | "multipart" => {
+            // POST starts with a sample JSON body. Clear it through the same body-kind controls a
+            // user sees, then select the key/value editor.
+            click(cx, "body-kind-none")?;
+            click(cx, body_kind_selector(kind)?)?;
+            let body = draft
+                .body
+                .as_deref()
+                .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
+            type_form_rows(cx, body)?;
+        }
+        _ => return Err(format!("invalid body kind `{kind}`")),
+    }
+
+    Ok(())
+}
+
+fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), String> {
+    let rows: Vec<_> = form_urlencoded::parse(encoded.as_bytes()).collect();
+    for (index, (key, value)) in rows.iter().enumerate() {
+        if index > 0 {
+            click(cx, "body-form-add-row")?;
+        }
+        let key_selector = BODY_FORM_KEY_SELECTORS
+            .get(index)
+            .copied()
+            .ok_or_else(|| "the UI body driver supports at most 16 fields".to_string())?;
+        let value_selector = BODY_FORM_VALUE_SELECTORS[index];
+        type_into(cx, key_selector, key)?;
+        type_into(cx, value_selector, value)?;
+        cx.simulate_keystrokes("enter");
+    }
+    Ok(())
 }
 
 fn type_into(

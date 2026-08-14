@@ -1,10 +1,16 @@
 use crate::{
     errors::AppError,
-    http::executor::{RequestExecutor, RequestResult},
-    models::{HistoryEntry, HttpMethod, Request, RequestHistory},
+    http::executor::RequestResult,
+    models::{
+        HistoryEntry, HttpMethod, MultipartPart, MultipartValue, Request, RequestBody,
+        RequestHistory,
+    },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashSet,
+    ops::{Deref, DerefMut},
+};
 
 const MAX_HISTORY_URL_LENGTH: usize = 40;
 
@@ -26,12 +32,15 @@ pub enum AuthorizationKind {
     Basic,
 }
 
-/// Body encoding is presentation state, but it also affects the outgoing request.
+/// Body encoding selected in the editor. The payload and encoding are stored together in
+/// `RequestBody`; this enum is only a compact value for rendering controls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BodyKind {
+    None,
     Json,
-    FormData,
     Raw,
+    UrlEncoded,
+    Multipart,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +73,7 @@ impl KeyValueRow {
 pub enum ResponseState {
     NotSent,
     Loading,
+    Cancelled,
     Success {
         status: u16,
         body: String,
@@ -75,14 +85,34 @@ pub enum ResponseState {
     },
 }
 
-/// Infrastructure boundary used by the ViewModel. Tests can replace it without a UI.
-pub trait RequestService {
-    fn execute(&self, request: &Request) -> Result<RequestResult, AppError>;
+/// Stable identity for a request tab. Async completions target this identity rather than
+/// whichever tab happens to be active when the server responds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct RequestTabId(u64);
+
+/// Monotonic identity for one send attempt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SendId(u64);
+
+/// Immutable command emitted by the ViewModel for the application service to execute.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PendingRequest {
+    tab_id: RequestTabId,
+    send_id: SendId,
+    request: Request,
 }
 
-impl RequestService for RequestExecutor {
-    fn execute(&self, request: &Request) -> Result<RequestResult, AppError> {
-        self.execute_request(request)
+impl PendingRequest {
+    pub fn tab_id(&self) -> RequestTabId {
+        self.tab_id
+    }
+
+    pub fn send_id(&self) -> SendId {
+        self.send_id
+    }
+
+    pub fn request(&self) -> &Request {
+        &self.request
     }
 }
 
@@ -92,12 +122,12 @@ impl RequestService for RequestExecutor {
 /// request construction and response transitions can be tested in isolation.
 /// Completed sends are recorded on `WorkspaceViewModel`, not here.
 pub struct RequestViewModel {
+    tab_id: RequestTabId,
     method: HttpMethod,
     url: String,
     params: Vec<KeyValueRow>,
     headers: Vec<KeyValueRow>,
-    body: String,
-    body_kind: BodyKind,
+    body: RequestBody,
     content_type_source: ContentTypeSource,
     authorization_kind: AuthorizationKind,
     bearer_token: String,
@@ -107,23 +137,23 @@ pub struct RequestViewModel {
     tests_script: String,
     request_pane: RequestPane,
     response: ResponseState,
+    pending_send_id: Option<SendId>,
     dirty: bool,
-    service: Box<dyn RequestService>,
 }
 
 impl RequestViewModel {
     pub fn new() -> Self {
-        Self::with_service(Box::new(RequestExecutor::new()))
+        Self::for_tab(RequestTabId(0))
     }
 
-    pub fn with_service(service: Box<dyn RequestService>) -> Self {
+    fn for_tab(tab_id: RequestTabId) -> Self {
         Self {
+            tab_id,
             method: HttpMethod::GET,
             url: String::new(),
             params: Vec::new(),
             headers: Vec::new(),
-            body: String::new(),
-            body_kind: BodyKind::Json,
+            body: RequestBody::None,
             content_type_source: ContentTypeSource::Unset,
             authorization_kind: AuthorizationKind::Bearer,
             bearer_token: String::new(),
@@ -133,9 +163,13 @@ impl RequestViewModel {
             tests_script: String::new(),
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
+            pending_send_id: None,
             dirty: false,
-            service,
         }
+    }
+
+    pub fn tab_id(&self) -> RequestTabId {
+        self.tab_id
     }
 
     pub fn method(&self) -> HttpMethod {
@@ -155,11 +189,40 @@ impl RequestViewModel {
     }
 
     pub fn body(&self) -> &str {
+        self.body.as_text().unwrap_or_default()
+    }
+
+    pub fn request_body(&self) -> &RequestBody {
         &self.body
     }
 
+    pub fn body_form_rows(&self) -> Vec<KeyValueRow> {
+        match &self.body {
+            RequestBody::UrlEncoded(body) => form_urlencoded::parse(body.as_bytes())
+                .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
+                .collect(),
+            RequestBody::Multipart(parts) => parts
+                .iter()
+                .map(|part| {
+                    let value = match &part.value {
+                        MultipartValue::Text(value) => value.clone(),
+                        MultipartValue::File { path, .. } => format!("@{}", path.display()),
+                    };
+                    KeyValueRow::enabled(&part.name, value)
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
     pub fn body_kind(&self) -> BodyKind {
-        self.body_kind
+        match self.body {
+            RequestBody::None => BodyKind::None,
+            RequestBody::Json(_) => BodyKind::Json,
+            RequestBody::Raw(_) => BodyKind::Raw,
+            RequestBody::UrlEncoded(_) => BodyKind::UrlEncoded,
+            RequestBody::Multipart(_) => BodyKind::Multipart,
+        }
     }
 
     pub fn bearer_token(&self) -> &str {
@@ -194,6 +257,10 @@ impl RequestViewModel {
         &self.response
     }
 
+    pub fn is_sending(&self) -> bool {
+        self.pending_send_id.is_some()
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
@@ -205,10 +272,9 @@ impl RequestViewModel {
         self.method = method;
         self.dirty = true;
 
-        if method == HttpMethod::POST && self.body.trim().is_empty() {
+        if method == HttpMethod::POST && self.body.is_empty() {
             let add_default_accept = self.headers.is_empty();
-            self.body = default_json_body();
-            self.body_kind = BodyKind::Json;
+            self.body = RequestBody::Json(default_json_body());
             self.sync_automatic_content_type();
             if add_default_accept {
                 self.headers
@@ -231,15 +297,38 @@ impl RequestViewModel {
 
     pub fn set_body(&mut self, body: impl Into<String>) {
         let body = body.into();
-        if self.body != body {
-            self.body = body;
+        let next = match &self.body {
+            RequestBody::None => RequestBody::Raw(body),
+            RequestBody::Json(_) => RequestBody::Json(body),
+            RequestBody::Raw(_) => RequestBody::Raw(body),
+            RequestBody::UrlEncoded(_) => RequestBody::UrlEncoded(body),
+            RequestBody::Multipart(_) => RequestBody::Multipart(parse_multipart_text_parts(&body)),
+        };
+        if self.body != next {
+            self.body = next;
             self.dirty = true;
         }
     }
 
     pub fn set_body_kind(&mut self, body_kind: BodyKind) {
-        if self.body_kind != body_kind {
-            self.body_kind = body_kind;
+        if self.body_kind() != body_kind {
+            let text = self.body.as_text().unwrap_or_default().to_string();
+            self.body = match body_kind {
+                BodyKind::None => RequestBody::None,
+                BodyKind::Json => RequestBody::Json(text),
+                BodyKind::Raw => RequestBody::Raw(text),
+                BodyKind::UrlEncoded => RequestBody::UrlEncoded(text),
+                BodyKind::Multipart => RequestBody::Multipart(parse_multipart_text_parts(&text)),
+            };
+            self.dirty = true;
+        }
+        self.sync_automatic_content_type();
+    }
+
+    pub fn set_multipart_parts(&mut self, parts: Vec<MultipartPart>) {
+        let body = RequestBody::Multipart(parts);
+        if self.body != body {
+            self.body = body;
             self.dirty = true;
         }
         self.sync_automatic_content_type();
@@ -378,8 +467,7 @@ impl RequestViewModel {
         self.url.clear();
         self.params.clear();
         self.headers.clear();
-        self.body.clear();
-        self.body_kind = BodyKind::Json;
+        self.body = RequestBody::None;
         self.content_type_source = ContentTypeSource::Unset;
         self.authorization_kind = AuthorizationKind::Bearer;
         self.bearer_token.clear();
@@ -389,6 +477,7 @@ impl RequestViewModel {
         self.tests_script.clear();
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
+        self.pending_send_id = None;
         self.dirty = false;
     }
 
@@ -429,8 +518,7 @@ impl RequestViewModel {
             })
             .map(|(key, value)| KeyValueRow::enabled(key, value))
             .collect();
-        self.body = request.body.clone().unwrap_or_default();
-        self.body_kind = detect_body_kind(&self.body);
+        self.body = request.body.clone();
         // A loaded request is an exact saved draft. Its Content-Type, including
         // an intentional absence, must not be replaced by automatic defaults.
         self.content_type_source = ContentTypeSource::User;
@@ -440,38 +528,59 @@ impl RequestViewModel {
             RequestPane::Body
         };
         self.response = ResponseState::NotSent;
+        self.pending_send_id = None;
         self.dirty = false;
     }
 
-    pub fn send(&mut self) {
-        let _ = self.send_and_capture_request();
-    }
-
-    fn send_and_capture_request(&mut self) -> Option<Request> {
-        self.response = ResponseState::Loading;
+    fn begin_send(&mut self, send_id: SendId) -> Request {
         if self.authorization_kind == AuthorizationKind::Bearer {
             self.bearer_token = normalize_bearer_token(&self.bearer_token);
         }
         let request = self.build_request();
+        self.pending_send_id = Some(send_id);
+        self.response = ResponseState::Loading;
+        request
+    }
 
-        match self.service.execute(&request) {
+    fn complete_send(
+        &mut self,
+        pending: &PendingRequest,
+        result: Result<RequestResult, AppError>,
+    ) -> bool {
+        if self.pending_send_id != Some(pending.send_id) {
+            return false;
+        }
+
+        self.pending_send_id = None;
+        match result {
             Ok(result) => {
+                let draft_is_unchanged = self.build_request() == pending.request;
                 self.response = ResponseState::Success {
                     status: result.status,
                     body: result.body,
                     headers: result.headers,
                     elapsed_ms: result.elapsed_ms,
                 };
-                self.dirty = false;
-                Some(request)
+                if draft_is_unchanged {
+                    self.dirty = false;
+                }
             }
             Err(error) => {
                 self.response = ResponseState::Error {
                     message: error.to_string(),
                 };
-                None
             }
         }
+        true
+    }
+
+    fn cancel_send(&mut self, send_id: SendId) -> bool {
+        if self.pending_send_id != Some(send_id) {
+            return false;
+        }
+        self.pending_send_id = None;
+        self.response = ResponseState::Cancelled;
+        true
     }
 
     pub fn tab_title(&self) -> String {
@@ -534,11 +643,11 @@ impl RequestViewModel {
                     .iter()
                     .any(|(key, _)| key.eq_ignore_ascii_case("content-type"))
             {
-                if let Some(value) = content_type_for(self.body_kind) {
+                if let Some(value) = content_type_for(self.body_kind()) {
                     request.add_header("Content-Type", value);
                 }
             }
-            request.body = Some(self.body.clone());
+            request.body = self.body.clone();
         }
         request
     }
@@ -549,7 +658,7 @@ impl RequestViewModel {
         }
 
         let desired = if self.method.allows_body() {
-            content_type_for(self.body_kind)
+            content_type_for(self.body_kind())
         } else {
             None
         };
@@ -600,6 +709,9 @@ pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
     active_tab: usize,
     history: RequestHistory,
+    cancelled_sends: HashSet<SendId>,
+    next_tab_id: u64,
+    next_send_id: u64,
 }
 
 impl WorkspaceViewModel {
@@ -607,11 +719,15 @@ impl WorkspaceViewModel {
         Self::with_request(RequestViewModel::new())
     }
 
-    pub fn with_request(request: RequestViewModel) -> Self {
+    pub fn with_request(mut request: RequestViewModel) -> Self {
+        request.tab_id = RequestTabId(1);
         Self {
             tabs: vec![request],
             active_tab: 0,
             history: RequestHistory::new(),
+            cancelled_sends: HashSet::new(),
+            next_tab_id: 2,
+            next_send_id: 1,
         }
     }
 
@@ -637,7 +753,9 @@ impl WorkspaceViewModel {
     }
 
     pub fn new_request(&mut self) {
-        self.tabs.push(RequestViewModel::new());
+        let tab_id = RequestTabId(self.next_tab_id);
+        self.next_tab_id += 1;
+        self.tabs.push(RequestViewModel::for_tab(tab_id));
         self.active_tab = self.tabs.len() - 1;
     }
 
@@ -661,11 +779,57 @@ impl WorkspaceViewModel {
         true
     }
 
-    pub fn send(&mut self) {
-        if let Some(request) = self.tabs[self.active_tab].send_and_capture_request() {
-            self.history
-                .add(request.clone(), history_label(&request.url));
+    pub fn begin_send(&mut self) -> PendingRequest {
+        let send_id = SendId(self.next_send_id);
+        self.next_send_id += 1;
+        let tab = &mut self.tabs[self.active_tab];
+        let request = tab.begin_send(send_id);
+        PendingRequest {
+            tab_id: tab.tab_id,
+            send_id,
+            request,
         }
+    }
+
+    pub fn active_send_id(&self) -> Option<SendId> {
+        self.tabs[self.active_tab].pending_send_id
+    }
+
+    pub fn send_id_for_tab(&self, index: usize) -> Option<SendId> {
+        self.tabs.get(index).and_then(|tab| tab.pending_send_id)
+    }
+
+    pub fn cancel_send(&mut self, send_id: SendId) -> bool {
+        let cancelled = self
+            .tabs
+            .iter_mut()
+            .find(|tab| tab.pending_send_id == Some(send_id))
+            .is_some_and(|tab| tab.cancel_send(send_id));
+        if cancelled {
+            self.cancelled_sends.insert(send_id);
+        }
+        cancelled
+    }
+
+    /// Applies a response only when both the tab and send attempt still exist. Successful stale
+    /// completions still enter shared history because the HTTP exchange did occur.
+    pub fn complete_send(
+        &mut self,
+        pending: PendingRequest,
+        result: Result<RequestResult, AppError>,
+    ) -> bool {
+        let succeeded = result.is_ok();
+        let was_cancelled = self.cancelled_sends.remove(&pending.send_id);
+        let applied = self
+            .tabs
+            .iter_mut()
+            .find(|tab| tab.tab_id == pending.tab_id)
+            .is_some_and(|tab| tab.complete_send(&pending, result));
+        if succeeded && !was_cancelled {
+            self.history
+                .add(pending.request.clone(), history_label(&pending.request.url));
+        }
+        applied
     }
 
     pub fn load_request(&mut self, request: &Request) {
@@ -708,13 +872,16 @@ impl Default for RequestViewModel {
 }
 
 pub fn detect_body_kind(body: &str) -> BodyKind {
+    if body.is_empty() {
+        return BodyKind::None;
+    }
     let trimmed = body.trim_start();
     if (trimmed.starts_with('{') || trimmed.starts_with('['))
         && serde_json::from_str::<serde_json::Value>(body).is_ok()
     {
         BodyKind::Json
     } else if body.contains('=') && (body.contains('&') || !body.contains('\n')) {
-        BodyKind::FormData
+        BodyKind::UrlEncoded
     } else {
         BodyKind::Raw
     }
@@ -794,10 +961,20 @@ fn decode_basic_credentials(value: &str) -> Option<(String, String)> {
 
 fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
     match body_kind {
+        BodyKind::None | BodyKind::Raw | BodyKind::Multipart => None,
         BodyKind::Json => Some("application/json"),
-        BodyKind::FormData => Some("application/x-www-form-urlencoded"),
-        BodyKind::Raw => None,
+        BodyKind::UrlEncoded => Some("application/x-www-form-urlencoded"),
     }
+}
+
+fn parse_multipart_text_parts(body: &str) -> Vec<MultipartPart> {
+    if body.is_empty() {
+        return Vec::new();
+    }
+
+    form_urlencoded::parse(body.as_bytes())
+        .map(|(name, value)| MultipartPart::text(name.into_owned(), value.into_owned()))
+        .collect()
 }
 
 fn default_json_body() -> String {
@@ -813,26 +990,10 @@ fn default_json_body() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Arc, Mutex};
-
-    struct FakeService {
-        seen: Arc<Mutex<Vec<Request>>>,
-        result: Result<RequestResult, AppError>,
-    }
-
-    impl RequestService for FakeService {
-        fn execute(&self, request: &Request) -> Result<RequestResult, AppError> {
-            self.seen.lock().unwrap().push(request.clone());
-            self.result.clone()
-        }
-    }
 
     #[test]
     fn url_and_params_remain_one_consistent_draft() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/users?page=1");
         assert_eq!(vm.params(), &[KeyValueRow::enabled("page", "1")]);
 
@@ -845,45 +1006,46 @@ mod tests {
 
     #[test]
     fn send_builds_request_and_transitions_response() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: seen.clone(),
-            result: Ok(RequestResult {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://example.com/users");
+        workspace.set_body(r#"{"name":"Ada"}"#);
+        workspace.upsert_header("X-Trace", "abc");
+
+        let pending = workspace.begin_send();
+        assert!(matches!(workspace.response(), ResponseState::Loading));
+        assert_eq!(pending.request().method, HttpMethod::POST);
+        assert_eq!(
+            pending.request().body,
+            RequestBody::Json(r#"{"name":"Ada"}"#.to_string())
+        );
+        assert!(pending
+            .request()
+            .headers
+            .iter()
+            .any(|(key, value)| key == "X-Trace" && value == "abc"));
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
                 status: 201,
                 headers: vec![("x-test".into(), "yes".into())],
                 body: r#"{"ok":true}"#.into(),
                 elapsed_ms: 7,
-            }),
-        }));
-        vm.set_method(HttpMethod::POST);
-        vm.set_url("https://example.com/users");
-        vm.set_body(r#"{"name":"Ada"}"#);
-        vm.upsert_header("X-Trace", "abc");
-        vm.send();
-
-        let requests = seen.lock().unwrap();
-        assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].method, HttpMethod::POST);
-        assert_eq!(requests[0].body.as_deref(), Some(r#"{"name":"Ada"}"#));
-        assert!(requests[0]
-            .headers
-            .iter()
-            .any(|(key, value)| key == "X-Trace" && value == "abc"));
+            })
+        ));
         assert!(matches!(
-            vm.response(),
+            workspace.response(),
             ResponseState::Success { status: 201, .. }
         ));
-        assert!(!vm.is_dirty());
+        assert!(!workspace.is_dirty());
     }
 
     #[test]
     fn failed_send_does_not_enter_history() {
-        let request = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
-        let mut workspace = WorkspaceViewModel::with_request(request);
-        workspace.send();
+        let mut workspace = WorkspaceViewModel::new();
+        let pending = workspace.begin_send();
+        assert!(matches!(workspace.response(), ResponseState::Loading));
+        assert!(workspace.complete_send(pending, Err(AppError::UrlEmpty)));
 
         assert!(matches!(workspace.response(), ResponseState::Error { .. }));
         assert_eq!(workspace.history_len(), 0);
@@ -891,10 +1053,7 @@ mod tests {
 
     #[test]
     fn switching_post_body_to_form_data_replaces_json_content_type() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);
         assert!(vm
             .headers()
@@ -902,7 +1061,7 @@ mod tests {
             .any(|row| { row.key == "Content-Type" && row.value == "application/json" }));
 
         vm.set_body("name=Ada&active=true");
-        vm.set_body_kind(BodyKind::FormData);
+        vm.set_body_kind(BodyKind::UrlEncoded);
 
         assert_eq!(
             vm.headers()
@@ -919,10 +1078,7 @@ mod tests {
 
     #[test]
     fn put_with_default_json_kind_gets_an_automatic_content_type() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
+        let mut vm = RequestViewModel::new();
 
         vm.set_method(HttpMethod::PUT);
         vm.set_body_kind(BodyKind::Json);
@@ -934,10 +1090,7 @@ mod tests {
 
     #[test]
     fn switching_to_raw_removes_only_an_automatic_content_type() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);
 
         vm.set_body_kind(BodyKind::Raw);
@@ -954,14 +1107,11 @@ mod tests {
 
     #[test]
     fn manual_content_type_is_case_insensitive_and_survives_body_kind_changes() {
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Err(AppError::UrlEmpty),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);
 
         vm.upsert_header("content-type", "application/vnd.example+json");
-        vm.set_body_kind(BodyKind::FormData);
+        vm.set_body_kind(BodyKind::UrlEncoded);
         vm.set_body_kind(BodyKind::Raw);
 
         let content_types: Vec<_> = vm
@@ -975,11 +1125,7 @@ mod tests {
 
     #[test]
     fn removing_an_automatic_content_type_is_a_user_override() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: seen.clone(),
-            result: Ok(RequestResult::success(String::new())),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);
         vm.set_url("https://example.com/manual-content-type");
         let content_type_index = vm
@@ -989,14 +1135,14 @@ mod tests {
             .expect("POST should add an automatic Content-Type");
 
         vm.remove_header(content_type_index);
-        vm.set_body_kind(BodyKind::FormData);
-        vm.send();
+        vm.set_body_kind(BodyKind::UrlEncoded);
+        let request = vm.begin_send(SendId(1));
 
         assert!(!vm
             .headers()
             .iter()
             .any(|row| row.key.eq_ignore_ascii_case("content-type")));
-        assert!(!seen.lock().unwrap()[0]
+        assert!(!request
             .headers
             .iter()
             .any(|(key, _)| key.eq_ignore_ascii_case("content-type")));
@@ -1004,22 +1150,13 @@ mod tests {
 
     #[test]
     fn bearer_auth_is_normalized_and_sent_as_authorization_header() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: seen.clone(),
-            result: Ok(RequestResult {
-                status: 200,
-                headers: Vec::new(),
-                body: String::new(),
-                elapsed_ms: 1,
-            }),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/me");
         vm.set_bearer_token("Bearer secret-token");
-        vm.send();
+        let request = vm.begin_send(SendId(1));
 
         assert_eq!(vm.bearer_token(), "secret-token");
-        assert!(seen.lock().unwrap()[0]
+        assert!(request
             .headers
             .iter()
             .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
@@ -1028,18 +1165,14 @@ mod tests {
 
     #[test]
     fn basic_auth_is_encoded_and_sent_as_authorization_header() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: seen.clone(),
-            result: Ok(RequestResult::success(String::new())),
-        }));
+        let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/basic-auth");
         vm.set_authorization_kind(AuthorizationKind::Basic);
         vm.set_basic_username("scenario-user");
         vm.set_basic_password("scenario-pass");
-        vm.send();
+        let request = vm.begin_send(SendId(1));
 
-        assert!(seen.lock().unwrap()[0]
+        assert!(request
             .headers
             .iter()
             .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
@@ -1054,10 +1187,7 @@ mod tests {
             "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz",
         );
         request.add_header("X-Trace", "kept");
-        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            result: Ok(RequestResult::success(String::new())),
-        }));
+        let mut vm = RequestViewModel::new();
 
         vm.load_request(&request);
 
@@ -1119,24 +1249,100 @@ mod tests {
 
     #[test]
     fn workspace_collects_completed_requests_in_shared_history() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let request = RequestViewModel::with_service(Box::new(FakeService {
-            seen,
-            result: Ok(RequestResult {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/shared-history");
+        let pending = workspace.begin_send();
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
                 status: 204,
                 headers: Vec::new(),
                 body: String::new(),
                 elapsed_ms: 2,
-            }),
-        }));
-        let mut workspace = WorkspaceViewModel::with_request(request);
-        workspace.set_url("https://example.com/shared-history");
-        workspace.send();
+            })
+        ));
 
         assert_eq!(workspace.history_len(), 1);
         assert_eq!(
             workspace.history()[0].request.url,
             "https://example.com/shared-history"
         );
+    }
+
+    #[test]
+    fn completion_targets_the_originating_tab_after_the_user_switches_tabs() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://first.example/slow");
+        let first = workspace.begin_send();
+
+        workspace.new_request();
+        workspace.set_url("https://second.example/draft");
+        assert!(workspace.complete_send(
+            first,
+            Ok(RequestResult {
+                status: 200,
+                headers: Vec::new(),
+                body: "first response".to_string(),
+                elapsed_ms: 10,
+            })
+        ));
+
+        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(workspace.select_tab(0));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success { body, .. } if body == "first response"
+        ));
+        assert_eq!(workspace.history_len(), 1);
+    }
+
+    #[test]
+    fn stale_completion_cannot_replace_a_newer_send() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/race");
+        let older = workspace.begin_send();
+        let newer = workspace.begin_send();
+
+        assert!(!workspace.complete_send(older, Ok(RequestResult::success("stale".to_string()))));
+        assert!(matches!(workspace.response(), ResponseState::Loading));
+        assert!(workspace.complete_send(newer, Ok(RequestResult::success("current".to_string()))));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success { body, .. } if body == "current"
+        ));
+        assert_eq!(workspace.history_len(), 2);
+    }
+
+    #[test]
+    fn editing_while_a_request_is_in_flight_keeps_the_draft_dirty() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/original");
+        let pending = workspace.begin_send();
+        workspace.set_url("https://example.com/edited");
+
+        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".to_string()))));
+
+        assert_eq!(workspace.url(), "https://example.com/edited");
+        assert!(workspace.is_dirty());
+        assert_eq!(
+            workspace.history()[0].request.url,
+            "https://example.com/original"
+        );
+    }
+
+    #[test]
+    fn cancelling_a_send_ignores_its_late_completion() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/slow");
+        let pending = workspace.begin_send();
+
+        assert_eq!(workspace.active_send_id(), Some(pending.send_id()));
+        assert!(workspace.cancel_send(pending.send_id()));
+        assert!(matches!(workspace.response(), ResponseState::Cancelled));
+        assert!(
+            !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
+        );
+        assert!(matches!(workspace.response(), ResponseState::Cancelled));
+        assert_eq!(workspace.history_len(), 0);
     }
 }

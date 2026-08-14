@@ -5,4 +5,4 @@ pub mod request;
 
 // Re-export commonly used types
 pub use history::{HistoryEntry, RequestHistory};
-pub use request::{HttpMethod, Request};
+pub use request::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody};

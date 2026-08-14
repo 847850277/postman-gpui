@@ -9,6 +9,8 @@ use gpui::{
 use std::ops::Range;
 use unicode_segmentation::*;
 
+const MASK_GLYPH: &str = "•";
+
 // 定义actions - 这些是键盘快捷键对应的动作
 actions!(
     header_input,
@@ -45,6 +47,7 @@ pub struct HeaderInput {
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
+    masked: bool,
 }
 
 impl HeaderInput {
@@ -59,11 +62,18 @@ impl HeaderInput {
             last_layout: None,
             last_bounds: None,
             is_selecting: false,
+            masked: false,
         }
     }
 
     pub fn with_placeholder(mut self, placeholder: impl Into<String>) -> Self {
         self.placeholder = placeholder.into().into();
+        self
+    }
+
+    /// Masks the rendered value while retaining the real value for editing and submission.
+    pub fn with_masked(mut self, masked: bool) -> Self {
+        self.masked = masked;
         self
     }
 
@@ -158,10 +168,7 @@ impl HeaderInput {
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        tracing::info!(
-            "📝 HeaderInput: Submit triggered with value: {}",
-            self.content
-        );
+        tracing::info!("HeaderInput submit requested");
         cx.emit(HeaderInputEvent::SubmitRequested);
     }
 
@@ -244,7 +251,8 @@ impl HeaderInput {
         if position.y > bounds.bottom() {
             return self.content.len();
         }
-        line.closest_index_for_x(position.x - bounds.left())
+        let display_offset = line.closest_index_for_x(position.x - bounds.left());
+        self.content_offset_for_display_offset(display_offset)
     }
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
@@ -311,6 +319,39 @@ impl HeaderInput {
         self.content
             .grapheme_indices(true)
             .find_map(|(idx, _)| (idx > offset).then_some(idx))
+            .unwrap_or(self.content.len())
+    }
+
+    fn display_content(&self) -> SharedString {
+        if !self.masked {
+            return self.content.clone();
+        }
+
+        masked_content(&self.content).into()
+    }
+
+    fn display_offset_for_content_offset(&self, content_offset: usize) -> usize {
+        if !self.masked {
+            return content_offset;
+        }
+
+        self.content
+            .grapheme_indices(true)
+            .take_while(|(offset, _)| *offset < content_offset)
+            .count()
+            * MASK_GLYPH.len()
+    }
+
+    fn content_offset_for_display_offset(&self, display_offset: usize) -> usize {
+        if !self.masked {
+            return display_offset;
+        }
+
+        let grapheme_index = display_offset / MASK_GLYPH.len();
+        self.content
+            .grapheme_indices(true)
+            .nth(grapheme_index)
+            .map(|(offset, _)| offset)
             .unwrap_or(self.content.len())
     }
 }
@@ -416,13 +457,15 @@ impl EntityInputHandler for HeaderInput {
     ) -> Option<Bounds<Pixels>> {
         let last_layout = self.last_layout.as_ref()?;
         let range = self.range_from_utf16(&range_utf16);
+        let display_range = self.display_offset_for_content_offset(range.start)
+            ..self.display_offset_for_content_offset(range.end);
         Some(Bounds::from_corners(
             point(
-                bounds.left() + last_layout.x_for_index(range.start),
+                bounds.left() + last_layout.x_for_index(display_range.start),
                 bounds.top(),
             ),
             point(
-                bounds.left() + last_layout.x_for_index(range.end),
+                bounds.left() + last_layout.x_for_index(display_range.end),
                 bounds.bottom(),
             ),
         ))
@@ -442,8 +485,8 @@ impl EntityInputHandler for HeaderInput {
             return Some(0);
         }
 
-        assert_eq!(last_layout.text, self.content);
-        let utf8_index = last_layout.index_for_x(point.x - line_point.x)?;
+        let display_index = last_layout.index_for_x(point.x - line_point.x)?;
+        let utf8_index = self.content_offset_for_display_offset(display_index);
         Some(self.offset_to_utf16(utf8_index))
     }
 }
@@ -510,7 +553,7 @@ impl Element for HeaderTextElement {
         let (display_text, text_color) = if content.is_empty() {
             (input.placeholder.clone(), hsla(0., 0., 0., 0.4))
         } else {
-            (content.clone(), style.color)
+            (input.display_content(), style.color)
         };
 
         let run = TextRun {
@@ -527,25 +570,10 @@ impl Element for HeaderTextElement {
             .text_system()
             .shape_line(display_text, font_size, &[run], None);
 
-        // 为实际内容创建布局（用于光标和选择计算）
-        let content_run = TextRun {
-            len: content.len(),
-            font: style.font(),
-            color: style.color,
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        };
-
-        let content_line =
-            window
-                .text_system()
-                .shape_line(content.clone(), font_size, &[content_run], None);
-
         let cursor_pos = if content.is_empty() {
             px(0.0)
         } else {
-            content_line.x_for_index(cursor)
+            display_line.x_for_index(input.display_offset_for_content_offset(cursor))
         };
 
         let (selection, cursor) = if selected_range.is_empty() {
@@ -564,11 +592,17 @@ impl Element for HeaderTextElement {
                 Some(fill(
                     Bounds::from_corners(
                         point(
-                            bounds.left() + content_line.x_for_index(selected_range.start),
+                            bounds.left()
+                                + display_line.x_for_index(
+                                    input.display_offset_for_content_offset(selected_range.start),
+                                ),
                             bounds.top(),
                         ),
                         point(
-                            bounds.left() + content_line.x_for_index(selected_range.end),
+                            bounds.left()
+                                + display_line.x_for_index(
+                                    input.display_offset_for_content_offset(selected_range.end),
+                                ),
                             bounds.bottom(),
                         ),
                     ),
@@ -624,29 +658,9 @@ impl Element for HeaderTextElement {
             }
         }
 
-        // 为内容创建布局并保存，用于后续的位置计算
+        // Store the same layout that was painted so masked input hit-testing remains aligned.
         self.input.update(cx, |input, _cx| {
-            let style = window.text_style();
-            let font_size = style.font_size.to_pixels(window.rem_size());
-
-            // 创建实际内容的布局（不是显示文本）
-            let content_run = TextRun {
-                len: input.content.len(),
-                font: style.font(),
-                color: style.color,
-                background_color: None,
-                underline: None,
-                strikethrough: None,
-            };
-
-            let content_line = window.text_system().shape_line(
-                input.content.clone(),
-                font_size,
-                &[content_run],
-                None,
-            );
-
-            input.last_layout = Some(content_line);
+            input.last_layout = Some(display_line);
             input.last_bounds = Some(bounds);
         });
     }
@@ -703,6 +717,10 @@ impl Render for HeaderInput {
     }
 }
 
+fn masked_content(content: &str) -> String {
+    MASK_GLYPH.repeat(content.graphemes(true).count())
+}
+
 // 导出KeyBinding设置函数，供主应用使用
 pub fn setup_header_input_key_bindings() -> Vec<KeyBinding> {
     vec![
@@ -720,4 +738,16 @@ pub fn setup_header_input_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("end", End, None),
         KeyBinding::new("enter", Submit, None),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn masking_preserves_grapheme_count_without_exposing_text() {
+        assert_eq!(masked_content("secret"), "••••••");
+        assert_eq!(masked_content("á👩‍💻"), "••");
+        assert!(!masked_content("secret").contains("secret"));
+    }
 }

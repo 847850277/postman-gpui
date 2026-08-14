@@ -59,9 +59,13 @@ fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
     app.update(cx, |app, cx| {
         app.type_url(&format!("{}/alpha-resource", server.url()), cx);
         app.click_send(cx);
+    });
+    cx.run_until_parked();
+    app.update(cx, |app, cx| {
         app.type_url(&format!("{}/beta-resource", server.url()), cx);
         app.click_send(cx);
     });
+    cx.run_until_parked();
     assert_eq!(app.read_with(cx, |app, cx| app.history_len(cx)), 2);
     assert_eq!(app.read_with(cx, |app, cx| app.visible_history_len(cx)), 2);
 
@@ -102,6 +106,7 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
         app.type_url(&format!("{}/secured", server.url()), cx);
         app.click_send(cx);
     });
+    cx.run_until_parked();
     assert_eq!(
         app.read_with(cx, |app, cx| app.current_bearer_token(cx)),
         "ui-secret"
@@ -144,6 +149,7 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
         app.type_url(&format!("{}/basic-auth", server.url()), cx);
         app.click_send(cx);
     });
+    cx.run_until_parked();
 
     assert_eq!(
         app.read_with(cx, |app, cx| app.current_authorization_kind(cx)),

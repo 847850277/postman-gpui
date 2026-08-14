@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 /// HTTP 请求方法枚举
@@ -84,13 +84,114 @@ impl From<HttpMethod> for String {
     }
 }
 
+/// One multipart field. File contents are loaded only when the transport executes the request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MultipartPart {
+    pub name: String,
+    pub value: MultipartValue,
+}
+
+impl MultipartPart {
+    pub fn text(name: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            value: MultipartValue::Text(value.into()),
+        }
+    }
+
+    pub fn file(name: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+        Self {
+            name: name.into(),
+            value: MultipartValue::File {
+                path: path.into(),
+                file_name: None,
+                content_type: None,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MultipartValue {
+    Text(String),
+    File {
+        path: PathBuf,
+        file_name: Option<String>,
+        content_type: Option<String>,
+    },
+}
+
+/// Strongly typed request body. The encoding choice is part of the request itself instead of
+/// living in a second `body_kind` flag that can drift out of sync with its payload.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum RequestBody {
+    #[default]
+    None,
+    Json(String),
+    Raw(String),
+    UrlEncoded(String),
+    Multipart(Vec<MultipartPart>),
+}
+
+impl RequestBody {
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => Some(value),
+            Self::None | Self::Multipart(_) => None,
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::None => true,
+            Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.is_empty(),
+            Self::Multipart(parts) => parts.is_empty(),
+        }
+    }
+
+    pub fn payload_len(&self) -> usize {
+        match self {
+            Self::None => 0,
+            Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.len(),
+            Self::Multipart(parts) => parts
+                .iter()
+                .map(|part| match &part.value {
+                    MultipartValue::Text(value) => value.len(),
+                    MultipartValue::File { .. } => 0,
+                })
+                .sum(),
+        }
+    }
+
+    pub fn searchable_text(&self) -> String {
+        match self {
+            Self::None => String::new(),
+            Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.clone(),
+            Self::Multipart(parts) => parts
+                .iter()
+                .map(|part| match &part.value {
+                    MultipartValue::Text(value) => format!("{}={value}", part.name),
+                    MultipartValue::File { path, .. } => {
+                        format!("{}=@{}", part.name, path.display())
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("&"),
+        }
+    }
+}
+
 /// 统一的 HTTP 请求模型
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
     pub method: HttpMethod,
     pub url: String,
     pub headers: Vec<(String, String)>,
-    pub body: Option<String>,
+    pub body: RequestBody,
 }
 
 impl Request {
@@ -100,7 +201,7 @@ impl Request {
             method: method.into(),
             url: url.into(),
             headers: Vec::new(),
-            body: None,
+            body: RequestBody::None,
         }
     }
 
@@ -111,12 +212,7 @@ impl Request {
 
     /// 设置请求体
     pub fn set_body(&mut self, body: impl Into<String>) {
-        self.body = Some(body.into());
-    }
-
-    /// 转换 headers 为 HashMap 格式（用于 HTTP 客户端）
-    pub fn headers_as_map(&self) -> HashMap<String, String> {
-        self.headers.iter().cloned().collect()
+        self.body = RequestBody::Raw(body.into());
     }
 
     /// 验证请求是否有效
@@ -131,7 +227,7 @@ impl Default for Request {
             method: HttpMethod::GET,
             url: String::new(),
             headers: Vec::new(),
-            body: None,
+            body: RequestBody::None,
         }
     }
 }
@@ -146,7 +242,7 @@ mod tests {
         assert_eq!(request.method, HttpMethod::GET);
         assert_eq!(request.url, "https://api.example.com");
         assert!(request.headers.is_empty());
-        assert!(request.body.is_none());
+        assert_eq!(request.body, RequestBody::None);
     }
 
     #[test]
@@ -164,7 +260,10 @@ mod tests {
     fn test_set_body() {
         let mut request = Request::new("POST", "https://api.example.com");
         request.set_body("{\"key\": \"value\"}");
-        assert_eq!(request.body, Some("{\"key\": \"value\"}".to_string()));
+        assert_eq!(
+            request.body,
+            RequestBody::Raw("{\"key\": \"value\"}".to_string())
+        );
     }
 
     #[test]
@@ -174,7 +273,7 @@ mod tests {
         request.set_body(form_data);
         request.add_header("Content-Type", "application/x-www-form-urlencoded");
 
-        assert_eq!(request.body, Some(form_data.to_string()));
+        assert_eq!(request.body, RequestBody::Raw(form_data.to_string()));
         assert_eq!(request.headers.len(), 1);
         assert_eq!(
             request.headers[0],
@@ -186,17 +285,10 @@ mod tests {
     }
 
     #[test]
-    fn test_headers_as_map() {
-        let mut request = Request::new("GET", "https://api.example.com");
-        request.add_header("Content-Type", "application/json");
-        request.add_header("Authorization", "Bearer token");
-
-        let map = request.headers_as_map();
-        assert_eq!(map.len(), 2);
-        assert_eq!(
-            map.get("Content-Type"),
-            Some(&"application/json".to_string())
-        );
+    fn typed_body_keeps_encoding_with_payload() {
+        let body = RequestBody::UrlEncoded("name=Ada+Lovelace".to_string());
+        assert_eq!(body.as_text(), Some("name=Ada+Lovelace"));
+        assert!(!body.is_none());
     }
 
     #[test]

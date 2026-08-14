@@ -96,8 +96,7 @@ impl HistoryList {
             || entry
                 .request
                 .body
-                .as_deref()
-                .unwrap_or_default()
+                .searchable_text()
                 .to_lowercase()
                 .contains(query)
     }
@@ -121,8 +120,8 @@ impl HistoryList {
                 request.url
             );
             tracing::info!("   Headers: {}", request.headers.len());
-            if let Some(ref body) = request.body {
-                tracing::info!("   Body: {} bytes", body.len());
+            if !request.body.is_none() {
+                tracing::info!("   Body: {} bytes", request.body.payload_len());
             }
             tracing::info!("   ➡️ Loading request into form...");
             HistoryListEvent::RequestSelected(request)

@@ -163,7 +163,7 @@ Each case has four responsibilities:
 - `params`: query rows with `key`, `value`, and optional `enabled`;
 - `headers`: request-header rows with `key`, `value`, and optional `enabled`;
 - `body`: request body text or `null`;
-- `body_kind`: `json`, `form_data`, `raw`, or `null`;
+- `body_kind`: `none`, `json`, `raw`, `url_encoded`, `multipart`, or `null`;
 - `bearer_token`: token text, with or without the `Bearer` prefix;
 - `basic_auth`: object containing `username` and `password` for HTTP Basic Auth.
 

@@ -36,7 +36,7 @@ actions!(
     ]
 );
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BodyType {
     Json,
     FormData,
@@ -61,7 +61,6 @@ pub struct BodyInput {
     current_type: BodyType,
     json_content: String,
     form_data_entries: Vec<FormDataEntry>,
-    raw_content: String,
     editing_key_index: Option<usize>,
     editing_value_index: Option<usize>,
     temp_key_value: String,
@@ -104,7 +103,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<String> {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return None;
         }
         let range = self.json_range_from_utf16(&range_utf16);
@@ -118,7 +117,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return None;
         }
         Some(UTF16Selection {
@@ -132,7 +131,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return None;
         }
         self.json_marked_range
@@ -141,7 +140,7 @@ impl EntityInputHandler for BodyInput {
     }
 
     fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
-        if self.current_type == BodyType::Json {
+        if self.current_type != BodyType::FormData {
             self.json_marked_range = None;
         }
     }
@@ -153,7 +152,7 @@ impl EntityInputHandler for BodyInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.current_type == BodyType::Json {
+        if self.current_type != BodyType::FormData {
             self.json_replace_text_in_range(range_utf16, new_text, window, cx);
         }
     }
@@ -166,7 +165,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
 
@@ -197,7 +196,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
-        if self.current_type != BodyType::Json || self.json_last_layout.is_empty() {
+        if self.current_type == BodyType::FormData || self.json_last_layout.is_empty() {
             return None;
         }
         let _range = self.json_range_from_utf16(&range_utf16);
@@ -216,7 +215,7 @@ impl EntityInputHandler for BodyInput {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<usize> {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return None;
         }
         if self.json_content.is_empty() {
@@ -239,7 +238,6 @@ impl BodyInput {
                 value: String::new(),
                 enabled: true,
             }],
-            raw_content: String::new(),
             editing_key_index: None,
             editing_value_index: None,
             temp_key_value: String::new(),
@@ -276,8 +274,7 @@ impl BodyInput {
         if self.current_type != body_type {
             self.current_type = body_type;
             let content = match &self.current_type {
-                BodyType::Json => self.json_content.clone(),
-                BodyType::Raw => self.raw_content.clone(),
+                BodyType::Json | BodyType::Raw => self.json_content.clone(),
                 BodyType::FormData => self.get_form_data_as_string(),
             };
             cx.emit(BodyInputEvent::ValueChanged(content));
@@ -297,16 +294,9 @@ impl BodyInput {
         let new_content = content.into();
 
         match &self.current_type {
-            BodyType::Json => {
+            BodyType::Json | BodyType::Raw => {
                 if self.json_content != new_content {
                     self.json_content.clone_from(&new_content);
-                    cx.emit(BodyInputEvent::ValueChanged(new_content));
-                    cx.notify();
-                }
-            }
-            BodyType::Raw => {
-                if self.raw_content != new_content {
-                    self.raw_content.clone_from(&new_content);
                     cx.emit(BodyInputEvent::ValueChanged(new_content));
                     cx.notify();
                 }
@@ -321,7 +311,7 @@ impl BodyInput {
     pub fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let new_content = content.into();
         let changed = match &self.current_type {
-            BodyType::Json => {
+            BodyType::Json | BodyType::Raw => {
                 if self.json_content == new_content {
                     false
                 } else {
@@ -330,14 +320,6 @@ impl BodyInput {
                     self.json_selected_range = cursor..cursor;
                     self.json_selection_reversed = false;
                     self.json_marked_range = None;
-                    true
-                }
-            }
-            BodyType::Raw => {
-                if self.raw_content == new_content {
-                    false
-                } else {
-                    self.raw_content = new_content;
                     true
                 }
             }
@@ -351,8 +333,7 @@ impl BodyInput {
     #[cfg(test)]
     pub(crate) fn editor_buffer(&self) -> String {
         match self.current_type {
-            BodyType::Json => self.json_content.clone(),
-            BodyType::Raw => self.raw_content.clone(),
+            BodyType::Json | BodyType::Raw => self.json_content.clone(),
             BodyType::FormData => self.get_form_data_as_string(),
         }
     }
@@ -436,11 +417,8 @@ impl BodyInput {
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         match &self.current_type {
-            BodyType::Json => {
+            BodyType::Json | BodyType::Raw => {
                 self.json_content.clear();
-            }
-            BodyType::Raw => {
-                self.raw_content.clear();
             }
             BodyType::FormData => {
                 self.form_data_entries = vec![FormDataEntry {
@@ -755,7 +733,7 @@ impl BodyInput {
 
     // JSON input action handlers
     fn json_left(&mut self, _: &Left, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if self.json_selected_range.is_empty() {
@@ -766,7 +744,7 @@ impl BodyInput {
     }
 
     fn json_right(&mut self, _: &Right, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if self.json_selected_range.is_empty() {
@@ -777,7 +755,7 @@ impl BodyInput {
     }
 
     fn json_up(&mut self, _: &Up, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let new_offset = self.json_offset_for_line_up(self.json_cursor_offset());
@@ -785,7 +763,7 @@ impl BodyInput {
     }
 
     fn json_down(&mut self, _: &Down, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let new_offset = self.json_offset_for_line_down(self.json_cursor_offset());
@@ -793,21 +771,21 @@ impl BodyInput {
     }
 
     fn json_select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_select_to(self.json_previous_boundary(self.json_cursor_offset()), cx);
     }
 
     fn json_select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_select_to(self.json_next_boundary(self.json_cursor_offset()), cx);
     }
 
     fn json_select_up(&mut self, _: &SelectUp, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let new_offset = self.json_offset_for_line_up(self.json_cursor_offset());
@@ -815,7 +793,7 @@ impl BodyInput {
     }
 
     fn json_select_down(&mut self, _: &SelectDown, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let new_offset = self.json_offset_for_line_down(self.json_cursor_offset());
@@ -823,7 +801,7 @@ impl BodyInput {
     }
 
     fn json_select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_move_to(0, cx);
@@ -831,7 +809,7 @@ impl BodyInput {
     }
 
     fn json_home(&mut self, _: &Home, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let line_start = self.json_line_start(self.json_cursor_offset());
@@ -839,7 +817,7 @@ impl BodyInput {
     }
 
     fn json_end(&mut self, _: &End, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         let line_end = self.json_line_end(self.json_cursor_offset());
@@ -847,7 +825,7 @@ impl BodyInput {
     }
 
     fn json_backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if self.json_selected_range.is_empty() {
@@ -857,7 +835,7 @@ impl BodyInput {
     }
 
     fn json_delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if self.json_selected_range.is_empty() {
@@ -867,14 +845,14 @@ impl BodyInput {
     }
 
     fn json_enter(&mut self, _: &Enter, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_replace_text_in_range(None, "\n", window, cx);
     }
 
     fn json_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
@@ -883,7 +861,7 @@ impl BodyInput {
     }
 
     fn json_copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if !self.json_selected_range.is_empty() {
@@ -894,7 +872,7 @@ impl BodyInput {
     }
 
     fn json_cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if !self.json_selected_range.is_empty() {
@@ -1096,7 +1074,7 @@ impl BodyInput {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_is_selecting = true;
@@ -1109,7 +1087,7 @@ impl BodyInput {
     }
 
     fn json_on_mouse_up(&mut self, _: &MouseUpEvent, _window: &mut Window, _: &mut Context<Self>) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         self.json_is_selecting = false;
@@ -1121,7 +1099,7 @@ impl BodyInput {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.current_type != BodyType::Json {
+        if self.current_type == BodyType::FormData {
             return;
         }
         if self.json_is_selecting {
@@ -1836,8 +1814,7 @@ impl Element for FormTextElement {
 
 impl Render for BodyInput {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let current_type = self.current_type.clone();
-        let raw_content = self.raw_content.clone();
+        let current_type = self.current_type;
         let form_data_entries = self.form_data_entries.clone();
 
         div()
@@ -1928,7 +1905,7 @@ impl Render for BodyInput {
             })
             // Content area
             .child(match current_type {
-                BodyType::Json => div()
+                BodyType::Json | BodyType::Raw => div()
                     .flex_1()
                     .min_h_0()
                     .flex()
@@ -1944,7 +1921,7 @@ impl Render for BodyInput {
                             .border_1()
                             .border_color(
                                 if self.focus_handle.is_focused(_window)
-                                    && self.current_type == BodyType::Json
+                                    && self.current_type != BodyType::FormData
                                 {
                                     rgb(0x0025_63eb)
                                 } else {
@@ -2074,6 +2051,7 @@ impl Render for BodyInput {
                                 .child(
                                     // Key input - 可点击编辑
                                     div()
+                                        .debug_selector(move || format!("body-form-key-{index}"))
                                         .flex_1()
                                         .px_3()
                                         .py_2()
@@ -2119,8 +2097,9 @@ impl Render for BodyInput {
                                             })
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
-                                                cx.listener(move |this, _event, _window, cx| {
+                                                cx.listener(move |this, _event, window, cx| {
                                                     this.start_editing_key(index, cx);
+                                                    this.focus_handle.focus(window, cx);
                                                 }),
                                             )
                                         }),
@@ -2128,6 +2107,7 @@ impl Render for BodyInput {
                                 .child(
                                     // Value input - 可点击编辑
                                     div()
+                                        .debug_selector(move || format!("body-form-value-{index}"))
                                         .flex_1()
                                         .px_3()
                                         .py_2()
@@ -2173,8 +2153,9 @@ impl Render for BodyInput {
                                             })
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
-                                                cx.listener(move |this, _event, _window, cx| {
+                                                cx.listener(move |this, _event, window, cx| {
                                                     this.start_editing_value(index, cx);
+                                                    this.focus_handle.focus(window, cx);
                                                 }),
                                             )
                                         }),
@@ -2202,6 +2183,7 @@ impl Render for BodyInput {
                     ))
                     .child(
                         div()
+                            .debug_selector(|| "body-form-add-row".into())
                             .px_3()
                             .py_2()
                             .bg(rgb(0x0028_a745))
@@ -2217,28 +2199,6 @@ impl Render for BodyInput {
                                     this.add_form_data_entry(cx);
                                 }),
                             ),
-                    )
-                    .into_any_element(),
-                BodyType::Raw => div()
-                    .w_full()
-                    .h_64()
-                    .px_3()
-                    .py_2()
-                    .bg(rgb(0x00ff_ffff))
-                    .border_1()
-                    .border_color(rgb(0x00cc_cccc))
-                    .child(
-                        div()
-                            .text_size(px(14.0))
-                            .font_family("monospace")
-                            .child(if raw_content.is_empty() {
-                                "Enter raw body here...".to_string()
-                            } else {
-                                raw_content
-                            })
-                            .when(self.raw_content.is_empty(), |div| {
-                                div.text_color(rgb(0x006c_757d))
-                            }),
                     )
                     .into_any_element(),
             })

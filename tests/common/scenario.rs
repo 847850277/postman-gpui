@@ -1,12 +1,8 @@
 use mockito::{Matcher, Mock, Server};
 use postman_gpui::{
-    app::{
-        AuthorizationKind, BodyKind, RequestService, RequestViewModel, ResponseState,
-        WorkspaceViewModel,
-    },
-    errors::AppError,
-    http::executor::{RequestExecutor, RequestResult},
-    models::{HttpMethod, Request},
+    app::{AuthorizationKind, BodyKind, ResponseState, WorkspaceViewModel},
+    http::executor::RequestExecutor,
+    models::{HttpMethod, Request, RequestBody},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -14,7 +10,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::{Arc, Mutex},
 };
 
 const SCENARIO_SCHEMA_VERSION: u32 = 3;
@@ -127,18 +122,6 @@ pub enum ResponseSpec {
     },
 }
 
-struct RecordingExecutor {
-    inner: RequestExecutor,
-    seen: Arc<Mutex<Vec<Request>>>,
-}
-
-impl RequestService for RecordingExecutor {
-    fn execute(&self, request: &Request) -> Result<RequestResult, AppError> {
-        self.seen.lock().unwrap().push(request.clone());
-        self.inner.execute_request(request)
-    }
-}
-
 pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
     let suite: ScenarioSuite = serde_json::from_str(json)
         .map_err(|error| format!("request scenario JSON is invalid: {error}"))?;
@@ -234,21 +217,15 @@ fn execute_scenario(
     server_url: Option<&str>,
     mock: Option<&Mock>,
 ) -> Result<(), String> {
-    let seen = Arc::new(Mutex::new(Vec::new()));
-    let request = RequestViewModel::with_service(Box::new(RecordingExecutor {
-        inner: RequestExecutor::new(),
-        seen: seen.clone(),
-    }));
-    let mut workspace = WorkspaceViewModel::with_request(request);
+    let mut workspace = WorkspaceViewModel::new();
 
     apply_draft(&mut workspace, &scenario.draft, server_url)?;
-    workspace.send();
+    let pending = workspace.begin_send();
+    let sent = vec![pending.request().clone()];
+    let result = RequestExecutor::new().execute_request(pending.request());
+    workspace.complete_send(pending, result);
 
-    assert_outgoing_request(
-        seen.lock().unwrap().as_slice(),
-        &scenario.expect.request,
-        server_url,
-    )?;
+    assert_outgoing_request(&sent, &scenario.expect.request, server_url)?;
     if let Some(mock) = mock {
         if !mock.matched() {
             return Err(
@@ -267,9 +244,13 @@ fn execute_scenario(
     }
     if scenario.expect.history_len > 0 {
         let expected = expected_request(&scenario.expect.request, server_url)?;
-        if workspace.history().first().map(|entry| &entry.request) != Some(&expected) {
-            return Err("latest history entry does not contain the outgoing request".to_string());
-        }
+        let actual = workspace
+            .history()
+            .first()
+            .map(|entry| &entry.request)
+            .ok_or_else(|| "latest history entry is missing".to_string())?;
+        assert_requests_equivalent(actual, &expected)
+            .map_err(|error| format!("latest history entry is incorrect: {error}"))?;
     }
 
     Ok(())
@@ -363,11 +344,38 @@ fn assert_outgoing_request(
     server_url: Option<&str>,
 ) -> Result<(), String> {
     let expected = expected_request(spec, server_url)?;
-    if sent == [expected.clone()] {
-        return Ok(());
+    if let [actual] = sent {
+        return assert_requests_equivalent(actual, &expected);
     }
     Err(format!(
         "outgoing request mismatch\n  expected: {expected:#?}\n  actual:   {sent:#?}"
+    ))
+}
+
+pub fn assert_requests_equivalent(actual: &Request, expected: &Request) -> Result<(), String> {
+    let mut actual_headers: Vec<_> = actual
+        .headers
+        .iter()
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.as_str()))
+        .collect();
+    let mut expected_headers: Vec<_> = expected
+        .headers
+        .iter()
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.as_str()))
+        .collect();
+    actual_headers.sort_unstable();
+    expected_headers.sort_unstable();
+
+    if actual.method == expected.method
+        && actual.url == expected.url
+        && actual_headers == expected_headers
+        && actual.body == expected.body
+    {
+        return Ok(());
+    }
+
+    Err(format!(
+        "request mismatch\n  expected: {expected:#?}\n  actual:   {actual:#?}"
     ))
 }
 
@@ -376,8 +384,26 @@ pub fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<
         method: parse_method(&spec.method)?,
         url: absolute_url(server_url, &spec.path)?,
         headers: spec.headers.clone(),
-        body: spec.body.clone(),
+        body: expected_body(spec),
     })
+}
+
+fn expected_body(spec: &RequestSpec) -> RequestBody {
+    let Some(body) = &spec.body else {
+        return RequestBody::None;
+    };
+    let content_type = spec
+        .headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("content-type"))
+        .map(|(_, value)| value.as_str());
+    match content_type {
+        Some(value) if value.starts_with("application/json") => RequestBody::Json(body.clone()),
+        Some(value) if value.starts_with("application/x-www-form-urlencoded") => {
+            RequestBody::UrlEncoded(body.clone())
+        }
+        _ => RequestBody::Raw(body.clone()),
+    }
 }
 
 fn absolute_url(server_url: Option<&str>, path: &str) -> Result<String, String> {
@@ -405,7 +431,9 @@ fn parse_method(value: &str) -> Result<HttpMethod, String> {
 fn parse_body_kind(value: &str) -> Result<BodyKind, String> {
     match value.to_ascii_lowercase().as_str() {
         "json" => Ok(BodyKind::Json),
-        "form_data" => Ok(BodyKind::FormData),
+        "url_encoded" => Ok(BodyKind::UrlEncoded),
+        "multipart" => Ok(BodyKind::Multipart),
+        "none" => Ok(BodyKind::None),
         "raw" => Ok(BodyKind::Raw),
         _ => Err(format!("invalid body kind `{value}`")),
     }

@@ -49,7 +49,7 @@
         "method": "POST",
         "path": "/anything/form",
         "body": "name=Ada+Lovelace&active=true",
-        "body_kind": "form_data"
+        "body_kind": "url_encoded"
       },
       "expect": {
         "request": {
