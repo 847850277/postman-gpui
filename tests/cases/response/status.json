@@ -1,0 +1,33 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "HTTP 404 is a completed response and enters history",
+      "draft": {
+        "method": "GET",
+        "path": "/missing"
+      },
+      "mock": {
+        "status": 404,
+        "headers": [["content-type", "application/json"]],
+        "body": "{\"error\":\"missing\"}"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/missing",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 404,
+          "body_contains": "missing",
+          "headers_contain": [["content-type", "application/json"]]
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

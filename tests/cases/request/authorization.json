@@ -1,0 +1,42 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "POST sends JSON defaults, a custom header, and normalized Bearer auth",
+      "draft": {
+        "method": "POST",
+        "path": "/users",
+        "headers": [
+          { "key": "X-Trace", "value": "scenario-42" }
+        ],
+        "body": "{\"name\":\"Ada\"}",
+        "body_kind": "json",
+        "bearer_token": "Bearer scenario-token"
+      },
+      "mock": {
+        "status": 201,
+        "body": "{\"id\":42}"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/users",
+          "headers": [
+            ["Content-Type", "application/json"],
+            ["Accept", "application/json"],
+            ["X-Trace", "scenario-42"],
+            ["Authorization", "Bearer scenario-token"]
+          ],
+          "body": "{\"name\":\"Ada\"}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 201,
+          "body_contains": "42"
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

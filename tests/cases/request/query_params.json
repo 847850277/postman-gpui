@@ -1,0 +1,39 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "GET encodes new query parameters and keeps the existing query",
+      "draft": {
+        "method": "GET",
+        "path": "/search?existing=1",
+        "params": [
+          { "key": "q", "value": "rust gpui" },
+          { "key": "locale", "value": "中文" }
+        ]
+      },
+      "mock": {
+        "status": 200,
+        "headers": [["content-type", "application/json"]],
+        "body": "{\"items\":[]}"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/search?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "items": []
+          },
+          "headers_contain": [["content-type", "application/json"]]
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

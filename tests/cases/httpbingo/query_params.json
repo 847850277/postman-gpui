@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives encoded query parameters over HTTPS",
+      "draft": {
+        "method": "GET",
+        "path": "/get?existing=1",
+        "params": [
+          { "key": "q", "value": "rust gpui" },
+          { "key": "locale", "value": "中文" }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "existing": ["1"],
+              "q": ["rust gpui"],
+              "locale": ["中文"]
+            },
+            "method": "GET"
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

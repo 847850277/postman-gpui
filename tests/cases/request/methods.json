@@ -1,0 +1,31 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "methods without request bodies do not send the body buffer",
+      "draft": {
+        "method": "DELETE",
+        "path": "/users/42",
+        "body": "this must not be sent",
+        "body_kind": "raw"
+      },
+      "mock": {
+        "status": 204
+      },
+      "expect": {
+        "request": {
+          "method": "DELETE",
+          "path": "/users/42",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 204
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

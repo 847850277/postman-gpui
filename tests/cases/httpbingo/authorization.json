@@ -1,0 +1,31 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo authenticates the normalized Bearer token",
+      "draft": {
+        "method": "GET",
+        "path": "/bearer",
+        "bearer_token": "Bearer scenario-token"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/bearer",
+          "headers": [["Authorization", "Bearer scenario-token"]],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "authenticated": true,
+            "token": "scenario-token"
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

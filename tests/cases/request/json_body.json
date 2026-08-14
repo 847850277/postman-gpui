@@ -1,0 +1,33 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "PUT sends JSON content type when JSON is already the selected body kind",
+      "draft": {
+        "method": "PUT",
+        "path": "/documents/42",
+        "body": "{\"title\":\"Scenario contract\"}",
+        "body_kind": "json"
+      },
+      "mock": {
+        "status": 200,
+        "body": "updated"
+      },
+      "expect": {
+        "request": {
+          "method": "PUT",
+          "path": "/documents/42",
+          "headers": [["Content-Type", "application/json"]],
+          "body": "{\"title\":\"Scenario contract\"}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_contains": "updated"
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

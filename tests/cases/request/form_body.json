@@ -1,0 +1,63 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "form data adds its content type when the user did not provide one",
+      "draft": {
+        "method": "PUT",
+        "path": "/profile",
+        "body": "name=Ada+Lovelace&active=true",
+        "body_kind": "form_data"
+      },
+      "mock": {
+        "status": 200,
+        "body": "saved"
+      },
+      "expect": {
+        "request": {
+          "method": "PUT",
+          "path": "/profile",
+          "headers": [["Content-Type", "application/x-www-form-urlencoded"]],
+          "body": "name=Ada+Lovelace&active=true"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_contains": "saved"
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "POST form data replaces the default JSON content type",
+      "draft": {
+        "method": "POST",
+        "path": "/submit",
+        "body": "name=Ada&active=true",
+        "body_kind": "form_data"
+      },
+      "mock": {
+        "status": 200,
+        "body": "ok"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/submit",
+          "headers": [
+            ["Content-Type", "application/x-www-form-urlencoded"],
+            ["Accept", "application/json"]
+          ],
+          "body": "name=Ada&active=true"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_contains": "ok"
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

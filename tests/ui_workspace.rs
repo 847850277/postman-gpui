@@ -96,7 +96,7 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
         .debug_bounds("authorization-input")
         .expect("authorization input should render");
     cx.simulate_click(authorization_input.center(), Modifiers::none());
-    cx.simulate_input("ui-secret");
+    cx.simulate_input("Bearer ui-secret");
 
     app.update(cx, |app, cx| {
         app.type_url(&format!("{}/secured", server.url()), cx);

@@ -1,0 +1,70 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "disabled query parameters and headers are omitted",
+      "draft": {
+        "method": "GET",
+        "path": "/items",
+        "params": [
+          { "key": "visible", "value": "yes" },
+          { "key": "secret", "value": "no", "enabled": false }
+        ],
+        "headers": [
+          { "key": "X-Enabled", "value": "yes" },
+          { "key": "X-Disabled", "value": "no", "enabled": false }
+        ]
+      },
+      "mock": {
+        "status": 204
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/items?visible=yes",
+          "headers": [["X-Enabled", "yes"]],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 204
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "manual content type wins over automatic body kind defaults",
+      "draft": {
+        "method": "POST",
+        "path": "/custom",
+        "headers": [
+          { "key": "content-type", "value": "application/vnd.example+json" }
+        ],
+        "body": "custom payload",
+        "body_kind": "raw"
+      },
+      "mock": {
+        "status": 202,
+        "body": "accepted"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/custom",
+          "headers": [
+            ["Content-Type", "application/vnd.example+json"],
+            ["Accept", "application/json"]
+          ],
+          "body": "custom payload"
+        },
+        "response": {
+          "kind": "success",
+          "status": 202,
+          "body_contains": "accepted"
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

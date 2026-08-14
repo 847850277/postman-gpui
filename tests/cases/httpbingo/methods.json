@@ -1,0 +1,30 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives DELETE without a request body",
+      "draft": {
+        "method": "DELETE",
+        "path": "/delete"
+      },
+      "expect": {
+        "request": {
+          "method": "DELETE",
+          "path": "/delete",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "DELETE",
+            "data": ""
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo non-2xx status is still a completed response",
+      "draft": {
+        "method": "GET",
+        "path": "/status/418"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/status/418",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 418
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo redirect is followed to the final response",
+      "draft": {
+        "method": "GET",
+        "path": "/redirect-to?url=%2Fanything%2Fredirected&status_code=302"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "GET",
+            "url": "https://httpbingo.org/anything/redirected"
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo JSON response is parsed with stable subset assertions",
+      "draft": {
+        "method": "GET",
+        "path": "/json"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/json",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "slideshow": {
+              "title": "Sample Slide Show"
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

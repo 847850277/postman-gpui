@@ -220,7 +220,9 @@ impl RequestViewModel {
     }
 
     pub fn set_bearer_token(&mut self, token: impl Into<String>) {
-        let token = normalize_bearer_token(&token.into());
+        // Keep the editor text verbatim while the user is typing. Normalizing on every
+        // keystroke would project `Bearer ` back as `Bearer` and swallow its space.
+        let token = token.into();
         if self.bearer_token != token {
             self.bearer_token = token;
             self.dirty = true;
@@ -374,6 +376,7 @@ impl RequestViewModel {
 
     fn send_and_capture_request(&mut self) -> Option<Request> {
         self.response = ResponseState::Loading;
+        self.bearer_token = normalize_bearer_token(&self.bearer_token);
         let request = self.build_request();
 
         match self.service.execute(&request) {

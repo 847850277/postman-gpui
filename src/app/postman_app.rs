@@ -3,7 +3,7 @@ use crate::{
         view_model::detect_body_kind, BodyKind, KeyValueRow, RequestPane, ResponseState,
         WorkspaceViewModel,
     },
-    models::HttpMethod,
+    models::{HttpMethod, Request},
     ui::{
         components::{
             body_input::{
@@ -239,6 +239,14 @@ impl PostmanApp {
         self.view_model.read(cx).history_len()
     }
 
+    pub fn latest_history_request(&self, cx: &App) -> Option<Request> {
+        self.view_model
+            .read(cx)
+            .history()
+            .first()
+            .map(|entry| entry.request.clone())
+    }
+
     pub fn visible_history_len(&self, cx: &App) -> usize {
         self.history_list.read(cx).visible_entry_count(cx)
     }
@@ -253,6 +261,14 @@ impl PostmanApp {
 
     pub fn current_url(&self, cx: &App) -> String {
         self.view_model.read(cx).url().to_string()
+    }
+
+    pub fn current_params(&self, cx: &App) -> Vec<KeyValueRow> {
+        self.view_model.read(cx).params().to_vec()
+    }
+
+    pub fn current_headers(&self, cx: &App) -> Vec<KeyValueRow> {
+        self.view_model.read(cx).headers().to_vec()
     }
 
     pub fn current_bearer_token(&self, cx: &App) -> String {
@@ -895,6 +911,14 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let enabled = rows.iter().filter(|row| row.enabled).count();
+        let row_selector_prefix = match self.view_model.read(cx).request_pane() {
+            RequestPane::Params => "param-row-toggle",
+            RequestPane::Headers => "header-row-toggle",
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => "row-toggle",
+        };
         div()
             .id("key-value-editor-scroll")
             .flex_1()
@@ -925,6 +949,7 @@ impl PostmanApp {
             )
             .children(rows.iter().enumerate().map(|(index, row)| {
                 let is_enabled = row.enabled;
+                let toggle_selector = format!("{row_selector_prefix}-{index}");
                 div()
                     .h(px(36.0))
                     .flex_none()
@@ -935,6 +960,7 @@ impl PostmanApp {
                     .text_size(px(12.0))
                     .child(
                         div()
+                            .debug_selector(move || toggle_selector.clone())
                             .size(px(18.0))
                             .flex()
                             .items_center()
@@ -1018,10 +1044,23 @@ impl PostmanApp {
                     .flex()
                     .gap_2()
                     .child(div().w(px(18.0)))
-                    .child(self.row_key_input.clone())
-                    .child(self.row_value_input.clone())
                     .child(
                         div()
+                            .debug_selector(|| "row-key-input".into())
+                            .h_full()
+                            .flex_1()
+                            .child(self.row_key_input.clone()),
+                    )
+                    .child(
+                        div()
+                            .debug_selector(|| "row-value-input".into())
+                            .h_full()
+                            .flex_1()
+                            .child(self.row_value_input.clone()),
+                    )
+                    .child(
+                        div()
+                            .debug_selector(|| "add-row-button".into())
                             .w(px(64.0))
                             .h_full()
                             .flex()
@@ -1142,7 +1181,13 @@ impl PostmanApp {
                     .flex_col()
                     .p_3()
                     .bg(rgb(CODE_BG))
-                    .child(div().flex_1().min_h_0().child(self.body_input.clone()))
+                    .child(
+                        div()
+                            .debug_selector(|| "body-input".into())
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.body_input.clone()),
+                    )
                     .child(
                         div()
                             .flex()
@@ -1193,7 +1238,14 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = option == Some(selected);
+        let debug_selector = match option {
+            None => "body-kind-none",
+            Some(BodyKind::FormData) => "body-kind-form-data",
+            Some(BodyKind::Raw) => "body-kind-raw",
+            Some(BodyKind::Json) => "body-kind-json",
+        };
         let element = div()
+            .debug_selector(move || debug_selector.into())
             .flex()
             .items_center()
             .gap_1()

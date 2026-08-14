@@ -1,0 +1,50 @@
+name: HTTPBingo E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekdays at 03:17 UTC (11:17 Asia/Shanghai). A non-round minute reduces
+    # the chance of GitHub's scheduled-run congestion delaying the job.
+    - cron: "17 3 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: httpbingo-e2e
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  RUST_TOOLCHAIN: "1.97.0"
+
+jobs:
+  httpbingo-e2e:
+    name: Real PostmanApp → HTTPBingo
+    runs-on: macos-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+
+      - name: Cache Cargo dependencies and build output
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-httpbingo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-httpbingo-
+            ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Run real application scenarios against HTTPBingo
+        run: cargo test --locked --test httpbingo_scenarios -- --ignored --test-threads=1

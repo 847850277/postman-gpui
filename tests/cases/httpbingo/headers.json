@@ -1,0 +1,35 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives enabled custom headers only",
+      "draft": {
+        "method": "GET",
+        "path": "/headers",
+        "headers": [
+          { "key": "X-Scenario", "value": "httpbingo-headers" },
+          { "key": "X-Disabled", "value": "must-not-be-sent", "enabled": false }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/headers",
+          "headers": [["X-Scenario", "httpbingo-headers"]],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "headers": {
+              "X-Scenario": ["httpbingo-headers"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

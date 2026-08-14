@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives a POST JSON body and generated headers",
+      "draft": {
+        "method": "POST",
+        "path": "/anything/post-json",
+        "headers": [
+          { "key": "X-Scenario", "value": "httpbingo-json" }
+        ],
+        "body": "{\"name\":\"Ada\",\"active\":true}",
+        "body_kind": "json"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/anything/post-json",
+          "headers": [
+            ["Content-Type", "application/json"],
+            ["Accept", "application/json"],
+            ["X-Scenario", "httpbingo-json"]
+          ],
+          "body": "{\"name\":\"Ada\",\"active\":true}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "headers": {
+              "Content-Type": ["application/json"],
+              "X-Scenario": ["httpbingo-json"]
+            },
+            "data": "{\"name\":\"Ada\",\"active\":true}",
+            "json": {
+              "name": "Ada",
+              "active": true
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo parses a POST form body sent by the client",
+      "draft": {
+        "method": "POST",
+        "path": "/anything/form",
+        "body": "name=Ada+Lovelace&active=true",
+        "body_kind": "form_data"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/anything/form",
+          "headers": [
+            ["Content-Type", "application/x-www-form-urlencoded"],
+            ["Accept", "application/json"]
+          ],
+          "body": "name=Ada+Lovelace&active=true"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "headers": {
+              "Content-Type": ["application/x-www-form-urlencoded"]
+            },
+            "form": {
+              "name": ["Ada Lovelace"],
+              "active": ["true"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo receives a raw PUT body without generated content type",
+      "draft": {
+        "method": "PUT",
+        "path": "/anything/raw",
+        "body": "plain text body",
+        "body_kind": "raw"
+      },
+      "expect": {
+        "request": {
+          "method": "PUT",
+          "path": "/anything/raw",
+          "headers": [],
+          "body": "plain text body"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "PUT",
+            "data": "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5"
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo receives a PATCH JSON body",
+      "draft": {
+        "method": "PATCH",
+        "path": "/patch",
+        "body": "{\"patched\":true}",
+        "body_kind": "json"
+      },
+      "expect": {
+        "request": {
+          "method": "PATCH",
+          "path": "/patch",
+          "headers": [["Content-Type", "application/json"]],
+          "body": "{\"patched\":true}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "PATCH",
+            "json": {
+              "patched": true
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

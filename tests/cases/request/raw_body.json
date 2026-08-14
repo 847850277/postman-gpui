@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "raw body removes an automatically generated content type",
+      "draft": {
+        "method": "POST",
+        "path": "/raw",
+        "body": "plain text",
+        "body_kind": "raw"
+      },
+      "mock": {
+        "status": 200,
+        "body": "ok"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/raw",
+          "headers": [["Accept", "application/json"]],
+          "body": "plain text"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

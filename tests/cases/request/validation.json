@@ -1,0 +1,26 @@
+{
+  "schema_version": 3,
+  "target": "local",
+  "cases": [
+    {
+      "name": "failed sends expose an error and never enter shared history",
+      "draft": {
+        "method": "GET",
+        "path": ""
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "error",
+          "contains": "URL cannot be empty"
+        },
+        "history_len": 0
+      }
+    }
+  ]
+}

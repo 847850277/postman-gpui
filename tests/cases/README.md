@@ -1,12 +1,14 @@
 # Request Scenario Test Specification
 
-`request_scenarios.json` is the executable product contract for the request
-workflow. A scenario describes a request draft, the local server response, and
-the observable result expected from the application.
+The JSON documents below `tests/cases` are the executable product contract for
+the request workflow. Each document owns one functional area, and each scenario
+describes a request draft, the server response, and the observable result
+expected from the application. A file explicitly targets either deterministic
+local execution or the public HTTPBingo compatibility service.
 
 ## Scope
 
-The Rust runner in `tests/request_scenarios.rs` verifies the complete path below:
+The local runner in `tests/request_scenarios.rs` verifies the complete path below:
 
 ```text
 Scenario draft
@@ -17,12 +19,73 @@ Scenario draft
   -> ResponseState and shared history
 ```
 
-The suite covers request construction, HTTP delivery, response-state transitions,
-and history behavior. GPUI layout and direct mouse or keyboard interaction remain
-the responsibility of the `ui_*` integration tests.
+The deterministic suite covers request construction, HTTP delivery,
+response-state transitions, and history behavior without depending on the
+internet.
 
-The suite deliberately does not depend on public services, fixed ports, response
-elapsed time, or exact pretty-printed JSON whitespace.
+The opt-in runner in `tests/httpbingo_scenarios.rs` is an application-level
+scenario runner:
+
+```text
+Scenario draft
+  -> fresh TestAppContext window with a real PostmanApp View
+  -> method/URL/params/headers/auth/body controls
+  -> click Send
+  -> WorkspaceViewModel and real RequestExecutor
+  -> https://httpbingo.org
+  -> ResponseState, rendered response content, and shared history
+```
+
+It uses the rendered method dropdown, URL field, query/header row editors,
+authorization field, body-kind controls, and Send button. Body payload text is
+projected through the `PostmanApp` command surface so structured form bodies and
+plain text use the same application state path. The runner then compares the
+complete request recorded by the real application's history, checks the stable
+HTTPBingo echo, and verifies that the response content is present in the window.
+It covers public DNS, TLS, redirects, request encoding, methods, headers, bodies,
+and non-2xx responses, but does not replace the deterministic local contract.
+
+## File organization
+
+The contract is split by the primary product rule being specified:
+
+```text
+tests/cases/
+├── request/
+│   ├── methods.json
+│   ├── query_params.json
+│   ├── headers.json
+│   ├── authorization.json
+│   ├── json_body.json
+│   ├── form_body.json
+│   ├── raw_body.json
+│   ├── file_upload.json
+│   └── validation.json
+├── response/
+│   ├── status.json
+│   └── content.json
+├── history/
+│   └── request_history.json
+├── environment/
+│   └── startup_checks.json
+└── httpbingo/
+    ├── methods.json
+    ├── query_params.json
+    ├── headers.json
+    ├── authorization.json
+    ├── bodies.json
+    └── responses.json
+```
+
+The runner recursively discovers every JSON file in this tree. There is no
+monolithic scenario file or compatibility path. A reserved functional-area file
+may temporarily contain an empty `cases` array, but the tree as a whole must
+define at least one scenario.
+
+Place a cross-cutting scenario in the file for its main rule. For example, a
+POST request asserting automatic JSON headers belongs in `json_body.json`, while
+a POST request asserting that a manually supplied content type wins belongs in
+`headers.json`.
 
 ## Running the suite
 
@@ -38,36 +101,58 @@ The alias expands to:
 cargo test --test request_scenarios
 ```
 
-Locally, `cargo test` still runs this suite with the rest of the tests.
+Run the real HTTPBingo compatibility scenarios explicitly:
+
+```sh
+cargo httpbingo-scenarios
+```
+
+The HTTPBingo test is ignored during ordinary `cargo test` runs because it
+requires a public service and currently takes about 20–30 seconds. The explicit
+command treats network or HTTPBingo failures as real test failures.
+
+CI runs the same command in the standalone `HTTPBingo E2E` workflow. It can be
+started manually with `workflow_dispatch` and runs automatically on weekdays at
+03:17 UTC. Because it depends on a public service, it is deliberately separate
+from the required pull-request checks; a failure remains visible without making
+an unrelated HTTPBingo outage block every pull request.
+
+Locally, `cargo test` still runs the deterministic suite with the rest of the tests.
 CI runs it as a separate **Request Scenario Contract** job so a contract
 failure is visible on its own and does not share a log with the GPUI UI tests.
 
 ## Isolation model
 
-Every case starts with a new `WorkspaceViewModel`. A case containing `mock`
-also receives a fresh mockito server and an automatically assigned origin.
-Therefore, `draft.path` and `expect.request.path` must be host-relative, for
-example `/users/42?active=true`.
+Every local case starts with a new `WorkspaceViewModel`. A `target: "local"`
+case containing `mock` receives a fresh mockito server and an automatically
+assigned origin. Every `target: "httpbingo"` case starts with a fresh
+`PostmanApp` and GPUI window, must omit `mock`, and receives the
+`https://httpbingo.org` origin from the opt-in runner. Therefore, `draft.path`
+and `expect.request.path` are host-relative in both modes, for example
+`/users/42?active=true`.
 
 Cases that fail before network delivery, such as an empty URL, omit `mock`. They
 must expect an error response and no history entry.
 
-## Scenario structure
+## Scenario file structure
 
-The document contains a schema version and a list of cases:
+Every JSON document contains a schema version and a list of cases:
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "target": "local",
   "cases": []
 }
 ```
+
+`target` is required and accepts `local` or `httpbingo`.
 
 Each case has four responsibilities:
 
 - `name`: a unique description of one product rule;
 - `draft`: user-editable request state applied to the ViewModel;
-- `mock`: the local HTTP response and transport expectation, when applicable;
+- `mock`: the local HTTP response and transport expectation for local cases;
 - `expect`: the exact outgoing request, resulting response state, and history
   length.
 
@@ -95,12 +180,17 @@ logical `Request` and what the HTTP client actually delivers over the wire.
 ### Expected result fields
 
 `expect.request` is compared with the assembled `Request` exactly, including
-method, URL path, header list, header ordering, and body.
+method, URL path, header list, header ordering, and body. In HTTPBingo mode the
+comparison uses the completed request recorded by the running application's
+shared history, in addition to assertions against HTTPBingo's echoed response.
 
 A successful response supports:
 
 - `status`: exact status code;
 - `body_contains`: optional stable body fragment;
+- `body_json_contains`: optional recursive JSON object subset. This is useful
+  for HTTPBingo because dynamic fields such as origin IP and proxy headers are
+  intentionally omitted from the expected subset;
 - `headers_contain`: optional response-header subset. Header names are matched
   case-insensitively and values exactly.
 
@@ -110,7 +200,8 @@ message. `history_len` specifies the expected shared-history size after sending.
 ## Authoring rules
 
 1. Describe one observable product rule per case and keep case names unique.
-2. Use host-relative paths and local mocks; never call a public test service.
+2. Use host-relative paths. Local cases use local mocks; only files explicitly
+   targeting `httpbingo` may call the public compatibility service.
 3. Assert the complete outgoing `Request`, not only the mock response.
 4. Prefer stable response fragments and meaningful headers over incidental
    formatting or timing values.
@@ -119,12 +210,16 @@ message. `history_len` specifies the expected shared-history size after sending.
 6. Add a regression scenario before fixing a reproduced request-workflow bug.
 7. Keep scenarios independent; no case may rely on another case's history or
    server state.
+8. Put the case in the functional-area file that owns its primary product rule.
+9. Keep HTTPBingo assertions limited to stable echoed values; never assert
+   origin IPs, proxy headers, dates, timing, or header ordering.
 
 ## Contract evolution
 
 Unknown JSON fields are rejected so spelling mistakes cannot silently weaken a
-test. When changing the scenario format, update `SCENARIO_SCHEMA_VERSION`, the
-JSON `schema_version`, this specification, and the runner in the same change.
+test. Scenario names must be unique across all files. When changing the scenario
+format, update `SCENARIO_SCHEMA_VERSION`, every JSON `schema_version`, this
+specification, and the runner in the same change.
 
 Use the normal red-green-refactor cycle: add or update the scenario, observe the
 expected failure, implement the smallest product change, and run the full test

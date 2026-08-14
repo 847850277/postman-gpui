@@ -6,18 +6,35 @@ use postman_gpui::{
     models::{HttpMethod, Request},
 };
 use serde::Deserialize;
+use serde_json::Value;
 use std::{
+    fs,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
 };
 
-const SCENARIO_SCHEMA_VERSION: u32 = 2;
+const SCENARIO_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ScenarioSuite {
     pub schema_version: u32,
+    pub target: ScenarioTarget,
     pub cases: Vec<RequestScenario>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScenarioTarget {
+    Local,
+    Httpbingo,
+}
+
+#[derive(Debug)]
+pub struct ScenarioFile {
+    pub path: PathBuf,
+    pub suite: ScenarioSuite,
 }
 
 #[derive(Debug, Deserialize)]
@@ -90,6 +107,8 @@ pub enum ResponseSpec {
         #[serde(default)]
         body_contains: Option<String>,
         #[serde(default)]
+        body_json_contains: Option<Value>,
+        #[serde(default)]
         headers_contain: Vec<(String, String)>,
     },
     Error {
@@ -118,12 +137,73 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
             suite.schema_version
         ));
     }
-    if suite.cases.is_empty() {
-        return Err("request scenario suite must contain at least one case".to_string());
-    }
     Ok(suite)
 }
 
+pub fn load_suites(root: &Path) -> Result<Vec<ScenarioFile>, String> {
+    let mut paths = Vec::new();
+    collect_json_files(root, &mut paths)?;
+    paths.sort();
+
+    if paths.is_empty() {
+        return Err(format!(
+            "request scenario directory contains no JSON files: {}",
+            root.display()
+        ));
+    }
+
+    let mut files = Vec::with_capacity(paths.len());
+    for path in paths {
+        let json = fs::read_to_string(&path).map_err(|error| {
+            format!(
+                "failed to read request scenario file {}: {error}",
+                path.display()
+            )
+        })?;
+        let suite = load_suite(&json).map_err(|error| format!("{}: {error}", path.display()))?;
+        files.push(ScenarioFile { path, suite });
+    }
+
+    if files.iter().all(|file| file.suite.cases.is_empty()) {
+        return Err("request scenario files must define at least one case".to_string());
+    }
+
+    Ok(files)
+}
+
+fn collect_json_files(directory: &Path, paths: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(directory).map_err(|error| {
+        format!(
+            "failed to read request scenario directory {}: {error}",
+            directory.display()
+        )
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!(
+                "failed to inspect request scenario directory {}: {error}",
+                directory.display()
+            )
+        })?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|error| {
+            format!(
+                "failed to inspect request scenario path {}: {error}",
+                path.display()
+            )
+        })?;
+        if file_type.is_dir() {
+            collect_json_files(&path, paths)?;
+        } else if file_type.is_file() && path.extension().is_some_and(|value| value == "json") {
+            paths.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+#[allow(dead_code)]
 pub fn run_scenario(scenario: &RequestScenario) -> Result<(), String> {
     let mut server = scenario.mock.is_some().then(Server::new);
     let server_url = server.as_ref().map(|server| server.url());
@@ -135,6 +215,14 @@ pub fn run_scenario(scenario: &RequestScenario) -> Result<(), String> {
         }
     };
 
+    execute_scenario(scenario, server_url.as_deref(), mock.as_ref())
+}
+
+fn execute_scenario(
+    scenario: &RequestScenario,
+    server_url: Option<&str>,
+    mock: Option<&Mock>,
+) -> Result<(), String> {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let request = RequestViewModel::with_service(Box::new(RecordingExecutor {
         inner: RequestExecutor::new(),
@@ -142,22 +230,22 @@ pub fn run_scenario(scenario: &RequestScenario) -> Result<(), String> {
     }));
     let mut workspace = WorkspaceViewModel::with_request(request);
 
-    apply_draft(&mut workspace, &scenario.draft, server_url.as_deref())?;
+    apply_draft(&mut workspace, &scenario.draft, server_url)?;
     workspace.send();
 
     assert_outgoing_request(
         seen.lock().unwrap().as_slice(),
         &scenario.expect.request,
-        server_url.as_deref(),
+        server_url,
     )?;
-    if let Some(mock) = &mock {
+    if let Some(mock) = mock {
         if !mock.matched() {
             return Err(
                 "mock server did not receive a request matching the transport contract".to_string(),
             );
         }
     }
-    assert_response(workspace.response(), &scenario.expect.response)?;
+    assert_response_state(workspace.response(), &scenario.expect.response)?;
 
     if workspace.history_len() != scenario.expect.history_len {
         return Err(format!(
@@ -167,7 +255,7 @@ pub fn run_scenario(scenario: &RequestScenario) -> Result<(), String> {
         ));
     }
     if scenario.expect.history_len > 0 {
-        let expected = expected_request(&scenario.expect.request, server_url.as_deref())?;
+        let expected = expected_request(&scenario.expect.request, server_url)?;
         if workspace.history().first().map(|entry| &entry.request) != Some(&expected) {
             return Err("latest history entry does not contain the outgoing request".to_string());
         }
@@ -262,7 +350,7 @@ fn assert_outgoing_request(
     ))
 }
 
-fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<Request, String> {
+pub fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<Request, String> {
     Ok(Request {
         method: parse_method(&spec.method)?,
         url: absolute_url(server_url, &spec.path)?,
@@ -302,7 +390,10 @@ fn parse_body_kind(value: &str) -> Result<BodyKind, String> {
     }
 }
 
-fn assert_response(actual: &ResponseState, expected: &ResponseSpec) -> Result<(), String> {
+pub fn assert_response_state(
+    actual: &ResponseState,
+    expected: &ResponseSpec,
+) -> Result<(), String> {
     match (actual, expected) {
         (
             ResponseState::Success {
@@ -314,22 +405,38 @@ fn assert_response(actual: &ResponseState, expected: &ResponseSpec) -> Result<()
             ResponseSpec::Success {
                 status,
                 body_contains,
+                body_json_contains,
                 headers_contain,
             },
-        ) if actual_status == status
-            && body_contains
-                .as_ref()
-                .map(|needle| actual_body.contains(needle))
-                .unwrap_or(true)
-            && headers_contain
-                .iter()
-                .all(|(expected_name, expected_value)| {
-                    actual_headers.iter().any(|(actual_name, actual_value)| {
-                        actual_name.eq_ignore_ascii_case(expected_name)
-                            && actual_value == expected_value
-                    })
-                }) =>
-        {
+        ) => {
+            if actual_status != status {
+                return Err(format!(
+                    "response status mismatch: expected {status}, actual {actual_status}"
+                ));
+            }
+            if let Some(needle) = body_contains {
+                if !actual_body.contains(needle) {
+                    return Err(format!(
+                        "response body does not contain {needle:?}\n  actual: {actual_body}"
+                    ));
+                }
+            }
+            for (expected_name, expected_value) in headers_contain {
+                if !actual_headers.iter().any(|(actual_name, actual_value)| {
+                    actual_name.eq_ignore_ascii_case(expected_name)
+                        && actual_value == expected_value
+                }) {
+                    return Err(format!(
+                        "response header missing: {expected_name}: {expected_value}\n  actual: {actual_headers:#?}"
+                    ));
+                }
+            }
+            if let Some(expected_json) = body_json_contains {
+                let actual_json: Value = serde_json::from_str(actual_body).map_err(|error| {
+                    format!("response body is not valid JSON: {error}\n  actual: {actual_body}")
+                })?;
+                assert_json_contains(&actual_json, expected_json, "$")?;
+            }
             Ok(())
         }
         (ResponseState::Error { message }, ResponseSpec::Error { contains })
@@ -339,6 +446,27 @@ fn assert_response(actual: &ResponseState, expected: &ResponseSpec) -> Result<()
         }
         _ => Err(format!(
             "response mismatch\n  expected: {expected:#?}\n  actual:   {actual:#?}"
+        )),
+    }
+}
+
+fn assert_json_contains(actual: &Value, expected: &Value, path: &str) -> Result<(), String> {
+    match expected {
+        Value::Object(expected_fields) => {
+            let actual_fields = actual.as_object().ok_or_else(|| {
+                format!("JSON mismatch at {path}: expected object subset, actual {actual}")
+            })?;
+            for (key, expected_value) in expected_fields {
+                let actual_value = actual_fields.get(key).ok_or_else(|| {
+                    format!("JSON mismatch at {path}: missing field {key:?} in {actual}")
+                })?;
+                assert_json_contains(actual_value, expected_value, &format!("{path}.{key}"))?;
+            }
+            Ok(())
+        }
+        _ if actual == expected => Ok(()),
+        _ => Err(format!(
+            "JSON mismatch at {path}: expected {expected}, actual {actual}"
         )),
     }
 }

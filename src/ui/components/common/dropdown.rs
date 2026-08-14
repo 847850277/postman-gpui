@@ -200,9 +200,12 @@ impl Dropdown {
                         .children(self.options.iter().enumerate().map(|(index, option)| {
                             let is_selected = option == &self.selected_value;
                             let option_clone = option.clone();
+                            let debug_selector =
+                                format!("method-option-{}", option.to_ascii_lowercase());
 
                             div()
                                 .id(("dropdown-option", index))
+                                .debug_selector(move || debug_selector.clone())
                                 .w_full()
                                 .h(px(34.0))
                                 .flex()

@@ -4,6 +4,8 @@ use crate::models::HttpMethod;
 use reqwest::{Client, RequestBuilder};
 use std::collections::HashMap;
 
+const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
 #[derive(Clone)]
 pub struct HttpClient {
     client: Client,
@@ -18,7 +20,10 @@ impl Default for HttpClient {
 impl HttpClient {
     pub fn new() -> Self {
         HttpClient {
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent(DEFAULT_USER_AGENT)
+                .build()
+                .expect("the built-in HTTP client configuration should be valid"),
         }
     }
 
@@ -95,6 +100,7 @@ impl HttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mockito::Server;
 
     #[test]
     fn test_http_client_creation() {
@@ -108,5 +114,25 @@ mod tests {
         let client = HttpClient::default();
         // Verify that default implementation works
         assert!(std::mem::size_of_val(&client) > 0);
+    }
+
+    #[tokio::test]
+    async fn default_client_sends_product_user_agent() {
+        let mut server = Server::new_async().await;
+        let mock = server
+            .mock("GET", "/headers")
+            .match_header("user-agent", DEFAULT_USER_AGENT)
+            .with_status(200)
+            .with_body("ok")
+            .create_async()
+            .await;
+
+        let response = HttpClient::new()
+            .get(&format!("{}/headers", server.url()))
+            .await
+            .expect("request should succeed");
+
+        assert_eq!(response.status(), 200);
+        mock.assert_async().await;
     }
 }
