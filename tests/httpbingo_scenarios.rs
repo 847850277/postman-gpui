@@ -1,20 +1,17 @@
 //! Opt-in application scenarios that drive a real GPUI window against HTTPBingo.
 
 mod common;
+#[path = "common/ui.rs"]
+mod ui;
 
 use common::scenario::{
     assert_requests_equivalent, assert_response_state, expected_request, load_suites, DraftSpec,
     KeyValueSpec, RequestScenario, ResponseSpec, ScenarioTarget,
 };
-use gpui::{Entity, Modifiers, TestAppContext, VisualTestContext};
-use postman_gpui::{
-    app::{KeyValueRow, PostmanApp},
-    models::HttpMethod,
-};
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use gpui::{AppContext, Entity, TestAppContext, VisualTestContext};
+use postman_gpui::app::{KeyValueRow, PostmanApp, WorkspaceViewModel};
+use std::path::{Path, PathBuf};
+use ui::{choose_method, click, type_into};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
@@ -147,7 +144,10 @@ fn run_application_scenario(
     }
 
     let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
-    let (app, cx) = test_cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     choose_method(cx, &scenario.draft.method)?;
     type_into(
@@ -155,8 +155,8 @@ fn run_application_scenario(
         "url-input",
         &format!("{HTTPBINGO_BASE_URL}{}", scenario.draft.path),
     )?;
-    apply_rows(cx, &app, RowEditor::Params, &scenario.draft.params)?;
-    apply_rows(cx, &app, RowEditor::Headers, &scenario.draft.headers)?;
+    apply_rows(cx, &workspace, RowEditor::Params, &scenario.draft.params)?;
+    apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
 
     if scenario.draft.bearer_token.is_some() && scenario.draft.basic_auth.is_some() {
         return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
@@ -174,7 +174,7 @@ fn run_application_scenario(
 
     apply_body(cx, &scenario.draft)?;
 
-    let assembled_url = app.read_with(cx, |app, cx| app.current_url(cx));
+    let assembled_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
     if assembled_url != expected.url {
         return Err(format!(
             "application URL mismatch before Send\n  expected: {:?}\n  actual:   {:?}",
@@ -185,7 +185,7 @@ fn run_application_scenario(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let response = app.read_with(cx, |app, cx| app.response_state(cx));
+    let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&response, &scenario.expect.response)?;
 
     if cx.debug_bounds("response-container").is_none() {
@@ -199,7 +199,7 @@ fn run_application_scenario(
         return Err("response content is not rendered in the application window".to_string());
     }
 
-    let history_len = app.read_with(cx, |app, cx| app.history_len(cx));
+    let history_len = workspace.read_with(cx, |workspace, _| workspace.history_len());
     if history_len != scenario.expect.history_len {
         return Err(format!(
             "history length mismatch: expected {}, actual {history_len}",
@@ -207,7 +207,12 @@ fn run_application_scenario(
         ));
     }
 
-    let recorded_request = app.read_with(cx, |app, cx| app.latest_history_request(cx));
+    let recorded_request = workspace.read_with(cx, |workspace, _| {
+        workspace
+            .history()
+            .first()
+            .map(|entry| entry.request.clone())
+    });
     match (scenario.expect.history_len > 0, recorded_request) {
         (true, Some(actual)) => {
             assert_requests_equivalent(&actual, &expected).map_err(|error| {
@@ -226,25 +231,9 @@ fn run_application_scenario(
     Ok(())
 }
 
-fn choose_method(cx: &mut VisualTestContext, value: &str) -> Result<(), String> {
-    let method = HttpMethod::from_str(value)
-        .map_err(|error| format!("invalid scenario method `{value}`: {error}"))?;
-    let selector = match method {
-        HttpMethod::GET => "method-option-get",
-        HttpMethod::POST => "method-option-post",
-        HttpMethod::PUT => "method-option-put",
-        HttpMethod::DELETE => "method-option-delete",
-        HttpMethod::PATCH => "method-option-patch",
-        HttpMethod::HEAD => "method-option-head",
-        HttpMethod::OPTIONS => "method-option-options",
-    };
-    click(cx, "method-dropdown-button")?;
-    click(cx, selector)
-}
-
 fn apply_rows(
     cx: &mut VisualTestContext,
-    app: &Entity<PostmanApp>,
+    workspace: &Entity<WorkspaceViewModel>,
     editor: RowEditor,
     rows: &[KeyValueSpec],
 ) -> Result<(), String> {
@@ -266,8 +255,8 @@ fn apply_rows(
         click(cx, "add-row-button")?;
 
         if !row.enabled {
-            let index = app
-                .read_with(cx, |app, cx| rows_for(app, editor, cx))
+            let index = workspace
+                .read_with(cx, |workspace, _| rows_for(workspace, editor))
                 .iter()
                 .position(|actual| row_matches(editor, actual, &row.key))
                 .ok_or_else(|| format!("row `{}` was not added to the application", row.key))?;
@@ -278,10 +267,10 @@ fn apply_rows(
     Ok(())
 }
 
-fn rows_for(app: &PostmanApp, editor: RowEditor, cx: &gpui::App) -> Vec<KeyValueRow> {
+fn rows_for(workspace: &WorkspaceViewModel, editor: RowEditor) -> Vec<KeyValueRow> {
     match editor {
-        RowEditor::Params => app.current_params(cx),
-        RowEditor::Headers => app.current_headers(cx),
+        RowEditor::Params => workspace.params().to_vec(),
+        RowEditor::Headers => workspace.headers().to_vec(),
     }
 }
 
@@ -375,23 +364,5 @@ fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), Strin
         type_into(cx, value_selector, value)?;
         cx.simulate_keystrokes("enter");
     }
-    Ok(())
-}
-
-fn type_into(
-    cx: &mut VisualTestContext,
-    selector: &'static str,
-    value: &str,
-) -> Result<(), String> {
-    click(cx, selector)?;
-    cx.simulate_input(value);
-    Ok(())
-}
-
-fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), String> {
-    let bounds = cx
-        .debug_bounds(selector)
-        .ok_or_else(|| format!("application control `{selector}` is not rendered"))?;
-    cx.simulate_click(bounds.center(), Modifiers::none());
     Ok(())
 }

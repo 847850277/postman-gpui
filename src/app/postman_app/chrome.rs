@@ -1,6 +1,91 @@
 use super::*;
 
 impl PostmanApp {
+    pub(super) fn render_top_header(&self) -> impl IntoElement {
+        div()
+            .debug_selector(|| "top-header".into())
+            .h(px(72.0))
+            .flex_none()
+            .flex()
+            .items_center()
+            .px_5()
+            .bg(rgb(PANEL))
+            .border_b_1()
+            .border_color(rgb(LINE))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT)))
+                    .child(
+                        div()
+                            .font_family(FONT_HEADING)
+                            .text_size(px(22.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(TEXT))
+                            .child("Postman GPUI"),
+                    ),
+            )
+    }
+
+    pub(super) fn render_left_rail(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let passive_slots = ["↻", "◫", "◇", "⌘", "⚙", "?"];
+        div()
+            .debug_selector(|| "left-rail".into())
+            .w(px(72.0))
+            .h_full()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .items_center()
+            .gap_4()
+            .px_2()
+            .py_3()
+            .bg(rgb(PANEL))
+            .border_r_1()
+            .border_color(rgb(LINE))
+            .child(
+                div()
+                    .id(("rail-slot", 0usize))
+                    .debug_selector(|| "rail-new-request".into())
+                    .size(px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(ACCENT_SOFT))
+                    .text_color(rgb(ACCENT_DARK))
+                    .font_family(FONT_UI)
+                    .text_size(px(22.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgb(0x00ff_e4d5)))
+                    .child("+")
+                    .on_mouse_up(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.new_request(cx)),
+                    ),
+            )
+            .children(passive_slots.into_iter().enumerate().map(|(index, label)| {
+                div()
+                    .id(("rail-slot", index + 1))
+                    .size(px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .bg(rgb(PANEL_ALT))
+                    .text_color(rgb(SUBTEXT))
+                    .font_family(FONT_UI)
+                    .text_size(px(16.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(label)
+            }))
+    }
+}
+
+impl RequestEditor {
     pub(super) fn request_tab(
         &self,
         pane: RequestPane,
@@ -30,67 +115,6 @@ impl PostmanApp {
                 gpui::MouseButton::Left,
                 cx.listener(move |this, _, _, cx| this.set_request_pane(pane, cx)),
             )
-    }
-
-    pub(super) fn render_top_header(&self) -> impl IntoElement {
-        div()
-            .debug_selector(|| "top-header".into())
-            .h(px(72.0))
-            .flex_none()
-            .flex()
-            .items_center()
-            .px_5()
-            .bg(rgb(PANEL))
-            .border_b_1()
-            .border_color(rgb(LINE))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT)))
-                    .child(
-                        div()
-                            .font_family(FONT_HEADING)
-                            .text_size(px(22.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
-                            .child("Postman GPUI"),
-                    ),
-            )
-    }
-
-    pub(super) fn render_left_rail(&self) -> impl IntoElement {
-        let slots = ["⌂", "↻", "◫", "◇", "⌘", "⚙", "?"];
-        div()
-            .debug_selector(|| "left-rail".into())
-            .w(px(72.0))
-            .h_full()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .items_center()
-            .gap_4()
-            .px_2()
-            .py_3()
-            .bg(rgb(PANEL))
-            .border_r_1()
-            .border_color(rgb(LINE))
-            .children(slots.into_iter().enumerate().map(|(index, label)| {
-                div()
-                    .id(("rail-slot", index))
-                    .size(px(40.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_lg()
-                    .bg(rgb(if index == 1 { ACCENT_SOFT } else { PANEL_ALT }))
-                    .text_color(rgb(if index == 1 { ACCENT_DARK } else { SUBTEXT }))
-                    .font_family(FONT_UI)
-                    .text_size(px(16.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(label)
-            }))
     }
 
     pub(super) fn render_request_tabs_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -298,29 +322,17 @@ impl PostmanApp {
             ))
             .child(self.request_tab(
                 RequestPane::Body,
-                if has_body {
-                    "Body ●".to_string()
-                } else {
-                    "Body".to_string()
-                },
+                if has_body { "Body ●" } else { "Body" },
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Scripts,
-                if has_script {
-                    "Scripts ●".to_string()
-                } else {
-                    "Scripts".to_string()
-                },
+                if has_script { "Scripts ●" } else { "Scripts" },
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Tests,
-                if has_tests {
-                    "Tests ●".to_string()
-                } else {
-                    "Tests".to_string()
-                },
+                if has_tests { "Tests ●" } else { "Tests" },
                 cx,
             ))
     }

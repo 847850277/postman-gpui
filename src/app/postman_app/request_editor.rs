@@ -1,6 +1,500 @@
 use super::*;
 
-impl PostmanApp {
+#[derive(Clone, Debug)]
+pub(super) enum RequestEditorEvent {
+    Execute(PendingRequest),
+    Abort(SendId),
+}
+
+/// Request-workspace child view. It owns editor entities, their subscriptions, and one-way
+/// ViewModel projection. HTTP execution remains in `RequestRunner`.
+pub(super) struct RequestEditor {
+    pub(super) view_model: Entity<WorkspaceViewModel>,
+    pub(super) method_selector: Entity<MethodSelector>,
+    pub(super) url_input: Entity<UrlInput>,
+    body_input: Entity<BodyInput>,
+    row_key_input: Entity<HeaderInput>,
+    row_value_input: Entity<HeaderInput>,
+    authorization_input: Entity<HeaderInput>,
+    basic_username_input: Entity<HeaderInput>,
+    basic_password_input: Entity<HeaderInput>,
+    script_input: Entity<BodyInput>,
+    tests_input: Entity<BodyInput>,
+    response_viewer: Entity<ResponseViewer>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl EventEmitter<RequestEditorEvent> for RequestEditor {}
+
+impl RequestEditor {
+    pub(super) fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+        cx.bind_keys(setup_url_input_key_bindings());
+        cx.bind_keys(setup_header_input_key_bindings());
+        cx.bind_keys(setup_body_input_key_bindings());
+        cx.bind_keys(setup_response_viewer_key_bindings());
+
+        let method_selector = cx.new(MethodSelector::new);
+        let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
+        let body_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Enter request body (JSON, form data, etc.)")
+                .with_type_tabs(false)
+        });
+        let row_key_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Key"));
+        let row_value_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Value"));
+        let authorization_input =
+            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Enter bearer token"));
+        let basic_username_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Username"));
+        let basic_password_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Password")
+                .with_masked(true)
+        });
+        let script_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Pre-request script")
+                .with_type_tabs(false)
+        });
+        let tests_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Response tests")
+                .with_type_tabs(false)
+        });
+        let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
+
+        let subscriptions = vec![
+            cx.subscribe(&method_selector, Self::on_method_changed),
+            cx.subscribe(&url_input, Self::on_url_event),
+            cx.subscribe(&body_input, Self::on_body_event),
+            cx.subscribe(&row_key_input, Self::on_row_input_event),
+            cx.subscribe(&row_value_input, Self::on_row_input_event),
+            cx.subscribe(&authorization_input, Self::on_authorization_event),
+            cx.subscribe(&basic_username_input, Self::on_basic_username_event),
+            cx.subscribe(&basic_password_input, Self::on_basic_password_event),
+            cx.subscribe(&script_input, Self::on_script_event),
+            cx.subscribe(&tests_input, Self::on_tests_event),
+            cx.observe(&view_model, |_, _, cx| cx.notify()),
+        ];
+
+        let editor = Self {
+            view_model,
+            method_selector,
+            url_input,
+            body_input,
+            row_key_input,
+            row_value_input,
+            authorization_input,
+            basic_username_input,
+            basic_password_input,
+            script_input,
+            tests_input,
+            response_viewer,
+            _subscriptions: subscriptions,
+        };
+        editor.project_active_request(cx);
+        editor
+    }
+
+    fn update_view_model<R>(
+        &self,
+        cx: &mut Context<Self>,
+        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
+    ) -> R {
+        self.view_model.update(cx, |view_model, cx| {
+            let result = update(view_model);
+            cx.notify();
+            result
+        })
+    }
+
+    fn on_method_changed(
+        &mut self,
+        _selector: Entity<MethodSelector>,
+        event: &MethodSelectorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let MethodSelectorEvent::MethodChanged(method) = event;
+        self.update_view_model(cx, |view_model| view_model.set_method(*method));
+        self.project_body(cx);
+    }
+
+    fn on_url_event(
+        &mut self,
+        _input: Entity<UrlInput>,
+        event: &UrlInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            UrlInputEvent::UrlChanged(url) => {
+                self.update_view_model(cx, |view_model| view_model.set_url(url));
+            }
+            UrlInputEvent::SubmitRequested => self.click_send(cx),
+        }
+    }
+
+    fn on_body_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            BodyInputEvent::ValueChanged(value) => {
+                self.update_view_model(cx, |view_model| view_model.set_body(value));
+            }
+            BodyInputEvent::FormDataChanged(entries) => {
+                let entries = entries.clone();
+                self.update_view_model(cx, |view_model| match view_model.body_kind() {
+                    BodyKind::UrlEncoded => {
+                        let mut serializer = form_urlencoded::Serializer::new(String::new());
+                        for entry in entries
+                            .iter()
+                            .filter(|entry| entry.enabled && !entry.key.is_empty())
+                        {
+                            serializer.append_pair(&entry.key, &entry.value);
+                        }
+                        view_model.set_body(serializer.finish());
+                    }
+                    BodyKind::Multipart => {
+                        let parts = entries
+                            .into_iter()
+                            .filter(|entry| entry.enabled && !entry.key.is_empty())
+                            .filter_map(|entry| {
+                                let value = match entry.file {
+                                    Some(file) if !file.path.as_os_str().is_empty() => {
+                                        MultipartValue::File {
+                                            path: file.path,
+                                            file_name: file.file_name,
+                                            content_type: file.content_type,
+                                        }
+                                    }
+                                    Some(_) => return None,
+                                    None => MultipartValue::Text(entry.value),
+                                };
+                                Some(MultipartPart {
+                                    name: entry.key,
+                                    value,
+                                })
+                            })
+                            .collect();
+                        view_model.set_multipart_parts(parts);
+                    }
+                    BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
+                });
+            }
+        }
+    }
+
+    fn on_row_input_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if matches!(event, HeaderInputEvent::SubmitRequested) {
+            self.add_current_row(cx);
+        }
+    }
+
+    fn on_authorization_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(token) = event {
+            self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
+        }
+    }
+
+    fn on_basic_username_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(username) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_username(username));
+        }
+    }
+
+    fn on_basic_password_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(password) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_password(password));
+        }
+    }
+
+    fn on_script_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let BodyInputEvent::ValueChanged(script) = event {
+            self.update_view_model(cx, |view_model| view_model.set_pre_request_script(script));
+        }
+    }
+
+    fn on_tests_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let BodyInputEvent::ValueChanged(script) = event {
+            self.update_view_model(cx, |view_model| view_model.set_tests_script(script));
+        }
+    }
+
+    fn click_send(&mut self, cx: &mut Context<Self>) {
+        if let Some(send_id) = self.view_model.read(cx).active_send_id() {
+            self.cancel_send(send_id, cx);
+            return;
+        }
+
+        let pending = self.update_view_model(cx, WorkspaceViewModel::begin_send);
+        self.project_authorization(cx);
+        cx.emit(RequestEditorEvent::Execute(pending));
+    }
+
+    fn cancel_send(&mut self, send_id: SendId, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.cancel_send(send_id));
+        cx.emit(RequestEditorEvent::Abort(send_id));
+    }
+
+    pub(super) fn on_send_clicked(
+        &mut self,
+        _event: &gpui::MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.click_send(cx);
+    }
+
+    pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.set_request_pane(pane));
+    }
+
+    fn add_current_row(&mut self, cx: &mut Context<Self>) {
+        let key = self.row_key_input.read(cx).get_content().trim().to_string();
+        let value = self
+            .row_value_input
+            .read(cx)
+            .get_content()
+            .trim()
+            .to_string();
+        let request_pane = self.view_model.read(cx).request_pane();
+        match request_pane {
+            RequestPane::Params => {
+                self.update_view_model(cx, |view_model| view_model.upsert_param(key, value));
+                self.project_url(cx);
+            }
+            RequestPane::Headers => {
+                self.update_view_model(cx, |view_model| view_model.upsert_header(key, value));
+            }
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => return,
+        }
+        self.clear_staged_row(cx);
+    }
+
+    fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.toggle_param(index));
+        self.project_url(cx);
+    }
+
+    fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.remove_param(index));
+        self.project_url(cx);
+    }
+
+    fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.toggle_header(index));
+    }
+
+    fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.remove_header(index));
+    }
+
+    fn set_authorization_kind(&mut self, kind: AuthorizationKind, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.set_authorization_kind(kind));
+    }
+
+    fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| {
+            let current = view_model.body_kind();
+            let current_is_form = matches!(current, BodyKind::UrlEncoded | BodyKind::Multipart);
+            let next_is_form = matches!(kind, BodyKind::UrlEncoded | BodyKind::Multipart);
+            if current != kind && current_is_form != next_is_form {
+                view_model.clear_body();
+            }
+            view_model.set_body_kind(kind);
+        });
+        self.project_body(cx);
+    }
+
+    fn use_sample_json(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| {
+            view_model.set_body_kind(BodyKind::Json);
+            view_model.set_body(
+                r#"{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "active": true
+}"#,
+            );
+        });
+        self.project_body(cx);
+    }
+
+    fn clear_body(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.clear_body());
+        self.project_body(cx);
+    }
+
+    pub(super) fn new_request(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, WorkspaceViewModel::new_request);
+        self.clear_staged_row(cx);
+        self.project_active_request(cx);
+    }
+
+    pub(super) fn select_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.update_view_model(cx, |view_model| view_model.select_tab(index)) {
+            self.clear_staged_row(cx);
+            self.project_active_request(cx);
+        }
+    }
+
+    pub(super) fn close_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(send_id) = self.view_model.read(cx).send_id_for_tab(index) {
+            self.cancel_send(send_id, cx);
+        }
+        if self.update_view_model(cx, |view_model| view_model.close_tab(index)) {
+            self.clear_staged_row(cx);
+            self.project_active_request(cx);
+        }
+    }
+
+    pub(super) fn load_request(&mut self, request: &Request, cx: &mut Context<Self>) {
+        if let Some(send_id) = self.view_model.read(cx).active_send_id() {
+            self.cancel_send(send_id, cx);
+        }
+        self.update_view_model(cx, |view_model| view_model.load_request(request));
+        self.clear_staged_row(cx);
+        self.project_active_request(cx);
+    }
+
+    fn clear_staged_row(&self, cx: &mut Context<Self>) {
+        self.row_key_input.update(cx, |input, cx| input.clear(cx));
+        self.row_value_input.update(cx, |input, cx| input.clear(cx));
+    }
+
+    /// One-way VM -> editor projection. Editor buffers retain cursor/selection state, but they
+    /// never participate in request construction.
+    fn project_active_request(&self, cx: &mut Context<Self>) {
+        self.project_method(cx);
+        self.project_url(cx);
+        self.project_body(cx);
+        self.project_authorization(cx);
+        self.project_scripts(cx);
+    }
+
+    fn project_method(&self, cx: &mut Context<Self>) {
+        let method = self.view_model.read(cx).method();
+        self.method_selector
+            .update(cx, |selector, cx| selector.project_method(method, cx));
+    }
+
+    fn project_url(&self, cx: &mut Context<Self>) {
+        let url = self.view_model.read(cx).url().to_string();
+        self.url_input
+            .update(cx, |input, cx| input.project_url(url, cx));
+    }
+
+    fn project_body(&self, cx: &mut Context<Self>) {
+        let (body, body_kind) = {
+            let view_model = self.view_model.read(cx);
+            (view_model.request_body().clone(), view_model.body_kind())
+        };
+        self.body_input.update(cx, |input, cx| {
+            input.set_type_silent(body_type_from_kind(body_kind), cx);
+            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
+            match body {
+                RequestBody::None => input.project_content("", cx),
+                RequestBody::Json(body) | RequestBody::Raw(body) => input.project_content(body, cx),
+                RequestBody::UrlEncoded(body) => {
+                    let entries = form_urlencoded::parse(body.as_bytes())
+                        .map(|(key, value)| {
+                            FormDataEntry::text(key.into_owned(), value.into_owned(), true)
+                        })
+                        .collect();
+                    input.project_form_data_entries(entries, cx);
+                }
+                RequestBody::Multipart(parts) => {
+                    let entries = parts
+                        .into_iter()
+                        .map(|part| match part.value {
+                            MultipartValue::Text(value) => {
+                                FormDataEntry::text(part.name, value, true)
+                            }
+                            MultipartValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } => {
+                                FormDataEntry::file(part.name, path, file_name, content_type, true)
+                            }
+                        })
+                        .collect();
+                    input.project_form_data_entries(entries, cx);
+                }
+            }
+        });
+    }
+
+    fn project_authorization(&self, cx: &mut Context<Self>) {
+        let (bearer_token, basic_username, basic_password) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.bearer_token().to_string(),
+                view_model.basic_username().to_string(),
+                view_model.basic_password().to_string(),
+            )
+        };
+        self.authorization_input
+            .update(cx, |input, cx| input.project_content(bearer_token, cx));
+        self.basic_username_input
+            .update(cx, |input, cx| input.project_content(basic_username, cx));
+        self.basic_password_input
+            .update(cx, |input, cx| input.project_content(basic_password, cx));
+    }
+
+    fn project_scripts(&self, cx: &mut Context<Self>) {
+        let (pre_request_script, tests_script) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.pre_request_script().to_string(),
+                view_model.tests_script().to_string(),
+            )
+        };
+        self.script_input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::Raw, cx);
+            input.project_content(pre_request_script, cx);
+        });
+
+        self.tests_input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::Raw, cx);
+            input.project_content(tests_script, cx);
+        });
+    }
+
     pub(super) fn render_request_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let request_pane = self.view_model.read(cx).request_pane();
         let editor = match request_pane {
@@ -429,60 +923,6 @@ impl PostmanApp {
                             ),
                     ),
             )
-            .when(
-                self.view_model.read(cx).request_pane() == RequestPane::Headers,
-                |editor| {
-                    editor.child(
-                        div()
-                            .flex()
-                            .gap_2()
-                            .font_family(FONT_UI)
-                            .text_size(px(11.0))
-                            .child(
-                                div()
-                                    .debug_selector(|| "body-sample-json".into())
-                                    .px_2()
-                                    .py_1()
-                                    .rounded_md()
-                                    .bg(rgb(PANEL_ALT))
-                                    .text_color(rgb(SUBTEXT))
-                                    .cursor_pointer()
-                                    .child("JSON")
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.set_header_input_values(
-                                                "Content-Type",
-                                                "application/json",
-                                                cx,
-                                            )
-                                        }),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "body-clear-button".into())
-                                    .px_2()
-                                    .py_1()
-                                    .rounded_md()
-                                    .bg(rgb(PANEL_ALT))
-                                    .text_color(rgb(SUBTEXT))
-                                    .cursor_pointer()
-                                    .child("Bearer token")
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.set_header_input_values(
-                                                "Authorization",
-                                                "Bearer ",
-                                                cx,
-                                            )
-                                        }),
-                                    ),
-                            ),
-                    )
-                },
-            )
             .into_any_element()
     }
 
@@ -548,6 +988,7 @@ impl PostmanApp {
                             .text_size(px(11.0))
                             .child(
                                 div()
+                                    .debug_selector(|| "body-sample-json".into())
                                     .px_2()
                                     .py_1()
                                     .rounded_md()
@@ -562,6 +1003,7 @@ impl PostmanApp {
                             )
                             .child(
                                 div()
+                                    .debug_selector(|| "body-clear-button".into())
                                     .px_2()
                                     .py_1()
                                     .rounded_md()
@@ -623,5 +1065,96 @@ impl PostmanApp {
         } else {
             element
         }
+    }
+}
+
+impl Render for RequestEditor {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex_1()
+            .min_w_0()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .bg(rgb(BG))
+            .child(self.render_request_tabs_bar(cx))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    .p_3()
+                    .child(self.render_request_head(cx))
+                    .child(self.render_request_panel(cx))
+                    .child(
+                        div()
+                            .id("response-container")
+                            .debug_selector(|| "response-container".into())
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.response_viewer.clone()),
+                    ),
+            )
+    }
+}
+
+fn body_type_from_kind(kind: BodyKind) -> BodyType {
+    match kind {
+        BodyKind::Json => BodyType::Json,
+        BodyKind::UrlEncoded | BodyKind::Multipart => BodyType::FormData,
+        BodyKind::None | BodyKind::Raw => BodyType::Raw,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::ResponseState;
+    use crate::models::HttpMethod;
+    use gpui::{AppContext, TestAppContext};
+    use mockito::Matcher;
+
+    #[gpui::test]
+    fn send_command_is_built_only_from_the_view_model(cx: &mut TestAppContext) {
+        let mut server = mockito::Server::new();
+        let expected_body = r#"{"source":"view-model"}"#;
+        let request = server
+            .mock("POST", "/single-source")
+            .match_body(Matcher::Exact(expected_body.to_string()))
+            .with_status(200)
+            .with_body("single-source-ok")
+            .create();
+        let workspace = cx.new(|_| WorkspaceViewModel::new());
+        workspace.update(cx, |workspace, _| {
+            workspace.set_method(HttpMethod::POST);
+            workspace.set_url(format!("{}/single-source", server.url()));
+            workspace.set_body(expected_body);
+        });
+        let observed = workspace.clone();
+        let (app, cx) =
+            cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+        let editor = app.read_with(cx, |app, _| app.request_editor.clone());
+
+        editor.update(cx, |editor, cx| {
+            editor.method_selector.update(cx, |selector, cx| {
+                selector.project_method(HttpMethod::GET, cx)
+            });
+            editor.url_input.update(cx, |input, cx| {
+                input.project_url("http://127.0.0.1:1/stale-control", cx)
+            });
+            editor
+                .body_input
+                .update(cx, |input, cx| input.project_content("stale-body", cx));
+            editor.click_send(cx);
+        });
+        cx.run_until_parked();
+
+        assert!(matches!(
+            workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+            ResponseState::Success { status: 200, .. }
+        ));
+        request.assert();
     }
 }

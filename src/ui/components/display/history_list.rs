@@ -1,27 +1,14 @@
 use crate::app::WorkspaceViewModel;
-use crate::models::{HistoryEntry, HttpMethod, Request};
+use crate::models::{HistoryEntry, Request};
 use crate::ui::components::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
-    ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT,
-    SUBTEXT, TEXT,
+    method_color, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT,
+    TEXT,
 };
 use gpui::{
     div, px, rgb, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, Rgba, StatefulInteractiveElement, Styled, Subscription, Window,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
-
-/// Get color for HTTP method
-fn get_method_color(method: HttpMethod) -> Rgba {
-    match method {
-        HttpMethod::GET => rgb(0x0016_a34a),
-        HttpMethod::POST => rgb(ACCENT),
-        HttpMethod::PUT => rgb(0x0025_63eb),
-        HttpMethod::DELETE => rgb(0x00dc_2626),
-        HttpMethod::PATCH => rgb(0x007c_3aed),
-        HttpMethod::HEAD => rgb(SUBTEXT),
-        HttpMethod::OPTIONS => rgb(SUBTEXT),
-    }
-}
 
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
@@ -232,7 +219,7 @@ impl Render for HistoryList {
                             .into_iter()
                             .map(|(index, entry)| {
                                 let is_selected = self.selected_index == Some(index);
-                                let method_color = get_method_color(entry.request.method);
+                                let method_color = rgb(method_color(entry.request.method));
 
                                 let bg_color = if is_selected {
                                     rgb(ACCENT_SOFT)

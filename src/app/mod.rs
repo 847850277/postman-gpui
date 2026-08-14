@@ -1,5 +1,6 @@
 // src/app/mod.rs
 pub mod postman_app;
+mod request_runner;
 pub mod view_model;
 
 pub use postman_app::PostmanApp;

@@ -1,15 +1,15 @@
 use crate::{
     errors::AppError,
     http::executor::RequestResult,
-    models::{
-        HistoryEntry, HttpMethod, MultipartPart, MultipartValue, Request, RequestBody,
-        RequestHistory,
-    },
+    models::{HistoryEntry, HttpMethod, MultipartPart, Request, RequestBody, RequestHistory},
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
-    collections::HashSet,
     ops::{Deref, DerefMut},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 const MAX_HISTORY_URL_LENGTH: usize = 40;
@@ -95,11 +95,12 @@ pub struct RequestTabId(u64);
 pub struct SendId(u64);
 
 /// Immutable command emitted by the ViewModel for the application service to execute.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PendingRequest {
     tab_id: RequestTabId,
     send_id: SendId,
     request: Request,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl PendingRequest {
@@ -113,6 +114,10 @@ impl PendingRequest {
 
     pub fn request(&self) -> &Request {
         &self.request
+    }
+
+    fn was_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
     }
 }
 
@@ -138,6 +143,7 @@ pub struct RequestViewModel {
     request_pane: RequestPane,
     response: ResponseState,
     pending_send_id: Option<SendId>,
+    pending_cancellation: Option<Arc<AtomicBool>>,
     dirty: bool,
 }
 
@@ -164,6 +170,7 @@ impl RequestViewModel {
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
             pending_send_id: None,
+            pending_cancellation: None,
             dirty: false,
         }
     }
@@ -194,25 +201,6 @@ impl RequestViewModel {
 
     pub fn request_body(&self) -> &RequestBody {
         &self.body
-    }
-
-    pub fn body_form_rows(&self) -> Vec<KeyValueRow> {
-        match &self.body {
-            RequestBody::UrlEncoded(body) => form_urlencoded::parse(body.as_bytes())
-                .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
-                .collect(),
-            RequestBody::Multipart(parts) => parts
-                .iter()
-                .map(|part| {
-                    let value = match &part.value {
-                        MultipartValue::Text(value) => value.clone(),
-                        MultipartValue::File { path, .. } => format!("@{}", path.display()),
-                    };
-                    KeyValueRow::enabled(&part.name, value)
-                })
-                .collect(),
-            _ => Vec::new(),
-        }
     }
 
     pub fn body_kind(&self) -> BodyKind {
@@ -308,6 +296,22 @@ impl RequestViewModel {
             self.body = next;
             self.dirty = true;
         }
+    }
+
+    /// Clears the payload without guessing or changing its selected encoding.
+    pub fn clear_body(&mut self) {
+        let next = match self.body {
+            RequestBody::None => RequestBody::None,
+            RequestBody::Json(_) => RequestBody::Json(String::new()),
+            RequestBody::Raw(_) => RequestBody::Raw(String::new()),
+            RequestBody::UrlEncoded(_) => RequestBody::UrlEncoded(String::new()),
+            RequestBody::Multipart(_) => RequestBody::Multipart(Vec::new()),
+        };
+        if self.body != next {
+            self.body = next;
+            self.dirty = true;
+        }
+        self.sync_automatic_content_type();
     }
 
     pub fn set_body_kind(&mut self, body_kind: BodyKind) {
@@ -463,6 +467,7 @@ impl RequestViewModel {
     }
 
     pub fn new_request(&mut self) {
+        self.mark_pending_cancelled();
         self.method = HttpMethod::GET;
         self.url.clear();
         self.params.clear();
@@ -477,11 +482,11 @@ impl RequestViewModel {
         self.tests_script.clear();
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
-        self.pending_send_id = None;
         self.dirty = false;
     }
 
     pub fn load_request(&mut self, request: &Request) {
+        self.mark_pending_cancelled();
         self.method = request.method;
         self.url = request.url.clone();
         self.params = parse_query_params(&request.url);
@@ -528,16 +533,16 @@ impl RequestViewModel {
             RequestPane::Body
         };
         self.response = ResponseState::NotSent;
-        self.pending_send_id = None;
         self.dirty = false;
     }
 
-    fn begin_send(&mut self, send_id: SendId) -> Request {
+    fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> Request {
         if self.authorization_kind == AuthorizationKind::Bearer {
             self.bearer_token = normalize_bearer_token(&self.bearer_token);
         }
         let request = self.build_request();
         self.pending_send_id = Some(send_id);
+        self.pending_cancellation = Some(cancelled);
         self.response = ResponseState::Loading;
         request
     }
@@ -552,6 +557,7 @@ impl RequestViewModel {
         }
 
         self.pending_send_id = None;
+        self.pending_cancellation = None;
         match result {
             Ok(result) => {
                 let draft_is_unchanged = self.build_request() == pending.request;
@@ -579,8 +585,18 @@ impl RequestViewModel {
             return false;
         }
         self.pending_send_id = None;
+        if let Some(cancelled) = self.pending_cancellation.take() {
+            cancelled.store(true, Ordering::Release);
+        }
         self.response = ResponseState::Cancelled;
         true
+    }
+
+    fn mark_pending_cancelled(&mut self) {
+        self.pending_send_id = None;
+        if let Some(cancelled) = self.pending_cancellation.take() {
+            cancelled.store(true, Ordering::Release);
+        }
     }
 
     pub fn tab_title(&self) -> String {
@@ -709,7 +725,6 @@ pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
     active_tab: usize,
     history: RequestHistory,
-    cancelled_sends: HashSet<SendId>,
     next_tab_id: u64,
     next_send_id: u64,
 }
@@ -725,7 +740,6 @@ impl WorkspaceViewModel {
             tabs: vec![request],
             active_tab: 0,
             history: RequestHistory::new(),
-            cancelled_sends: HashSet::new(),
             next_tab_id: 2,
             next_send_id: 1,
         }
@@ -770,6 +784,7 @@ impl WorkspaceViewModel {
             return true;
         }
 
+        self.tabs[index].mark_pending_cancelled();
         self.tabs.remove(index);
         if index < self.active_tab {
             self.active_tab -= 1;
@@ -782,12 +797,14 @@ impl WorkspaceViewModel {
     pub fn begin_send(&mut self) -> PendingRequest {
         let send_id = SendId(self.next_send_id);
         self.next_send_id += 1;
+        let cancelled = Arc::new(AtomicBool::new(false));
         let tab = &mut self.tabs[self.active_tab];
-        let request = tab.begin_send(send_id);
+        let request = tab.begin_send(send_id, cancelled.clone());
         PendingRequest {
             tab_id: tab.tab_id,
             send_id,
             request,
+            cancelled,
         }
     }
 
@@ -805,9 +822,6 @@ impl WorkspaceViewModel {
             .iter_mut()
             .find(|tab| tab.pending_send_id == Some(send_id))
             .is_some_and(|tab| tab.cancel_send(send_id));
-        if cancelled {
-            self.cancelled_sends.insert(send_id);
-        }
         cancelled
     }
 
@@ -819,7 +833,7 @@ impl WorkspaceViewModel {
         result: Result<RequestResult, AppError>,
     ) -> bool {
         let succeeded = result.is_ok();
-        let was_cancelled = self.cancelled_sends.remove(&pending.send_id);
+        let was_cancelled = pending.was_cancelled();
         let applied = self
             .tabs
             .iter_mut()
@@ -868,22 +882,6 @@ impl DerefMut for WorkspaceViewModel {
 impl Default for RequestViewModel {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-pub fn detect_body_kind(body: &str) -> BodyKind {
-    if body.is_empty() {
-        return BodyKind::None;
-    }
-    let trimmed = body.trim_start();
-    if (trimmed.starts_with('{') || trimmed.starts_with('['))
-        && serde_json::from_str::<serde_json::Value>(body).is_ok()
-    {
-        BodyKind::Json
-    } else if body.contains('=') && (body.contains('&') || !body.contains('\n')) {
-        BodyKind::UrlEncoded
-    } else {
-        BodyKind::Raw
     }
 }
 
@@ -1136,7 +1134,7 @@ mod tests {
 
         vm.remove_header(content_type_index);
         vm.set_body_kind(BodyKind::UrlEncoded);
-        let request = vm.begin_send(SendId(1));
+        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
         assert!(!vm
             .headers()
@@ -1153,7 +1151,7 @@ mod tests {
         let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/me");
         vm.set_bearer_token("Bearer secret-token");
-        let request = vm.begin_send(SendId(1));
+        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
         assert_eq!(vm.bearer_token(), "secret-token");
         assert!(request
@@ -1170,7 +1168,7 @@ mod tests {
         vm.set_authorization_kind(AuthorizationKind::Basic);
         vm.set_basic_username("scenario-user");
         vm.set_basic_password("scenario-pass");
-        let request = vm.begin_send(SendId(1));
+        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
         assert!(request
             .headers

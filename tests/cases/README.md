@@ -37,11 +37,12 @@ Scenario draft
 ```
 
 It uses the rendered method dropdown, URL field, query/header row editors,
-authorization field, body-kind controls, and Send button. Body payload text is
-projected through the `PostmanApp` command surface so structured form bodies and
-plain text use the same application state path. The runner then compares the
-complete request recorded by the real application's history, checks the stable
-HTTPBingo echo, and verifies that the response content is present in the window.
+authorization field, body-kind controls, and Send button. Every user action is
+delivered through the rendered controls; the injected `WorkspaceViewModel` is
+only observed for assertions, so the runner has no second `PostmanApp` command
+surface. The runner then compares the complete request recorded by the real
+application's history, checks the stable HTTPBingo echo, and verifies that the
+response content is present in the window.
 It covers public DNS, TLS, redirects, request encoding, methods, headers, bodies,
 and non-2xx responses, but does not replace the deterministic local contract.
 

@@ -7,7 +7,7 @@ use gpui::{
     MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render, ShapedLine, SharedString, Style,
     Styled, TextAlign, TextRun, UTF16Selection, Window,
 };
-use std::ops::Range;
+use std::{ops::Range, path::PathBuf};
 use unicode_segmentation::*;
 
 actions!(
@@ -46,19 +46,66 @@ pub enum BodyType {
 #[derive(Debug, Clone)]
 pub enum BodyInputEvent {
     ValueChanged(String),
+    FormDataChanged(Vec<FormDataEntry>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormDataFile {
+    pub path: PathBuf,
+    pub file_name: Option<String>,
+    pub content_type: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormDataEntry {
     pub key: String,
     pub value: String,
+    pub file: Option<FormDataFile>,
     pub enabled: bool,
+}
+
+impl FormDataEntry {
+    pub fn text(key: impl Into<String>, value: impl Into<String>, enabled: bool) -> Self {
+        Self {
+            key: key.into(),
+            value: value.into(),
+            file: None,
+            enabled,
+        }
+    }
+
+    pub fn file(
+        key: impl Into<String>,
+        path: impl Into<PathBuf>,
+        file_name: Option<String>,
+        content_type: Option<String>,
+        enabled: bool,
+    ) -> Self {
+        Self {
+            key: key.into(),
+            value: String::new(),
+            file: Some(FormDataFile {
+                path: path.into(),
+                file_name,
+                content_type,
+            }),
+            enabled,
+        }
+    }
+
+    fn display_value(&self) -> String {
+        self.file
+            .as_ref()
+            .map(|file| file.path.display().to_string())
+            .unwrap_or_else(|| self.value.clone())
+    }
 }
 
 pub struct BodyInput {
     focus_handle: FocusHandle,
     show_type_tabs: bool,
     current_type: BodyType,
+    form_data_allows_files: bool,
     json_content: String,
     form_data_entries: Vec<FormDataEntry>,
     editing_key_index: Option<usize>,
@@ -232,10 +279,12 @@ impl BodyInput {
             focus_handle: cx.focus_handle(),
             show_type_tabs: true,
             current_type: BodyType::Json,
+            form_data_allows_files: false,
             json_content: String::new(),
             form_data_entries: vec![FormDataEntry {
                 key: String::new(),
                 value: String::new(),
+                file: None,
                 enabled: true,
             }],
             editing_key_index: None,
@@ -273,11 +322,12 @@ impl BodyInput {
     pub fn set_type(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
         if self.current_type != body_type {
             self.current_type = body_type;
-            let content = match &self.current_type {
-                BodyType::Json | BodyType::Raw => self.json_content.clone(),
-                BodyType::FormData => self.get_form_data_as_string(),
-            };
-            cx.emit(BodyInputEvent::ValueChanged(content));
+            match self.current_type {
+                BodyType::Json | BodyType::Raw => {
+                    cx.emit(BodyInputEvent::ValueChanged(self.json_content.clone()));
+                }
+                BodyType::FormData => self.emit_form_data_changed(cx),
+            }
             cx.notify();
         }
     }
@@ -286,6 +336,20 @@ impl BodyInput {
     pub fn set_type_silent(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
         if self.current_type != body_type {
             self.current_type = body_type;
+            cx.notify();
+        }
+    }
+
+    pub fn set_form_data_allows_files(&mut self, allows_files: bool, cx: &mut Context<Self>) {
+        if self.form_data_allows_files != allows_files {
+            self.form_data_allows_files = allows_files;
+            if !allows_files {
+                for entry in &mut self.form_data_entries {
+                    if let Some(file) = entry.file.take() {
+                        entry.value = file.path.display().to_string();
+                    }
+                }
+            }
             cx.notify();
         }
     }
@@ -330,20 +394,9 @@ impl BodyInput {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn editor_buffer(&self) -> String {
-        match self.current_type {
-            BodyType::Json | BodyType::Raw => self.json_content.clone(),
-            BodyType::FormData => self.get_form_data_as_string(),
-        }
-    }
-
     pub fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
-        self.form_data_entries.push(FormDataEntry {
-            key: String::new(),
-            value: String::new(),
-            enabled: true,
-        });
+        self.form_data_entries
+            .push(FormDataEntry::text("", "", true));
         cx.notify();
     }
 
@@ -351,12 +404,10 @@ impl BodyInput {
         if index < self.form_data_entries.len() {
             self.form_data_entries.remove(index);
             if self.form_data_entries.is_empty() {
-                self.form_data_entries.push(FormDataEntry {
-                    key: String::new(),
-                    value: String::new(),
-                    enabled: true,
-                });
+                self.form_data_entries
+                    .push(FormDataEntry::text("", "", true));
             }
+            self.emit_form_data_changed(cx);
             cx.notify();
         }
     }
@@ -364,7 +415,7 @@ impl BodyInput {
     pub fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         if let Some(entry) = self.form_data_entries.get_mut(index) {
             entry.enabled = !entry.enabled;
-            cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+            self.emit_form_data_changed(cx);
             cx.notify();
         }
     }
@@ -373,7 +424,7 @@ impl BodyInput {
         let encoder = form_urlencoded::Serializer::new(String::new());
         self.form_data_entries
             .iter()
-            .filter(|entry| entry.enabled && !entry.key.is_empty())
+            .filter(|entry| entry.enabled && !entry.key.is_empty() && entry.file.is_none())
             .fold(encoder, |mut enc, entry| {
                 enc.append_pair(&entry.key, &entry.value);
                 enc
@@ -381,16 +432,82 @@ impl BodyInput {
             .finish()
     }
 
+    fn emit_form_data_changed(&self, cx: &mut Context<Self>) {
+        cx.emit(BodyInputEvent::FormDataChanged(
+            self.form_data_entries.clone(),
+        ));
+    }
+
+    fn toggle_form_data_value_kind(&mut self, index: usize, cx: &mut Context<Self>) {
+        if !self.form_data_allows_files {
+            return;
+        }
+        let Some(entry) = self.form_data_entries.get_mut(index) else {
+            return;
+        };
+        if let Some(file) = entry.file.take() {
+            entry.value = file.path.display().to_string();
+        } else {
+            entry.value.clear();
+            entry.file = Some(FormDataFile {
+                path: PathBuf::new(),
+                file_name: None,
+                content_type: None,
+            });
+        }
+        self.cancel_editing(cx);
+        self.emit_form_data_changed(cx);
+        cx.notify();
+    }
+
+    fn choose_form_data_file(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.form_data_allows_files
+            || self
+                .form_data_entries
+                .get(index)
+                .is_none_or(|entry| entry.file.is_none())
+        {
+            return;
+        }
+
+        let paths = cx.prompt_for_paths(gpui::PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some("Select multipart file".into()),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let path = match paths.await {
+                Ok(Ok(Some(paths))) => paths.into_iter().next(),
+                _ => None,
+            };
+            let Some(path) = path else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                if let Some(entry) = this.form_data_entries.get_mut(index) {
+                    entry.file = Some(FormDataFile {
+                        file_name: path
+                            .file_name()
+                            .map(|name| name.to_string_lossy().into_owned()),
+                        path,
+                        content_type: None,
+                    });
+                    this.emit_form_data_changed(cx);
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
     pub fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
         self.form_data_entries = entries;
         if self.form_data_entries.is_empty() {
-            self.form_data_entries.push(FormDataEntry {
-                key: String::new(),
-                value: String::new(),
-                enabled: true,
-            });
+            self.form_data_entries
+                .push(FormDataEntry::text("", "", true));
         }
-        cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+        self.emit_form_data_changed(cx);
         cx.notify();
     }
 
@@ -401,11 +518,7 @@ impl BodyInput {
         cx: &mut Context<Self>,
     ) {
         if entries.is_empty() {
-            entries.push(FormDataEntry {
-                key: String::new(),
-                value: String::new(),
-                enabled: true,
-            });
+            entries.push(FormDataEntry::text("", "", true));
         }
         if self.form_data_entries != entries {
             self.form_data_entries = entries;
@@ -421,14 +534,15 @@ impl BodyInput {
                 self.json_content.clear();
             }
             BodyType::FormData => {
-                self.form_data_entries = vec![FormDataEntry {
-                    key: String::new(),
-                    value: String::new(),
-                    enabled: true,
-                }];
+                self.form_data_entries = vec![FormDataEntry::text("", "", true)];
             }
         }
-        cx.emit(BodyInputEvent::ValueChanged(String::new()));
+        match self.current_type {
+            BodyType::Json | BodyType::Raw => {
+                cx.emit(BodyInputEvent::ValueChanged(String::new()));
+            }
+            BodyType::FormData => self.emit_form_data_changed(cx),
+        }
         cx.notify();
     }
 
@@ -458,6 +572,9 @@ impl BodyInput {
         }
 
         if let Some(entry) = self.form_data_entries.get(index) {
+            if entry.file.is_some() {
+                return;
+            }
             self.editing_value_index = Some(index);
             self.editing_key_index = None;
             self.temp_value_value = entry.value.clone();
@@ -471,45 +588,57 @@ impl BodyInput {
     }
 
     pub fn finish_editing(&mut self, cx: &mut Context<Self>) {
+        let mut changed = false;
         if let Some(index) = self.editing_key_index {
             if let Some(entry) = self.form_data_entries.get_mut(index) {
                 entry.key = self.temp_key_value.clone();
-                cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+                changed = true;
             }
         }
         if let Some(index) = self.editing_value_index {
             if let Some(entry) = self.form_data_entries.get_mut(index) {
                 entry.value = self.temp_value_value.clone();
-                cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+                changed = true;
             }
         }
         self.editing_key_index = None;
         self.editing_value_index = None;
         self.temp_key_value.clear();
         self.temp_value_value.clear();
+        if changed {
+            self.emit_form_data_changed(cx);
+        }
         cx.notify();
     }
 
     pub fn finish_key_editing_only(&mut self, cx: &mut Context<Self>) {
+        let mut changed = false;
         if let Some(index) = self.editing_key_index {
             if let Some(entry) = self.form_data_entries.get_mut(index) {
                 entry.key = self.temp_key_value.clone();
-                cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+                changed = true;
             }
             self.editing_key_index = None;
             self.temp_key_value.clear();
+        }
+        if changed {
+            self.emit_form_data_changed(cx);
         }
         cx.notify();
     }
 
     pub fn finish_value_editing_only(&mut self, cx: &mut Context<Self>) {
+        let mut changed = false;
         if let Some(index) = self.editing_value_index {
             if let Some(entry) = self.form_data_entries.get_mut(index) {
                 entry.value = self.temp_value_value.clone();
-                cx.emit(BodyInputEvent::ValueChanged(self.get_form_data_as_string()));
+                changed = true;
             }
             self.editing_value_index = None;
             self.temp_value_value.clear();
+        }
+        if changed {
+            self.emit_form_data_changed(cx);
         }
         cx.notify();
     }
@@ -1816,6 +1945,7 @@ impl Render for BodyInput {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type;
         let form_data_entries = self.form_data_entries.clone();
+        let form_data_allows_files = self.form_data_allows_files;
 
         div()
             .flex()
@@ -2002,6 +2132,15 @@ impl Render for BodyInput {
                                     .text_color(rgb(0x006c_757d))
                                     .child("Key"),
                             )
+                            .when(form_data_allows_files, |header| {
+                                header.child(
+                                    div()
+                                        .w(px(64.0))
+                                        .text_size(px(12.0))
+                                        .text_color(rgb(0x006c_757d))
+                                        .child("Type"),
+                                )
+                            })
                             .child(
                                 div()
                                     .flex_1()
@@ -2020,7 +2159,8 @@ impl Render for BodyInput {
                     .child(div().flex().flex_col().gap_2().children(
                         form_data_entries.iter().enumerate().map(|(index, entry)| {
                             let entry_key = entry.key.clone();
-                            let entry_value = entry.value.clone();
+                            let entry_value = entry.display_value();
+                            let entry_is_file = entry.file.is_some();
                             let entry_enabled = entry.enabled;
 
                             div()
@@ -2104,6 +2244,44 @@ impl Render for BodyInput {
                                             )
                                         }),
                                 )
+                                .when(form_data_allows_files, |row| {
+                                    row.child(
+                                        div()
+                                            .debug_selector(move || {
+                                                format!("body-form-type-{index}")
+                                            })
+                                            .w(px(64.0))
+                                            .px_2()
+                                            .py_2()
+                                            .flex_none()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .bg(rgb(if entry_is_file {
+                                                0x00df_eafe
+                                            } else {
+                                                0x00f8_f9fa
+                                            }))
+                                            .border_1()
+                                            .border_color(rgb(0x00cc_cccc))
+                                            .rounded_md()
+                                            .text_size(px(12.0))
+                                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                                            .text_color(rgb(if entry_is_file {
+                                                0x001d_4ed8
+                                            } else {
+                                                0x0047_5569
+                                            }))
+                                            .cursor_pointer()
+                                            .child(if entry_is_file { "File" } else { "Text" })
+                                            .on_mouse_up(
+                                                gpui::MouseButton::Left,
+                                                cx.listener(move |this, _, _, cx| {
+                                                    this.toggle_form_data_value_kind(index, cx);
+                                                }),
+                                            ),
+                                    )
+                                })
                                 .child(
                                     // Value input - 可点击编辑
                                     div()
@@ -2120,42 +2298,75 @@ impl Render for BodyInput {
                                         })
                                         .rounded_md()
                                         .text_size(px(14.0))
-                                        .cursor(CursorStyle::IBeam)
-                                        .when(self.editing_value_index == Some(index), |div| {
-                                            div.child(FormTextElement {
-                                                input: cx.entity().clone(),
-                                                is_key: false,
-                                            })
-                                            .on_mouse_down(
-                                                MouseButton::Left,
-                                                cx.listener(Self::form_value_on_mouse_down),
-                                            )
-                                            .on_mouse_up(
-                                                MouseButton::Left,
-                                                cx.listener(Self::form_value_on_mouse_up),
-                                            )
-                                            .on_mouse_up_out(
-                                                MouseButton::Left,
-                                                cx.listener(Self::form_value_on_mouse_up),
-                                            )
-                                            .on_mouse_move(
-                                                cx.listener(Self::form_value_on_mouse_move),
-                                            )
+                                        .cursor(if entry_is_file {
+                                            CursorStyle::PointingHand
+                                        } else {
+                                            CursorStyle::IBeam
                                         })
-                                        .when(self.editing_value_index != Some(index), |div| {
-                                            div.when(entry_value.is_empty(), |div| {
-                                                div.text_color(rgb(0x006c_757d))
-                                                    .child("Enter value...")
+                                        .when(
+                                            !entry_is_file
+                                                && self.editing_value_index == Some(index),
+                                            |div| {
+                                                div.child(FormTextElement {
+                                                    input: cx.entity().clone(),
+                                                    is_key: false,
+                                                })
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(Self::form_value_on_mouse_down),
+                                                )
+                                                .on_mouse_up(
+                                                    MouseButton::Left,
+                                                    cx.listener(Self::form_value_on_mouse_up),
+                                                )
+                                                .on_mouse_up_out(
+                                                    MouseButton::Left,
+                                                    cx.listener(Self::form_value_on_mouse_up),
+                                                )
+                                                .on_mouse_move(
+                                                    cx.listener(Self::form_value_on_mouse_move),
+                                                )
+                                            },
+                                        )
+                                        .when(
+                                            !entry_is_file
+                                                && self.editing_value_index != Some(index),
+                                            |div| {
+                                                div.when(entry_value.is_empty(), |div| {
+                                                    div.text_color(rgb(0x006c_757d))
+                                                        .child("Enter value...")
+                                                })
+                                                .when(!entry_value.is_empty(), |div| {
+                                                    div.text_color(rgb(0x0021_2529))
+                                                        .child(entry_value.clone())
+                                                })
+                                                .on_mouse_up(
+                                                    gpui::MouseButton::Left,
+                                                    cx.listener(move |this, _event, window, cx| {
+                                                        this.start_editing_value(index, cx);
+                                                        this.focus_handle.focus(window, cx);
+                                                    }),
+                                                )
+                                            },
+                                        )
+                                        .when(entry_is_file, |div| {
+                                            div.debug_selector(move || {
+                                                format!("body-form-file-{index}")
                                             })
-                                            .when(!entry_value.is_empty(), |div| {
-                                                div.text_color(rgb(0x0021_2529))
-                                                    .child(entry_value.clone())
+                                            .text_color(rgb(if entry_value.is_empty() {
+                                                0x006c_757d
+                                            } else {
+                                                0x0021_2529
+                                            }))
+                                            .child(if entry_value.is_empty() {
+                                                "Choose file…".to_string()
+                                            } else {
+                                                entry_value.clone()
                                             })
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
-                                                cx.listener(move |this, _event, window, cx| {
-                                                    this.start_editing_value(index, cx);
-                                                    this.focus_handle.focus(window, cx);
+                                                cx.listener(move |this, _, window, cx| {
+                                                    this.choose_form_data_file(index, window, cx);
                                                 }),
                                             )
                                         }),
@@ -2252,6 +2463,7 @@ mod tests {
         let entry = FormDataEntry {
             key: "username".to_string(),
             value: "john_doe".to_string(),
+            file: None,
             enabled: true,
         };
 
@@ -2265,6 +2477,7 @@ mod tests {
         let entry = FormDataEntry {
             key: "api_key".to_string(),
             value: "secret123".to_string(),
+            file: None,
             enabled: false,
         };
 

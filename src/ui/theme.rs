@@ -1,5 +1,7 @@
 //! Design tokens mirrored from `design.pen`.
 
+use crate::models::HttpMethod;
+
 pub const BG: u32 = 0x00f4_f6f8;
 pub const PANEL: u32 = 0x00ff_ffff;
 pub const PANEL_ALT: u32 = 0x00f8_fafc;
@@ -22,3 +24,14 @@ pub const CODE_TEXT: u32 = 0x00ba_e6fd;
 pub const FONT_HEADING: &str = "Avenir Next";
 pub const FONT_UI: &str = "Helvetica Neue";
 pub const FONT_MONO: &str = "Menlo";
+
+pub fn method_color(method: HttpMethod) -> u32 {
+    match method {
+        HttpMethod::GET => OK,
+        HttpMethod::POST => ACCENT,
+        HttpMethod::PUT => 0x0025_63eb,
+        HttpMethod::DELETE => ERROR,
+        HttpMethod::PATCH => 0x007c_3aed,
+        HttpMethod::HEAD | HttpMethod::OPTIONS => SUBTEXT,
+    }
+}

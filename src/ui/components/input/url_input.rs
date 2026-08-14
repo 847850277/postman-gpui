@@ -93,11 +93,6 @@ impl UrlInput {
         self.marked_range = None;
     }
 
-    #[cfg(test)]
-    pub(crate) fn editor_buffer(&self) -> &str {
-        &self.content
-    }
-
     // Action handlers - 这些方法处理键盘动作
     fn left(&mut self, _: &Left, _: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
