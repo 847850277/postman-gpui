@@ -2,11 +2,12 @@ name: HTTPBingo E2E
 
 on:
   pull_request:
+  push:
   workflow_dispatch:
-  schedule:
+  #schedule:
     # Weekdays at 03:17 UTC (11:17 Asia/Shanghai). A non-round minute reduces
     # the chance of GitHub's scheduled-run congestion delaying the job.
-    - cron: "17 3 * * 1-5"
+  #  - cron: "17 3 * * 1-5"
 
 permissions:
   contents: read
