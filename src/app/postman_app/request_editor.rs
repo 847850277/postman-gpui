@@ -66,8 +66,8 @@ impl RequestEditor {
             cx.subscribe(&method_selector, Self::on_method_changed),
             cx.subscribe(&url_input, Self::on_url_event),
             cx.subscribe(&body_input, Self::on_body_event),
-            cx.subscribe(&row_key_input, Self::on_row_input_event),
-            cx.subscribe(&row_value_input, Self::on_row_input_event),
+            cx.subscribe(&row_key_input, Self::on_row_key_event),
+            cx.subscribe(&row_value_input, Self::on_row_value_event),
             cx.subscribe(&authorization_input, Self::on_authorization_event),
             cx.subscribe(&basic_username_input, Self::on_basic_username_event),
             cx.subscribe(&basic_password_input, Self::on_basic_password_event),
@@ -127,6 +127,7 @@ impl RequestEditor {
         match event {
             UrlInputEvent::UrlChanged(url) => {
                 self.update_view_model(cx, |view_model| view_model.set_url(url));
+                self.project_row_draft(cx);
             }
             UrlInputEvent::SubmitRequested => self.click_send(cx),
         }
@@ -185,14 +186,41 @@ impl RequestEditor {
         }
     }
 
-    fn on_row_input_event(
+    fn on_row_key_event(
         &mut self,
         _input: Entity<HeaderInput>,
         event: &HeaderInputEvent,
         cx: &mut Context<Self>,
     ) {
-        if matches!(event, HeaderInputEvent::SubmitRequested) {
-            self.add_current_row(cx);
+        match event {
+            HeaderInputEvent::ValueChanged(key) => {
+                let pane = self.view_model.read(cx).request_pane();
+                self.update_view_model(cx, |view_model| view_model.set_row_draft_key(pane, key));
+                if pane == RequestPane::Params {
+                    self.project_url(cx);
+                }
+            }
+            HeaderInputEvent::SubmitRequested => self.add_current_row(cx),
+        }
+    }
+
+    fn on_row_value_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            HeaderInputEvent::ValueChanged(value) => {
+                let pane = self.view_model.read(cx).request_pane();
+                self.update_view_model(cx, |view_model| {
+                    view_model.set_row_draft_value(pane, value)
+                });
+                if pane == RequestPane::Params {
+                    self.project_url(cx);
+                }
+            }
+            HeaderInputEvent::SubmitRequested => self.add_current_row(cx),
         }
     }
 
@@ -278,31 +306,29 @@ impl RequestEditor {
 
     pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.set_request_pane(pane));
+        self.project_row_draft(cx);
     }
 
     fn add_current_row(&mut self, cx: &mut Context<Self>) {
-        let key = self.row_key_input.read(cx).get_content().trim().to_string();
-        let value = self
-            .row_value_input
-            .read(cx)
-            .get_content()
-            .trim()
-            .to_string();
         let request_pane = self.view_model.read(cx).request_pane();
         match request_pane {
             RequestPane::Params => {
-                self.update_view_model(cx, |view_model| view_model.upsert_param(key, value));
+                self.update_view_model(cx, |view_model| {
+                    view_model.commit_row_draft(RequestPane::Params)
+                });
                 self.project_url(cx);
             }
             RequestPane::Headers => {
-                self.update_view_model(cx, |view_model| view_model.upsert_header(key, value));
+                self.update_view_model(cx, |view_model| {
+                    view_model.commit_row_draft(RequestPane::Headers)
+                });
             }
             RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests => return,
         }
-        self.clear_staged_row(cx);
+        self.project_row_draft(cx);
     }
 
     fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -361,13 +387,11 @@ impl RequestEditor {
 
     pub(super) fn new_request(&mut self, cx: &mut Context<Self>) {
         self.update_view_model(cx, WorkspaceViewModel::new_request);
-        self.clear_staged_row(cx);
         self.project_active_request(cx);
     }
 
     pub(super) fn select_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
         if self.update_view_model(cx, |view_model| view_model.select_tab(index)) {
-            self.clear_staged_row(cx);
             self.project_active_request(cx);
         }
     }
@@ -377,7 +401,6 @@ impl RequestEditor {
             self.cancel_send(send_id, cx);
         }
         if self.update_view_model(cx, |view_model| view_model.close_tab(index)) {
-            self.clear_staged_row(cx);
             self.project_active_request(cx);
         }
     }
@@ -387,13 +410,7 @@ impl RequestEditor {
             self.cancel_send(send_id, cx);
         }
         self.update_view_model(cx, |view_model| view_model.load_request(request));
-        self.clear_staged_row(cx);
         self.project_active_request(cx);
-    }
-
-    fn clear_staged_row(&self, cx: &mut Context<Self>) {
-        self.row_key_input.update(cx, |input, cx| input.clear(cx));
-        self.row_value_input.update(cx, |input, cx| input.clear(cx));
     }
 
     /// One-way VM -> editor projection. Editor buffers retain cursor/selection state, but they
@@ -401,6 +418,7 @@ impl RequestEditor {
     fn project_active_request(&self, cx: &mut Context<Self>) {
         self.project_method(cx);
         self.project_url(cx);
+        self.project_row_draft(cx);
         self.project_body(cx);
         self.project_authorization(cx);
         self.project_scripts(cx);
@@ -416,6 +434,20 @@ impl RequestEditor {
         let url = self.view_model.read(cx).url().to_string();
         self.url_input
             .update(cx, |input, cx| input.project_url(url, cx));
+    }
+
+    fn project_row_draft(&self, cx: &mut Context<Self>) {
+        let (key, value) = {
+            let view_model = self.view_model.read(cx);
+            view_model
+                .row_draft(view_model.request_pane())
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .unwrap_or_default()
+        };
+        self.row_key_input
+            .update(cx, |input, cx| input.project_content(key, cx));
+        self.row_value_input
+            .update(cx, |input, cx| input.project_content(value, cx));
     }
 
     fn project_body(&self, cx: &mut Context<Self>) {

@@ -87,7 +87,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     assert_eq!(clipboard_text(cx), "pizza");
 
     cx.write_to_clipboard(ClipboardItem::new_string("margherita".to_string()));
-    cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c enter");
+    cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c");
     assert_eq!(clipboard_text(cx), "margherita");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
@@ -165,7 +165,6 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     cx.write_to_clipboard(ClipboardItem::new_string("menu\r\nvalue".to_string()));
     right_click(cx, "body-form-value-0").unwrap();
     click(cx, "body-edit-menu-paste").unwrap();
-    cx.simulate_keystrokes("enter");
 
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.body().to_string()),

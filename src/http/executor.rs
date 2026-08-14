@@ -2,6 +2,7 @@ use crate::errors::AppError;
 use crate::http::client::HttpClient;
 use crate::models::{HttpMethod, Request, RequestBody};
 use crate::utils::formatter::format_response_body;
+use crate::utils::log::{format_http_request, format_http_response};
 use std::sync::Arc;
 
 /// HTTP 请求执行结果
@@ -140,24 +141,9 @@ impl RequestExecutor {
         }
 
         let url_for_log = crate::utils::log::display_url_for_log(&url);
-        if tracing::enabled!(tracing::Level::DEBUG) {
-            let headers_for_log: Vec<_> = headers
-                .iter()
-                .map(|(name, value)| {
-                    (
-                        name.as_str(),
-                        crate::utils::log::display_header_value(name, value),
-                    )
-                })
-                .collect();
-            tracing::debug!(
-                method = %method,
-                url = %url_for_log,
-                header_count = headers.len(),
-                body_bytes = body.payload_len(),
-                headers = ?headers_for_log,
-                "sending request"
-            );
+        if tracing::enabled!(target: "postman_gpui::http", tracing::Level::INFO) {
+            let request_log = format_http_request(method, &url, &headers, &body);
+            tracing::info!(target: "postman_gpui::http", "\n{}", request_log);
         }
 
         let started = std::time::Instant::now();
@@ -166,14 +152,15 @@ impl RequestExecutor {
 
         match result {
             Ok(response) => {
-                tracing::debug!(
-                    method = %method,
-                    url = %url_for_log,
-                    status = response.status(),
-                    elapsed_ms,
-                    response_bytes = response.body().len(),
-                    "received response"
-                );
+                if tracing::enabled!(target: "postman_gpui::http", tracing::Level::INFO) {
+                    let response_log = format_http_response(
+                        response.status(),
+                        elapsed_ms,
+                        response.headers(),
+                        response.body(),
+                    );
+                    tracing::info!(target: "postman_gpui::http", "\n{}", response_log);
+                }
                 let formatted_body = format_response_body(response.body());
 
                 Ok(RequestResult {
@@ -185,11 +172,12 @@ impl RequestExecutor {
             }
             Err(error) => {
                 tracing::warn!(
+                    target: "postman_gpui::http",
                     method = %method,
                     url = %url_for_log,
                     elapsed_ms,
                     error = %error,
-                    "request transport failed"
+                    "HTTP RESPONSE: transport failed"
                 );
                 Err(error)
             }

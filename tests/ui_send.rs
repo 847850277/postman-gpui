@@ -150,6 +150,70 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
 }
 
 #[gpui::test]
+fn query_parameter_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/live-query")
+        .match_query(Matcher::UrlEncoded("source".into(), "typed".into()))
+        .with_status(200)
+        .with_body("query-saved")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &format!("{}/live-query", server.url())).unwrap();
+    click(cx, "request-pane-params").unwrap();
+    type_into(cx, "row-key-input", "source").unwrap();
+    type_into(cx, "row-value-input", "typed").unwrap();
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        format!("{}/live-query?source=typed", server.url())
+    );
+    // Send while the value editor is still active; Add was never clicked.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    request.assert();
+}
+
+#[gpui::test]
+fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/live-header")
+        .match_header("x-live-input", "saved-before-add")
+        .with_status(200)
+        .with_body("header-saved")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &format!("{}/live-header", server.url())).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Live-Input").unwrap();
+    type_into(cx, "row-value-input", "saved-before-add").unwrap();
+
+    // Send while the value editor is still active; Add was never clicked.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    request.assert();
+}
+
+#[gpui::test]
 fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let pending = workspace.update(cx, |workspace, _| {
@@ -253,13 +317,63 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
         }
         type_into(cx, KEY_SELECTORS[index], &format!("k{index}")).unwrap();
         type_into(cx, VALUE_SELECTORS[index], &format!("v{index}")).unwrap();
-        cx.simulate_keystrokes("enter");
     }
 
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
         "k0=v0&k1=v1&k2=v2&k3=v3&k4=v4&k5=v5&k6=v6&k7=v7"
     );
+}
+
+#[gpui::test]
+fn multipart_text_value_is_saved_before_the_active_cell_loses_focus(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let submitted = server
+        .mock("POST", "/form")
+        .match_header(
+            "content-type",
+            Matcher::Regex("^multipart/form-data; boundary=".to_string()),
+        )
+        .match_body(Matcher::AllOf(vec![
+            Matcher::Regex("name=\\\"comments\\\"".to_string()),
+            Matcher::Regex("1234".to_string()),
+        ]))
+        .with_status(200)
+        .with_body(r#"{"saved":true}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", &format!("{}/form", server.url())).unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-form-data").unwrap();
+    type_into(cx, "body-form-key-0", "comments").unwrap();
+    type_into(cx, "body-form-value-0", "1234").unwrap();
+
+    let body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
+    assert!(matches!(
+        body,
+        RequestBody::Multipart(parts)
+            if matches!(
+                parts.as_slice(),
+                [part]
+                    if part.name == "comments"
+                        && matches!(&part.value, MultipartValue::Text(value) if value == "1234")
+            )
+    ));
+
+    // This is the regression path: Send is clicked while the value cell is still active.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    submitted.assert();
 }
 
 #[gpui::test]

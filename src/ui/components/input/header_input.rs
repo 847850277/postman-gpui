@@ -83,10 +83,6 @@ impl HeaderInput {
         self
     }
 
-    pub fn get_content(&self) -> &str {
-        &self.content
-    }
-
     pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let new_content: SharedString = content.into().into();
         if self.content != new_content {

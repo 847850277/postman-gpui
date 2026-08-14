@@ -448,6 +448,36 @@ impl BodyInput {
         ));
     }
 
+    /// Persists the active editor buffer immediately so the ViewModel always reflects what the
+    /// user can currently see, even before Enter, Tab, or a focus change.
+    fn persist_active_form_edit(&mut self, cx: &mut Context<Self>) {
+        let changed = if let Some(index) = self.editing_key_index {
+            self.form_data_entries.get_mut(index).is_some_and(|entry| {
+                if entry.key == self.temp_key_value {
+                    false
+                } else {
+                    entry.key.clone_from(&self.temp_key_value);
+                    true
+                }
+            })
+        } else if let Some(index) = self.editing_value_index {
+            self.form_data_entries.get_mut(index).is_some_and(|entry| {
+                if entry.value == self.temp_value_value {
+                    false
+                } else {
+                    entry.value.clone_from(&self.temp_value_value);
+                    true
+                }
+            })
+        } else {
+            false
+        };
+
+        if changed {
+            self.emit_form_data_changed(cx);
+        }
+    }
+
     fn toggle_form_data_value_kind(&mut self, index: usize, cx: &mut Context<Self>) {
         if !self.form_data_allows_files {
             return;
@@ -598,57 +628,25 @@ impl BodyInput {
     }
 
     pub fn finish_editing(&mut self, cx: &mut Context<Self>) {
-        let mut changed = false;
-        if let Some(index) = self.editing_key_index {
-            if let Some(entry) = self.form_data_entries.get_mut(index) {
-                entry.key = self.temp_key_value.clone();
-                changed = true;
-            }
-        }
-        if let Some(index) = self.editing_value_index {
-            if let Some(entry) = self.form_data_entries.get_mut(index) {
-                entry.value = self.temp_value_value.clone();
-                changed = true;
-            }
-        }
         self.editing_key_index = None;
         self.editing_value_index = None;
         self.temp_key_value.clear();
         self.temp_value_value.clear();
-        if changed {
-            self.emit_form_data_changed(cx);
-        }
         cx.notify();
     }
 
     pub fn finish_key_editing_only(&mut self, cx: &mut Context<Self>) {
-        let mut changed = false;
-        if let Some(index) = self.editing_key_index {
-            if let Some(entry) = self.form_data_entries.get_mut(index) {
-                entry.key = self.temp_key_value.clone();
-                changed = true;
-            }
+        if self.editing_key_index.is_some() {
             self.editing_key_index = None;
             self.temp_key_value.clear();
-        }
-        if changed {
-            self.emit_form_data_changed(cx);
         }
         cx.notify();
     }
 
     pub fn finish_value_editing_only(&mut self, cx: &mut Context<Self>) {
-        let mut changed = false;
-        if let Some(index) = self.editing_value_index {
-            if let Some(entry) = self.form_data_entries.get_mut(index) {
-                entry.value = self.temp_value_value.clone();
-                changed = true;
-            }
+        if self.editing_value_index.is_some() {
             self.editing_value_index = None;
             self.temp_value_value.clear();
-        }
-        if changed {
-            self.emit_form_data_changed(cx);
         }
         cx.notify();
     }
@@ -679,6 +677,7 @@ impl BodyInput {
                 let start = self.form_key_selected_range.start;
                 self.form_key_selected_range = start..start;
             }
+            self.persist_active_form_edit(cx);
             cx.notify();
         } else if let Some(_index) = self.editing_value_index {
             if self.form_value_selected_range.is_empty() {
@@ -694,6 +693,7 @@ impl BodyInput {
                 let start = self.form_value_selected_range.start;
                 self.form_value_selected_range = start..start;
             }
+            self.persist_active_form_edit(cx);
             cx.notify();
         }
     }
@@ -873,6 +873,7 @@ impl BodyInput {
             let cursor = range.start + text.len();
             self.form_key_selected_range = cursor..cursor;
             self.form_key_selection_reversed = false;
+            self.persist_active_form_edit(cx);
             cx.notify();
         } else if self.editing_value_index.is_some() {
             let range = self.form_value_selected_range.clone();
@@ -880,6 +881,7 @@ impl BodyInput {
             let cursor = range.start + text.len();
             self.form_value_selected_range = cursor..cursor;
             self.form_value_selection_reversed = false;
+            self.persist_active_form_edit(cx);
             cx.notify();
         }
     }
@@ -910,20 +912,7 @@ impl BodyInput {
         if let Some(key_char) = &event.keystroke.key_char {
             // 过滤掉特殊键和控制字符
             if key_char.len() == 1 && !key_char.chars().any(|c| c.is_control()) {
-                if self.editing_key_index.is_some() {
-                    // 删除选中的文本（如果有），然后插入新字符
-                    let range = self.form_key_selected_range.clone();
-                    self.temp_key_value.replace_range(range.clone(), key_char);
-                    let new_pos = range.start + key_char.len();
-                    self.form_key_selected_range = new_pos..new_pos;
-                    cx.notify();
-                } else if self.editing_value_index.is_some() {
-                    let range = self.form_value_selected_range.clone();
-                    self.temp_value_value.replace_range(range.clone(), key_char);
-                    let new_pos = range.start + key_char.len();
-                    self.form_value_selected_range = new_pos..new_pos;
-                    cx.notify();
-                }
+                self.replace_form_selection(key_char, cx);
             }
         }
     }

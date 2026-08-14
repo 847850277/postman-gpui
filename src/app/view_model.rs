@@ -70,6 +70,12 @@ impl KeyValueRow {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct KeyValueDraft {
+    key: String,
+    value: String,
+}
+
 /// State consumed by the response view.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResponseState {
@@ -145,7 +151,9 @@ pub struct RequestViewModel {
     method: HttpMethod,
     url: String,
     params: Vec<KeyValueRow>,
+    param_draft: KeyValueDraft,
     headers: Vec<KeyValueRow>,
+    header_draft: KeyValueDraft,
     body: RequestBody,
     content_type_source: ContentTypeSource,
     authorization_kind: AuthorizationKind,
@@ -172,7 +180,9 @@ impl RequestViewModel {
             method: HttpMethod::GET,
             url: String::new(),
             params: Vec::new(),
+            param_draft: KeyValueDraft::default(),
             headers: Vec::new(),
+            header_draft: KeyValueDraft::default(),
             body: RequestBody::None,
             content_type_source: ContentTypeSource::Unset,
             authorization_kind: AuthorizationKind::Bearer,
@@ -207,6 +217,21 @@ impl RequestViewModel {
 
     pub fn headers(&self) -> &[KeyValueRow] {
         &self.headers
+    }
+
+    /// Returns the in-progress row shown by the Params or Headers editor. The draft belongs to
+    /// the request tab, not to the text controls, and participates in request construction as
+    /// soon as it is valid.
+    pub fn row_draft(&self, pane: RequestPane) -> Option<(&str, &str)> {
+        let draft = match pane {
+            RequestPane::Params => &self.param_draft,
+            RequestPane::Headers => &self.header_draft,
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => return None,
+        };
+        Some((&draft.key, &draft.value))
     }
 
     pub fn body(&self) -> &str {
@@ -293,6 +318,7 @@ impl RequestViewModel {
             return;
         }
         self.params = parse_query_params(&url);
+        self.param_draft = KeyValueDraft::default();
         self.url = url;
         self.dirty = true;
     }
@@ -405,6 +431,78 @@ impl RequestViewModel {
         self.request_pane = pane;
     }
 
+    pub fn set_row_draft_key(&mut self, pane: RequestPane, key: impl Into<String>) {
+        let key = key.into();
+        let changed = match pane {
+            RequestPane::Params if self.param_draft.key != key => {
+                self.param_draft.key = key;
+                true
+            }
+            RequestPane::Headers if self.header_draft.key != key => {
+                self.header_draft.key = key;
+                true
+            }
+            RequestPane::Params
+            | RequestPane::Headers
+            | RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => false,
+        };
+        if changed {
+            if pane == RequestPane::Params {
+                self.sync_url_from_params();
+            }
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_row_draft_value(&mut self, pane: RequestPane, value: impl Into<String>) {
+        let value = value.into();
+        let changed = match pane {
+            RequestPane::Params if self.param_draft.value != value => {
+                self.param_draft.value = value;
+                true
+            }
+            RequestPane::Headers if self.header_draft.value != value => {
+                self.header_draft.value = value;
+                true
+            }
+            RequestPane::Params
+            | RequestPane::Headers
+            | RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => false,
+        };
+        if changed {
+            if pane == RequestPane::Params {
+                self.sync_url_from_params();
+            }
+            self.dirty = true;
+        }
+    }
+
+    /// Confirms the current row and opens a fresh draft. This changes presentation flow only;
+    /// valid draft values already participate in Send before this method is called.
+    pub fn commit_row_draft(&mut self, pane: RequestPane) {
+        match pane {
+            RequestPane::Params => {
+                let draft = std::mem::take(&mut self.param_draft);
+                self.upsert_param(draft.key.trim(), draft.value.trim());
+                self.sync_url_from_params();
+            }
+            RequestPane::Headers => {
+                let draft = std::mem::take(&mut self.header_draft);
+                self.upsert_header(draft.key.trim(), draft.value.trim());
+            }
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => {}
+        }
+    }
+
     pub fn upsert_param(&mut self, key: impl Into<String>, value: impl Into<String>) {
         let key = key.into();
         if key.trim().is_empty() {
@@ -485,7 +583,9 @@ impl RequestViewModel {
         self.method = HttpMethod::GET;
         self.url.clear();
         self.params.clear();
+        self.param_draft = KeyValueDraft::default();
         self.headers.clear();
+        self.header_draft = KeyValueDraft::default();
         self.body = RequestBody::None;
         self.content_type_source = ContentTypeSource::Unset;
         self.authorization_kind = AuthorizationKind::Bearer;
@@ -504,6 +604,8 @@ impl RequestViewModel {
         self.method = request.method;
         self.url = request.url.clone();
         self.params = parse_query_params(&request.url);
+        self.param_draft = KeyValueDraft::default();
+        self.header_draft = KeyValueDraft::default();
         self.authorization_kind = AuthorizationKind::Bearer;
         self.bearer_token.clear();
         self.basic_username.clear();
@@ -639,6 +741,20 @@ impl RequestViewModel {
             .map(|row| (row.key.clone(), row.value.clone()))
             .collect();
 
+        let draft_key = self.header_draft.key.trim();
+        let draft_value = self.header_draft.value.trim();
+        if !draft_key.is_empty() && !draft_value.is_empty() {
+            if let Some((_, value)) = request
+                .headers
+                .iter_mut()
+                .find(|(key, _)| key.eq_ignore_ascii_case(draft_key))
+            {
+                *value = draft_value.to_string();
+            } else {
+                request.add_header(draft_key, draft_value);
+            }
+        }
+
         let authorization = match self.authorization_kind {
             AuthorizationKind::Bearer if !self.bearer_token.is_empty() => {
                 Some(format!("Bearer {}", self.bearer_token))
@@ -730,7 +846,18 @@ impl RequestViewModel {
     }
 
     fn sync_url_from_params(&mut self) {
-        self.url = apply_query_params(&self.url, &self.params);
+        let mut params = self.params.clone();
+        let draft_key = self.param_draft.key.trim();
+        if !draft_key.is_empty() {
+            let draft_value = self.param_draft.value.trim();
+            if let Some(row) = params.iter_mut().find(|row| row.key == draft_key) {
+                row.value = draft_value.to_string();
+                row.enabled = true;
+            } else {
+                params.push(KeyValueRow::enabled(draft_key, draft_value));
+            }
+        }
+        self.url = apply_query_params(&self.url, &params);
     }
 }
 
@@ -1055,6 +1182,34 @@ mod tests {
     }
 
     #[test]
+    fn active_param_and_header_rows_participate_before_commit() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://example.com/live");
+        vm.set_row_draft_key(RequestPane::Params, "source");
+        vm.set_row_draft_value(RequestPane::Params, "typed");
+        vm.set_row_draft_key(RequestPane::Headers, "X-Live-Input");
+        vm.set_row_draft_value(RequestPane::Headers, "saved-before-add");
+
+        assert_eq!(vm.url(), "https://example.com/live?source=typed");
+        assert_eq!(vm.row_draft(RequestPane::Params), Some(("source", "typed")));
+        let request = vm.build_request();
+        assert!(request
+            .headers
+            .iter()
+            .any(|(key, value)| { key == "X-Live-Input" && value == "saved-before-add" }));
+
+        vm.commit_row_draft(RequestPane::Params);
+        vm.commit_row_draft(RequestPane::Headers);
+        assert_eq!(vm.params(), &[KeyValueRow::enabled("source", "typed")]);
+        assert!(vm
+            .headers()
+            .iter()
+            .any(|row| row.key == "X-Live-Input" && row.value == "saved-before-add"));
+        assert_eq!(vm.row_draft(RequestPane::Params), Some(("", "")));
+        assert_eq!(vm.row_draft(RequestPane::Headers), Some(("", "")));
+    }
+
+    #[test]
     fn send_builds_request_and_transitions_response() {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_method(HttpMethod::POST);
@@ -1255,11 +1410,15 @@ mod tests {
         workspace.set_bearer_token("first-token");
         workspace.set_pre_request_script("const first = true;");
         workspace.set_tests_script("status == 200");
+        workspace.set_row_draft_key(RequestPane::Headers, "X-First-Draft");
+        workspace.set_row_draft_value(RequestPane::Headers, "one");
 
         workspace.new_request();
         workspace.set_url("https://second.example");
         workspace.set_body(r#"{"tab":2}"#);
         workspace.set_bearer_token("second-token");
+        workspace.set_row_draft_key(RequestPane::Headers, "X-Second-Draft");
+        workspace.set_row_draft_value(RequestPane::Headers, "two");
 
         assert_eq!(workspace.tab_count(), 2);
         assert_eq!(workspace.active_tab_index(), 1);
@@ -1269,10 +1428,18 @@ mod tests {
         assert_eq!(workspace.bearer_token(), "first-token");
         assert_eq!(workspace.pre_request_script(), "const first = true;");
         assert_eq!(workspace.tests_script(), "status == 200");
+        assert_eq!(
+            workspace.row_draft(RequestPane::Headers),
+            Some(("X-First-Draft", "one"))
+        );
 
         assert!(workspace.select_tab(1));
         assert_eq!(workspace.url(), "https://second.example");
         assert_eq!(workspace.bearer_token(), "second-token");
+        assert_eq!(
+            workspace.row_draft(RequestPane::Headers),
+            Some(("X-Second-Draft", "two"))
+        );
     }
 
     #[test]

@@ -249,10 +249,17 @@ fn apply_rows(
         },
     )?;
 
-    for row in rows {
+    for (index, row) in rows.iter().enumerate() {
         type_into(cx, "row-key-input", &row.key)?;
         type_into(cx, "row-value-input", &row.value)?;
-        click(cx, "add-row-button")?;
+
+        // Keep the final enabled row active so the scenario verifies that Send consumes the
+        // live ViewModel draft without relying on Add or focus loss. Earlier rows still use Add
+        // to open the next editor row; disabled rows must be committed before they can be toggled.
+        let must_commit = index + 1 < rows.len() || !row.enabled;
+        if must_commit {
+            click(cx, "add-row-button")?;
+        }
 
         if !row.enabled {
             let index = workspace
@@ -362,7 +369,6 @@ fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), Strin
         let value_selector = BODY_FORM_VALUE_SELECTORS[index];
         type_into(cx, key_selector, key)?;
         type_into(cx, value_selector, value)?;
-        cx.simulate_keystrokes("enter");
     }
     Ok(())
 }

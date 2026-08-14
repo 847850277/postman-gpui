@@ -4,7 +4,7 @@
 mod ui;
 
 use gpui::{AppContext, TestAppContext};
-use postman_gpui::app::{AuthorizationKind, PostmanApp, WorkspaceViewModel};
+use postman_gpui::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use ui::{click, replace_text, type_into};
 
 #[gpui::test]
@@ -49,6 +49,44 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
         "https://second.example/orders"
     );
+}
+
+#[gpui::test]
+fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", "https://first.example/items").unwrap();
+    click(cx, "request-pane-params").unwrap();
+    type_into(cx, "row-key-input", "q").unwrap();
+    type_into(cx, "row-value-input", "first").unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Tab-Draft").unwrap();
+    type_into(cx, "row-value-input", "one").unwrap();
+
+    click(cx, "request-pane-params").unwrap();
+    click(cx, "row-value-input").unwrap();
+    cx.simulate_input("-params");
+    assert!(workspace.read_with(cx, |workspace, _| {
+        workspace.row_draft(RequestPane::Params) == Some(("q", "first-params"))
+    }));
+
+    click(cx, "new-tab-button").unwrap();
+    type_into(cx, "row-key-input", "q").unwrap();
+    type_into(cx, "row-value-input", "second").unwrap();
+    click(cx, "request-tab-0").unwrap();
+
+    // Appending proves the first tab's VM value was projected back into the reused controls.
+    click(cx, "row-value-input").unwrap();
+    cx.simulate_input("-restored");
+    assert!(workspace.read_with(cx, |workspace, _| {
+        workspace.row_draft(RequestPane::Params) == Some(("q", "first-params-restored"))
+    }));
+    assert!(workspace.read_with(cx, |workspace, _| {
+        workspace.row_draft(RequestPane::Headers) == Some(("X-Tab-Draft", "one"))
+    }));
 }
 
 #[gpui::test]
