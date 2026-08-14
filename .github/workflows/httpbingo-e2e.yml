@@ -2,7 +2,9 @@ name: HTTPBingo E2E
 
 on:
   pull_request:
+    branches: [ main, master]
   push:
+    branches: [ main, master]
   workflow_dispatch:
   #schedule:
     # Weekdays at 03:17 UTC (11:17 Asia/Shanghai). A non-round minute reduces
