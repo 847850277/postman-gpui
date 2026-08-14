@@ -26,6 +26,35 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "HTTPBingo authenticates Basic credentials entered in the application",
+      "draft": {
+        "method": "GET",
+        "path": "/basic-auth/scenario-user/scenario-pass",
+        "basic_auth": {
+          "username": "scenario-user",
+          "password": "scenario-pass"
+        }
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/basic-auth/scenario-user/scenario-pass",
+          "headers": [["Authorization", "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz"]],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "authenticated": true,
+            "authorized": true,
+            "user": "scenario-user"
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }

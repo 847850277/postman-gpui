@@ -1,6 +1,9 @@
 use mockito::{Matcher, Mock, Server};
 use postman_gpui::{
-    app::{BodyKind, RequestService, RequestViewModel, ResponseState, WorkspaceViewModel},
+    app::{
+        AuthorizationKind, BodyKind, RequestService, RequestViewModel, ResponseState,
+        WorkspaceViewModel,
+    },
     errors::AppError,
     http::executor::{RequestExecutor, RequestResult},
     models::{HttpMethod, Request},
@@ -60,6 +63,14 @@ pub struct DraftSpec {
     pub body: Option<String>,
     pub body_kind: Option<String>,
     pub bearer_token: Option<String>,
+    pub basic_auth: Option<BasicAuthSpec>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BasicAuthSpec {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -299,6 +310,10 @@ fn apply_draft(
     draft: &DraftSpec,
     server_url: Option<&str>,
 ) -> Result<(), String> {
+    if draft.bearer_token.is_some() && draft.basic_auth.is_some() {
+        return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
+    }
+
     workspace.set_method(parse_method(&draft.method)?);
     workspace.set_url(absolute_url(server_url, &draft.path)?);
 
@@ -331,7 +346,13 @@ fn apply_draft(
         workspace.set_body_kind(parse_body_kind(body_kind)?);
     }
     if let Some(token) = &draft.bearer_token {
+        workspace.set_authorization_kind(AuthorizationKind::Bearer);
         workspace.set_bearer_token(token);
+    }
+    if let Some(credentials) = &draft.basic_auth {
+        workspace.set_authorization_kind(AuthorizationKind::Basic);
+        workspace.set_basic_username(&credentials.username);
+        workspace.set_basic_password(&credentials.password);
     }
     Ok(())
 }

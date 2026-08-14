@@ -4,6 +4,6 @@ pub mod view_model;
 
 pub use postman_app::PostmanApp;
 pub use view_model::{
-    BodyKind, KeyValueRow, RequestPane, RequestService, RequestViewModel, ResponseState,
-    WorkspaceViewModel,
+    AuthorizationKind, BodyKind, KeyValueRow, RequestPane, RequestService, RequestViewModel,
+    ResponseState, WorkspaceViewModel,
 };

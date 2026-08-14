@@ -164,7 +164,11 @@ Each case has four responsibilities:
 - `headers`: request-header rows with `key`, `value`, and optional `enabled`;
 - `body`: request body text or `null`;
 - `body_kind`: `json`, `form_data`, `raw`, or `null`;
-- `bearer_token`: token text, with or without the `Bearer` prefix.
+- `bearer_token`: token text, with or without the `Bearer` prefix;
+- `basic_auth`: object containing `username` and `password` for HTTP Basic Auth.
+
+`bearer_token` and `basic_auth` are mutually exclusive. The runner rejects a
+scenario that supplies both instead of choosing one implicitly.
 
 `enabled` defaults to `true`.
 

@@ -1,7 +1,7 @@
 //! End-to-end interaction coverage for workspace-level MVVM features.
 
 use gpui::{Modifiers, TestAppContext};
-use postman_gpui::app::PostmanApp;
+use postman_gpui::app::{AuthorizationKind, PostmanApp};
 
 #[gpui::test]
 fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext) {
@@ -105,6 +105,57 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     assert_eq!(
         app.read_with(cx, |app, cx| app.current_bearer_token(cx)),
         "ui-secret"
+    );
+    secured.assert();
+}
+
+#[gpui::test]
+fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let secured = server
+        .mock("GET", "/basic-auth")
+        .match_header("authorization", "Basic dWktdXNlcjp1aS1wYXNz")
+        .with_status(200)
+        .with_body(r#"{"authenticated":true}"#)
+        .create();
+
+    let (app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+    let authorization_tab = cx
+        .debug_bounds("request-pane-authorization")
+        .expect("authorization tab should render");
+    cx.simulate_click(authorization_tab.center(), Modifiers::none());
+    let basic_kind = cx
+        .debug_bounds("auth-kind-basic")
+        .expect("Basic Auth option should render");
+    cx.simulate_click(basic_kind.center(), Modifiers::none());
+
+    let username = cx
+        .debug_bounds("basic-auth-username-input")
+        .expect("Basic Auth username input should render");
+    cx.simulate_click(username.center(), Modifiers::none());
+    cx.simulate_input("ui-user");
+    let password = cx
+        .debug_bounds("basic-auth-password-input")
+        .expect("Basic Auth password input should render");
+    cx.simulate_click(password.center(), Modifiers::none());
+    cx.simulate_input("ui-pass");
+
+    app.update(cx, |app, cx| {
+        app.type_url(&format!("{}/basic-auth", server.url()), cx);
+        app.click_send(cx);
+    });
+
+    assert_eq!(
+        app.read_with(cx, |app, cx| app.current_authorization_kind(cx)),
+        AuthorizationKind::Basic
+    );
+    assert_eq!(
+        app.read_with(cx, |app, cx| app.current_basic_username(cx)),
+        "ui-user"
+    );
+    assert_eq!(
+        app.read_with(cx, |app, cx| app.current_basic_password(cx)),
+        "ui-pass"
     );
     secured.assert();
 }

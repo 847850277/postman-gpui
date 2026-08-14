@@ -122,9 +122,18 @@ fn run_application_scenario(
     apply_rows(cx, &app, RowEditor::Params, &scenario.draft.params)?;
     apply_rows(cx, &app, RowEditor::Headers, &scenario.draft.headers)?;
 
+    if scenario.draft.bearer_token.is_some() && scenario.draft.basic_auth.is_some() {
+        return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
+    }
     if let Some(token) = &scenario.draft.bearer_token {
         click(cx, "request-pane-authorization")?;
         type_into(cx, "authorization-input", token)?;
+    }
+    if let Some(credentials) = &scenario.draft.basic_auth {
+        click(cx, "request-pane-authorization")?;
+        click(cx, "auth-kind-basic")?;
+        type_into(cx, "basic-auth-username-input", &credentials.username)?;
+        type_into(cx, "basic-auth-password-input", &credentials.password)?;
     }
 
     if let Some(body) = &scenario.draft.body {

@@ -1,7 +1,7 @@
 use crate::{
     app::{
-        view_model::detect_body_kind, BodyKind, KeyValueRow, RequestPane, ResponseState,
-        WorkspaceViewModel,
+        view_model::detect_body_kind, AuthorizationKind, BodyKind, KeyValueRow, RequestPane,
+        ResponseState, WorkspaceViewModel,
     },
     models::{HttpMethod, Request},
     ui::{
@@ -35,6 +35,8 @@ pub struct PostmanApp {
     row_key_input: Entity<HeaderInput>,
     row_value_input: Entity<HeaderInput>,
     authorization_input: Entity<HeaderInput>,
+    basic_username_input: Entity<HeaderInput>,
+    basic_password_input: Entity<HeaderInput>,
     script_input: Entity<BodyInput>,
     tests_input: Entity<BodyInput>,
     history_list: Entity<HistoryList>,
@@ -61,6 +63,8 @@ impl PostmanApp {
         let row_value_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Value"));
         let authorization_input =
             cx.new(|cx| HeaderInput::new(cx).with_placeholder("Enter bearer token"));
+        let basic_username_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Username"));
+        let basic_password_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Password"));
         let script_input = cx.new(|cx| {
             BodyInput::new(cx)
                 .with_placeholder("Pre-request script")
@@ -81,6 +85,8 @@ impl PostmanApp {
             cx.subscribe(&row_key_input, Self::on_row_input_event),
             cx.subscribe(&row_value_input, Self::on_row_input_event),
             cx.subscribe(&authorization_input, Self::on_authorization_event),
+            cx.subscribe(&basic_username_input, Self::on_basic_username_event),
+            cx.subscribe(&basic_password_input, Self::on_basic_password_event),
             cx.subscribe(&script_input, Self::on_script_event),
             cx.subscribe(&tests_input, Self::on_tests_event),
             cx.subscribe(&history_list, Self::on_history_selected),
@@ -98,6 +104,8 @@ impl PostmanApp {
             row_key_input,
             row_value_input,
             authorization_input,
+            basic_username_input,
+            basic_password_input,
             script_input,
             tests_input,
             history_list,
@@ -174,6 +182,30 @@ impl PostmanApp {
     ) {
         if let HeaderInputEvent::ValueChanged(token) = event {
             self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
+            cx.notify();
+        }
+    }
+
+    fn on_basic_username_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(username) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_username(username));
+            cx.notify();
+        }
+    }
+
+    fn on_basic_password_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(password) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_password(password));
             cx.notify();
         }
     }
@@ -275,6 +307,18 @@ impl PostmanApp {
         self.view_model.read(cx).bearer_token().to_string()
     }
 
+    pub fn current_authorization_kind(&self, cx: &App) -> AuthorizationKind {
+        self.view_model.read(cx).authorization_kind()
+    }
+
+    pub fn current_basic_username(&self, cx: &App) -> String {
+        self.view_model.read(cx).basic_username().to_string()
+    }
+
+    pub fn current_basic_password(&self, cx: &App) -> String {
+        self.view_model.read(cx).basic_password().to_string()
+    }
+
     pub fn current_pre_request_script(&self, cx: &App) -> String {
         self.view_model.read(cx).pre_request_script().to_string()
     }
@@ -285,6 +329,11 @@ impl PostmanApp {
 
     pub fn set_bearer_token(&mut self, token: &str, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
+    }
+
+    fn set_authorization_kind(&mut self, kind: AuthorizationKind, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.set_authorization_kind(kind));
+        cx.notify();
     }
 
     pub fn set_pre_request_script(&mut self, script: &str, cx: &mut Context<Self>) {
@@ -411,7 +460,17 @@ impl PostmanApp {
     /// One-way VM -> editor projection. Editor buffers retain cursor/selection state, but they
     /// never participate in request construction.
     fn project_active_request(&self, cx: &mut Context<Self>) {
-        let (method, url, body, kind, bearer_token, pre_request_script, tests_script) = {
+        let (
+            method,
+            url,
+            body,
+            body_kind,
+            bearer_token,
+            basic_username,
+            basic_password,
+            pre_request_script,
+            tests_script,
+        ) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model.method(),
@@ -419,6 +478,8 @@ impl PostmanApp {
                 view_model.body().to_string(),
                 view_model.body_kind(),
                 view_model.bearer_token().to_string(),
+                view_model.basic_username().to_string(),
+                view_model.basic_password().to_string(),
                 view_model.pre_request_script().to_string(),
                 view_model.tests_script().to_string(),
             )
@@ -430,8 +491,8 @@ impl PostmanApp {
             .update(cx, |input, cx| input.project_url(url, cx));
 
         self.body_input.update(cx, |input, cx| {
-            input.set_type_silent(body_type_from_kind(kind), cx);
-            if kind == BodyKind::FormData {
+            input.set_type_silent(body_type_from_kind(body_kind), cx);
+            if body_kind == BodyKind::FormData {
                 project_form_data(input, &body, cx);
             } else {
                 input.project_content(body, cx);
@@ -440,6 +501,10 @@ impl PostmanApp {
 
         self.authorization_input
             .update(cx, |input, cx| input.project_content(bearer_token, cx));
+        self.basic_username_input
+            .update(cx, |input, cx| input.project_content(basic_username, cx));
+        self.basic_password_input
+            .update(cx, |input, cx| input.project_content(basic_password, cx));
 
         self.script_input.update(cx, |input, cx| {
             input.set_type_silent(BodyType::Json, cx);
@@ -695,7 +760,7 @@ impl PostmanApp {
     }
 
     fn render_request_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let (header_count, has_bearer, has_body, has_script, has_tests) = {
+        let (header_count, authorization_kind, has_authorization, has_body, has_script, has_tests) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model
@@ -703,7 +768,14 @@ impl PostmanApp {
                     .iter()
                     .filter(|row| row.enabled)
                     .count(),
-                !view_model.bearer_token().is_empty(),
+                view_model.authorization_kind(),
+                match view_model.authorization_kind() {
+                    AuthorizationKind::Bearer => !view_model.bearer_token().is_empty(),
+                    AuthorizationKind::Basic => {
+                        !view_model.basic_username().is_empty()
+                            || !view_model.basic_password().is_empty()
+                    }
+                },
                 !view_model.body().is_empty(),
                 !view_model.pre_request_script().is_empty(),
                 !view_model.tests_script().is_empty(),
@@ -722,11 +794,14 @@ impl PostmanApp {
             .child(self.request_tab(RequestPane::Params, "Params", cx))
             .child(self.request_tab(
                 RequestPane::Authorization,
-                if has_bearer {
-                    "Authorization (Bearer) ●".to_string()
-                } else {
-                    "Authorization (Bearer)".to_string()
-                },
+                format!(
+                    "Authorization ({}){}",
+                    match authorization_kind {
+                        AuthorizationKind::Bearer => "Bearer",
+                        AuthorizationKind::Basic => "Basic",
+                    },
+                    if has_authorization { " ●" } else { "" }
+                ),
                 cx,
             ))
             .child(self.request_tab(
@@ -818,7 +893,58 @@ impl PostmanApp {
             .child(editor)
     }
 
-    fn render_authorization_editor(&self, _cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_authorization_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let authorization_kind = self.view_model.read(cx).authorization_kind();
+        let editor = match authorization_kind {
+            AuthorizationKind::Bearer => div()
+                .h(px(48.0))
+                .flex()
+                .items_center()
+                .gap_4()
+                .px_3()
+                .rounded_lg()
+                .bg(rgb(CODE_PANEL))
+                .child(
+                    div()
+                        .w(px(120.0))
+                        .flex_none()
+                        .font_family(FONT_UI)
+                        .font_weight(FontWeight::BOLD)
+                        .text_size(px(12.0))
+                        .text_color(rgb(0x0093_c5fd))
+                        .child("Bearer token"),
+                )
+                .child(
+                    div()
+                        .debug_selector(|| "authorization-input".into())
+                        .h(px(34.0))
+                        .flex_1()
+                        .child(self.authorization_input.clone()),
+                )
+                .into_any_element(),
+            AuthorizationKind::Basic => div()
+                .flex()
+                .flex_col()
+                .gap_2()
+                .child(self.render_basic_auth_field(
+                    "Username",
+                    "basic-auth-username-input",
+                    self.basic_username_input.clone(),
+                ))
+                .child(self.render_basic_auth_field(
+                    "Password",
+                    "basic-auth-password-input",
+                    self.basic_password_input.clone(),
+                ))
+                .into_any_element(),
+        };
+        let hint = match authorization_kind {
+            AuthorizationKind::Bearer => "The request will include Authorization: Bearer <token>.",
+            AuthorizationKind::Basic => {
+                "The request will Base64-encode username:password in Authorization: Basic."
+            }
+        };
+
         div()
             .flex_1()
             .min_h_0()
@@ -826,40 +952,99 @@ impl PostmanApp {
             .bg(rgb(CODE_BG))
             .child(
                 div()
-                    .h(px(48.0))
                     .flex()
                     .items_center()
-                    .gap_4()
-                    .px_3()
-                    .rounded_lg()
-                    .bg(rgb(CODE_PANEL))
-                    .child(
-                        div()
-                            .w(px(120.0))
-                            .flex_none()
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::BOLD)
-                            .text_size(px(12.0))
-                            .text_color(rgb(0x0093_c5fd))
-                            .child("Bearer token"),
-                    )
-                    .child(
-                        div()
-                            .debug_selector(|| "authorization-input".into())
-                            .h(px(34.0))
-                            .flex_1()
-                            .child(self.authorization_input.clone()),
-                    ),
+                    .gap_2()
+                    .mb_3()
+                    .child(self.render_authorization_kind_button(
+                        AuthorizationKind::Bearer,
+                        "Bearer Token",
+                        "auth-kind-bearer",
+                        authorization_kind == AuthorizationKind::Bearer,
+                        cx,
+                    ))
+                    .child(self.render_authorization_kind_button(
+                        AuthorizationKind::Basic,
+                        "Basic Auth",
+                        "auth-kind-basic",
+                        authorization_kind == AuthorizationKind::Basic,
+                        cx,
+                    )),
             )
+            .child(editor)
             .child(
                 div()
                     .mt_3()
                     .font_family(FONT_UI)
                     .text_size(px(12.0))
                     .text_color(rgb(MUTED))
-                    .child("The request will include Authorization: Bearer <token>."),
+                    .child(hint),
             )
             .into_any_element()
+    }
+
+    fn render_authorization_kind_button(
+        &self,
+        kind: AuthorizationKind,
+        label: &'static str,
+        selector: &'static str,
+        selected: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        div()
+            .debug_selector(move || selector.into())
+            .h(px(30.0))
+            .px_3()
+            .flex()
+            .items_center()
+            .rounded_md()
+            .border_1()
+            .border_color(rgb(if selected { ACCENT } else { LINE }))
+            .bg(rgb(if selected { ACCENT_SOFT } else { CODE_PANEL }))
+            .font_family(FONT_UI)
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_size(px(12.0))
+            .text_color(rgb(if selected { ACCENT_DARK } else { MUTED }))
+            .cursor_pointer()
+            .hover(|style| style.border_color(rgb(ACCENT)).text_color(rgb(ACCENT_DARK)))
+            .child(label)
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(move |this, _, _, cx| this.set_authorization_kind(kind, cx)),
+            )
+    }
+
+    fn render_basic_auth_field(
+        &self,
+        label: &'static str,
+        selector: &'static str,
+        input: Entity<HeaderInput>,
+    ) -> impl IntoElement {
+        div()
+            .h(px(48.0))
+            .flex()
+            .items_center()
+            .gap_4()
+            .px_3()
+            .rounded_lg()
+            .bg(rgb(CODE_PANEL))
+            .child(
+                div()
+                    .w(px(120.0))
+                    .flex_none()
+                    .font_family(FONT_UI)
+                    .font_weight(FontWeight::BOLD)
+                    .text_size(px(12.0))
+                    .text_color(rgb(0x0093_c5fd))
+                    .child(label),
+            )
+            .child(
+                div()
+                    .debug_selector(move || selector.into())
+                    .h(px(34.0))
+                    .flex_1()
+                    .child(input),
+            )
     }
 
     fn render_script_editor(

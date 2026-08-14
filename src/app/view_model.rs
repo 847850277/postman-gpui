@@ -3,6 +3,7 @@ use crate::{
     http::executor::{RequestExecutor, RequestResult},
     models::{HistoryEntry, HttpMethod, Request, RequestHistory},
 };
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::ops::{Deref, DerefMut};
 
 const MAX_HISTORY_URL_LENGTH: usize = 40;
@@ -16,6 +17,13 @@ pub enum RequestPane {
     Body,
     Scripts,
     Tests,
+}
+
+/// Authentication scheme managed by the Authorization editor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AuthorizationKind {
+    Bearer,
+    Basic,
 }
 
 /// Body encoding is presentation state, but it also affects the outgoing request.
@@ -91,7 +99,10 @@ pub struct RequestViewModel {
     body: String,
     body_kind: BodyKind,
     content_type_source: ContentTypeSource,
+    authorization_kind: AuthorizationKind,
     bearer_token: String,
+    basic_username: String,
+    basic_password: String,
     pre_request_script: String,
     tests_script: String,
     request_pane: RequestPane,
@@ -114,7 +125,10 @@ impl RequestViewModel {
             body: String::new(),
             body_kind: BodyKind::Json,
             content_type_source: ContentTypeSource::Unset,
+            authorization_kind: AuthorizationKind::Bearer,
             bearer_token: String::new(),
+            basic_username: String::new(),
+            basic_password: String::new(),
             pre_request_script: String::new(),
             tests_script: String::new(),
             request_pane: RequestPane::Params,
@@ -150,6 +164,18 @@ impl RequestViewModel {
 
     pub fn bearer_token(&self) -> &str {
         &self.bearer_token
+    }
+
+    pub fn authorization_kind(&self) -> AuthorizationKind {
+        self.authorization_kind
+    }
+
+    pub fn basic_username(&self) -> &str {
+        &self.basic_username
+    }
+
+    pub fn basic_password(&self) -> &str {
+        &self.basic_password
     }
 
     pub fn pre_request_script(&self) -> &str {
@@ -225,6 +251,29 @@ impl RequestViewModel {
         let token = token.into();
         if self.bearer_token != token {
             self.bearer_token = token;
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_authorization_kind(&mut self, kind: AuthorizationKind) {
+        if self.authorization_kind != kind {
+            self.authorization_kind = kind;
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_basic_username(&mut self, username: impl Into<String>) {
+        let username = username.into();
+        if self.basic_username != username {
+            self.basic_username = username;
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_basic_password(&mut self, password: impl Into<String>) {
+        let password = password.into();
+        if self.basic_password != password {
+            self.basic_password = password;
             self.dirty = true;
         }
     }
@@ -332,7 +381,10 @@ impl RequestViewModel {
         self.body.clear();
         self.body_kind = BodyKind::Json;
         self.content_type_source = ContentTypeSource::Unset;
+        self.authorization_kind = AuthorizationKind::Bearer;
         self.bearer_token.clear();
+        self.basic_username.clear();
+        self.basic_password.clear();
         self.pre_request_script.clear();
         self.tests_script.clear();
         self.request_pane = RequestPane::Params;
@@ -344,16 +396,37 @@ impl RequestViewModel {
         self.method = request.method;
         self.url = request.url.clone();
         self.params = parse_query_params(&request.url);
-        self.bearer_token = request
+        self.authorization_kind = AuthorizationKind::Bearer;
+        self.bearer_token.clear();
+        self.basic_username.clear();
+        self.basic_password.clear();
+
+        let authorization = request
             .headers
             .iter()
             .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
-            .map(|(_, value)| normalize_bearer_token(value))
-            .unwrap_or_default();
+            .map(|(_, value)| value.as_str());
+        let manages_authorization = if let Some(value) = authorization {
+            if let Some((username, password)) = decode_basic_credentials(value) {
+                self.authorization_kind = AuthorizationKind::Basic;
+                self.basic_username = username;
+                self.basic_password = password;
+                true
+            } else if let Some(token) = bearer_token_from_header(value) {
+                self.bearer_token = token;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
         self.headers = request
             .headers
             .iter()
-            .filter(|(key, _)| !key.eq_ignore_ascii_case("authorization"))
+            .filter(|(key, _)| {
+                !(manages_authorization && key.eq_ignore_ascii_case("authorization"))
+            })
             .map(|(key, value)| KeyValueRow::enabled(key, value))
             .collect();
         self.body = request.body.clone().unwrap_or_default();
@@ -376,7 +449,9 @@ impl RequestViewModel {
 
     fn send_and_capture_request(&mut self) -> Option<Request> {
         self.response = ResponseState::Loading;
-        self.bearer_token = normalize_bearer_token(&self.bearer_token);
+        if self.authorization_kind == AuthorizationKind::Bearer {
+            self.bearer_token = normalize_bearer_token(&self.bearer_token);
+        }
         let request = self.build_request();
 
         match self.service.execute(&request) {
@@ -425,8 +500,22 @@ impl RequestViewModel {
             .map(|row| (row.key.clone(), row.value.clone()))
             .collect();
 
-        if !self.bearer_token.is_empty() {
-            let value = format!("Bearer {}", self.bearer_token);
+        let authorization = match self.authorization_kind {
+            AuthorizationKind::Bearer if !self.bearer_token.is_empty() => {
+                Some(format!("Bearer {}", self.bearer_token))
+            }
+            AuthorizationKind::Bearer => None,
+            AuthorizationKind::Basic
+                if !self.basic_username.is_empty() || !self.basic_password.is_empty() =>
+            {
+                Some(basic_authorization_value(
+                    &self.basic_username,
+                    &self.basic_password,
+                ))
+            }
+            AuthorizationKind::Basic => None,
+        };
+        if let Some(value) = authorization {
             if let Some((_, existing_value)) = request
                 .headers
                 .iter_mut()
@@ -680,6 +769,29 @@ fn normalize_bearer_token(value: &str) -> String {
         .to_string()
 }
 
+fn bearer_token_from_header(value: &str) -> Option<String> {
+    let value = value.trim();
+    let (scheme, token) = value.split_once(' ')?;
+    scheme
+        .eq_ignore_ascii_case("bearer")
+        .then(|| token.trim().to_string())
+}
+
+fn basic_authorization_value(username: &str, password: &str) -> String {
+    let credentials = STANDARD.encode(format!("{username}:{password}"));
+    format!("Basic {credentials}")
+}
+
+fn decode_basic_credentials(value: &str) -> Option<(String, String)> {
+    let (scheme, credentials) = value.trim().split_once(' ')?;
+    if !scheme.eq_ignore_ascii_case("basic") {
+        return None;
+    }
+    let decoded = String::from_utf8(STANDARD.decode(credentials.trim()).ok()?).ok()?;
+    let (username, password) = decoded.split_once(':')?;
+    Some((username.to_string(), password.to_string()))
+}
+
 fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
     match body_kind {
         BodyKind::Json => Some("application/json"),
@@ -912,6 +1024,47 @@ mod tests {
             .iter()
             .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
                 && value == "Bearer secret-token"));
+    }
+
+    #[test]
+    fn basic_auth_is_encoded_and_sent_as_authorization_header() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: seen.clone(),
+            result: Ok(RequestResult::success(String::new())),
+        }));
+        vm.set_url("https://example.com/basic-auth");
+        vm.set_authorization_kind(AuthorizationKind::Basic);
+        vm.set_basic_username("scenario-user");
+        vm.set_basic_password("scenario-pass");
+        vm.send();
+
+        assert!(seen.lock().unwrap()[0]
+            .headers
+            .iter()
+            .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
+                && value == "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz"));
+    }
+
+    #[test]
+    fn loading_basic_auth_projects_credentials_back_into_the_editor_state() {
+        let mut request = Request::new(HttpMethod::GET, "https://example.com/basic-auth");
+        request.add_header(
+            "Authorization",
+            "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz",
+        );
+        request.add_header("X-Trace", "kept");
+        let mut vm = RequestViewModel::with_service(Box::new(FakeService {
+            seen: Arc::new(Mutex::new(Vec::new())),
+            result: Ok(RequestResult::success(String::new())),
+        }));
+
+        vm.load_request(&request);
+
+        assert_eq!(vm.authorization_kind(), AuthorizationKind::Basic);
+        assert_eq!(vm.basic_username(), "scenario-user");
+        assert_eq!(vm.basic_password(), "scenario-pass");
+        assert_eq!(vm.headers(), &[KeyValueRow::enabled("X-Trace", "kept")]);
     }
 
     #[test]

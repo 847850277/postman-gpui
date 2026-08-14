@@ -37,6 +37,37 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "GET sends Basic authentication credentials",
+      "draft": {
+        "method": "GET",
+        "path": "/basic-auth",
+        "basic_auth": {
+          "username": "local-user",
+          "password": "local-pass"
+        }
+      },
+      "mock": {
+        "status": 200,
+        "body": "{\"authenticated\":true}"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/basic-auth",
+          "headers": [["Authorization", "Basic bG9jYWwtdXNlcjpsb2NhbC1wYXNz"]],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "authenticated": true
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }
