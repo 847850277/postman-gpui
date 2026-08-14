@@ -3,8 +3,7 @@
 **/*.rs.bk
 *.pdb
 
-# Cargo
-Cargo.lock
+# Cargo.lock is committed because this repository builds an application.
 
 # IDE
 .vscode/
