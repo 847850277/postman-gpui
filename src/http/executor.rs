@@ -134,33 +134,30 @@ impl RequestExecutor {
         headers: Vec<(String, String)>,
         body: RequestBody,
     ) -> Result<RequestResult, AppError> {
-        // 验证URL
         if url.trim().is_empty() {
-            tracing::info!("❌ RequestExecutor - URL不能为空");
+            tracing::debug!(method = %method, "skipping empty URL");
             return Err(AppError::UrlEmpty);
         }
-        tracing::info!("🚀 RequestExecutor - 开始发送请求");
-        tracing::info!("📋 RequestExecutor - 请求详情:");
-        tracing::info!("   Method: {}", method);
-        tracing::info!("   URL: {}", display_url_for_log(&url));
-        tracing::info!("   Headers Count: {}", headers.len());
 
-        if !headers.is_empty() {
-            tracing::info!("   Headers:");
-            for (i, (key, value)) in headers.iter().enumerate() {
-                tracing::info!(
-                    "     {}. {} = {}",
-                    i + 1,
-                    key,
-                    display_header_value(key, value)
-                );
-            }
-        } else {
-            tracing::info!("   Headers: None");
-        }
-
-        if !body.is_none() {
-            tracing::info!("   Body Length: {} bytes", body.payload_len());
+        let url_for_log = crate::utils::log::display_url_for_log(&url);
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            let headers_for_log: Vec<_> = headers
+                .iter()
+                .map(|(name, value)| {
+                    (
+                        name.as_str(),
+                        crate::utils::log::display_header_value(name, value),
+                    )
+                })
+                .collect();
+            tracing::debug!(
+                method = %method,
+                url = %url_for_log,
+                header_count = headers.len(),
+                body_bytes = body.payload_len(),
+                headers = ?headers_for_log,
+                "sending request"
+            );
         }
 
         let started = std::time::Instant::now();
@@ -169,11 +166,14 @@ impl RequestExecutor {
 
         match result {
             Ok(response) => {
-                tracing::info!("✅ RequestExecutor - {}请求完成!", method);
-                tracing::info!("📊 RequestExecutor - 响应信息:");
-                tracing::info!("   Status: {}", response.status());
-                tracing::info!("   Elapsed: {} ms", elapsed_ms);
-                tracing::info!("   Response Length: {} bytes", response.body().len());
+                tracing::debug!(
+                    method = %method,
+                    url = %url_for_log,
+                    status = response.status(),
+                    elapsed_ms,
+                    response_bytes = response.body().len(),
+                    "received response"
+                );
                 let formatted_body = format_response_body(response.body());
 
                 Ok(RequestResult {
@@ -183,63 +183,18 @@ impl RequestExecutor {
                     elapsed_ms,
                 })
             }
-            Err(e) => {
-                tracing::info!("❌ RequestExecutor - {}请求失败!", method);
-                tracing::info!("💥 RequestExecutor - 错误详情:");
-                tracing::info!("   Error: {}", e);
-                tracing::info!("   可能的原因:");
-                tracing::info!("     - 网络连接问题");
-                tracing::info!("     - 服务器未响应");
-                tracing::info!("     - URL格式错误");
-                tracing::info!("     - 服务器返回错误状态码");
-                Err(e)
+            Err(error) => {
+                tracing::warn!(
+                    method = %method,
+                    url = %url_for_log,
+                    elapsed_ms,
+                    error = %error,
+                    "request transport failed"
+                );
+                Err(error)
             }
         }
     }
-}
-
-fn display_header_value<'a>(name: &str, value: &'a str) -> &'a str {
-    if is_sensitive_header(name) {
-        "[REDACTED]"
-    } else {
-        value
-    }
-}
-
-fn is_sensitive_header(name: &str) -> bool {
-    let compact_name: String = name
-        .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect();
-    matches!(
-        compact_name.as_str(),
-        "authorization" | "proxyauthorization" | "cookie" | "setcookie" | "apikey"
-    ) || compact_name.contains("token")
-        || compact_name.contains("secret")
-        || compact_name.contains("password")
-        || compact_name.contains("credential")
-}
-
-fn display_url_for_log(value: &str) -> String {
-    let Ok(url) = reqwest::Url::parse(value) else {
-        return "[INVALID URL]".to_string();
-    };
-    let Some(host) = url.host_str() else {
-        return "[URL WITHOUT HOST]".to_string();
-    };
-    let mut output = format!("{}://{host}", url.scheme());
-    if let Some(port) = url.port() {
-        output.push_str(&format!(":{port}"));
-    }
-    output.push_str(url.path());
-    if url.query().is_some() {
-        output.push_str("?[REDACTED]");
-    }
-    if url.fragment().is_some() {
-        output.push_str("#[REDACTED]");
-    }
-    output
 }
 
 impl Default for RequestExecutor {
@@ -279,27 +234,5 @@ mod tests {
         // We won't actually make the request in the test
         assert!(request.is_valid());
         assert_eq!(request.headers.len(), 1);
-    }
-
-    #[test]
-    fn sensitive_header_values_are_redacted_before_logging() {
-        assert_eq!(
-            display_header_value("Authorization", "Bearer secret"),
-            "[REDACTED]"
-        );
-        assert_eq!(
-            display_header_value("cookie", "session=secret"),
-            "[REDACTED]"
-        );
-        assert_eq!(display_header_value("X-Trace", "visible"), "visible");
-        assert_eq!(display_header_value("X-Auth-Token", "secret"), "[REDACTED]");
-    }
-
-    #[test]
-    fn urls_are_logged_without_credentials_or_query_values() {
-        assert_eq!(
-            display_url_for_log("https://user:pass@example.com/search?api_key=secret#token"),
-            "https://example.com/search?[REDACTED]#[REDACTED]"
-        );
     }
 }

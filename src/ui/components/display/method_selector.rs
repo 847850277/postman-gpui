@@ -19,9 +19,8 @@ pub struct MethodSelector {
 
 impl MethodSelector {
     pub fn new(cx: &mut Context<Self>) -> Self {
-        tracing::info!("🚀 MethodSelector::new - 创建方法选择器");
         let dropdown = cx.new(|cx| {
-            let dropdown = Dropdown::new("method-dropdown", cx)
+            Dropdown::new("method-dropdown", cx)
                 .with_options(
                     HttpMethod::all()
                         .iter()
@@ -29,14 +28,10 @@ impl MethodSelector {
                         .collect::<Vec<String>>(),
                 )
                 .with_selected("GET")
-                .with_placeholder("Select HTTP Method");
-
-            tracing::info!("🚀 MethodSelector::new - 下拉菜单创建完成，默认选中: GET");
-            dropdown
+                .with_placeholder("Select HTTP Method")
         });
 
         let subscription = cx.subscribe(&dropdown, Self::on_dropdown_event);
-        tracing::info!("🚀 MethodSelector::new - 订阅下拉菜单事件完成");
 
         Self {
             dropdown,
@@ -57,15 +52,10 @@ impl MethodSelector {
         event: &DropdownEvent,
         cx: &mut Context<Self>,
     ) {
-        tracing::info!("📡 MethodSelector::on_dropdown_event - 接收到下拉菜单事件: {event:?}");
-
         match event {
             DropdownEvent::SelectionChanged(method_str) => {
-                tracing::info!("📡 MethodSelector::on_dropdown_event - 方法变更: {method_str}");
                 let method: HttpMethod = method_str.as_str().into();
-                tracing::info!("📡 MethodSelector::on_dropdown_event - 发送 MethodSelectorEvent::MethodChanged({method})");
                 cx.emit(MethodSelectorEvent::MethodChanged(method));
-                tracing::info!("📡 MethodSelector::on_dropdown_event - 事件发送完成");
             }
         }
     }

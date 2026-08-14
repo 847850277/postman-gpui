@@ -146,7 +146,6 @@ impl UrlInput {
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        tracing::info!("URL input submit requested");
         cx.emit(UrlInputEvent::SubmitRequested);
     }
 

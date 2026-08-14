@@ -7,19 +7,18 @@ use postman_gpui::app::PostmanApp;
 // 定义退出动作
 actions!(postman, [Quit]);
 
-/// 处理退出应用的函数
 fn quit(_: &Quit, cx: &mut App) {
-    tracing::info!("🚪 Postman GPUI - 应用正在退出...");
+    tracing::info!("application exiting");
     cx.quit();
 }
 
 fn main() {
-    // 初始化 tracing
     tracing_subscriber::fmt()
-        .with_env_filter("postman_gpui=debug")
-        .with_target(false)
-        .with_thread_ids(true)
-        .with_line_number(true)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("postman_gpui=info")),
+        )
+        .with_target(true)
         .init();
 
     gpui_platform::application().run(|cx: &mut App| {

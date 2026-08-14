@@ -54,24 +54,10 @@ impl Dropdown {
 
     pub fn set_selected(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
         let new_value = value.into();
-        tracing::info!("🔽 Dropdown::set_selected - 设置值: {new_value}");
-        tracing::info!(
-            "🔽 Dropdown::set_selected - 当前值: {}",
-            self.selected_value
-        );
-        tracing::info!("🔽 Dropdown::set_selected - 选项列表: {:?}", self.options);
-
         if self.selected_value != new_value && self.options.contains(&new_value) {
-            tracing::info!("🔽 Dropdown::set_selected - 值有变化且有效，更新中...");
             self.selected_value = new_value.clone();
-            cx.emit(DropdownEvent::SelectionChanged(new_value.clone()));
+            cx.emit(DropdownEvent::SelectionChanged(new_value));
             cx.notify();
-            tracing::info!(
-                "🔽 Dropdown::set_selected - 发送事件: DropdownEvent::SelectionChanged({})",
-                new_value
-            );
-        } else {
-            tracing::info!("🔽 Dropdown::set_selected - 值未变化或无效，跳过更新");
         }
     }
 
@@ -85,11 +71,6 @@ impl Dropdown {
     }
 
     fn toggle_dropdown(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        tracing::info!(
-            "🔽 Dropdown::toggle_dropdown - 切换下拉菜单状态: {} -> {}",
-            self.is_open,
-            !self.is_open
-        );
         self.is_open = !self.is_open;
         cx.notify();
     }
@@ -101,23 +82,10 @@ impl Dropdown {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        tracing::info!("🔽 Dropdown::select_option - 选择选项: {option}");
-        tracing::info!(
-            "🔽 Dropdown::select_option - 之前的值: {}",
-            self.selected_value
-        );
         self.selected_value = option.clone();
         self.is_open = false;
-        tracing::info!(
-            "🔽 Dropdown::select_option - 发送事件: DropdownEvent::SelectionChanged({})",
-            option
-        );
         cx.emit(DropdownEvent::SelectionChanged(option));
         cx.notify();
-        tracing::info!(
-            "🔽 Dropdown::select_option - 完成，当前值: {}",
-            self.selected_value
-        );
     }
 
     fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {

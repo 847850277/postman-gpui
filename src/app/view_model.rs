@@ -3,8 +3,10 @@ use crate::{
     http::executor::RequestResult,
     models::{HistoryEntry, HttpMethod, MultipartPart, Request, RequestBody, RequestHistory},
 };
+use crate::utils::log::display_url_for_log;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
+    fmt,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -90,9 +92,21 @@ pub enum ResponseState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RequestTabId(u64);
 
+impl fmt::Display for RequestTabId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Monotonic identity for one send attempt.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SendId(u64);
+
+impl fmt::Display for SendId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// Immutable command emitted by the ViewModel for the application service to execute.
 #[derive(Clone, Debug)]
@@ -800,12 +814,20 @@ impl WorkspaceViewModel {
         let cancelled = Arc::new(AtomicBool::new(false));
         let tab = &mut self.tabs[self.active_tab];
         let request = tab.begin_send(send_id, cancelled.clone());
-        PendingRequest {
+        let pending = PendingRequest {
             tab_id: tab.tab_id,
             send_id,
             request,
             cancelled,
-        }
+        };
+        tracing::info!(
+            send_id = %pending.send_id,
+            tab_id = %pending.tab_id,
+            method = %pending.request.method,
+            url = %display_url_for_log(&pending.request.url),
+            "request started"
+        );
+        pending
     }
 
     pub fn active_send_id(&self) -> Option<SendId> {
@@ -822,6 +844,9 @@ impl WorkspaceViewModel {
             .iter_mut()
             .find(|tab| tab.pending_send_id == Some(send_id))
             .is_some_and(|tab| tab.cancel_send(send_id));
+        if cancelled {
+            tracing::info!(send_id = %send_id, "request cancelled");
+        }
         cancelled
     }
 
@@ -834,6 +859,33 @@ impl WorkspaceViewModel {
     ) -> bool {
         let succeeded = result.is_ok();
         let was_cancelled = pending.was_cancelled();
+        match &result {
+            Ok(response) if !was_cancelled => {
+                tracing::info!(
+                    send_id = %pending.send_id,
+                    tab_id = %pending.tab_id,
+                    status = response.status,
+                    elapsed_ms = response.elapsed_ms,
+                    "request completed"
+                );
+            }
+            Err(error) if !was_cancelled => {
+                tracing::warn!(
+                    send_id = %pending.send_id,
+                    tab_id = %pending.tab_id,
+                    error = %error,
+                    "request failed"
+                );
+            }
+            _ => {
+                tracing::debug!(
+                    send_id = %pending.send_id,
+                    tab_id = %pending.tab_id,
+                    cancelled = was_cancelled,
+                    "ignored stale request completion"
+                );
+            }
+        }
         let applied = self
             .tabs
             .iter_mut()

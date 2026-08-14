@@ -100,24 +100,18 @@ impl HistoryList {
             .map(|entry| entry.request.clone());
 
         if let Some(request) = request {
-            tracing::info!(
-                "🔘 History item clicked: Index: {}, Method: {}, URL: {}",
+            tracing::debug!(
                 index,
-                request.method,
-                request.url
+                method = %request.method,
+                url = %crate::utils::log::display_url_for_log(&request.url),
+                "history item selected"
             );
-            tracing::info!("   Headers: {}", request.headers.len());
-            if !request.body.is_none() {
-                tracing::info!("   Body: {} bytes", request.body.payload_len());
-            }
-            tracing::info!("   ➡️ Loading request into form...");
             HistoryListEvent::RequestSelected(request)
         } else {
-            // Log the error if index is out of bounds (shouldn't happen, but handle gracefully)
-            tracing::info!(
-                "Warning: Attempted to select history item at invalid index {} (entries length: {})",
+            tracing::warn!(
                 index,
-                self.view_model.read(cx).history_len()
+                entries = self.view_model.read(cx).history_len(),
+                "history item index is out of range"
             );
             HistoryListEvent::RequestSelected(Request::default())
         }

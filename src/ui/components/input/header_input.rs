@@ -168,7 +168,6 @@ impl HeaderInput {
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
-        tracing::info!("HeaderInput submit requested");
         cx.emit(HeaderInputEvent::SubmitRequested);
     }
 
