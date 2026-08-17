@@ -452,6 +452,91 @@ fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
+    cx: &mut TestAppContext,
+) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/headers")
+        .match_header("x-scenario", "httpbingo-headers")
+        .match_header("x-disabled", Matcher::Missing)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"headers":{"X-Scenario":["httpbingo-headers"]}}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &format!("{}/headers", server.url())).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+
+    type_into(cx, "row-key-input", "X-Scenario").unwrap();
+    type_into(cx, "row-value-input", "httpbingo-headers").unwrap();
+    click(cx, "add-row-button").unwrap();
+    type_into(cx, "row-key-input", "X-Disabled").unwrap();
+    type_into(cx, "row-value-input", "must-not-be-sent").unwrap();
+    click(cx, "add-row-button").unwrap();
+    click(cx, "header-row-toggle-1").unwrap();
+
+    for selector in [
+        "headers-summary",
+        "headers-enabled-count",
+        "headers-table-header",
+        "header-row-key-0",
+        "header-row-value-0",
+        "header-row-status-0",
+        "header-row-key-1",
+        "header-row-value-1",
+        "header-row-status-1",
+        "header-row-delete-1",
+        "headers-ready-indicator",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Headers contract element `{selector}` should be rendered"
+        );
+    }
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.headers().to_vec()),
+        vec![
+            KeyValueRow::enabled("X-Scenario", "httpbingo-headers"),
+            KeyValueRow {
+                enabled: false,
+                key: "X-Disabled".to_string(),
+                value: "must-not-be-sent".to_string(),
+            },
+        ]
+    );
+
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| entry.request.headers.clone())
+        }),
+        Some(vec![(
+            "X-Scenario".to_string(),
+            "httpbingo-headers".to_string(),
+        )])
+    );
+    assert!(
+        !workspace.read_with(cx, |workspace, _| workspace.headers().to_vec())[1].enabled,
+        "disabled rows remain saved in the editor after Send"
+    );
+    request.assert();
+}
+
+#[gpui::test]
 fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let pending = workspace.update(cx, |workspace, _| {
