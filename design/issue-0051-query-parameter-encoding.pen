@@ -282,6 +282,9 @@
           "width": "fill_container",
           "height": 900,
           "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
           "layout": "vertical",
           "children": [
             {
@@ -379,7 +382,8 @@
                       "fill": "$subtle",
                       "content": "Search requests, history, and collections",
                       "fontFamily": "$fontBody",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -463,7 +467,7 @@
                   "type": "frame",
                   "id": "TJqch",
                   "name": "Left Rail",
-              "width": 64,
+                  "width": 64,
                   "height": "fill_container",
                   "fill": "$panel",
                   "stroke": "$line",
@@ -599,7 +603,7 @@
                   "type": "frame",
                   "id": "sDDkP",
                   "name": "History Panel",
-              "width": 250,
+                  "width": 250,
                   "height": "fill_container",
                   "fill": "$panel",
                   "stroke": "$line",
@@ -650,7 +654,8 @@
                       "fill": "$muted",
                       "content": "Requests in this workspace",
                       "fontFamily": "$fontBody",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -686,7 +691,8 @@
                           "fill": "$subtle",
                           "content": "Filter history",
                           "fontFamily": "$fontBody",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -765,7 +771,8 @@
                               "fill": "$muted",
                               "content": "200 · 483 ms · just now",
                               "fontFamily": "$fontBody",
-                              "fontSize": 10
+                              "fontSize": 10,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -836,7 +843,8 @@
                               "fill": "$muted",
                               "content": "200 · 1.0 KB",
                               "fontFamily": "$fontBody",
-                              "fontSize": 10
+                              "fontSize": 10,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -907,7 +915,8 @@
                               "fill": "$muted",
                               "content": "200 · yesterday",
                               "fontFamily": "$fontBody",
-                              "fontSize": 10
+                              "fontSize": 10,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -918,7 +927,7 @@
                 {
                   "type": "frame",
                   "id": "HAJHI",
-              "name": "Request Workspace",
+                  "name": "Request Workspace",
                   "width": "fill_container",
                   "height": "fill_container",
                   "fill": "$panelAlt",
@@ -1022,8 +1031,8 @@
                       "width": "fill_container",
                       "height": "fill_container",
                       "layout": "vertical",
-                      "gap": 12,
-                      "padding": 14,
+                      "gap": 8,
+                      "padding": 10,
                       "children": [
                         {
                           "type": "frame",
@@ -1385,7 +1394,8 @@
                                       "fill": "$muted",
                                       "content": "Merged with the existing URL query string",
                                       "fontFamily": "$fontBody",
-                                      "fontSize": 11
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
                                     }
                                   ]
                                 },
@@ -2094,7 +2104,7 @@
                           "name": "HTTPBingo Response Panel",
                           "clip": true,
                           "width": "fill_container",
-                          "height": 382,
+                          "height": 264,
                           "fill": "$panel",
                           "cornerRadius": 12,
                           "stroke": "$line",
@@ -2230,7 +2240,7 @@
                               "id": "gAJ3I",
                               "name": "Response Body",
                               "width": "fill_container",
-                              "height": "fill_container",
+                              "height": 218,
                               "fill": "$panel",
                               "layout": "vertical",
                               "children": [
@@ -2280,14 +2290,61 @@
                                       ]
                                     },
                                     {
-                                      "type": "text",
-                                      "id": "D0wnn",
-                                      "name": "Echo Scope",
-                                      "fill": "$muted",
-                                      "content": "stable subset",
-                                      "fontFamily": "$fontBody",
-                                      "fontSize": 9,
-                                      "fontWeight": "600"
+                                      "type": "frame",
+                                      "id": "bWOXS",
+                                      "name": "Echo Actions",
+                                      "gap": 10,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "otl48",
+                                          "name": "Copy Response Button",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 6,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "gap": 5,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "KM32W",
+                                              "name": "Copy Response Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "copy",
+                                              "library": "lucide",
+                                              "fill": "$blue"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "GgvKM",
+                                              "name": "Copy Response Label",
+                                              "fill": "$blue",
+                                              "content": "Copy",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "PNlTe",
+                                          "name": "Echo Scope",
+                                          "fill": "$muted",
+                                          "content": "stable subset",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
                                     }
                                   ]
                                 },
@@ -2296,7 +2353,7 @@
                                   "id": "YxnTC",
                                   "name": "Response JSON",
                                   "width": "fill_container",
-                                  "height": "fill_container",
+                                  "height": 182,
                                   "fill": "$panel",
                                   "padding": [
                                     16,
@@ -2328,15 +2385,13 @@
                 }
               ]
             }
-          ],
-          "cornerRadius": 18,
-          "stroke": "$line",
-          "strokeWidth": 1
+          ]
         },
         {
           "type": "frame",
           "id": "q5060",
           "name": "E2E Contract",
+          "clip": true,
           "width": "fill_container",
           "height": 500,
           "fill": "$panel",
@@ -2344,7 +2399,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -2496,52 +2550,52 @@
                       "id": "q5034",
                       "name": "Scenario Column Item 1",
                       "fill": "$muted",
-                      "content": "01  Open GET https://httpbingo.org/get?existing=1.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "01  Open GET https://httpbingo.org/get?existing=1.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5035",
                       "name": "Scenario Column Item 2",
                       "fill": "$muted",
-                      "content": "02  Add q=rust gpui and locale=中文 through Params controls.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "02  Add q=rust gpui and locale=中文 through Params controls.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5036",
                       "name": "Scenario Column Item 3",
                       "fill": "$muted",
-                      "content": "03  Keep the locale value input focused and click Send directly.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "03  Keep the locale value input focused and click Send directly.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5037",
                       "name": "Scenario Column Item 4",
                       "fill": "$muted",
-                      "content": "04  Verify the effective URL, HTTPBingo echo, and History.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "04  Verify the effective URL, HTTPBingo echo, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     }
                   ]
                 },
@@ -2591,65 +2645,65 @@
                       "id": "q5042",
                       "name": "Assertions Column Item 1",
                       "fill": "$muted",
-                      "content": "✓ Preserve the existing query pair existing=1.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "✓ Preserve the existing query pair existing=1.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5043",
                       "name": "Assertions Column Item 2",
                       "fill": "$muted",
-                      "content": "✓ Encode q=rust gpui as q=rust+gpui.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "✓ Encode q=rust gpui as q=rust+gpui.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5044",
                       "name": "Assertions Column Item 3",
                       "fill": "$muted",
-                      "content": "✓ Percent-encode locale=中文 without changing its semantic value.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "✓ Percent-encode locale=中文 without changing its semantic value.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5045",
                       "name": "Assertions Column Item 4",
                       "fill": "$muted",
-                      "content": "✓ The latest active value is already present in the ViewModel.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "✓ The latest active value is already present in the ViewModel.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5046",
                       "name": "Assertions Column Item 5",
                       "fill": "$muted",
-                      "content": "✓ Render 200 and append exactly one equivalent History request.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "✓ Render 200 and append exactly one equivalent History request.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     }
                   ]
                 },
@@ -2699,52 +2753,52 @@
                       "id": "q5051",
                       "name": "Boundary Column Item 1",
                       "fill": "$muted",
-                      "content": "INCLUDED · URL query projection, table rows, enabled state, effective URL, encoding, response, and History.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "INCLUDED · URL query projection, table rows, enabled state, effective URL, encoding, response, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5052",
                       "name": "Boundary Column Item 2",
                       "fill": "$muted",
-                      "content": "INTERACTION · Send needs no Enter, Tab, blur, or Add.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "INTERACTION · Send needs no Enter, Tab, blur, or Add.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5053",
                       "name": "Boundary Column Item 3",
                       "fill": "$muted",
-                      "content": "NOT IN THIS SLICE · environment substitution, arrays, structured objects, or custom encoding policy.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "NOT IN THIS SLICE · environment substitution, arrays, structured objects, or custom encoding policy.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     },
                     {
                       "type": "text",
                       "id": "q5054",
                       "name": "Boundary Column Item 4",
                       "fill": "$muted",
-                      "content": "Parent roadmap #50 → HTTPBingo E2E #51.",
-                      "fontFamily": "$fontBody",
-                      "fontSize": 11,
-                      "fontWeight": "550",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "lineHeight": 1.45
+                      "content": "Parent roadmap #50 → HTTPBingo E2E #51.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
                     }
                   ]
                 }

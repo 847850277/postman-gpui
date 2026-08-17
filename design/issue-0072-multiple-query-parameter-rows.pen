@@ -1031,8 +1031,8 @@
                       "width": "fill_container",
                       "height": "fill_container",
                       "layout": "vertical",
-                      "gap": 12,
-                      "padding": 14,
+                      "gap": 8,
+                      "padding": 10,
                       "children": [
                         {
                           "type": "frame",
@@ -2287,7 +2287,7 @@
                           "name": "HTTPBingo Response Panel",
                           "clip": true,
                           "width": "fill_container",
-                          "height": 328,
+                          "height": 264,
                           "fill": "$panel",
                           "cornerRadius": 12,
                           "stroke": "$line",
@@ -2423,7 +2423,7 @@
                               "id": "r72-gAJ3I",
                               "name": "Response Body",
                               "width": "fill_container",
-                              "height": "fill_container",
+                              "height": 218,
                               "fill": "$panel",
                               "layout": "vertical",
                               "children": [
@@ -2473,14 +2473,61 @@
                                       ]
                                     },
                                     {
-                                      "type": "text",
-                                      "id": "r72-D0wnn",
-                                      "name": "Echo Scope",
-                                      "fill": "$muted",
-                                      "content": "stable subset",
-                                      "fontFamily": "$fontBody",
-                                      "fontSize": 9,
-                                      "fontWeight": "600"
+                                      "type": "frame",
+                                      "id": "IoWC8",
+                                      "name": "Echo Actions",
+                                      "gap": 10,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "UbXwr",
+                                          "name": "Copy Response Button",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 6,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "gap": 5,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "XJrSQ",
+                                              "name": "Copy Response Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "copy",
+                                              "library": "lucide",
+                                              "fill": "$blue"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "YBa1d",
+                                              "name": "Copy Response Label",
+                                              "fill": "$blue",
+                                              "content": "Copy",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "THHGb",
+                                          "name": "Echo Scope",
+                                          "fill": "$muted",
+                                          "content": "stable subset",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
                                     }
                                   ]
                                 },
@@ -2489,7 +2536,7 @@
                                   "id": "r72-YxnTC",
                                   "name": "Response JSON",
                                   "width": "fill_container",
-                                  "height": "fill_container",
+                                  "height": 182,
                                   "fill": "$panel",
                                   "padding": [
                                     16,

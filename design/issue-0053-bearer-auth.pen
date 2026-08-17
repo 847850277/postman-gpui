@@ -74,7 +74,10 @@
                       "height": 26,
                       "fill": "$greenSoft",
                       "cornerRadius": 13,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -97,7 +100,10 @@
                       "height": 26,
                       "fill": "$blueSoft",
                       "cornerRadius": 13,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -214,7 +220,10 @@
                       "height": 26,
                       "fill": "$greenSoft",
                       "cornerRadius": 7,
-                      "padding": [0, 9],
+                      "padding": [
+                        0,
+                        9
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -238,7 +247,10 @@
                       "cornerRadius": 7,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "padding": [0, 9],
+                      "padding": [
+                        0,
+                        9
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -263,6 +275,7 @@
           "type": "frame",
           "id": "ba100",
           "name": "Application State · Bearer Authentication",
+          "clip": true,
           "width": "fill_container",
           "height": 900,
           "fill": "$panel",
@@ -270,7 +283,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -364,7 +376,6 @@
                       "type": "text",
                       "id": "br109",
                       "name": "Search Placeholder",
-                      "width": "fill_container",
                       "fill": "$subtle",
                       "content": "Search requests and history",
                       "fontFamily": "$fontBody",
@@ -430,9 +441,9 @@
                           "type": "ellipse",
                           "id": "br114",
                           "name": "Environment Status",
+                          "fill": "$green",
                           "width": 8,
-                          "height": 8,
-                          "fill": "$green"
+                          "height": 8
                         },
                         {
                           "type": "text",
@@ -1039,6 +1050,7 @@
                           "type": "frame",
                           "id": "br166",
                           "name": "Request Panel",
+                          "clip": true,
                           "width": "fill_container",
                           "height": 310,
                           "fill": "$panel",
@@ -1046,7 +1058,6 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "layout": "vertical",
-                          "clip": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1167,14 +1178,14 @@
                                       "height": 30,
                                       "fill": "$accentSoft",
                                       "cornerRadius": 8,
+                                      "stroke": "$accentVivid",
+                                      "strokeWidth": 1,
                                       "padding": [
                                         0,
                                         9
                                       ],
                                       "justifyContent": "center",
                                       "alignItems": "center",
-                                      "stroke": "$accentVivid",
-                                      "strokeWidth": 1,
                                       "children": [
                                         {
                                           "type": "text",
@@ -1195,14 +1206,14 @@
                                       "height": 30,
                                       "fill": "$panel",
                                       "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
                                       "padding": [
                                         0,
                                         9
                                       ],
                                       "justifyContent": "center",
                                       "alignItems": "center",
-                                      "stroke": "$line",
-                                      "strokeWidth": 1,
                                       "children": [
                                         {
                                           "type": "text",
@@ -1552,6 +1563,7 @@
                           "type": "frame",
                           "id": "br209",
                           "name": "Response Panel",
+                          "clip": true,
                           "width": "fill_container",
                           "height": 350,
                           "fill": "$panel",
@@ -1559,7 +1571,6 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "layout": "vertical",
-                          "clip": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1717,9 +1728,9 @@
                                               "type": "ellipse",
                                               "id": "br224",
                                               "name": "Echo Dot",
+                                              "fill": "$green",
                                               "width": 7,
-                                              "height": 7,
-                                              "fill": "$green"
+                                              "height": 7
                                             },
                                             {
                                               "type": "text",
@@ -1735,27 +1746,74 @@
                                         },
                                         {
                                           "type": "frame",
-                                          "id": "br226",
-                                          "name": "Echo Stable Badge",
-                                          "height": 24,
-                                          "fill": "$panel",
-                                          "cornerRadius": 8,
-                                          "padding": [
-                                            0,
-                                            9
-                                          ],
-                                          "justifyContent": "center",
+                                          "id": "SDhdl",
+                                          "name": "Echo Actions",
+                                          "gap": 8,
                                           "alignItems": "center",
                                           "children": [
                                             {
-                                              "type": "text",
-                                              "id": "br227",
-                                              "name": "Echo Stable Badge Label",
-                                              "fill": "$green",
-                                              "content": "STABLE SUBSET",
-                                              "fontFamily": "$fontBody",
-                                              "fontSize": 9,
-                                              "fontWeight": "800"
+                                              "type": "frame",
+                                              "id": "cjUhs",
+                                              "name": "Copy Response Button",
+                                              "height": 24,
+                                              "fill": "$blueSoft",
+                                              "cornerRadius": 6,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 1,
+                                              "gap": 5,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "rOVyD",
+                                                  "name": "Copy Response Icon",
+                                                  "width": 12,
+                                                  "height": 12,
+                                                  "icon": "copy",
+                                                  "library": "lucide",
+                                                  "fill": "$blue"
+                                                },
+                                                {
+                                                  "type": "text",
+                                                  "id": "WaFxX",
+                                                  "name": "Copy Response Label",
+                                                  "fill": "$blue",
+                                                  "content": "Copy",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "Y0jrU4",
+                                              "name": "Echo Stable Badge",
+                                              "height": 24,
+                                              "fill": "$panel",
+                                              "cornerRadius": 8,
+                                              "padding": [
+                                                0,
+                                                9
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "BdwgV",
+                                                  "name": "Echo Stable Badge Label",
+                                                  "fill": "$green",
+                                                  "content": "STABLE SUBSET",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
                                             }
                                           ]
                                         }
@@ -1766,13 +1824,13 @@
                                       "id": "br228",
                                       "name": "Echo JSON",
                                       "fill": "$codeText",
-                                      "content": "{\n  \"authenticated\": true,\n  \"token\": \"scenario-token\"\n}",
-                                      "fontFamily": "$fontMono",
-                                      "fontSize": 12,
-                                      "fontWeight": "550",
                                       "textGrowth": "fixed-width",
                                       "width": "fill_container",
-                                      "lineHeight": 1.55
+                                      "content": "{\n  \"authenticated\": true,\n  \"token\": \"scenario-token\"\n}",
+                                      "lineHeight": 1.55,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 12,
+                                      "fontWeight": "550"
                                     }
                                   ]
                                 },
@@ -1787,8 +1845,8 @@
                                   "stroke": "$line",
                                   "strokeWidth": 1,
                                   "layout": "vertical",
-                                  "gap": 10,
-                                  "padding": 14,
+                                  "gap": 6,
+                                  "padding": 10,
                                   "children": [
                                     {
                                       "type": "frame",
@@ -1824,12 +1882,12 @@
                                       "id": "br233",
                                       "name": "Authenticated Content Item",
                                       "width": "fill_container",
-                                      "height": 54,
+                                      "height": 46,
                                       "fill": "$greenSoft",
                                       "cornerRadius": 9,
                                       "layout": "vertical",
-                                      "gap": 6,
-                                      "padding": 10,
+                                      "gap": 4,
+                                      "padding": 8,
                                       "children": [
                                         {
                                           "type": "text",
@@ -1858,12 +1916,12 @@
                                       "id": "br236",
                                       "name": "Token Match Content Item",
                                       "width": "fill_container",
-                                      "height": 54,
+                                      "height": 46,
                                       "fill": "$blueSoft",
                                       "cornerRadius": 9,
                                       "layout": "vertical",
-                                      "gap": 6,
-                                      "padding": 10,
+                                      "gap": 4,
+                                      "padding": 8,
                                       "children": [
                                         {
                                           "type": "text",
@@ -1892,12 +1950,12 @@
                                       "id": "br239",
                                       "name": "Prefix Count Content Item",
                                       "width": "fill_container",
-                                      "height": 54,
+                                      "height": 46,
                                       "fill": "$accentSoft",
                                       "cornerRadius": 9,
                                       "layout": "vertical",
-                                      "gap": 6,
-                                      "padding": 10,
+                                      "gap": 4,
+                                      "padding": 8,
                                       "children": [
                                         {
                                           "type": "text",
@@ -1926,7 +1984,7 @@
                                       "id": "br242",
                                       "name": "Lifecycle Content Item",
                                       "width": "fill_container",
-                                      "height": 50,
+                                      "height": 40,
                                       "fill": "$panelAlt",
                                       "cornerRadius": 9,
                                       "gap": 8,
@@ -1951,13 +2009,13 @@
                                           "id": "br244",
                                           "name": "Lifecycle Value",
                                           "fill": "$blue",
-                                          "content": "ResponseState = View = History",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 9,
-                                          "fontWeight": "750",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "lineHeight": 1.3
+                                          "content": "ResponseState = View = History",
+                                          "lineHeight": 1.3,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "750"
                                         }
                                       ]
                                     }
@@ -2012,9 +2070,9 @@
                   "id": "ba403",
                   "name": "Pipeline Title",
                   "fill": "$text",
-                  "content": "Preserve typing. Normalize once. Generate once.",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
+                  "content": "Preserve typing. Normalize once. Generate once.",
                   "lineHeight": 1.3,
                   "fontFamily": "$fontBody",
                   "fontSize": 14,
@@ -2234,6 +2292,7 @@
           "type": "frame",
           "id": "ba500",
           "name": "E2E Contract",
+          "clip": true,
           "width": "fill_container",
           "height": 500,
           "fill": "$panel",
@@ -2241,7 +2300,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -2251,7 +2309,10 @@
               "height": 78,
               "fill": "$text",
               "gap": 14,
-              "padding": [0, 22],
+              "padding": [
+                0,
+                22
+              ],
               "alignItems": "center",
               "children": [
                 {
@@ -2314,7 +2375,10 @@
                   "height": 30,
                   "fill": "$accentVivid",
                   "cornerRadius": 9,
-                  "padding": [0, 12],
+                  "padding": [
+                    0,
+                    12
+                  ],
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -2653,7 +2717,10 @@
                       "fill": "$panel",
                       "cornerRadius": 9,
                       "gap": 8,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -2721,25 +2788,82 @@
     }
   ],
   "variables": {
-    "bg": {"type": "color", "value": "#F4F7F3"},
-    "panel": {"type": "color", "value": "#FFFEFB"},
-    "panelAlt": {"type": "color", "value": "#EEF5F1"},
-    "line": {"type": "color", "value": "#CFE0D7"},
-    "text": {"type": "color", "value": "#20342B"},
-    "muted": {"type": "color", "value": "#526B60"},
-    "subtle": {"type": "color", "value": "#64786E"},
-    "accent": {"type": "color", "value": "#C64B2B"},
-    "accentSoft": {"type": "color", "value": "#FFF0E8"},
-    "green": {"type": "color", "value": "#0E7A4E"},
-    "greenSoft": {"type": "color", "value": "#E4F6EA"},
-    "blue": {"type": "color", "value": "#0F718B"},
-    "blueSoft": {"type": "color", "value": "#E6F4F7"},
-    "code": {"type": "color", "value": "#F0F5F1"},
-    "codeText": {"type": "color", "value": "#243D34"},
-    "fontBody": {"type": "string", "value": "Inter"},
-    "fontMono": {"type": "string", "value": "JetBrains Mono"},
-    "accentVivid": {"type": "color", "value": "#F56B3D"},
-    "accentInk": {"type": "color", "value": "#3C1F16"}
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
   },
   "fileToken": "53b1a49e-b3f5-4e6f-8f23-69546317c053"
 }

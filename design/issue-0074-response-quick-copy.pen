@@ -6,7 +6,7 @@
       "id": "tp141",
       "x": 0,
       "y": 0,
-      "name": "Issue #NN · Feature Title",
+      "name": "Issue #74 · Response Quick Copy",
       "clip": true,
       "width": 1600,
       "height": 1840,
@@ -46,7 +46,7 @@
                   "name": "Feature Icon",
                   "width": 34,
                   "height": 34,
-                  "icon": "blocks",
+                  "icon": "copy",
                   "library": "lucide",
                   "fill": "$accentVivid"
                 }
@@ -86,7 +86,7 @@
                           "id": "tp003",
                           "name": "Issue Badge Label",
                           "fill": "$green",
-                          "content": "ISSUE #NN · UI E2E",
+                          "content": "ISSUE #74 · UI E2E",
                           "fontFamily": "$fontBody",
                           "fontSize": 9,
                           "fontWeight": "800"
@@ -112,7 +112,7 @@
                           "id": "tp005",
                           "name": "Status Badge Label",
                           "fill": "$blue",
-                          "content": "STATUS",
+                          "content": "DESIGN READY",
                           "fontFamily": "$fontBody",
                           "fontSize": 9,
                           "fontWeight": "800"
@@ -124,7 +124,7 @@
                       "id": "tp007",
                       "name": "Issue URL",
                       "fill": "$blue",
-                      "content": "github.com/847850277/postman-gpui/issues/NN",
+                      "content": "github.com/847850277/postman-gpui/issues/74",
                       "fontFamily": "$fontMono",
                       "fontSize": 10,
                       "fontWeight": "500"
@@ -136,7 +136,7 @@
                   "id": "tp009",
                   "name": "Design Title",
                   "fill": "$text",
-                  "content": "Feature title",
+                  "content": "Quick Copy for Populated Response Bodies",
                   "fontFamily": "$fontBody",
                   "fontSize": 28,
                   "fontWeight": "800"
@@ -146,7 +146,7 @@
                   "id": "tp010",
                   "name": "Design Summary",
                   "fill": "$muted",
-                  "content": "One-sentence user-visible interaction and request/response contract.",
+                  "content": "Expose one compact Copy action after a response arrives; copy the full ResponseState body without changing request, response, History, tabs, or scroll.",
                   "fontFamily": "$fontBody",
                   "fontSize": 13,
                   "fontWeight": "500"
@@ -170,7 +170,7 @@
                   "id": "tp012",
                   "name": "Scope Label",
                   "fill": "$subtle",
-                  "content": "FEATURE SCOPE",
+                  "content": "RESPONSE COPY SCOPE",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "800"
@@ -180,7 +180,7 @@
                   "id": "tp013",
                   "name": "Scope Value",
                   "fill": "$codeText",
-                  "content": "Endpoint, command, or state range",
+                  "content": "JSON · text · error bodies",
                   "fontFamily": "$fontMono",
                   "fontSize": 11,
                   "fontWeight": "600"
@@ -190,7 +190,7 @@
                   "id": "tp014",
                   "name": "Scope Note",
                   "fill": "$muted",
-                  "content": "State the important inclusion or exclusion.",
+                  "content": "Visible only for populated ResponseState · clipboard receives the exact full body",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "500"
@@ -202,7 +202,7 @@
         {
           "type": "frame",
           "id": "tp091",
-          "name": "Application State · Feature",
+          "name": "Application State · Populated Response",
           "clip": true,
           "width": "fill_container",
           "height": 900,
@@ -542,7 +542,7 @@
                           "id": "tp040",
                           "name": "History Result Content Item Title",
                           "fill": "$text",
-                          "content": "METHOD · request URL",
+                          "content": "GET · httpbingo.org/get",
                           "fontFamily": "$fontBody",
                           "fontSize": 9,
                           "fontWeight": "800"
@@ -552,7 +552,7 @@
                           "id": "tp041",
                           "name": "History Result Content Item Detail",
                           "fill": "$muted",
-                          "content": "status · duration · size",
+                          "content": "200 OK · 483 ms · 1.0 KB",
                           "fontFamily": "$fontBody",
                           "fontSize": 9,
                           "fontWeight": "500"
@@ -593,7 +593,7 @@
                           "id": "tp044",
                           "name": "Request Tab Method",
                           "fill": "$green",
-                          "content": "METHOD",
+                          "content": "GET",
                           "fontFamily": "$fontBody",
                           "fontSize": 10,
                           "fontWeight": "800"
@@ -603,7 +603,7 @@
                           "id": "tp045",
                           "name": "Request Tab Name",
                           "fill": "$text",
-                          "content": "request name",
+                          "content": "httpbingo.org/get",
                           "fontFamily": "$fontBody",
                           "fontSize": 11,
                           "fontWeight": "700"
@@ -658,7 +658,7 @@
                                   "id": "tp048",
                                   "name": "Method Selector Label",
                                   "fill": "$green",
-                                  "content": "METHOD",
+                                  "content": "GET",
                                   "fontFamily": "$fontBody",
                                   "fontSize": 9,
                                   "fontWeight": "800"
@@ -754,7 +754,7 @@
                                   "id": "tp055",
                                   "name": "Menu Item",
                                   "fill": "$text",
-                                  "content": "Feature tab",
+                                  "content": "Body",
                                   "fontFamily": "$fontBody",
                                   "fontSize": 11,
                                   "fontWeight": "800"
@@ -764,7 +764,7 @@
                                   "id": "tp056",
                                   "name": "Menu Item Secondary",
                                   "fill": "$subtle",
-                                  "content": "Other tab",
+                                  "content": "Headers",
                                   "fontFamily": "$fontBody",
                                   "fontSize": 11,
                                   "fontWeight": "650"
@@ -799,7 +799,7 @@
                                       "id": "tp058",
                                       "name": "Input Content Item Title",
                                       "fill": "$text",
-                                      "content": "FIELD LABEL · STATE",
+                                      "content": "RESPONSE BODY · POPULATED",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "800"
@@ -809,7 +809,7 @@
                                       "id": "tp059",
                                       "name": "Input Content Item Detail",
                                       "fill": "$muted",
-                                      "content": "Current user-visible value",
+                                      "content": "Complete JSON, text, or error body is available",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "500"
@@ -833,7 +833,7 @@
                                       "id": "tp061",
                                       "name": "Outgoing Content Item Title",
                                       "fill": "$text",
-                                      "content": "OUTGOING REQUEST REPRESENTATION",
+                                      "content": "SYSTEM CLIPBOARD",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "800"
@@ -843,7 +843,7 @@
                                       "id": "tp062",
                                       "name": "Outgoing Content Item Detail",
                                       "fill": "$muted",
-                                      "content": "Header, URL, body, or method",
+                                      "content": "Exact full ResponseState body · never a truncated render",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "500"
@@ -867,7 +867,7 @@
                                       "id": "tp064",
                                       "name": "ViewModel Content Item Title",
                                       "fill": "$text",
-                                      "content": "VIEWMODEL CONTRACT",
+                                      "content": "READ-ONLY COPY CONTRACT",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "800"
@@ -877,7 +877,7 @@
                                       "id": "tp065",
                                       "name": "ViewModel Content Item Detail",
                                       "fill": "$muted",
-                                      "content": "Saved as typed / selected / enabled",
+                                      "content": "RequestState, ResponseState, History, tabs, and scroll stay unchanged",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "500"
@@ -931,14 +931,14 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "l5C31",
+                                  "id": "cXlzN",
                                   "name": "Response Header Actions",
                                   "gap": 10,
                                   "alignItems": "center",
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "e3jfqd",
+                                      "id": "PEViE",
                                       "name": "Copy Response Button",
                                       "height": 26,
                                       "fill": "$blueSoft",
@@ -954,7 +954,7 @@
                                       "children": [
                                         {
                                           "type": "icon",
-                                          "id": "X2Sr3Q",
+                                          "id": "sbxpI",
                                           "name": "Copy Response Icon",
                                           "width": 12,
                                           "height": 12,
@@ -964,7 +964,7 @@
                                         },
                                         {
                                           "type": "text",
-                                          "id": "Vngtn",
+                                          "id": "GCaRA",
                                           "name": "Copy Response Label",
                                           "fill": "$blue",
                                           "content": "Copy",
@@ -976,7 +976,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "d5Sa1f",
+                                      "id": "zZHHH",
                                       "name": "Response Status",
                                       "height": 26,
                                       "fill": "$greenSoft",
@@ -990,10 +990,10 @@
                                       "children": [
                                         {
                                           "type": "text",
-                                          "id": "f6Jap",
+                                          "id": "H1IBo",
                                           "name": "Response Status Label",
                                           "fill": "$green",
-                                          "content": "STATUS",
+                                          "content": "200 OK",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "800"
@@ -1032,7 +1032,7 @@
                                       "id": "tp073",
                                       "name": "Stable Response Label",
                                       "fill": "$green",
-                                      "content": "STABLE RESPONSE SUBSET",
+                                      "content": "FULL RESPONSE BODY · COPY SOURCE",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9,
                                       "fontWeight": "800"
@@ -1042,7 +1042,7 @@
                                       "id": "tp074",
                                       "name": "Stable Response Value",
                                       "fill": "$codeText",
-                                      "content": "{\n  \"field\": \"expected-value\"\n}",
+                                      "content": "{\n  \"args\": {},\n  \"method\": \"GET\",\n  \"url\": \"https://httpbingo.org/get\"\n}",
                                       "lineHeight": 1.5,
                                       "fontFamily": "$fontMono",
                                       "fontSize": 11,
@@ -1081,7 +1081,7 @@
                                           "id": "tp076",
                                           "name": "Positive Evidence Content Item Title",
                                           "fill": "$text",
-                                          "content": "✓ INCLUDED / MATCHED",
+                                          "content": "✓ BODY COPIED EXACTLY",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "800"
@@ -1091,7 +1091,7 @@
                                           "id": "tp077",
                                           "name": "Positive Evidence Content Item Detail",
                                           "fill": "$muted",
-                                          "content": "Expected observable value",
+                                          "content": "Clipboard equals the complete ResponseState body",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "500"
@@ -1115,7 +1115,7 @@
                                           "id": "tp079",
                                           "name": "Negative Evidence Content Item Title",
                                           "fill": "$text",
-                                          "content": "⊘ ABSENT / EXCLUDED",
+                                          "content": "⊘ HIDDEN BEFORE RESPONSE",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "800"
@@ -1125,7 +1125,7 @@
                                           "id": "tp080",
                                           "name": "Negative Evidence Content Item Detail",
                                           "fill": "$muted",
-                                          "content": "Value that must not appear",
+                                          "content": "Not sent and empty states expose no active Copy action",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "500"
@@ -1149,7 +1149,7 @@
                                           "id": "tp082",
                                           "name": "Lifecycle Content Item Title",
                                           "fill": "$text",
-                                          "content": "RESPONSESTATE = VIEW = HISTORY",
+                                          "content": "COPY IS A READ-ONLY ACTION",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "800"
@@ -1159,7 +1159,7 @@
                                           "id": "tp083",
                                           "name": "Lifecycle Content Item Detail",
                                           "fill": "$muted",
-                                          "content": "One request lifecycle",
+                                          "content": "Response, request, History, active tab, and scroll do not change",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "500"
@@ -1219,7 +1219,7 @@
                   "fill": "$text",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Show only material state transitions.",
+                  "content": "Response arrival unlocks Copy; activation produces transient Copied feedback.",
                   "fontFamily": "$fontBody",
                   "fontSize": 14,
                   "fontWeight": "800"
@@ -1243,7 +1243,7 @@
                   "id": "tp095",
                   "name": "Rendered Control Step Title",
                   "fill": "$text",
-                  "content": "01 · RENDERED CONTROL",
+                  "content": "01 · POPULATED RESPONSE",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "800"
@@ -1253,7 +1253,7 @@
                   "id": "tp096",
                   "name": "Rendered Control Step Detail",
                   "fill": "$muted",
-                  "content": "User-visible input or action",
+                  "content": "Copy is visible and keyboard reachable",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "500"
@@ -1287,7 +1287,7 @@
                   "id": "tp099",
                   "name": "ViewModel Step Title",
                   "fill": "$text",
-                  "content": "02 · VIEWMODEL",
+                  "content": "02 · RESPONSESTATE BODY",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "800"
@@ -1297,7 +1297,7 @@
                   "id": "tp100",
                   "name": "ViewModel Step Detail",
                   "fill": "$muted",
-                  "content": "Single source of product state",
+                  "content": "Single source for exact clipboard content",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "500"
@@ -1331,7 +1331,7 @@
                   "id": "tp103",
                   "name": "Request Step Title",
                   "fill": "$text",
-                  "content": "03 · REAL REQUEST",
+                  "content": "03 · CLIPBOARD WRITE",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "800"
@@ -1341,7 +1341,7 @@
                   "id": "tp104",
                   "name": "Request Step Detail",
                   "fill": "$muted",
-                  "content": "Final outgoing representation",
+                  "content": "Copy full JSON, text, or error body",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "500"
@@ -1375,7 +1375,7 @@
                   "id": "tp107",
                   "name": "Response Step Title",
                   "fill": "$text",
-                  "content": "04 · RESPONSE / HISTORY",
+                  "content": "04 · COPIED FEEDBACK",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "800"
@@ -1385,7 +1385,7 @@
                   "id": "tp108",
                   "name": "Response Step Detail",
                   "fill": "$muted",
-                  "content": "Stable evidence and lifecycle",
+                  "content": "Brief confirmation · no state mutation",
                   "fontFamily": "$fontBody",
                   "fontSize": 9,
                   "fontWeight": "500"
@@ -1457,7 +1457,7 @@
                       "id": "tp113",
                       "name": "Contract Title",
                       "fill": "$panel",
-                      "content": "Issue #NN · E2E contract",
+                      "content": "Issue #74 · response copy E2E contract",
                       "fontFamily": "$fontBody",
                       "fontSize": 18,
                       "fontWeight": "800"
@@ -1467,7 +1467,7 @@
                       "id": "tp114",
                       "name": "Contract Paths",
                       "fill": "$line",
-                      "content": "tests/path.rs · tests/cases/path.json · design/issue-00NN-feature.pen",
+                      "content": "tests/ui_clipboard.rs · tests/cases/httpbingo/responses.json · design/issue-0074-response-quick-copy.pen",
                       "fontFamily": "$fontMono",
                       "fontSize": 10,
                       "fontWeight": "500"
@@ -1493,7 +1493,7 @@
                       "id": "tp116",
                       "name": "Contract Status Label",
                       "fill": "$accentInk",
-                      "content": "STATUS",
+                      "content": "PLANNED",
                       "fontFamily": "$fontBody",
                       "fontSize": 9,
                       "fontWeight": "800"
@@ -1540,7 +1540,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "01  Seed or open the required product state.",
+                      "content": "01  Open GET https://httpbingo.org/get in the real application.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1553,7 +1553,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "02  Drive rendered controls.",
+                      "content": "02  Send and wait until the populated Response panel exposes Copy.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1566,7 +1566,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "03  Send or perform the feature action.",
+                      "content": "03  Activate Copy by pointer and keyboard; observe brief Copied feedback.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1579,7 +1579,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "04  Observe response and History.",
+                      "content": "04  Send a second response and copy the new body.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1616,7 +1616,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "✓ ViewModel contains the active product state.",
+                      "content": "✓ Clipboard equals the full ResponseState body, not a rendered subset.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1629,7 +1629,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "✓ Final request matches the scenario.",
+                      "content": "✓ JSON, plain text, and error bodies use the same action.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1642,7 +1642,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "✓ Stable response evidence is rendered.",
+                      "content": "✓ Empty and Not sent states expose no active Copy action.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1655,7 +1655,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "✓ ResponseState, View, and History agree.",
+                      "content": "✓ Request, response, History, tabs, and scroll remain unchanged.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1692,7 +1692,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "INCLUDED · list concrete feature behavior.",
+                      "content": "INCLUDED · populated body copy, keyboard activation, repeat copy, and Copied feedback.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1705,7 +1705,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "NOT IN THIS SLICE · list explicit non-goals.",
+                      "content": "NOT IN THIS SLICE · response export, save-as, selection-only copy, or header copy.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1718,7 +1718,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Parent roadmap #NN → E2E issue #NN.",
+                      "content": "Parent roadmap #50 → UI E2E issue #74.",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -1754,7 +1754,7 @@
                   "id": "tp138",
                   "name": "One-to-One Label",
                   "fill": "$accentInk",
-                  "content": "ONE ISSUE · ONE E2E SLICE · ONE .PEN FILE",
+                  "content": "ISSUE #74 · ONE UI E2E SLICE · issue-0074-response-quick-copy.pen",
                   "fontFamily": "$fontBody",
                   "fontSize": 11,
                   "fontWeight": "800"
@@ -1844,5 +1844,5 @@
       "value": "#3C1F16"
     }
   },
-  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+  "fileToken": "cd0a89ca-58b9-4a20-9768-78104470d8b0"
 }

@@ -25,8 +25,8 @@
           "cornerRadius": 18,
           "stroke": "$line",
           "strokeWidth": 1,
-          "padding": 24,
           "gap": 24,
+          "padding": 24,
           "alignItems": "center",
           "children": [
             {
@@ -74,7 +74,10 @@
                       "height": 26,
                       "fill": "$greenSoft",
                       "cornerRadius": 13,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -156,7 +159,10 @@
                       "fill": "$blueSoft",
                       "cornerRadius": 8,
                       "gap": 7,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -189,7 +195,10 @@
                       "fill": "$greenSoft",
                       "cornerRadius": 8,
                       "gap": 7,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -221,9 +230,9 @@
                   "id": "gs021",
                   "name": "Non Goal",
                   "fill": "$subtle",
-                  "content": "Collections are intentionally excluded until a collection model exists.",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
+                  "content": "Collections are intentionally excluded until a collection model exists.",
                   "lineHeight": 1.4,
                   "fontFamily": "$fontBody",
                   "fontSize": 10,
@@ -245,6 +254,7 @@
               "type": "frame",
               "id": "gs101",
               "name": "State 01 · Idle",
+              "clip": true,
               "width": 756,
               "height": 520,
               "fill": "$panel",
@@ -252,7 +262,6 @@
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
-              "clip": true,
               "children": [
                 {
                   "type": "frame",
@@ -262,9 +271,14 @@
                   "height": 64,
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"bottom": 1},
-                  "padding": [0, 18],
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
                   "gap": 12,
+                  "padding": [
+                    0,
+                    18
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -326,29 +340,27 @@
                   "type": "frame",
                   "id": "gs108",
                   "name": "Idle App Preview",
+                  "clip": true,
                   "width": "fill_container",
                   "height": 456,
                   "fill": "$bg",
-                  "clip": true,
                   "children": [
                     {
                       "type": "frame",
                       "id": "gs109",
                       "name": "App Header",
-                      "x": 0,
-                      "y": 0,
                       "width": 756,
                       "height": 58,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"bottom": 1},
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "children": [
                         {
                           "type": "frame",
                           "id": "gs110",
                           "name": "Brand",
-                          "x": 16,
-                          "y": 13,
                           "width": 150,
                           "height": 32,
                           "gap": 8,
@@ -393,8 +405,6 @@
                           "type": "frame",
                           "id": "gs114",
                           "name": "Global Search Idle",
-                          "x": 184,
-                          "y": 10,
                           "width": 380,
                           "height": 38,
                           "fill": "$panelAlt",
@@ -402,7 +412,10 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "gap": 8,
-                          "padding": [0, 12],
+                          "padding": [
+                            0,
+                            12
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -419,7 +432,6 @@
                               "type": "text",
                               "id": "gs116",
                               "name": "Search Placeholder",
-                              "width": "fill_container",
                               "fill": "$subtle",
                               "content": "Search requests and history",
                               "fontFamily": "$fontBody",
@@ -435,7 +447,10 @@
                               "cornerRadius": 6,
                               "stroke": "$line",
                               "strokeWidth": 1,
-                              "padding": [0, 7],
+                              "padding": [
+                                0,
+                                7
+                              ],
                               "justifyContent": "center",
                               "alignItems": "center",
                               "children": [
@@ -457,8 +472,6 @@
                           "type": "frame",
                           "id": "gs119",
                           "name": "Environment",
-                          "x": 626,
-                          "y": 13,
                           "width": 112,
                           "height": 32,
                           "fill": "$panel",
@@ -466,16 +479,19 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "gap": 7,
-                          "padding": [0, 9],
+                          "padding": [
+                            0,
+                            9
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "ellipse",
                               "id": "gs120",
                               "name": "Environment Dot",
+                              "fill": "$green",
                               "width": 7,
-                              "height": 7,
-                              "fill": "$green"
+                              "height": 7
                             },
                             {
                               "type": "text",
@@ -495,16 +511,19 @@
                       "type": "frame",
                       "id": "gs122",
                       "name": "Left Rail",
-                      "x": 0,
-                      "y": 58,
                       "width": 50,
                       "height": 398,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"right": 1},
+                      "strokeWidth": {
+                        "right": 1
+                      },
                       "layout": "vertical",
                       "gap": 12,
-                      "padding": [14, 0],
+                      "padding": [
+                        14,
+                        0
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -559,13 +578,13 @@
                       "type": "frame",
                       "id": "gs127",
                       "name": "History Panel",
-                      "x": 50,
-                      "y": 58,
                       "width": 190,
                       "height": 398,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"right": 1},
+                      "strokeWidth": {
+                        "right": 1
+                      },
                       "layout": "vertical",
                       "gap": 10,
                       "padding": 14,
@@ -662,8 +681,6 @@
                       "type": "frame",
                       "id": "gs136",
                       "name": "Workspace",
-                      "x": 240,
-                      "y": 58,
                       "width": 516,
                       "height": 398,
                       "fill": "$bg",
@@ -677,9 +694,14 @@
                           "height": 42,
                           "fill": "$panel",
                           "stroke": "$line",
-                          "strokeWidth": {"bottom": 1},
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
                           "gap": 8,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -747,7 +769,10 @@
                               "cornerRadius": 9,
                               "stroke": "$line",
                               "strokeWidth": 1,
-                              "padding": [0, 11],
+                              "padding": [
+                                0,
+                                11
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
@@ -896,14 +921,61 @@
                                   "fontWeight": "800"
                                 },
                                 {
-                                  "type": "text",
-                                  "id": "gs157",
-                                  "name": "Response Status",
-                                  "fill": "$green",
-                                  "content": "200 OK",
-                                  "fontFamily": "$fontBody",
-                                  "fontSize": 9,
-                                  "fontWeight": "800"
+                                  "type": "frame",
+                                  "id": "N8SCL",
+                                  "name": "Response Header Actions",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "F73w1",
+                                      "name": "Response Status",
+                                      "fill": "$green",
+                                      "content": "200 OK",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "s22dKg",
+                                      "name": "Copy Response Button",
+                                      "height": 20,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 5,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 1,
+                                      "gap": 4,
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "wRvrH",
+                                          "name": "Copy Response Icon",
+                                          "width": 10,
+                                          "height": 10,
+                                          "icon": "copy",
+                                          "library": "lucide",
+                                          "fill": "$blue"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "A0B4ns",
+                                          "name": "Copy Response Label",
+                                          "fill": "$blue",
+                                          "content": "Copy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
                                 }
                               ]
                             },
@@ -941,6 +1013,7 @@
               "type": "frame",
               "id": "gs201",
               "name": "State 02 · Grouped Results",
+              "clip": true,
               "width": 756,
               "height": 520,
               "fill": "$panel",
@@ -948,7 +1021,6 @@
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
-              "clip": true,
               "children": [
                 {
                   "type": "frame",
@@ -958,9 +1030,14 @@
                   "height": 64,
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"bottom": 1},
-                  "padding": [0, 18],
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
                   "gap": 12,
+                  "padding": [
+                    0,
+                    18
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -1022,29 +1099,27 @@
                   "type": "frame",
                   "id": "gs208",
                   "name": "Results App Preview",
+                  "clip": true,
                   "width": "fill_container",
                   "height": 456,
                   "fill": "$bg",
-                  "clip": true,
                   "children": [
                     {
                       "type": "frame",
                       "id": "gs209",
                       "name": "App Header",
-                      "x": 0,
-                      "y": 0,
                       "width": 756,
                       "height": 58,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"bottom": 1},
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "children": [
                         {
                           "type": "frame",
                           "id": "gs210",
                           "name": "Brand",
-                          "x": 16,
-                          "y": 13,
                           "width": 150,
                           "height": 32,
                           "gap": 8,
@@ -1089,17 +1164,23 @@
                           "type": "frame",
                           "id": "gs214",
                           "name": "Global Search Active",
-                          "x": 184,
-                          "y": 10,
                           "width": 380,
                           "height": 38,
                           "fill": "$panel",
                           "cornerRadius": 9,
                           "stroke": "$blue",
                           "strokeWidth": 2,
-                          "effect": {"type": "shadow", "shadowType": "outer", "color": "#0F718B24", "spread": 3},
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#0F718B24",
+                            "spread": 3
+                          },
                           "gap": 8,
-                          "padding": [0, 12],
+                          "padding": [
+                            0,
+                            12
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1116,7 +1197,6 @@
                               "type": "text",
                               "id": "gs216",
                               "name": "Search Query",
-                              "width": "fill_container",
                               "fill": "$text",
                               "content": "httpbingo",
                               "fontFamily": "$fontBody",
@@ -1139,8 +1219,6 @@
                           "type": "frame",
                           "id": "gs218",
                           "name": "Environment",
-                          "x": 626,
-                          "y": 13,
                           "width": 112,
                           "height": 32,
                           "fill": "$panel",
@@ -1148,16 +1226,19 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "gap": 7,
-                          "padding": [0, 9],
+                          "padding": [
+                            0,
+                            9
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "ellipse",
                               "id": "gs219",
                               "name": "Environment Dot",
+                              "fill": "$green",
                               "width": 7,
-                              "height": 7,
-                              "fill": "$green"
+                              "height": 7
                             },
                             {
                               "type": "text",
@@ -1177,8 +1258,6 @@
                       "type": "frame",
                       "id": "gs221",
                       "name": "Dimmed App Body",
-                      "x": 0,
-                      "y": 58,
                       "width": 756,
                       "height": 398,
                       "fill": "$bg",
@@ -1187,25 +1266,25 @@
                           "type": "frame",
                           "id": "gs222",
                           "name": "Rail",
-                          "x": 0,
-                          "y": 0,
                           "width": 50,
                           "height": 398,
                           "fill": "$panel",
                           "stroke": "$line",
-                          "strokeWidth": {"right": 1}
+                          "strokeWidth": {
+                            "right": 1
+                          }
                         },
                         {
                           "type": "frame",
                           "id": "gs223",
                           "name": "History Panel",
-                          "x": 50,
-                          "y": 0,
                           "width": 190,
                           "height": 398,
                           "fill": "$panel",
                           "stroke": "$line",
-                          "strokeWidth": {"right": 1},
+                          "strokeWidth": {
+                            "right": 1
+                          },
                           "layout": "vertical",
                           "gap": 12,
                           "padding": 16,
@@ -1244,8 +1323,6 @@
                           "type": "frame",
                           "id": "gs227",
                           "name": "Workspace",
-                          "x": 240,
-                          "y": 0,
                           "width": 516,
                           "height": 398,
                           "fill": "$bg",
@@ -1294,17 +1371,20 @@
                       "type": "frame",
                       "id": "gs231",
                       "name": "Search Results Popover",
-                      "x": 184,
-                      "y": 52,
+                      "clip": true,
                       "width": 430,
                       "height": 328,
                       "fill": "$panel",
                       "cornerRadius": 12,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "effect": {"type": "shadow", "shadowType": "outer", "color": "#20342B24", "spread": 4},
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#20342B24",
+                        "spread": 4
+                      },
                       "layout": "vertical",
-                      "clip": true,
                       "children": [
                         {
                           "type": "frame",
@@ -1313,7 +1393,10 @@
                           "width": "fill_container",
                           "height": 36,
                           "fill": "$panelAlt",
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1335,7 +1418,10 @@
                           "width": "fill_container",
                           "height": 62,
                           "gap": 11,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1410,7 +1496,10 @@
                           "width": "fill_container",
                           "height": 36,
                           "fill": "$panelAlt",
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1432,7 +1521,10 @@
                           "width": "fill_container",
                           "height": 64,
                           "gap": 11,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1507,7 +1599,10 @@
                           "width": "fill_container",
                           "height": 64,
                           "gap": 11,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1583,10 +1678,15 @@
                           "height": 66,
                           "fill": "$panelAlt",
                           "stroke": "$line",
-                          "strokeWidth": {"top": 1},
-                          "padding": [0, 14],
-                          "alignItems": "center",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "justifyContent": "space_between",
+                          "alignItems": "center",
                           "children": [
                             {
                               "type": "text",
@@ -1630,6 +1730,7 @@
               "type": "frame",
               "id": "gs301",
               "name": "State 03 · Keyboard Selection",
+              "clip": true,
               "width": 756,
               "height": 520,
               "fill": "$panel",
@@ -1637,7 +1738,6 @@
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
-              "clip": true,
               "children": [
                 {
                   "type": "frame",
@@ -1647,9 +1747,14 @@
                   "height": 64,
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"bottom": 1},
-                  "padding": [0, 18],
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
                   "gap": 12,
+                  "padding": [
+                    0,
+                    18
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -1711,29 +1816,27 @@
                   "type": "frame",
                   "id": "gs308",
                   "name": "Keyboard App Preview",
+                  "clip": true,
                   "width": "fill_container",
                   "height": 456,
                   "fill": "$bg",
-                  "clip": true,
                   "children": [
                     {
                       "type": "frame",
                       "id": "gs309",
                       "name": "App Header",
-                      "x": 0,
-                      "y": 0,
                       "width": 756,
                       "height": 58,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"bottom": 1},
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "children": [
                         {
                           "type": "frame",
                           "id": "gs310",
                           "name": "Brand",
-                          "x": 16,
-                          "y": 13,
                           "width": 150,
                           "height": 32,
                           "gap": 8,
@@ -1778,17 +1881,23 @@
                           "type": "frame",
                           "id": "gs314",
                           "name": "Global Search Active",
-                          "x": 184,
-                          "y": 10,
                           "width": 380,
                           "height": 38,
                           "fill": "$panel",
                           "cornerRadius": 9,
                           "stroke": "$blue",
                           "strokeWidth": 2,
-                          "effect": {"type": "shadow", "shadowType": "outer", "color": "#0F718B24", "spread": 3},
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#0F718B24",
+                            "spread": 3
+                          },
                           "gap": 8,
-                          "padding": [0, 12],
+                          "padding": [
+                            0,
+                            12
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1805,7 +1914,6 @@
                               "type": "text",
                               "id": "gs316",
                               "name": "Search Query",
-                              "width": "fill_container",
                               "fill": "$text",
                               "content": "post",
                               "fontFamily": "$fontBody",
@@ -1828,8 +1936,6 @@
                           "type": "frame",
                           "id": "gs318",
                           "name": "Environment",
-                          "x": 626,
-                          "y": 13,
                           "width": 112,
                           "height": 32,
                           "fill": "$panel",
@@ -1837,16 +1943,19 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "gap": 7,
-                          "padding": [0, 9],
+                          "padding": [
+                            0,
+                            9
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "ellipse",
                               "id": "gs319",
                               "name": "Environment Dot",
+                              "fill": "$green",
                               "width": 7,
-                              "height": 7,
-                              "fill": "$green"
+                              "height": 7
                             },
                             {
                               "type": "text",
@@ -1866,8 +1975,6 @@
                       "type": "frame",
                       "id": "gs321",
                       "name": "App Backdrop",
-                      "x": 0,
-                      "y": 58,
                       "width": 756,
                       "height": 398,
                       "fill": "$bg",
@@ -1876,20 +1983,18 @@
                           "type": "frame",
                           "id": "gs322",
                           "name": "Left Area",
-                          "x": 0,
-                          "y": 0,
                           "width": 240,
                           "height": 398,
                           "fill": "$panel",
                           "stroke": "$line",
-                          "strokeWidth": {"right": 1}
+                          "strokeWidth": {
+                            "right": 1
+                          }
                         },
                         {
                           "type": "frame",
                           "id": "gs323",
                           "name": "Main Area",
-                          "x": 254,
-                          "y": 14,
                           "width": 488,
                           "height": 154,
                           "fill": "$panel",
@@ -1901,8 +2006,6 @@
                           "type": "frame",
                           "id": "gs324",
                           "name": "Response Area",
-                          "x": 254,
-                          "y": 182,
                           "width": 488,
                           "height": 190,
                           "fill": "$panel",
@@ -1916,17 +2019,20 @@
                       "type": "frame",
                       "id": "gs325",
                       "name": "Keyboard Results Popover",
-                      "x": 184,
-                      "y": 52,
+                      "clip": true,
                       "width": 430,
                       "height": 294,
                       "fill": "$panel",
                       "cornerRadius": 12,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "effect": {"type": "shadow", "shadowType": "outer", "color": "#20342B24", "spread": 4},
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#20342B24",
+                        "spread": 4
+                      },
                       "layout": "vertical",
-                      "clip": true,
                       "children": [
                         {
                           "type": "frame",
@@ -1935,7 +2041,10 @@
                           "width": "fill_container",
                           "height": 36,
                           "fill": "$panelAlt",
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -1957,7 +2066,10 @@
                           "width": "fill_container",
                           "height": 62,
                           "gap": 11,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2022,7 +2134,10 @@
                           "width": "fill_container",
                           "height": 36,
                           "fill": "$panelAlt",
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2045,9 +2160,14 @@
                           "height": 82,
                           "fill": "$blueSoft",
                           "stroke": "$blue",
-                          "strokeWidth": {"left": 3},
+                          "strokeWidth": {
+                            "left": 3
+                          },
                           "gap": 11,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2113,7 +2233,10 @@
                               "stroke": "$line",
                               "strokeWidth": 1,
                               "gap": 5,
-                              "padding": [0, 8],
+                              "padding": [
+                                0,
+                                8
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
@@ -2148,9 +2271,14 @@
                           "height": 78,
                           "fill": "$panelAlt",
                           "stroke": "$line",
-                          "strokeWidth": {"top": 1},
+                          "strokeWidth": {
+                            "top": 1
+                          },
                           "gap": 8,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2185,6 +2313,7 @@
               "type": "frame",
               "id": "gs401",
               "name": "State 04 · Empty Results",
+              "clip": true,
               "width": 756,
               "height": 520,
               "fill": "$panel",
@@ -2192,7 +2321,6 @@
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
-              "clip": true,
               "children": [
                 {
                   "type": "frame",
@@ -2202,9 +2330,14 @@
                   "height": 64,
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"bottom": 1},
-                  "padding": [0, 18],
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
                   "gap": 12,
+                  "padding": [
+                    0,
+                    18
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -2266,29 +2399,27 @@
                   "type": "frame",
                   "id": "gs408",
                   "name": "Empty App Preview",
+                  "clip": true,
                   "width": "fill_container",
                   "height": 456,
                   "fill": "$bg",
-                  "clip": true,
                   "children": [
                     {
                       "type": "frame",
                       "id": "gs409",
                       "name": "App Header",
-                      "x": 0,
-                      "y": 0,
                       "width": 756,
                       "height": 58,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"bottom": 1},
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "children": [
                         {
                           "type": "frame",
                           "id": "gs410",
                           "name": "Brand",
-                          "x": 16,
-                          "y": 13,
                           "width": 150,
                           "height": 32,
                           "gap": 8,
@@ -2333,17 +2464,23 @@
                           "type": "frame",
                           "id": "gs414",
                           "name": "Global Search Empty",
-                          "x": 184,
-                          "y": 10,
                           "width": 380,
                           "height": 38,
                           "fill": "$panel",
                           "cornerRadius": 9,
                           "stroke": "$blue",
                           "strokeWidth": 2,
-                          "effect": {"type": "shadow", "shadowType": "outer", "color": "#0F718B24", "spread": 3},
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#0F718B24",
+                            "spread": 3
+                          },
                           "gap": 8,
-                          "padding": [0, 12],
+                          "padding": [
+                            0,
+                            12
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2360,7 +2497,6 @@
                               "type": "text",
                               "id": "gs416",
                               "name": "Search Query",
-                              "width": "fill_container",
                               "fill": "$text",
                               "content": "missing endpoint",
                               "fontFamily": "$fontBody",
@@ -2383,8 +2519,6 @@
                           "type": "frame",
                           "id": "gs418",
                           "name": "Environment",
-                          "x": 626,
-                          "y": 13,
                           "width": 112,
                           "height": 32,
                           "fill": "$panel",
@@ -2392,16 +2526,19 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "gap": 7,
-                          "padding": [0, 9],
+                          "padding": [
+                            0,
+                            9
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "ellipse",
                               "id": "gs419",
                               "name": "Environment Dot",
+                              "fill": "$green",
                               "width": 7,
-                              "height": 7,
-                              "fill": "$green"
+                              "height": 7
                             },
                             {
                               "type": "text",
@@ -2421,8 +2558,6 @@
                       "type": "frame",
                       "id": "gs421",
                       "name": "App Backdrop",
-                      "x": 0,
-                      "y": 58,
                       "width": 756,
                       "height": 398,
                       "fill": "$bg",
@@ -2431,20 +2566,18 @@
                           "type": "frame",
                           "id": "gs422",
                           "name": "Left Area",
-                          "x": 0,
-                          "y": 0,
                           "width": 240,
                           "height": 398,
                           "fill": "$panel",
                           "stroke": "$line",
-                          "strokeWidth": {"right": 1}
+                          "strokeWidth": {
+                            "right": 1
+                          }
                         },
                         {
                           "type": "frame",
                           "id": "gs423",
                           "name": "Main Area",
-                          "x": 254,
-                          "y": 14,
                           "width": 488,
                           "height": 154,
                           "fill": "$panel",
@@ -2456,8 +2589,6 @@
                           "type": "frame",
                           "id": "gs424",
                           "name": "Response Area",
-                          "x": 254,
-                          "y": 182,
                           "width": 488,
                           "height": 190,
                           "fill": "$panel",
@@ -2471,17 +2602,20 @@
                       "type": "frame",
                       "id": "gs425",
                       "name": "Empty Results Popover",
-                      "x": 184,
-                      "y": 52,
+                      "clip": true,
                       "width": 430,
                       "height": 250,
                       "fill": "$panel",
                       "cornerRadius": 12,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "effect": {"type": "shadow", "shadowType": "outer", "color": "#20342B24", "spread": 4},
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#20342B24",
+                        "spread": 4
+                      },
                       "layout": "vertical",
-                      "clip": true,
                       "children": [
                         {
                           "type": "frame",
@@ -2545,7 +2679,10 @@
                               "fill": "$accentSoft",
                               "cornerRadius": 8,
                               "gap": 6,
-                              "padding": [0, 11],
+                              "padding": [
+                                0,
+                                11
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
@@ -2580,9 +2717,14 @@
                           "height": 56,
                           "fill": "$panelAlt",
                           "stroke": "$line",
-                          "strokeWidth": {"top": 1},
+                          "strokeWidth": {
+                            "top": 1
+                          },
                           "gap": 8,
-                          "padding": [0, 14],
+                          "padding": [
+                            0,
+                            14
+                          ],
                           "alignItems": "center",
                           "children": [
                             {
@@ -2619,6 +2761,7 @@
           "type": "frame",
           "id": "gs500",
           "name": "E2E Contract",
+          "clip": true,
           "width": "fill_container",
           "height": 500,
           "fill": "$panel",
@@ -2626,7 +2769,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -2635,8 +2777,11 @@
               "width": "fill_container",
               "height": 78,
               "fill": "$text",
-              "padding": [0, 22],
               "gap": 16,
+              "padding": [
+                0,
+                22
+              ],
               "alignItems": "center",
               "children": [
                 {
@@ -2699,7 +2844,10 @@
                   "height": 30,
                   "fill": "$accentVivid",
                   "cornerRadius": 9,
-                  "padding": [0, 12],
+                  "padding": [
+                    0,
+                    12
+                  ],
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -3038,7 +3186,10 @@
                       "fill": "$panel",
                       "cornerRadius": 9,
                       "gap": 8,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -3106,25 +3257,82 @@
     }
   ],
   "variables": {
-    "bg": {"type": "color", "value": "#F4F7F3"},
-    "panel": {"type": "color", "value": "#FFFEFB"},
-    "panelAlt": {"type": "color", "value": "#EEF5F1"},
-    "line": {"type": "color", "value": "#CFE0D7"},
-    "text": {"type": "color", "value": "#20342B"},
-    "muted": {"type": "color", "value": "#526B60"},
-    "subtle": {"type": "color", "value": "#64786E"},
-    "accent": {"type": "color", "value": "#C64B2B"},
-    "accentSoft": {"type": "color", "value": "#FFF0E8"},
-    "green": {"type": "color", "value": "#0E7A4E"},
-    "greenSoft": {"type": "color", "value": "#E4F6EA"},
-    "blue": {"type": "color", "value": "#0F718B"},
-    "blueSoft": {"type": "color", "value": "#E6F4F7"},
-    "code": {"type": "color", "value": "#F0F5F1"},
-    "codeText": {"type": "color", "value": "#243D34"},
-    "fontBody": {"type": "string", "value": "Inter"},
-    "fontMono": {"type": "string", "value": "JetBrains Mono"},
-    "accentVivid": {"type": "color", "value": "#F56B3D"},
-    "accentInk": {"type": "color", "value": "#3C1F16"}
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
   },
   "fileToken": "01b2d8a1-b5cc-4c02-9f70-0070a11ce5ea"
 }

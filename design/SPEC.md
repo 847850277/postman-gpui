@@ -116,7 +116,10 @@ A response content item must show, when applicable:
 2. stable response subset used by the scenario assertion;
 3. positive evidence for included values;
 4. negative evidence for values that must be absent;
-5. consistency between `ResponseState`, rendered response, and History.
+5. consistency between `ResponseState`, rendered response, and History;
+6. a compact **Copy** action when a response body is populated. The action
+   copies the complete body from `ResponseState`, never a truncated visual
+   subset, and is absent from empty or **Not sent** states.
 
 Sensitive values may be illustrative scenario values. Never place real
 credentials or production secrets in a design artifact.
@@ -129,6 +132,9 @@ placeholder origins in issue artifacts and templates.
 
 - If Send can be clicked while an input remains active, show that active state
   and state that Enter, Tab, blur, or Add is not required.
+- If a populated response exposes Copy, show its keyboard-reachable default
+  state and document the brief **Copied** feedback without changing the active
+  tab, scroll position, request, response, or History.
 - If the ViewModel transforms a value on Send, distinguish the before-Send
   value, stored value, and outgoing representation.
 - Disabled rows must remain visible if persistence is part of the contract and
@@ -220,6 +226,7 @@ The normal CI test job runs this integration test through
 - [ ] Request and stable response evidence are visible
 - [ ] Public endpoint examples use `https://httpbingo.org`
 - [ ] ResponseState, View, and History lifecycle is represented
+- [ ] Populated responses expose Copy; empty and Not sent states do not
 - [ ] Shared tokens are unchanged
 - [ ] README and GitHub issue links are present
 - [ ] `cargo test --test design_artifacts` passes

@@ -74,7 +74,10 @@
                       "height": 26,
                       "fill": "$greenSoft",
                       "cornerRadius": 13,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -97,7 +100,10 @@
                       "height": 26,
                       "fill": "$blueSoft",
                       "cornerRadius": 13,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -216,7 +222,10 @@
                       "cornerRadius": 7,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "padding": [0, 9],
+                      "padding": [
+                        0,
+                        9
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -238,7 +247,10 @@
                       "height": 26,
                       "fill": "$greenSoft",
                       "cornerRadius": 7,
-                      "padding": [0, 9],
+                      "padding": [
+                        0,
+                        9
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -263,6 +275,7 @@
           "type": "frame",
           "id": "hd100",
           "name": "Application State · Header Filter Proof",
+          "clip": true,
           "width": "fill_container",
           "height": 900,
           "fill": "$panel",
@@ -270,7 +283,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -280,9 +292,14 @@
               "height": 72,
               "fill": "$panel",
               "stroke": "$line",
-              "strokeWidth": {"bottom": 1},
+              "strokeWidth": {
+                "bottom": 1
+              },
               "gap": 20,
-              "padding": [0, 20],
+              "padding": [
+                0,
+                20
+              ],
               "alignItems": "center",
               "children": [
                 {
@@ -339,7 +356,10 @@
                   "stroke": "$line",
                   "strokeWidth": 1,
                   "gap": 9,
-                  "padding": [0, 13],
+                  "padding": [
+                    0,
+                    13
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -356,7 +376,6 @@
                       "type": "text",
                       "id": "hd108",
                       "name": "Search Placeholder",
-                      "width": "fill_container",
                       "fill": "$subtle",
                       "content": "Search requests and history",
                       "fontFamily": "$fontBody",
@@ -372,7 +391,10 @@
                       "cornerRadius": 6,
                       "stroke": "$line",
                       "strokeWidth": 1,
-                      "padding": [0, 8],
+                      "padding": [
+                        0,
+                        8
+                      ],
                       "justifyContent": "center",
                       "alignItems": "center",
                       "children": [
@@ -409,16 +431,19 @@
                       "stroke": "$line",
                       "strokeWidth": 1,
                       "gap": 8,
-                      "padding": [0, 12],
+                      "padding": [
+                        0,
+                        12
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
                           "type": "ellipse",
                           "id": "hd113",
                           "name": "Environment Status",
+                          "fill": "$green",
                           "width": 8,
-                          "height": 8,
-                          "fill": "$green"
+                          "height": 8
                         },
                         {
                           "type": "text",
@@ -471,10 +496,15 @@
                   "height": "fill_container",
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"right": 1},
+                  "strokeWidth": {
+                    "right": 1
+                  },
                   "layout": "vertical",
                   "gap": 14,
-                  "padding": [16, 0],
+                  "padding": [
+                    16,
+                    0
+                  ],
                   "alignItems": "center",
                   "children": [
                     {
@@ -579,7 +609,9 @@
                   "height": "fill_container",
                   "fill": "$panel",
                   "stroke": "$line",
-                  "strokeWidth": {"right": 1},
+                  "strokeWidth": {
+                    "right": 1
+                  },
                   "layout": "vertical",
                   "gap": 14,
                   "padding": 18,
@@ -615,7 +647,10 @@
                       "stroke": "$line",
                       "strokeWidth": 1,
                       "gap": 8,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -679,7 +714,10 @@
                               "height": 22,
                               "fill": "$greenSoft",
                               "cornerRadius": 6,
-                              "padding": [0, 8],
+                              "padding": [
+                                0,
+                                8
+                              ],
                               "justifyContent": "center",
                               "alignItems": "center",
                               "children": [
@@ -791,9 +829,14 @@
                       "height": 54,
                       "fill": "$panel",
                       "stroke": "$line",
-                      "strokeWidth": {"bottom": 1},
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
                       "gap": 14,
-                      "padding": [0, 18],
+                      "padding": [
+                        0,
+                        18
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -899,7 +942,10 @@
                               "fill": "$greenSoft",
                               "cornerRadius": 10,
                               "gap": 9,
-                              "padding": [0, 14],
+                              "padding": [
+                                0,
+                                14
+                              ],
                               "justifyContent": "space_between",
                               "alignItems": "center",
                               "children": [
@@ -936,7 +982,10 @@
                               "stroke": "$line",
                               "strokeWidth": 1,
                               "gap": 9,
-                              "padding": [0, 14],
+                              "padding": [
+                                0,
+                                14
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
@@ -1001,6 +1050,7 @@
                           "type": "frame",
                           "id": "hd170",
                           "name": "Request Panel",
+                          "clip": true,
                           "width": "fill_container",
                           "height": 310,
                           "fill": "$panel",
@@ -1008,7 +1058,6 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "layout": "vertical",
-                          "clip": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1018,9 +1067,14 @@
                               "height": 48,
                               "fill": "$panel",
                               "stroke": "$line",
-                              "strokeWidth": {"bottom": 1},
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
                               "gap": 28,
-                              "padding": [0, 16],
+                              "padding": [
+                                0,
+                                16
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
@@ -1048,10 +1102,12 @@
                                   "id": "hd174",
                                   "name": "Headers Tab Active",
                                   "height": "fill_container",
+                                  "stroke": "$accentVivid",
+                                  "strokeWidth": {
+                                    "bottom": 3
+                                  },
                                   "gap": 7,
                                   "alignItems": "center",
-                                  "stroke": "$accentVivid",
-                                  "strokeWidth": {"bottom": 3},
                                   "children": [
                                     {
                                       "type": "text",
@@ -1067,9 +1123,9 @@
                                       "type": "ellipse",
                                       "id": "hd176",
                                       "name": "Headers Dirty Dot",
+                                      "fill": "$accentVivid",
                                       "width": 5,
-                                      "height": 5,
-                                      "fill": "$accentVivid"
+                                      "height": 5
                                     }
                                   ]
                                 },
@@ -1119,7 +1175,10 @@
                                   "name": "Headers Summary",
                                   "width": "fill_container",
                                   "height": 44,
-                                  "padding": [0, 14],
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
                                   "justifyContent": "space_between",
                                   "alignItems": "center",
                                   "children": [
@@ -1160,16 +1219,19 @@
                                       "fill": "$greenSoft",
                                       "cornerRadius": 12,
                                       "gap": 6,
-                                      "padding": [0, 9],
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
                                           "type": "ellipse",
                                           "id": "hd186",
                                           "name": "Enabled Dot",
+                                          "fill": "$green",
                                           "width": 6,
-                                          "height": 6,
-                                          "fill": "$green"
+                                          "height": 6
                                         },
                                         {
                                           "type": "text",
@@ -1193,8 +1255,14 @@
                                   "height": 38,
                                   "fill": "$panelAlt",
                                   "stroke": "$line",
-                                  "strokeWidth": {"top": 1, "bottom": 1},
-                                  "padding": [0, 10],
+                                  "strokeWidth": {
+                                    "top": 1,
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
                                   "children": [
                                     {
                                       "type": "frame",
@@ -1210,7 +1278,10 @@
                                       "name": "Key Header",
                                       "width": 320,
                                       "height": "fill_container",
-                                      "padding": [0, 7],
+                                      "padding": [
+                                        0,
+                                        7
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1231,7 +1302,10 @@
                                       "name": "Value Header",
                                       "width": "fill_container",
                                       "height": "fill_container",
-                                      "padding": [0, 7],
+                                      "padding": [
+                                        0,
+                                        7
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1277,8 +1351,13 @@
                                   "height": 52,
                                   "fill": "$panel",
                                   "stroke": "$line",
-                                  "strokeWidth": {"bottom": 1},
-                                  "padding": [0, 10],
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
                                   "alignItems": "center",
                                   "children": [
                                     {
@@ -1324,7 +1403,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1349,7 +1431,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1381,7 +1466,10 @@
                                           "height": 24,
                                           "fill": "$greenSoft",
                                           "cornerRadius": 7,
-                                          "padding": [0, 8],
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
                                           "alignItems": "center",
                                           "children": [
                                             {
@@ -1418,8 +1506,13 @@
                                   "height": 52,
                                   "fill": "$panelAlt",
                                   "stroke": "$line",
-                                  "strokeWidth": {"bottom": 1},
-                                  "padding": [0, 10],
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
                                   "alignItems": "center",
                                   "children": [
                                     {
@@ -1453,7 +1546,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1478,7 +1574,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1510,7 +1609,10 @@
                                           "height": 24,
                                           "fill": "$accentSoft",
                                           "cornerRadius": 7,
-                                          "padding": [0, 8],
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
                                           "alignItems": "center",
                                           "children": [
                                             {
@@ -1545,8 +1647,11 @@
                                   "name": "New Header Draft",
                                   "width": "fill_container",
                                   "height": 48,
-                                  "padding": [0, 10],
                                   "gap": 8,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
                                   "alignItems": "center",
                                   "children": [
                                     {
@@ -1566,7 +1671,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1591,7 +1699,10 @@
                                       "cornerRadius": 8,
                                       "stroke": "$line",
                                       "strokeWidth": 1,
-                                      "padding": [0, 12],
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1639,7 +1750,10 @@
                                   "height": 28,
                                   "fill": "$greenSoft",
                                   "gap": 7,
-                                  "padding": [0, 14],
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
                                   "alignItems": "center",
                                   "children": [
                                     {
@@ -1672,6 +1786,7 @@
                           "type": "frame",
                           "id": "hd230",
                           "name": "Response Panel",
+                          "clip": true,
                           "width": "fill_container",
                           "height": 350,
                           "fill": "$panel",
@@ -1679,7 +1794,6 @@
                           "stroke": "$line",
                           "strokeWidth": 1,
                           "layout": "vertical",
-                          "clip": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1689,8 +1803,13 @@
                               "height": 52,
                               "fill": "$panel",
                               "stroke": "$line",
-                              "strokeWidth": {"bottom": 1},
-                              "padding": [0, 16],
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                16
+                              ],
                               "justifyContent": "space_between",
                               "alignItems": "center",
                               "children": [
@@ -1748,7 +1867,10 @@
                                       "fill": "$greenSoft",
                                       "cornerRadius": 13,
                                       "gap": 6,
-                                      "padding": [0, 9],
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -1839,9 +1961,9 @@
                                               "type": "ellipse",
                                               "id": "hd246",
                                               "name": "Echo Dot",
+                                              "fill": "$green",
                                               "width": 7,
-                                              "height": 7,
-                                              "fill": "$green"
+                                              "height": 7
                                             },
                                             {
                                               "type": "text",
@@ -1857,23 +1979,73 @@
                                         },
                                         {
                                           "type": "frame",
-                                          "id": "hd248",
-                                          "name": "Echo Proof Badge",
-                                          "height": 24,
-                                          "fill": "$panel",
-                                          "cornerRadius": 7,
-                                          "padding": [0, 8],
+                                          "id": "OHm81",
+                                          "name": "Echo Actions",
+                                          "gap": 8,
                                           "alignItems": "center",
                                           "children": [
                                             {
-                                              "type": "text",
-                                              "id": "hd249",
-                                              "name": "Echo Proof Label",
-                                              "fill": "$green",
-                                              "content": "1 custom header received",
-                                              "fontFamily": "$fontBody",
-                                              "fontSize": 8,
-                                              "fontWeight": "750"
+                                              "type": "frame",
+                                              "id": "r9VYVC",
+                                              "name": "Copy Response Button",
+                                              "height": 24,
+                                              "fill": "$blueSoft",
+                                              "cornerRadius": 6,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 1,
+                                              "gap": 5,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "YpaK9",
+                                                  "name": "Copy Response Icon",
+                                                  "width": 12,
+                                                  "height": 12,
+                                                  "icon": "copy",
+                                                  "library": "lucide",
+                                                  "fill": "$blue"
+                                                },
+                                                {
+                                                  "type": "text",
+                                                  "id": "kAE6k",
+                                                  "name": "Copy Response Label",
+                                                  "fill": "$blue",
+                                                  "content": "Copy",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "fA8CV",
+                                              "name": "Echo Proof Badge",
+                                              "height": 24,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "RHFF5",
+                                                  "name": "Echo Proof Label",
+                                                  "fill": "$green",
+                                                  "content": "1 custom header received",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 8,
+                                                  "fontWeight": "750"
+                                                }
+                                              ]
                                             }
                                           ]
                                         }
@@ -2014,7 +2186,10 @@
                                       "fill": "$blueSoft",
                                       "cornerRadius": 9,
                                       "gap": 8,
-                                      "padding": [0, 11],
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
                                       "alignItems": "center",
                                       "children": [
                                         {
@@ -2093,9 +2268,9 @@
                   "id": "hd303",
                   "name": "Pipeline Title",
                   "fill": "$text",
-                  "content": "Two rows saved. One row sent.",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
+                  "content": "Two rows saved. One row sent.",
                   "lineHeight": 1.3,
                   "fontFamily": "$fontBody",
                   "fontSize": 15,
@@ -2275,6 +2450,7 @@
           "type": "frame",
           "id": "hd400",
           "name": "E2E Contract",
+          "clip": true,
           "width": "fill_container",
           "height": 480,
           "fill": "$panel",
@@ -2282,7 +2458,6 @@
           "stroke": "$line",
           "strokeWidth": 1,
           "layout": "vertical",
-          "clip": true,
           "children": [
             {
               "type": "frame",
@@ -2292,7 +2467,10 @@
               "height": 70,
               "fill": "$text",
               "gap": 14,
-              "padding": [0, 22],
+              "padding": [
+                0,
+                22
+              ],
               "alignItems": "center",
               "children": [
                 {
@@ -2355,7 +2533,10 @@
                   "height": 30,
                   "fill": "$accentVivid",
                   "cornerRadius": 9,
-                  "padding": [0, 12],
+                  "padding": [
+                    0,
+                    12
+                  ],
                   "justifyContent": "center",
                   "alignItems": "center",
                   "children": [
@@ -2694,7 +2875,10 @@
                       "fill": "$panel",
                       "cornerRadius": 9,
                       "gap": 8,
-                      "padding": [0, 11],
+                      "padding": [
+                        0,
+                        11
+                      ],
                       "alignItems": "center",
                       "children": [
                         {
@@ -2762,25 +2946,82 @@
     }
   ],
   "variables": {
-    "bg": {"type": "color", "value": "#F4F7F3"},
-    "panel": {"type": "color", "value": "#FFFEFB"},
-    "panelAlt": {"type": "color", "value": "#EEF5F1"},
-    "line": {"type": "color", "value": "#CFE0D7"},
-    "text": {"type": "color", "value": "#20342B"},
-    "muted": {"type": "color", "value": "#526B60"},
-    "subtle": {"type": "color", "value": "#64786E"},
-    "accent": {"type": "color", "value": "#C64B2B"},
-    "accentSoft": {"type": "color", "value": "#FFF0E8"},
-    "green": {"type": "color", "value": "#0E7A4E"},
-    "greenSoft": {"type": "color", "value": "#E4F6EA"},
-    "blue": {"type": "color", "value": "#0F718B"},
-    "blueSoft": {"type": "color", "value": "#E6F4F7"},
-    "code": {"type": "color", "value": "#F0F5F1"},
-    "codeText": {"type": "color", "value": "#243D34"},
-    "fontBody": {"type": "string", "value": "Inter"},
-    "fontMono": {"type": "string", "value": "JetBrains Mono"},
-    "accentVivid": {"type": "color", "value": "#F56B3D"},
-    "accentInk": {"type": "color", "value": "#3C1F16"}
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
   },
   "fileToken": "52d46235-69f3-4ccd-87b1-5cba1630f052"
 }
