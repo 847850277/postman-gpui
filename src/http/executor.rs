@@ -1,7 +1,6 @@
 use crate::errors::AppError;
 use crate::http::client::HttpClient;
 use crate::models::{HttpMethod, Request, RequestBody};
-use crate::utils::formatter::format_response_body;
 use crate::utils::log::{format_http_request, format_http_response};
 use std::sync::Arc;
 
@@ -161,12 +160,12 @@ impl RequestExecutor {
                     );
                     tracing::info!(target: "postman_gpui::http", "\n{}", response_log);
                 }
-                let formatted_body = format_response_body(response.body());
-
                 Ok(RequestResult {
                     status: response.status(),
                     headers: response.headers().to_vec(),
-                    body: formatted_body,
+                    // ResponseState owns the exact server text. Formatting belongs to the
+                    // response viewer so copy/export features never lose the original payload.
+                    body: response.body().to_string(),
                     elapsed_ms,
                 })
             }

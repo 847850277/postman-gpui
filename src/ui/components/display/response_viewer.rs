@@ -3,10 +3,10 @@ use gpui::{
     Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight,
     GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
-    ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign, TextRun,
+    Role, ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign, TextRun,
     Window,
 };
-use std::ops::Range;
+use std::{ops::Range, time::Duration};
 
 use crate::{
     app::{ResponseState, WorkspaceViewModel},
@@ -14,13 +14,15 @@ use crate::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
     ui::theme::{
-        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, LINE, MUTED, OK, PANEL,
-        PANEL_ALT, SUBTEXT, TEXT,
+        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED,
+        OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
     },
     utils::formatter::format_response_body,
 };
 
-actions!(response_viewer, [Copy, SelectAll]);
+const COPIED_FEEDBACK_DURATION: Duration = Duration::from_secs(2);
+
+actions!(response_viewer, [Copy, SelectAll, CopyResponseBody]);
 
 pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
     vec![
@@ -28,6 +30,8 @@ pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("ctrl-c", Copy, None),
         KeyBinding::new("cmd-a", SelectAll, None),
         KeyBinding::new("ctrl-a", SelectAll, None),
+        KeyBinding::new("enter", CopyResponseBody, Some("ResponseCopyButton")),
+        KeyBinding::new("space", CopyResponseBody, Some("ResponseCopyButton")),
     ]
 }
 
@@ -42,6 +46,9 @@ pub struct ResponseViewer {
     view_model: Entity<WorkspaceViewModel>,
     pane: ResponsePane,
     focus_handle: FocusHandle,
+    copy_focus_handle: FocusHandle,
+    copied_feedback: bool,
+    copy_generation: u64,
     selected_range: Range<usize>,
     selection_reversed: bool,
     is_selecting: bool,
@@ -59,11 +66,18 @@ impl Focusable for ResponseViewer {
 
 impl ResponseViewer {
     pub fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
-        let view_model_subscription = cx.observe(&view_model, |_, _, cx| cx.notify());
+        let view_model_subscription = cx.observe(&view_model, |this, _, cx| {
+            this.copied_feedback = false;
+            this.copy_generation = this.copy_generation.wrapping_add(1);
+            cx.notify();
+        });
         Self {
             view_model,
             pane: ResponsePane::Body,
             focus_handle: cx.focus_handle(),
+            copy_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            copied_feedback: false,
+            copy_generation: 0,
             selected_range: 0..0,
             selection_reversed: false,
             is_selecting: false,
@@ -72,6 +86,58 @@ impl ResponseViewer {
             context_menu_position: None,
             _view_model_subscription: view_model_subscription,
         }
+    }
+
+    fn raw_response_body(&self, cx: &App) -> Option<String> {
+        match self.view_model.read(cx).response() {
+            ResponseState::Success { body, .. } if !body.is_empty() => Some(body.clone()),
+            _ => None,
+        }
+    }
+
+    fn copy_raw_response_body(&mut self, cx: &mut Context<Self>) {
+        let Some(body) = self.raw_response_body(cx) else {
+            return;
+        };
+
+        cx.write_to_clipboard(ClipboardItem::new_string(body));
+        self.copy_generation = self.copy_generation.wrapping_add(1);
+        let copy_generation = self.copy_generation;
+        self.copied_feedback = true;
+        cx.notify();
+
+        cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(COPIED_FEEDBACK_DURATION)
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.copy_generation == copy_generation {
+                    this.copied_feedback = false;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn copy_response_body(
+        &mut self,
+        _: &CopyResponseBody,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.copy_raw_response_body(cx);
+    }
+
+    fn click_copy_response_body(
+        &mut self,
+        _: &MouseUpEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        self.copy_focus_handle.focus(window, cx);
+        self.copy_raw_response_body(cx);
     }
 
     fn get_content(&self, cx: &App) -> String {
@@ -584,6 +650,10 @@ impl Render for ResponseViewer {
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
         let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
         let has_completed_response = matches!(&state, ResponseState::Success { .. });
+        let has_copyable_body =
+            matches!(&state, ResponseState::Success { body, .. } if !body.is_empty());
+        let copied_feedback = has_copyable_body && self.copied_feedback;
+        let copy_is_focused = self.copy_focus_handle.is_focused(window);
 
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
@@ -654,9 +724,70 @@ impl Render for ResponseViewer {
                         div()
                             .flex()
                             .items_center()
-                            .gap_4()
+                            .gap_3()
                             .font_family(FONT_UI)
                             .text_size(px(13.0))
+                            .when(has_copyable_body, |row| {
+                                row.child(
+                                    div()
+                                        .id("response-copy-button")
+                                        .debug_selector(|| "response-copy-button".into())
+                                        .track_focus(&self.copy_focus_handle)
+                                        .key_context("ResponseCopyButton")
+                                        .role(Role::Button)
+                                        .aria_label("Copy full response body")
+                                        .h(px(30.0))
+                                        .min_w(px(72.0))
+                                        .px_2()
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .gap_1()
+                                        .rounded(px(7.0))
+                                        .border_1()
+                                        .border_color(rgb(LINE))
+                                        .bg(rgb(PANEL))
+                                        .text_color(rgb(SUBTEXT))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .cursor_pointer()
+                                        .when(!copied_feedback, |button| {
+                                            button.hover(|style| {
+                                                style
+                                                    .bg(rgb(INFO_SOFT))
+                                                    .border_color(rgb(INFO))
+                                                    .text_color(rgb(INFO))
+                                            })
+                                        })
+                                        .when(copied_feedback, |button| {
+                                            button
+                                                .bg(rgb(OK_SOFT))
+                                                .border_color(rgb(OK))
+                                                .text_color(rgb(OK))
+                                        })
+                                        .when(copy_is_focused, |button| {
+                                            button.border_color(rgb(INFO))
+                                        })
+                                        .on_action(cx.listener(Self::copy_response_body))
+                                        .on_mouse_up(
+                                            MouseButton::Left,
+                                            cx.listener(Self::click_copy_response_body),
+                                        )
+                                        .child(if copied_feedback { "✓" } else { "⧉" })
+                                        .child(
+                                            div()
+                                                .when(copied_feedback, |label| {
+                                                    label.debug_selector(|| {
+                                                        "response-copy-feedback".into()
+                                                    })
+                                                })
+                                                .child(if copied_feedback {
+                                                    "Copied"
+                                                } else {
+                                                    "Copy"
+                                                }),
+                                        ),
+                                )
+                            })
                             .child(
                                 div()
                                     .text_color(rgb(status_color))
