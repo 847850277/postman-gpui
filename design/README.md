@@ -2,6 +2,10 @@
 
 Each UI-function E2E issue owns exactly one Pencil design file.
 
+The normative layout, content-item, token, traceability, and validation rules
+are defined in [`SPEC.md`](SPEC.md). Start new work from
+[`templates/e2e-feature.pen`](templates/e2e-feature.pen).
+
 ## Naming
 
 ```text
@@ -20,6 +24,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 - Include both the implementable UI state and the request/response interaction contract in the file.
 - Add a `Design Artifact` link to the corresponding GitHub issue.
 - Update the existing issue file when the slice changes instead of creating untracked variants.
+- Run `cargo test --test design_artifacts` before handing off a design change.
 
 ## Current Mapping
 
