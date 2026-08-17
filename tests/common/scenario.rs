@@ -1,6 +1,6 @@
 use mockito::{Matcher, Mock, Server};
 use postman_gpui::{
-    app::{AuthorizationKind, BodyKind, ResponseState, WorkspaceViewModel},
+    app::{AuthorizationKind, BodyKind, RequestPane, ResponseState, WorkspaceViewModel},
     http::executor::RequestExecutor,
     models::{HttpMethod, Request, RequestBody},
 };
@@ -53,6 +53,8 @@ pub struct DraftSpec {
     pub path: String,
     #[serde(default)]
     pub params: Vec<KeyValueSpec>,
+    #[serde(default)]
+    pub precreate_param_rows: usize,
     #[serde(default)]
     pub headers: Vec<KeyValueSpec>,
     pub body: Option<String>,
@@ -297,6 +299,10 @@ fn apply_draft(
 
     workspace.set_method(parse_method(&draft.method)?);
     workspace.set_url(absolute_url(server_url, &draft.path)?);
+
+    for _ in 0..draft.precreate_param_rows {
+        workspace.commit_row_draft(RequestPane::Params);
+    }
 
     for param in &draft.params {
         workspace.upsert_param(&param.key, &param.value);

@@ -165,3 +165,80 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
     assert!(preview.bottom() <= ready.origin.y);
     assert!(ready.bottom() <= panel.bottom());
 }
+
+#[gpui::test]
+fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let initial_panel = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should render");
+    let initial_rows = cx
+        .debug_bounds("params-rows-scroll")
+        .expect("Params rows should render");
+    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(cx.debug_bounds("params-scrollbar").is_none());
+
+    workspace.update(cx, |workspace, cx| {
+        for _ in 0..3 {
+            workspace.append_param_row();
+        }
+        cx.notify();
+    });
+    cx.run_until_parked();
+
+    let grown_panel = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should grow");
+    let grown_rows = cx
+        .debug_bounds("params-rows-scroll")
+        .expect("Params rows should grow");
+    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_rows.size.height - initial_rows.size.height,
+        grown_panel.size.height - initial_panel.size.height
+    );
+
+    workspace.update(cx, |workspace, cx| {
+        for _ in 0..20 {
+            workspace.append_param_row();
+        }
+        cx.notify();
+    });
+    cx.run_until_parked();
+
+    let capped_panel = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should remain visible");
+    let response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should retain space");
+    let scrollbar = cx
+        .debug_bounds("params-scrollbar")
+        .expect("overflowing Params rows should expose a scrollbar");
+    let thumb = cx
+        .debug_bounds("params-scrollbar-thumb")
+        .expect("the Params scrollbar should expose its thumb");
+    assert!(capped_panel.size.height >= grown_panel.size.height);
+    assert!(capped_panel.size.height <= px(544.0));
+    assert!(response.size.height > px(0.0));
+    assert!(thumb.origin.y >= scrollbar.origin.y);
+    assert!(thumb.bottom() <= scrollbar.bottom());
+    assert!(thumb.size.height < scrollbar.size.height);
+
+    workspace.update(cx, |workspace, cx| {
+        workspace.append_param_row();
+        cx.notify();
+    });
+    cx.run_until_parked();
+    assert_eq!(
+        cx.debug_bounds("request-panel")
+            .expect("request panel should stay capped")
+            .size
+            .height,
+        capped_panel.size.height
+    );
+}

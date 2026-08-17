@@ -1,0 +1,3060 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "r72-q5061",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #72 - Multiple Query Parameter Rows",
+      "clip": true,
+      "width": 1600,
+      "height": 1680,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "r72-q5022",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-q5002",
+              "name": "Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "r72-q5001",
+                  "name": "Query Encoding Icon",
+                  "width": 34,
+                  "height": 34,
+                  "icon": "list-filter",
+                  "library": "lucide",
+                  "fill": "$accentVivid"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5011",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5008",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5004",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5003",
+                          "name": "Issue Badge Label",
+                          "fill": "$green",
+                          "content": "ISSUE #72 - HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-q5006",
+                      "name": "Baseline Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5005",
+                          "name": "Baseline Badge Label",
+                          "fill": "$blue",
+                          "content": "IMPLEMENTED E2E SLICE",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5007",
+                      "name": "Issue URL",
+                      "fill": "$blue",
+                      "content": "github.com/847850277/postman-gpui/issues/72",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5009",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Multiple Query Parameter Rows - GET /get",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5010",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Every Add appends one blank row. The panel grows through 6 visible rows; overflow keeps the height and exposes a vertical scrollbar.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5021",
+              "name": "Contract Snapshot",
+              "width": 410,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5015",
+                  "name": "Endpoint Row",
+                  "gap": 9,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5013",
+                      "name": "Method Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5012",
+                          "name": "Method Badge Label",
+                          "fill": "$green",
+                          "content": "GET",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5014",
+                      "name": "Endpoint",
+                      "fill": "$codeText",
+                      "content": "https://httpbingo.org/get?existing=1",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5020",
+                  "name": "Encoding Row",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5017",
+                      "name": "Space Encoding",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5016",
+                          "name": "Space Encoding Label",
+                          "fill": "$blue",
+                          "content": "Auto-grow · up to 6 visible",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-q5019",
+                      "name": "Unicode Encoding",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5018",
+                          "name": "Unicode Encoding Label",
+                          "fill": "$green",
+                          "content": "Visible scrollbar · rows unlimited",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r72-nMscc",
+          "name": "Application State - Multiple Query Parameter Rows",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-cfMUS",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 20,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-tEDf3",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-Zao6f",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-FmWNf",
+                          "name": "Logo Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-dXy0H",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-oDvex",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "r72-hG96G",
+                      "name": "Search Icon",
+                      "width": 17,
+                      "height": 17,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-IuJrd",
+                      "name": "Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests, history, and collections",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-XA2PQ",
+                  "name": "Header Actions",
+                  "width": 320,
+                  "gap": 12,
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-Po00c",
+                      "name": "Environment",
+                      "height": 36,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "r72-Ms8Dc",
+                          "name": "Environment Status",
+                          "fill": "$green",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-Zm1Yj",
+                          "name": "Environment Label",
+                          "fill": "$muted",
+                          "content": "No Environment",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "r72-jNYfS",
+                          "name": "Environment Arrow",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "r72-b1N7q",
+                      "name": "Settings",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "settings",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-vbOk2",
+              "name": "Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-TJqch",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    16,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-TjC9T",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-vkAiM",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "clock-3",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-S3pxZ",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-IB72Z",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-bEOmw",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-jeCMn",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "layout-grid",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-dgxol",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-UdvrK",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "cookie",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-KBGXk",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-ArKFc",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "settings-2",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-sDDkP",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    18,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-FPNqx",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-zLfsi",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 20,
+                          "fontWeight": "750"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "r72-dRigo",
+                          "name": "History Options",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "ellipsis",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-e0cWF7",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-DtCAI",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        11
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-HP2CF",
+                          "name": "History Search Icon",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-ZIWjT",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-d3PB5",
+                      "name": "History Date",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-GERUm",
+                      "name": "History · httpbingo.org/get",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "stroke": "#F2B89F",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-DkgIY",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panel",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-lsZ9P",
+                              "name": "History Method Label",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-OGBuD",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-P8ZkR",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/get",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-isdcL",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 · 483 ms · just now",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-oFzrS",
+                      "name": "History · httpbingo.org/post",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$panel",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-sACLC",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-eE0KY",
+                              "name": "History Method Label",
+                              "fill": "$accent",
+                              "content": "POST",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-y95xjO",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-mthWw",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/post",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-v83ld",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 · 1.0 KB",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-zOoSf",
+                      "name": "History · httpbingo.org/json",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$panel",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-Lx84Y",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-eisUY",
+                              "name": "History Method Label",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-OprGY",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-QmNvp",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/json",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-aS6QX",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 · yesterday",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-HAJHI",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-ZF9Kw",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-jiaQb",
+                          "name": "Active Request Tab",
+                          "height": 43,
+                          "stroke": "$accent",
+                          "strokeWidth": {
+                            "bottom": 2
+                          },
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-S4bm81",
+                              "name": "Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-lCJbE",
+                              "name": "Tab Title",
+                              "fill": "$text",
+                              "content": "httpbingo.org/get",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "650"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "r72-pl0qA",
+                              "name": "Close Tab",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-JqgZu",
+                          "name": "New Tab",
+                          "width": 34,
+                          "height": 34,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "r72-BHs4L",
+                              "name": "New Tab Icon",
+                              "width": 17,
+                              "height": 17,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-cPugt",
+                      "name": "Request Workspace",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-RtOMz",
+                          "name": "Request Bar",
+                          "width": "fill_container",
+                          "height": 46,
+                          "gap": 10,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r72-hLDNO",
+                              "name": "Method Selector · GET",
+                              "width": 120,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "stroke": "#A7DDBD",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                13
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r72-jTA4j",
+                                  "name": "Selected Method",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "r72-d7LSNd",
+                                  "name": "Method Menu Arrow",
+                                  "width": 15,
+                                  "height": 15,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-muWPW",
+                              "name": "Request URL",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 9,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 9,
+                              "padding": [
+                                0,
+                                13
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "r72-ISk3d",
+                                  "name": "Secure URL",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "lock",
+                                  "library": "lucide",
+                                  "fill": "$subtle"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r72-W3u8b",
+                                  "name": "URL Value",
+                                  "fill": "$text",
+                                  "content": "https://httpbingo.org/get?existing=1",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-NC7Q3",
+                                  "name": "Existing Query Badge",
+                                  "height": 24,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    0,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-VxYvB",
+                                      "name": "Existing Query Label",
+                                      "fill": "$blue",
+                                      "content": "1 in URL",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-R3aOOG",
+                              "name": "Send Button",
+                              "width": 110,
+                              "height": "fill_container",
+                              "fill": "$accentVivid",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r72-LymFG",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "750"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "r72-u314x",
+                                  "name": "Send Icon",
+                                  "width": 15,
+                                  "height": 15,
+                                  "icon": "send",
+                                  "library": "lucide",
+                                  "fill": "$accentInk"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-FY1Jy",
+                          "name": "Params Request Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 428,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r72-ZMUon",
+                              "name": "Request Subtabs",
+                              "width": "fill_container",
+                              "height": 44,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-D7ub4Y",
+                                  "name": "Request Tab · Params",
+                                  "height": 44,
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "bottom": 2
+                                  },
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-XtvSF",
+                                      "name": "Request Tab Label",
+                                      "fill": "$text",
+                                      "content": "Params",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-A9YmxV",
+                                  "name": "Request Tab · Authorization",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-b5Kxg",
+                                      "name": "Request Tab Label",
+                                      "fill": "$subtle",
+                                      "content": "Authorization",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-R3brTW",
+                                  "name": "Request Tab · Headers (0)",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-NwQrF",
+                                      "name": "Request Tab Label",
+                                      "fill": "$subtle",
+                                      "content": "Headers (0)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-NZMMn",
+                                  "name": "Request Tab · Body",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-dEykR",
+                                      "name": "Request Tab Label",
+                                      "fill": "$subtle",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-LN94f",
+                                  "name": "Request Tab · Scripts",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-fB8Ii",
+                                      "name": "Request Tab Label",
+                                      "fill": "$subtle",
+                                      "content": "Scripts",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-EiFHJ",
+                                  "name": "Request Tab · Tests",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-ilrZZ",
+                                      "name": "Request Tab Label",
+                                      "fill": "$subtle",
+                                      "content": "Tests",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-c1W6YK",
+                              "name": "Query Summary",
+                              "width": "fill_container",
+                              "height": 42,
+                              "fill": "$panel",
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-tJ9y0",
+                                  "name": "Query Summary Text",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-fPzvs",
+                                      "name": "Query Title",
+                                      "fill": "$text",
+                                      "content": "Query parameters",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 13,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-yKrBW",
+                                      "name": "Query Description",
+                                      "fill": "$muted",
+                                      "content": "8 rows stored · 3 visible here · scrollbar exposes overflow",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-T3ionp",
+                                  "name": "Enabled Count",
+                                  "height": 24,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 12,
+                                  "gap": 6,
+                                  "padding": [
+                                    0,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "r72-xlP01",
+                                      "name": "Enabled Dot",
+                                      "fill": "$green",
+                                      "width": 6,
+                                      "height": 6
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-Hwm7e",
+                                      "name": "Enabled Count Label",
+                                      "fill": "$green",
+                                      "content": "7 enabled / 1 disabled",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-Tn5bb",
+                              "name": "Parameter Table Header",
+                              "width": "fill_container",
+                              "height": 36,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "top": 1,
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-s82i04",
+                                  "name": "Enabled Header",
+                                  "width": 40,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-Y3bpQ",
+                                  "name": "Key Header",
+                                  "width": 310,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-TEql2",
+                                      "name": "Key Header Label",
+                                      "fill": "$muted",
+                                      "content": "KEY",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-L8hqrX",
+                                  "name": "Value Header",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-JAuE8",
+                                      "name": "Value Header Label",
+                                      "fill": "$muted",
+                                      "content": "VALUE",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-VQJpb",
+                                  "name": "Actions Header",
+                                  "width": 72,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-I8rfHa",
+                                      "name": "Actions Header Label",
+                                      "fill": "$muted",
+                                      "content": "ACTION",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-x6cPUO",
+                              "name": "Parameter Row · q",
+                              "width": "fill_container",
+                              "height": 54,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-H2JdL9",
+                                  "name": "Enabled Cell",
+                                  "width": 40,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-Z4Ve8r",
+                                      "name": "Enabled Checkbox",
+                                      "width": 18,
+                                      "height": 18,
+                                      "fill": "$blue",
+                                      "cornerRadius": 5,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-v2Eiu",
+                                          "name": "Checkbox Check",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "check",
+                                          "library": "lucide",
+                                          "fill": "#FFFCF8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-RLxQW",
+                                  "name": "Key Cell",
+                                  "width": 310,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-PKuKG",
+                                      "name": "Key Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-Q7Wb8",
+                                          "name": "Key Input Value",
+                                          "fill": "$text",
+                                          "content": "q",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-p6zrc",
+                                  "name": "Value Cell",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-dmFyC",
+                                      "name": "Value Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-wvVmz",
+                                          "name": "Value Input Value",
+                                          "fill": "$text",
+                                          "content": "rust gpui",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-P7cHw",
+                                  "name": "Action Cell",
+                                  "width": 72,
+                                  "height": "fill_container",
+                                  "stroke": "$blueSoft",
+                                  "strokeWidth": {
+                                    "right": 8
+                                  },
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-sHNBk",
+                                      "name": "Delete Parameter",
+                                      "width": 32,
+                                      "height": 32,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-DQwAG",
+                                          "name": "Delete Icon",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "trash-2",
+                                          "library": "lucide",
+                                          "fill": "$muted"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-b0WSE4",
+                              "name": "Parameter Row · locale",
+                              "width": "fill_container",
+                              "height": 54,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-E30n9",
+                                  "name": "Enabled Cell",
+                                  "width": 40,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-pjcTV",
+                                      "name": "Enabled Checkbox",
+                                      "width": 18,
+                                      "height": 18,
+                                      "fill": "$blue",
+                                      "cornerRadius": 5,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-VNV3i",
+                                          "name": "Checkbox Check",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "check",
+                                          "library": "lucide",
+                                          "fill": "#FFFCF8"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-Hnv0i",
+                                  "name": "Key Cell",
+                                  "width": 310,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-IN7oh",
+                                      "name": "Key Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-N8LZh",
+                                          "name": "Key Input Value",
+                                          "fill": "$text",
+                                          "content": "locale",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-tt7WX",
+                                  "name": "Value Cell",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-hr7S9",
+                                      "name": "Value Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 2,
+                                      "effect": {
+                                        "type": "shadow",
+                                        "shadowType": "outer",
+                                        "color": "#2563EB1F",
+                                        "spread": 3
+                                      },
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-WPOOi",
+                                          "name": "Value Input Value",
+                                          "fill": "$text",
+                                          "content": "中文",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        },
+                                        {
+                                          "type": "rectangle",
+                                          "id": "r72-lNM15",
+                                          "name": "Text Caret",
+                                          "fill": "$blue",
+                                          "width": 1,
+                                          "height": 19
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-zDgc3",
+                                  "name": "Action Cell",
+                                  "width": 72,
+                                  "height": "fill_container",
+                                  "stroke": "$blue",
+                                  "strokeWidth": {
+                                    "right": 8
+                                  },
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-so1sG",
+                                      "name": "Delete Parameter",
+                                      "width": 32,
+                                      "height": 32,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-RlnD5",
+                                          "name": "Delete Icon",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "trash-2",
+                                          "library": "lucide",
+                                          "fill": "$muted"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-limit72-001",
+                              "name": "Parameter Row - limit (disabled)",
+                              "width": "fill_container",
+                              "height": 54,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-limit72-002",
+                                  "name": "Enabled Cell",
+                                  "width": 40,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-limit72-003",
+                                      "name": "Disabled Checkbox",
+                                      "width": 18,
+                                      "height": 18,
+                                      "fill": "$panel",
+                                      "cornerRadius": 5,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "justifyContent": "center",
+                                      "alignItems": "center"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-limit72-005",
+                                  "name": "Key Cell",
+                                  "width": 310,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-limit72-006",
+                                      "name": "Key Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-limit72-007",
+                                          "name": "Key Input Value",
+                                          "fill": "$subtle",
+                                          "content": "limit",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-limit72-008",
+                                  "name": "Value Cell",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-limit72-009",
+                                      "name": "Value Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 2,
+                                      "padding": [
+                                        0,
+                                        11
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r72-limit72-010",
+                                          "name": "Value Input Value",
+                                          "fill": "$subtle",
+                                          "content": "20",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-limit72-012",
+                                  "name": "Action Cell",
+                                  "width": 72,
+                                  "height": "fill_container",
+                                  "stroke": "$blueSoft",
+                                  "strokeWidth": {
+                                    "right": 8
+                                  },
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-limit72-013",
+                                      "name": "Delete Parameter",
+                                      "width": 32,
+                                      "height": 32,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-limit72-014",
+                                          "name": "Delete Icon",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "trash-2",
+                                          "library": "lucide",
+                                          "fill": "$muted"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-y31WUd",
+                              "name": "Add Parameter Bar",
+                              "width": "fill_container",
+                              "height": 42,
+                              "fill": "$blueSoft",
+                              "stroke": "$blue",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-c0Igas",
+                                  "name": "Add Parameter",
+                                  "height": 28,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "r72-zx0ys",
+                                      "name": "Add Parameter Icon",
+                                      "width": 14,
+                                      "height": 14,
+                                      "icon": "plus",
+                                      "library": "lucide",
+                                      "fill": "$muted"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-JJ9iO",
+                                      "name": "Add Parameter Label",
+                                      "fill": "$text",
+                                      "content": "Add another parameter row",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r72-dG8sc",
+                                  "name": "Autosave Hint",
+                                  "fill": "$muted",
+                                  "content": "Click repeatedly - blank rows persist independently",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-d9HEzA",
+                              "name": "Effective URL Preview",
+                              "width": "fill_container",
+                              "height": 66,
+                              "fill": "$blueSoft",
+                              "stroke": "#A9D7E1",
+                              "strokeWidth": {
+                                "top": 1,
+                                "bottom": 1
+                              },
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "r72-t0KJfH",
+                                  "name": "Effective URL Icon",
+                                  "width": 17,
+                                  "height": 17,
+                                  "icon": "link",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-Y982tG",
+                                  "name": "Effective URL Text",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 5,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-KRU5w",
+                                      "name": "Effective URL Label",
+                                      "fill": "$blue",
+                                      "content": "EFFECTIVE URL",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-LCY9U",
+                                      "name": "Encoded URL",
+                                      "fill": "$text",
+                                      "content": "https://httpbingo.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-PlNSA",
+                                  "name": "Encoded Badge",
+                                  "height": 24,
+                                  "fill": "$panel",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    0,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-UMlGi",
+                                      "name": "Encoded Badge Label",
+                                      "fill": "$blue",
+                                      "content": "encoded",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-QN1N8",
+                              "name": "Immediate Persistence Status",
+                              "width": "fill_container",
+                              "height": 36,
+                              "fill": "$panel",
+                              "gap": 7,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "r72-Xns1T",
+                                  "name": "Ready Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "circle-check",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r72-v6juT",
+                                  "name": "Ready Message",
+                                  "fill": "$muted",
+                                  "content": "8 rows stored in ViewModel - scroll to reach every independent row",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "550"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-X3zb82",
+                          "name": "HTTPBingo Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 328,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r72-hjs1c",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-NyuhE",
+                                  "name": "Response Navigation",
+                                  "gap": 18,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-ic3r9",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 14,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-kClZ0",
+                                      "name": "Response Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-ypPz6",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$subtle",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-vFGer",
+                                  "name": "Response Metrics",
+                                  "gap": 14,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-iIscJ",
+                                      "name": "HTTP Status",
+                                      "height": 24,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 12,
+                                      "gap": 5,
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-YzDpl",
+                                          "name": "Status Check",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "circle-check",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r72-d4BTMF",
+                                          "name": "Status Label",
+                                          "fill": "$green",
+                                          "content": "200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-uC5lb",
+                                      "name": "Response Time",
+                                      "fill": "$muted",
+                                      "content": "483 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-kMS4f",
+                                      "name": "Response Size",
+                                      "fill": "$muted",
+                                      "content": "1.0 KB",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-gAJ3I",
+                              "name": "Response Body",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-ebjmo",
+                                  "name": "HTTPBingo Echo Bar",
+                                  "width": "fill_container",
+                                  "height": 36,
+                                  "fill": "$panelAlt",
+                                  "stroke": "$line",
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    0,
+                                    16
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-RRClN",
+                                      "name": "Echo Source",
+                                      "gap": 7,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "r72-GcIW5",
+                                          "name": "Echo Live Dot",
+                                          "fill": "$green",
+                                          "width": 7,
+                                          "height": 7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r72-t1Nin",
+                                          "name": "Echo Label",
+                                          "fill": "$green",
+                                          "content": "HTTPBingo echo",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-D0wnn",
+                                      "name": "Echo Scope",
+                                      "fill": "$muted",
+                                      "content": "stable subset",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-YxnTC",
+                                  "name": "Response JSON",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$panel",
+                                  "padding": [
+                                    16,
+                                    18
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-d0ya8b",
+                                      "name": "HTTPBingo JSON Body",
+                                      "fill": "$text",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "{\n  \"args\": {\n    \"existing\": [\"1\"],\n    \"q\": [\"rust gpui\"],\n    \"locale\": [\"中文\"]\n  },\n  \"method\": \"GET\",\n  \"url\": \"https://httpbingo.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87\"\n}",
+                                      "lineHeight": 1.55,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "450"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r72-q5060",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-q5030",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [
+                0,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5024",
+                  "name": "Contract Icon Surface",
+                  "width": 42,
+                  "height": 42,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "r72-q5023",
+                      "name": "Contract Icon",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "list-checks",
+                      "library": "lucide",
+                      "fill": "$green"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5027",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r72-q5025",
+                      "name": "Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #72 - implemented E2E contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5026",
+                      "name": "Contract Paths",
+                      "fill": "$line",
+                      "content": "tests/cases/httpbingo/query_params.json · tests/ui_send.rs · tests/ui_layout.rs · design/issue-0072-multiple-query-parameter-rows.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5029",
+                  "name": "Public E2E Badge",
+                  "height": 30,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 8,
+                  "padding": [
+                    0,
+                    9
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r72-q5028",
+                      "name": "Public E2E Badge Label",
+                      "fill": "$accentInk",
+                      "content": "PUBLIC PR E2E",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5056",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5038",
+                  "name": "Scenario Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5033",
+                      "name": "Scenario Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5031",
+                          "name": "Scenario Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "route",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5032",
+                          "name": "Scenario Column Title",
+                          "fill": "$text",
+                          "content": "Real UI scenario",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5034",
+                      "name": "Scenario Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "01  Open GET https://httpbingo.org/get?existing=1.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5035",
+                      "name": "Scenario Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "02  Click Add Parameter repeatedly until eight rows exist; verify the visible scrollbar while the panel remains capped.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5036",
+                      "name": "Scenario Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "03  Enter q=rust gpui, locale=中文, limit=20; disable limit; click Send while locale is active.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5037",
+                      "name": "Scenario Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "04  Verify URL order, HTTPBingo args, omitted limit, response, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5047",
+                  "name": "Assertions Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5041",
+                      "name": "Assertions Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5039",
+                          "name": "Assertions Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "badge-check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5040",
+                          "name": "Assertions Column Title",
+                          "fill": "$text",
+                          "content": "Contract assertions",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5042",
+                      "name": "Assertions Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  The panel grows through six visible rows; overflow exposes a vertical scrollbar without limiting rows.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5043",
+                      "name": "Assertions Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  Each row owns independent key, value, enabled state, and delete action.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5044",
+                      "name": "Assertions Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  q and locale remain ordered and encoded; disabled limit is omitted.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5045",
+                      "name": "Assertions Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  Active edits are already present in the ViewModel before Send.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5046",
+                      "name": "Assertions Column Item 5",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  HTTPBingo, ResponseState, rendered View, and History agree.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5055",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5050",
+                      "name": "Boundary Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5048",
+                          "name": "Boundary Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "shield-check",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5049",
+                          "name": "Boundary Column Title",
+                          "fill": "$text",
+                          "content": "Slice boundaries",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5051",
+                      "name": "Boundary Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED - repeated Add, unlimited blank rows, adaptive height, visible overflow scrollbar, per-row editing, toggle, delete, URL projection, response, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5052",
+                      "name": "Boundary Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INTERACTION - Add never overwrites another row; Send needs no Enter, Tab, blur, or final Add.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5053",
+                      "name": "Boundary Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NOT IN THIS SLICE - drag reorder, duplicate-key policy, arrays, environment substitution, or bulk import.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5054",
+                      "name": "Boundary Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Parent roadmap #50 - extends query encoding #51 - HTTPBingo E2E #72.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5059",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "r72-q5057",
+                  "name": "One-to-One Icon",
+                  "width": 17,
+                  "height": 17,
+                  "icon": "link-2",
+                  "library": "lucide",
+                  "fill": "$accentInk"
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5058",
+                  "name": "One-to-One Label",
+                  "fill": "$accentInk",
+                  "content": "ISSUE #72 - ONE HTTPBINGO E2E SLICE - issue-0072-multiple-query-parameter-rows.pen",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "72c44bb2-b0aa-4c2b-8eb8-a72db9959221"
+}

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gpui::{Modifiers, MouseButton, VisualTestContext};
+use gpui::{point, px, Modifiers, MouseButton, ScrollDelta, ScrollWheelEvent, VisualTestContext};
 
 pub fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), String> {
     let bounds = cx
@@ -43,6 +43,40 @@ pub fn replace_text(
     click(cx, selector)?;
     cx.simulate_keystrokes("cmd-a");
     cx.simulate_input(value);
+    Ok(())
+}
+
+pub fn scroll_down(
+    cx: &mut VisualTestContext,
+    selector: &'static str,
+    pixels: f32,
+) -> Result<(), String> {
+    let bounds = cx
+        .debug_bounds(selector)
+        .ok_or_else(|| format!("application scroll area `{selector}` is not rendered"))?;
+    cx.simulate_event(ScrollWheelEvent {
+        position: bounds.center(),
+        delta: ScrollDelta::Pixels(point(px(0.0), px(-pixels))),
+        ..Default::default()
+    });
+    let _ = cx.debug_bounds(selector);
+    Ok(())
+}
+
+pub fn scroll_up(
+    cx: &mut VisualTestContext,
+    selector: &'static str,
+    pixels: f32,
+) -> Result<(), String> {
+    let bounds = cx
+        .debug_bounds(selector)
+        .ok_or_else(|| format!("application scroll area `{selector}` is not rendered"))?;
+    cx.simulate_event(ScrollWheelEvent {
+        position: bounds.center(),
+        delta: ScrollDelta::Pixels(point(px(0.0), px(pixels))),
+        ..Default::default()
+    });
+    let _ = cx.debug_bounds(selector);
     Ok(())
 }
 

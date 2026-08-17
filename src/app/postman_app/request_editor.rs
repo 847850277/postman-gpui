@@ -1,9 +1,119 @@
 use super::*;
 
+const REQUEST_PANEL_BASE_HEIGHT: f32 = 360.0;
+const PARAM_ROWS_AT_BASE_HEIGHT: usize = 2;
+const PARAM_ROW_PITCH: f32 = 46.0;
+const PARAM_PANEL_MAX_VISIBLE_ROWS: usize = 6;
+const REQUEST_EDITOR_RESERVED_HEIGHT: f32 = 400.0;
+
 #[derive(Clone, Debug)]
 pub(super) enum RequestEditorEvent {
     Execute(PendingRequest),
     Abort(SendId),
+}
+
+#[derive(Clone, Debug)]
+enum ParamRowEditorEvent {
+    KeyChanged { index: usize, value: String },
+    ValueChanged { index: usize, value: String },
+    SubmitRequested,
+}
+
+/// Editing buffers for one persistent Params row. Business values remain in the ViewModel;
+/// these entities only retain cursor and selection state.
+struct ParamRowEditor {
+    index: usize,
+    key_input: Entity<HeaderInput>,
+    value_input: Entity<HeaderInput>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl ParamRowEditor {
+    fn new(index: usize, row: KeyValueRow, cx: &mut Context<Self>) -> Self {
+        let KeyValueRow { key, value, .. } = row;
+        let key_input = cx.new(|cx| {
+            let mut input = HeaderInput::new(cx).with_placeholder("Key");
+            input.project_content(key, cx);
+            input
+        });
+        let value_input = cx.new(|cx| {
+            let mut input = HeaderInput::new(cx).with_placeholder("Value");
+            input.project_content(value, cx);
+            input
+        });
+        let subscriptions = vec![
+            cx.subscribe(&key_input, Self::on_key_event),
+            cx.subscribe(&value_input, Self::on_value_event),
+        ];
+        Self {
+            index,
+            key_input,
+            value_input,
+            _subscriptions: subscriptions,
+        }
+    }
+
+    fn on_key_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            HeaderInputEvent::ValueChanged(value) => cx.emit(ParamRowEditorEvent::KeyChanged {
+                index: self.index,
+                value: value.clone(),
+            }),
+            HeaderInputEvent::SubmitRequested => cx.emit(ParamRowEditorEvent::SubmitRequested),
+        }
+    }
+
+    fn on_value_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            HeaderInputEvent::ValueChanged(value) => cx.emit(ParamRowEditorEvent::ValueChanged {
+                index: self.index,
+                value: value.clone(),
+            }),
+            HeaderInputEvent::SubmitRequested => cx.emit(ParamRowEditorEvent::SubmitRequested),
+        }
+    }
+}
+
+impl EventEmitter<ParamRowEditorEvent> for ParamRowEditor {}
+
+impl Render for ParamRowEditor {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let key_selector = format!("param-row-key-input-{}", self.index);
+        let value_selector = format!("param-row-value-input-{}", self.index);
+        div()
+            .h_full()
+            .flex_1()
+            .min_w_0()
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(
+                div()
+                    .debug_selector(move || key_selector.clone())
+                    .h_full()
+                    .flex_1()
+                    .min_w_0()
+                    .child(self.key_input.clone()),
+            )
+            .child(
+                div()
+                    .debug_selector(move || value_selector.clone())
+                    .h_full()
+                    .flex_1()
+                    .min_w_0()
+                    .child(self.value_input.clone()),
+            )
+    }
 }
 
 /// Request-workspace child view. It owns editor entities, their subscriptions, and one-way
@@ -13,6 +123,9 @@ pub(super) struct RequestEditor {
     pub(super) method_selector: Entity<MethodSelector>,
     pub(super) url_input: Entity<UrlInput>,
     body_input: Entity<BodyInput>,
+    param_row_editors: Vec<Entity<ParamRowEditor>>,
+    param_row_subscriptions: Vec<Subscription>,
+    param_rows_scroll_handle: ScrollHandle,
     row_key_input: Entity<HeaderInput>,
     row_value_input: Entity<HeaderInput>,
     authorization_input: Entity<HeaderInput>,
@@ -76,11 +189,14 @@ impl RequestEditor {
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
-        let editor = Self {
+        let mut editor = Self {
             view_model,
             method_selector,
             url_input,
             body_input,
+            param_row_editors: Vec::new(),
+            param_row_subscriptions: Vec::new(),
+            param_rows_scroll_handle: ScrollHandle::new(),
             row_key_input,
             row_value_input,
             authorization_input,
@@ -107,6 +223,41 @@ impl RequestEditor {
         })
     }
 
+    fn rebuild_param_row_editors(&mut self, cx: &mut Context<Self>) {
+        let rows = self.view_model.read(cx).params().to_vec();
+        self.param_row_editors.clear();
+        self.param_row_subscriptions.clear();
+        for (index, row) in rows.into_iter().enumerate() {
+            let editor = cx.new(|cx| ParamRowEditor::new(index, row, cx));
+            let subscription = cx.subscribe(&editor, Self::on_param_row_event);
+            self.param_row_editors.push(editor);
+            self.param_row_subscriptions.push(subscription);
+        }
+    }
+
+    fn on_param_row_event(
+        &mut self,
+        _editor: Entity<ParamRowEditor>,
+        event: &ParamRowEditorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ParamRowEditorEvent::KeyChanged { index, value } => {
+                self.update_view_model(cx, |view_model| {
+                    view_model.set_param_key(*index, value.clone())
+                });
+                self.project_url(cx);
+            }
+            ParamRowEditorEvent::ValueChanged { index, value } => {
+                self.update_view_model(cx, |view_model| {
+                    view_model.set_param_value(*index, value.clone())
+                });
+                self.project_url(cx);
+            }
+            ParamRowEditorEvent::SubmitRequested => self.add_current_row(cx),
+        }
+    }
+
     fn on_method_changed(
         &mut self,
         _selector: Entity<MethodSelector>,
@@ -127,6 +278,7 @@ impl RequestEditor {
         match event {
             UrlInputEvent::UrlChanged(url) => {
                 self.update_view_model(cx, |view_model| view_model.set_url(url));
+                self.rebuild_param_row_editors(cx);
                 self.project_row_draft(cx);
             }
             UrlInputEvent::SubmitRequested => self.click_send(cx),
@@ -313,9 +465,9 @@ impl RequestEditor {
         let request_pane = self.view_model.read(cx).request_pane();
         match request_pane {
             RequestPane::Params => {
-                self.update_view_model(cx, |view_model| {
-                    view_model.commit_row_draft(RequestPane::Params)
-                });
+                self.update_view_model(cx, |view_model| view_model.append_param_row());
+                self.rebuild_param_row_editors(cx);
+                self.param_rows_scroll_handle.scroll_to_bottom();
                 self.project_url(cx);
             }
             RequestPane::Headers => {
@@ -338,6 +490,7 @@ impl RequestEditor {
 
     fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.remove_param(index));
+        self.rebuild_param_row_editors(cx);
         self.project_url(cx);
     }
 
@@ -415,9 +568,10 @@ impl RequestEditor {
 
     /// One-way VM -> editor projection. Editor buffers retain cursor/selection state, but they
     /// never participate in request construction.
-    fn project_active_request(&self, cx: &mut Context<Self>) {
+    fn project_active_request(&mut self, cx: &mut Context<Self>) {
         self.project_method(cx);
         self.project_url(cx);
+        self.rebuild_param_row_editors(cx);
         self.project_row_draft(cx);
         self.project_body(cx);
         self.project_authorization(cx);
@@ -527,10 +681,20 @@ impl RequestEditor {
         });
     }
 
-    pub(super) fn render_request_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_request_panel(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let request_pane = self.view_model.read(cx).request_pane();
+        let visible_param_rows = self.view_model.read(cx).visible_param_row_count();
+        let panel_height = adaptive_request_panel_height(
+            request_pane,
+            visible_param_rows,
+            window.viewport_size().height.as_f32(),
+        );
         let editor = match request_pane {
-            RequestPane::Params => self.render_params_editor(cx),
+            RequestPane::Params => self.render_params_editor(panel_height, cx),
             RequestPane::Authorization => self.render_authorization_editor(cx),
             RequestPane::Headers => {
                 let rows = self.view_model.read(cx).headers().to_vec();
@@ -559,7 +723,7 @@ impl RequestEditor {
 
         div()
             .debug_selector(|| "request-panel".into())
-            .h(px(360.0))
+            .h(px(panel_height))
             .flex_none()
             .flex()
             .flex_col()
@@ -767,8 +931,13 @@ impl RequestEditor {
             .into_any_element()
     }
 
-    pub(super) fn render_params_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let (rows, draft_key, enabled_count, effective_url) = {
+    pub(super) fn render_params_editor(
+        &self,
+        panel_height: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let row_editors = self.param_row_editors.clone();
+        let (rows, draft_key, visible_row_count, enabled_count, effective_url) = {
             let view_model = self.view_model.read(cx);
             let (draft_key, _) = view_model
                 .row_draft(RequestPane::Params)
@@ -776,11 +945,24 @@ impl RequestEditor {
             (
                 view_model.params().to_vec(),
                 draft_key.to_string(),
+                view_model.visible_param_row_count(),
                 view_model.enabled_param_count(),
                 view_model.effective_url(),
             )
         };
         let draft_enabled = !draft_key.trim().is_empty();
+        let draft_index = visible_row_count - 1;
+        let draft_row_selector = format!("param-row-{draft_index}");
+        let draft_key_selector = format!("param-row-key-input-{draft_index}");
+        let draft_value_selector = format!("param-row-value-input-{draft_index}");
+        let visible_capacity = visible_param_capacity(panel_height);
+        let show_scrollbar = visible_row_count > visible_capacity;
+        let scrollbar = param_scrollbar_geometry(
+            visible_row_count,
+            visible_capacity,
+            self.param_rows_scroll_handle.offset().y.as_f32(),
+            self.param_rows_scroll_handle.max_offset().y.as_f32(),
+        );
 
         div()
             .flex_1()
@@ -864,139 +1046,186 @@ impl RequestEditor {
             )
             .child(
                 div()
-                    .id("params-rows-scroll")
                     .flex_1()
                     .min_h_0()
                     .flex()
-                    .flex_col()
-                    .gap_2()
-                    .p_3()
-                    .overflow_scroll()
-                    .children(rows.iter().enumerate().map(|(index, row)| {
-                        let is_enabled = row.enabled;
-                        let toggle_selector = format!("param-row-toggle-{index}");
-                        div()
-                            .h(px(38.0))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .font_family(FONT_MONO)
-                            .text_size(px(12.0))
-                            .child(
-                                div()
-                                    .debug_selector(move || toggle_selector.clone())
-                                    .size(px(18.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .border_color(rgb(if is_enabled { INFO } else { LINE }))
-                                    .bg(rgb(if is_enabled { INFO } else { PANEL }))
-                                    .text_color(rgb(PANEL))
-                                    .cursor_pointer()
-                                    .child(if is_enabled { "✓" } else { "" })
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, _, cx| {
-                                            this.toggle_param(index, cx)
-                                        }),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .h_full()
-                                    .flex_1()
-                                    .flex()
-                                    .items_center()
-                                    .px_3()
-                                    .rounded_lg()
-                                    .border_1()
-                                    .border_color(rgb(LINE))
-                                    .bg(rgb(PANEL))
-                                    .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
-                                    .child(row.key.clone()),
-                            )
-                            .child(
-                                div()
-                                    .h_full()
-                                    .flex_1()
-                                    .flex()
-                                    .items_center()
-                                    .px_3()
-                                    .rounded_lg()
-                                    .border_1()
-                                    .border_color(rgb(LINE))
-                                    .bg(rgb(PANEL))
-                                    .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
-                                    .child(row.value.clone()),
-                            )
-                            .child(
-                                div()
-                                    .w(px(56.0))
-                                    .h(px(32.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_lg()
-                                    .cursor_pointer()
-                                    .text_color(rgb(MUTED))
-                                    .hover(|style| {
-                                        style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ERROR))
-                                    })
-                                    .child("×")
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, _, cx| {
-                                            this.remove_param(index, cx)
-                                        }),
-                                    ),
-                            )
-                    }))
+                    .relative()
                     .child(
                         div()
-                            .h(px(38.0))
-                            .flex_none()
+                            .id("params-rows-scroll")
+                            .debug_selector(|| "params-rows-scroll".into())
+                            .flex_1()
+                            .min_h_0()
                             .flex()
-                            .items_center()
+                            .flex_col()
                             .gap_2()
+                            .p_3()
+                            .when(show_scrollbar, |this| this.pr(px(22.0)))
+                            .overflow_y_scroll()
+                            .track_scroll(&self.param_rows_scroll_handle)
+                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                            .children(rows.into_iter().zip(row_editors).enumerate().map(
+                                |(index, (row, row_editor))| {
+                                    let is_enabled = row.enabled;
+                                    let row_selector = format!("param-row-{index}");
+                                    let toggle_selector = format!("param-row-toggle-{index}");
+                                    let delete_selector = format!("param-row-delete-{index}");
+                                    div()
+                                        .debug_selector(move || row_selector.clone())
+                                        .h(px(38.0))
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .font_family(FONT_MONO)
+                                        .text_size(px(12.0))
+                                        .child(
+                                            div()
+                                                .debug_selector(move || toggle_selector.clone())
+                                                .size(px(18.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_sm()
+                                                .border_1()
+                                                .border_color(rgb(if is_enabled {
+                                                    INFO
+                                                } else {
+                                                    LINE
+                                                }))
+                                                .bg(rgb(if is_enabled { INFO } else { PANEL }))
+                                                .text_color(rgb(PANEL))
+                                                .cursor_pointer()
+                                                .child(if is_enabled { "✓" } else { "" })
+                                                .on_mouse_up(
+                                                    gpui::MouseButton::Left,
+                                                    cx.listener(move |this, _, _, cx| {
+                                                        this.toggle_param(index, cx)
+                                                    }),
+                                                ),
+                                        )
+                                        .child(row_editor)
+                                        .child(
+                                            div()
+                                                .debug_selector(move || delete_selector.clone())
+                                                .w(px(56.0))
+                                                .h(px(32.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_lg()
+                                                .cursor_pointer()
+                                                .text_color(rgb(MUTED))
+                                                .hover(|style| {
+                                                    style
+                                                        .bg(rgb(ACCENT_SOFT))
+                                                        .text_color(rgb(ERROR))
+                                                })
+                                                .child("×")
+                                                .on_mouse_up(
+                                                    gpui::MouseButton::Left,
+                                                    cx.listener(move |this, _, _, cx| {
+                                                        this.remove_param(index, cx)
+                                                    }),
+                                                ),
+                                        )
+                                },
+                            ))
                             .child(
                                 div()
-                                    .debug_selector(|| "params-draft-toggle".into())
-                                    .size(px(18.0))
+                                    .debug_selector(move || draft_row_selector.clone())
+                                    .h(px(38.0))
+                                    .flex_none()
                                     .flex()
                                     .items_center()
-                                    .justify_center()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .border_color(rgb(if draft_enabled { INFO } else { LINE }))
-                                    .bg(rgb(if draft_enabled { INFO } else { PANEL }))
-                                    .text_color(rgb(PANEL))
-                                    .child(if draft_enabled { "✓" } else { "" }),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "row-key-input".into())
-                                    .h_full()
-                                    .flex_1()
-                                    .child(self.row_key_input.clone()),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "row-value-input".into())
-                                    .h_full()
-                                    .flex_1()
-                                    .child(self.row_value_input.clone()),
-                            )
-                            .child(div().w(px(56.0)).h(px(32.0))),
+                                    .gap_2()
+                                    .child(
+                                        div()
+                                            .debug_selector(|| "params-draft-toggle".into())
+                                            .size(px(18.0))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_sm()
+                                            .border_1()
+                                            .border_color(rgb(if draft_enabled {
+                                                INFO
+                                            } else {
+                                                LINE
+                                            }))
+                                            .bg(rgb(if draft_enabled { INFO } else { PANEL }))
+                                            .text_color(rgb(PANEL))
+                                            .child(if draft_enabled { "✓" } else { "" }),
+                                    )
+                                    .child(
+                                        div()
+                                            .debug_selector(move || draft_key_selector.clone())
+                                            .h_full()
+                                            .flex_1()
+                                            .child(
+                                                div()
+                                                    .debug_selector(|| "row-key-input".into())
+                                                    .h_full()
+                                                    .child(self.row_key_input.clone()),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .debug_selector(move || draft_value_selector.clone())
+                                            .h_full()
+                                            .flex_1()
+                                            .child(
+                                                div()
+                                                    .debug_selector(|| "row-value-input".into())
+                                                    .h_full()
+                                                    .child(self.row_value_input.clone()),
+                                            ),
+                                    )
+                                    .child(div().w(px(56.0)).h(px(32.0))),
+                            ),
                     )
+                    .when_some(scrollbar, |this, scrollbar| {
+                        this.child(
+                            div()
+                                .debug_selector(|| "params-scrollbar".into())
+                                .absolute()
+                                .top(px(8.0))
+                                .right(px(5.0))
+                                .bottom(px(8.0))
+                                .w(px(8.0))
+                                .rounded_full()
+                                .bg(rgb(PANEL_ALT))
+                                .border_1()
+                                .border_color(rgb(LINE))
+                                .child(
+                                    div()
+                                        .debug_selector(|| "params-scrollbar-thumb".into())
+                                        .absolute()
+                                        .top(relative(scrollbar.thumb_top))
+                                        .w_full()
+                                        .h(relative(scrollbar.thumb_height))
+                                        .rounded_full()
+                                        .bg(rgb(INFO)),
+                                ),
+                        )
+                    }),
+            )
+            .child(
+                div()
+                    .h(px(44.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .px_3()
+                    .border_t_1()
+                    .border_color(rgb(LINE))
+                    .bg(rgb(PANEL))
                     .child(
                         div()
                             .debug_selector(|| "add-row-button".into())
                             .h(px(32.0))
+                            .w_full()
                             .px_3()
-                            .flex_none()
                             .flex()
                             .items_center()
                             .rounded_lg()
@@ -1416,7 +1645,7 @@ impl RequestEditor {
 }
 
 impl Render for RequestEditor {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex_1()
             .min_w_0()
@@ -1434,7 +1663,7 @@ impl Render for RequestEditor {
                     .gap_3()
                     .p_3()
                     .child(self.render_request_head(cx))
-                    .child(self.render_request_panel(cx))
+                    .child(self.render_request_panel(window, cx))
                     .child(
                         div()
                             .id("response-container")
@@ -1445,6 +1674,63 @@ impl Render for RequestEditor {
                     ),
             )
     }
+}
+
+fn adaptive_request_panel_height(
+    pane: RequestPane,
+    visible_param_rows: usize,
+    viewport_height: f32,
+) -> f32 {
+    if pane != RequestPane::Params {
+        return REQUEST_PANEL_BASE_HEIGHT;
+    }
+
+    let expandable_rows = PARAM_PANEL_MAX_VISIBLE_ROWS - PARAM_ROWS_AT_BASE_HEIGHT;
+    let added_rows = visible_param_rows
+        .saturating_sub(PARAM_ROWS_AT_BASE_HEIGHT)
+        .min(expandable_rows);
+    let desired_height = REQUEST_PANEL_BASE_HEIGHT + PARAM_ROW_PITCH * added_rows as f32;
+    let maximum_height = REQUEST_PANEL_BASE_HEIGHT + PARAM_ROW_PITCH * expandable_rows as f32;
+    let viewport_height = (viewport_height - REQUEST_EDITOR_RESERVED_HEIGHT)
+        .clamp(REQUEST_PANEL_BASE_HEIGHT, maximum_height);
+
+    desired_height.min(viewport_height)
+}
+
+fn visible_param_capacity(panel_height: f32) -> usize {
+    let additional_rows = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH)
+        .max(0.0)
+        .floor() as usize;
+    (PARAM_ROWS_AT_BASE_HEIGHT + additional_rows).min(PARAM_PANEL_MAX_VISIBLE_ROWS)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct ParamScrollbarGeometry {
+    thumb_top: f32,
+    thumb_height: f32,
+}
+
+fn param_scrollbar_geometry(
+    visible_rows: usize,
+    visible_capacity: usize,
+    offset_y: f32,
+    max_offset_y: f32,
+) -> Option<ParamScrollbarGeometry> {
+    if visible_rows <= visible_capacity || visible_capacity == 0 {
+        return None;
+    }
+
+    let thumb_height = (visible_capacity as f32 / visible_rows as f32).clamp(0.18, 0.9);
+    let progress = if max_offset_y > 0.0 {
+        (-offset_y / max_offset_y).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+
+    Some(ParamScrollbarGeometry {
+        thumb_top: progress * (1.0 - thumb_height),
+        thumb_height,
+    })
 }
 
 fn body_type_from_kind(kind: BodyKind) -> BodyType {
@@ -1462,6 +1748,50 @@ mod tests {
     use crate::models::HttpMethod;
     use gpui::{AppContext, TestAppContext};
     use mockito::Matcher;
+
+    #[test]
+    fn params_panel_grows_by_row_then_caps_for_scrolling() {
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 1, 980.0),
+            360.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 2, 980.0),
+            360.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 3, 980.0),
+            406.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 6, 980.0),
+            544.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 30, 980.0),
+            544.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Params, 6, 820.0),
+            420.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Headers, 30, 980.0),
+            360.0
+        );
+
+        assert_eq!(visible_param_capacity(360.0), 2);
+        assert_eq!(visible_param_capacity(406.0), 3);
+        assert_eq!(visible_param_capacity(544.0), 6);
+        assert_eq!(param_scrollbar_geometry(6, 6, 0.0, 0.0), None);
+        assert_eq!(
+            param_scrollbar_geometry(12, 6, -100.0, 200.0),
+            Some(ParamScrollbarGeometry {
+                thumb_top: 0.25,
+                thumb_height: 0.5,
+            })
+        );
+    }
 
     #[gpui::test]
     fn send_command_is_built_only_from_the_view_model(cx: &mut TestAppContext) {

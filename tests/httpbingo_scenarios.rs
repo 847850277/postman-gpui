@@ -11,7 +11,7 @@ use common::scenario::{
 use gpui::{AppContext, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::app::{KeyValueRow, PostmanApp, WorkspaceViewModel};
 use std::path::{Path, PathBuf};
-use ui::{choose_method, click, type_into};
+use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
@@ -31,6 +31,42 @@ const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-13",
     "param-row-toggle-14",
     "param-row-toggle-15",
+];
+const PARAM_KEY_SELECTORS: [&str; 16] = [
+    "param-row-key-input-0",
+    "param-row-key-input-1",
+    "param-row-key-input-2",
+    "param-row-key-input-3",
+    "param-row-key-input-4",
+    "param-row-key-input-5",
+    "param-row-key-input-6",
+    "param-row-key-input-7",
+    "param-row-key-input-8",
+    "param-row-key-input-9",
+    "param-row-key-input-10",
+    "param-row-key-input-11",
+    "param-row-key-input-12",
+    "param-row-key-input-13",
+    "param-row-key-input-14",
+    "param-row-key-input-15",
+];
+const PARAM_VALUE_SELECTORS: [&str; 16] = [
+    "param-row-value-input-0",
+    "param-row-value-input-1",
+    "param-row-value-input-2",
+    "param-row-value-input-3",
+    "param-row-value-input-4",
+    "param-row-value-input-5",
+    "param-row-value-input-6",
+    "param-row-value-input-7",
+    "param-row-value-input-8",
+    "param-row-value-input-9",
+    "param-row-value-input-10",
+    "param-row-value-input-11",
+    "param-row-value-input-12",
+    "param-row-value-input-13",
+    "param-row-value-input-14",
+    "param-row-value-input-15",
 ];
 const HEADER_TOGGLE_SELECTORS: [&str; 16] = [
     "header-row-toggle-0",
@@ -183,7 +219,17 @@ fn run_application_scenario(
             ));
         }
     }
-    apply_rows(cx, &workspace, RowEditor::Params, &scenario.draft.params)?;
+    if scenario.draft.precreate_param_rows == 0 {
+        apply_rows(cx, &workspace, RowEditor::Params, &scenario.draft.params)?;
+    } else {
+        apply_precreated_param_rows(
+            cx,
+            &workspace,
+            url_rows.len(),
+            scenario.draft.precreate_param_rows,
+            &scenario.draft.params,
+        )?;
+    }
     apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
 
     if !url_rows.is_empty() || !scenario.draft.params.is_empty() {
@@ -316,6 +362,67 @@ fn apply_rows(
         }
     }
 
+    Ok(())
+}
+
+fn apply_precreated_param_rows(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    url_row_count: usize,
+    row_count: usize,
+    rows: &[KeyValueSpec],
+) -> Result<(), String> {
+    if rows.len() > row_count {
+        return Err(format!(
+            "scenario defines {} Params rows but precreates only {row_count}",
+            rows.len()
+        ));
+    }
+
+    click(cx, "request-pane-params")?;
+    for _ in 0..row_count {
+        click(cx, "add-row-button")?;
+        cx.run_until_parked();
+    }
+    scroll_up(cx, "params-rows-scroll", 1000.0)?;
+
+    for (offset, row) in rows.iter().enumerate() {
+        if offset > 0 {
+            scroll_down(cx, "params-rows-scroll", 90.0)?;
+        }
+        let index = url_row_count + offset;
+        let key_selector = PARAM_KEY_SELECTORS.get(index).copied().ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Params rows",
+                PARAM_KEY_SELECTORS.len()
+            )
+        })?;
+        let value_selector = PARAM_VALUE_SELECTORS.get(index).copied().ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Params rows",
+                PARAM_VALUE_SELECTORS.len()
+            )
+        })?;
+        type_into(cx, key_selector, &row.key)?;
+        type_into(cx, value_selector, &row.value)?;
+        if !row.enabled {
+            click(cx, row_toggle_selector(RowEditor::Params, index)?)?;
+        }
+    }
+
+    let actual = workspace.read_with(cx, |workspace, _| workspace.params().to_vec());
+    for (offset, expected) in rows.iter().enumerate() {
+        let index = url_row_count + offset;
+        let Some(row) = actual.get(index) else {
+            return Err(format!("precreated Params row {index} disappeared"));
+        };
+        if row.key != expected.key || row.value != expected.value || row.enabled != expected.enabled
+        {
+            return Err(format!(
+                "precreated Params row {index} mismatch\n  expected: {expected:#?}\n  actual:   {row:#?}"
+            ));
+        }
+    }
     Ok(())
 }
 

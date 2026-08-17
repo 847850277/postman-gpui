@@ -34,3 +34,4 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#52 Custom and Disabled Headers](https://github.com/847850277/postman-gpui/issues/52) | [`issue-0052-custom-disabled-headers.pen`](issue-0052-custom-disabled-headers.pen) |
 | [#53 Bearer Auth](https://github.com/847850277/postman-gpui/issues/53) | [`issue-0053-bearer-auth.pen`](issue-0053-bearer-auth.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
+| [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |

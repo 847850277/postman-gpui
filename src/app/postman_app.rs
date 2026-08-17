@@ -23,9 +23,9 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter, FontWeight,
-    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
-    Subscription, Window,
+    div, prelude::FluentBuilder, px, relative, rgb, AppContext, Context, Entity, EventEmitter,
+    FontWeight, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 mod chrome;

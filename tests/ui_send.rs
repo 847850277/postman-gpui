@@ -12,7 +12,7 @@ use postman_gpui::{
     app::{BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel},
     models::{MultipartValue, RequestBody},
 };
-use ui::{choose_method, click, replace_text, type_into};
+use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
 #[gpui::test]
 fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
@@ -217,6 +217,150 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
         Some(synchronized_url)
     );
     request.assert();
+}
+
+#[gpui::test]
+fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/multi-query")
+        .match_query(Matcher::Exact(
+            "q=rust+gpui&locale=%E4%B8%AD%E6%96%87".into(),
+        ))
+        .with_status(200)
+        .with_body("multi-query-saved")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &format!("{}/multi-query", server.url())).unwrap();
+    click(cx, "request-pane-params").unwrap();
+
+    // The initial editor has exactly one visible Key/Value row. Every click must preserve that row
+    // and append exactly one more: 1 -> 2 -> 3.
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+        1
+    );
+    assert!(cx.debug_bounds("param-row-0").is_some());
+    let newest_row_selectors = ["param-row-1", "param-row-2"];
+    for (click_index, newest_row_selector) in newest_row_selectors.into_iter().enumerate() {
+        click(cx, "add-row-button").unwrap();
+        cx.run_until_parked();
+        let expected_visible_rows = click_index + 2;
+        assert_eq!(
+            workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+            expected_visible_rows,
+            "each Add click must add exactly one visible Key/Value row"
+        );
+        assert!(
+            cx.debug_bounds(newest_row_selector).is_some(),
+            "newly appended row must be rendered"
+        );
+    }
+    scroll_up(cx, "params-rows-scroll", 1000.0).unwrap();
+    type_into(cx, "param-row-key-input-0", "q").unwrap();
+    type_into(cx, "param-row-value-input-0", "rust gpui").unwrap();
+    scroll_down(cx, "params-rows-scroll", 90.0).unwrap();
+    type_into(cx, "param-row-key-input-1", "locale").unwrap();
+    type_into(cx, "param-row-value-input-1", "中文").unwrap();
+
+    let synchronized_url = format!(
+        "{}/multi-query?q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+        server.url()
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.effective_url()),
+        synchronized_url
+    );
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.params().len(), 2);
+        assert_eq!(
+            workspace.params()[0],
+            KeyValueRow::enabled("q", "rust gpui")
+        );
+        assert_eq!(
+            workspace.params()[1],
+            KeyValueRow::enabled("locale", "中文")
+        );
+    });
+
+    // Send while the final blank row remains open; no blur or final Add is involved.
+    scroll_down(cx, "params-rows-scroll", 90.0).unwrap();
+    click(cx, "param-row-key-input-2").unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| entry.request.url.clone())
+        }),
+        Some(synchronized_url)
+    );
+
+    // Delete targets only the selected row and leaves the other editors intact.
+    click(cx, "param-row-delete-1").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.params().len(), 1);
+        assert_eq!(workspace.params()[0].key, "q");
+        assert_eq!(workspace.visible_param_row_count(), 2);
+    });
+    request.assert();
+}
+
+#[gpui::test]
+fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    click(cx, "request-pane-params").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+        1
+    );
+
+    let newest_row_selectors = [
+        "param-row-1",
+        "param-row-2",
+        "param-row-3",
+        "param-row-4",
+        "param-row-5",
+        "param-row-6",
+        "param-row-7",
+        "param-row-8",
+        "param-row-9",
+        "param-row-10",
+        "param-row-11",
+        "param-row-12",
+    ];
+    for (click_index, newest_row_selector) in newest_row_selectors.into_iter().enumerate() {
+        click(cx, "add-row-button").unwrap();
+        cx.run_until_parked();
+        let click_count = click_index + 1;
+        workspace.read_with(cx, |workspace, _| {
+            assert_eq!(workspace.params().len(), click_count);
+            assert_eq!(workspace.visible_param_row_count(), click_count + 1);
+            assert!(workspace
+                .params()
+                .iter()
+                .all(|row| row.key.is_empty() && row.value.is_empty()));
+        });
+        assert!(
+            cx.debug_bounds(newest_row_selector).is_some(),
+            "the blank row created by click {click_count} must be visible"
+        );
+    }
 }
 
 #[gpui::test]

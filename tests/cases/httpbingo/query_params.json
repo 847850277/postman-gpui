@@ -62,6 +62,68 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "Multiple query rows can be created before any row is edited",
+      "draft": {
+        "method": "GET",
+        "path": "/get?existing=1",
+        "precreate_param_rows": 3,
+        "params": [
+          { "key": "q", "value": "rust gpui" },
+          { "key": "locale", "value": "中文" },
+          { "key": "limit", "value": "20", "enabled": false }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "existing": ["1"],
+              "q": ["rust gpui"],
+              "locale": ["中文"]
+            },
+            "method": "GET"
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "Repeated Add keeps many blank query rows independent",
+      "draft": {
+        "method": "GET",
+        "path": "/get?existing=1",
+        "precreate_param_rows": 8,
+        "params": []
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/get?existing=1",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "existing": ["1"]
+            },
+            "method": "GET"
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }
