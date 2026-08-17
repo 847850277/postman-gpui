@@ -227,12 +227,18 @@ impl RequestViewModel {
     pub fn enabled_param_count(&self) -> usize {
         self.effective_params()
             .iter()
-            .filter(|row| row.enabled && !row.key.is_empty())
+            .filter(|row| row.enabled && !row.key.trim().is_empty())
             .count()
     }
 
     pub fn params(&self) -> &[KeyValueRow] {
         &self.params
+    }
+
+    /// Number of rows rendered by the Params editor. The active row is always visible, even
+    /// before it has been confirmed with Add, so each Add action increases this count by one.
+    pub fn visible_param_row_count(&self) -> usize {
+        self.params.len() + 1
     }
 
     pub fn headers(&self) -> &[KeyValueRow] {
@@ -503,14 +509,24 @@ impl RequestViewModel {
         }
     }
 
-    /// Confirms the current row and opens a fresh draft. This changes presentation flow only;
-    /// valid draft values already participate in Send before this method is called.
+    /// Preserves the current Params row and appends one fresh Key/Value row.
+    ///
+    /// Empty rows are intentional and there is no row limit: every call appends exactly one row,
+    /// so users can click Add as often as needed before entering any values. The active row already
+    /// participates in Send as soon as it has a key, so adding another row is never required merely
+    /// to persist input.
+    pub fn append_param_row(&mut self) {
+        let draft = std::mem::take(&mut self.param_draft);
+        self.params
+            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.sync_url_from_params();
+        self.dirty = true;
+    }
+
+    /// Confirms the active row for the selected key/value editor.
     pub fn commit_row_draft(&mut self, pane: RequestPane) {
         match pane {
-            RequestPane::Params => {
-                let draft = std::mem::take(&mut self.param_draft);
-                self.upsert_param(draft.key.trim(), draft.value.trim());
-            }
+            RequestPane::Params => self.append_param_row(),
             RequestPane::Headers => {
                 let draft = std::mem::take(&mut self.header_draft);
                 self.upsert_header(draft.key.trim(), draft.value.trim());
@@ -534,6 +550,34 @@ impl RequestViewModel {
         } else {
             self.params.push(KeyValueRow::enabled(key, value));
         }
+        self.sync_url_from_params();
+        self.dirty = true;
+    }
+
+    /// Updates one persistent Params row. Text controls are only editing buffers; every keystroke
+    /// is written here so Send never needs to scrape or manually commit the rendered controls.
+    pub fn set_param_key(&mut self, index: usize, key: impl Into<String>) {
+        let key = key.into();
+        let Some(row) = self.params.get_mut(index) else {
+            return;
+        };
+        if row.key == key {
+            return;
+        }
+        row.key = key;
+        self.sync_url_from_params();
+        self.dirty = true;
+    }
+
+    pub fn set_param_value(&mut self, index: usize, value: impl Into<String>) {
+        let value = value.into();
+        let Some(row) = self.params.get_mut(index) else {
+            return;
+        };
+        if row.value == value {
+            return;
+        }
+        row.value = value;
         self.sync_url_from_params();
         self.dirty = true;
     }
@@ -866,15 +910,11 @@ impl RequestViewModel {
 
     fn effective_params(&self) -> Vec<KeyValueRow> {
         let mut params = self.params.clone();
-        let draft_key = self.param_draft.key.trim();
-        if !draft_key.is_empty() {
-            let draft_value = self.param_draft.value.trim();
-            if let Some(row) = params.iter_mut().find(|row| row.key == draft_key) {
-                row.value = draft_value.to_string();
-                row.enabled = true;
-            } else {
-                params.push(KeyValueRow::enabled(draft_key, draft_value));
-            }
+        if !self.param_draft.key.trim().is_empty() {
+            params.push(KeyValueRow::enabled(
+                self.param_draft.key.clone(),
+                self.param_draft.value.clone(),
+            ));
         }
         params
     }
@@ -1125,7 +1165,7 @@ fn parse_query_params(url: &str) -> Vec<KeyValueRow> {
 fn apply_query_params(url: &str, params: &[KeyValueRow]) -> String {
     let mut serializer = form_urlencoded::Serializer::new(String::new());
     for row in params {
-        if row.enabled && !row.key.is_empty() {
+        if row.enabled && !row.key.trim().is_empty() {
             serializer.append_pair(&row.key, &row.value);
         }
     }
@@ -1249,6 +1289,49 @@ mod tests {
         assert_eq!(
             vm.effective_url(),
             "https://httpbingo.org/get?q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
+        );
+    }
+
+    #[test]
+    fn repeated_add_keeps_multiple_blank_param_rows_independent() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://httpbingo.org/get");
+
+        assert_eq!(vm.visible_param_row_count(), 1);
+
+        const ADD_CLICKS: usize = 32;
+        for _ in 0..ADD_CLICKS {
+            let previous_count = vm.visible_param_row_count();
+            vm.append_param_row();
+            assert_eq!(vm.visible_param_row_count(), previous_count + 1);
+        }
+        assert_eq!(vm.params().len(), ADD_CLICKS);
+        assert!(vm.params().iter().all(|row| row.key.is_empty()));
+
+        vm.set_param_key(0, "q");
+        vm.set_param_value(0, "rust gpui");
+        vm.set_param_key(1, "locale");
+        vm.set_param_value(1, "中文");
+        vm.set_param_key(2, "limit");
+        vm.set_param_value(2, "20");
+        vm.toggle_param(2);
+
+        assert_eq!(
+            vm.effective_url(),
+            "https://httpbingo.org/get?q=rust+gpui&locale=%E4%B8%AD%E6%96%87"
+        );
+        assert_eq!(vm.enabled_param_count(), 2);
+        assert_eq!(vm.params()[0].key, "q");
+        assert_eq!(vm.params()[1].key, "locale");
+        assert_eq!(vm.params()[2].key, "limit");
+        assert!(!vm.params()[2].enabled);
+
+        vm.remove_param(0);
+        assert_eq!(vm.params()[0].key, "locale");
+        assert_eq!(vm.params()[1].key, "limit");
+        assert_eq!(
+            vm.effective_url(),
+            "https://httpbingo.org/get?locale=%E4%B8%AD%E6%96%87"
         );
     }
 
