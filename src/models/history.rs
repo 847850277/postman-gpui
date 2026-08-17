@@ -13,6 +13,9 @@ pub struct HistoryEntry {
     pub request: Request,
     pub timestamp: DateTime<Utc>,
     pub name: String,
+    pub status: Option<u16>,
+    pub elapsed_ms: Option<u128>,
+    pub response_size: Option<usize>,
 }
 
 impl HistoryEntry {
@@ -21,6 +24,26 @@ impl HistoryEntry {
             request,
             timestamp: Utc::now(),
             name,
+            status: None,
+            elapsed_ms: None,
+            response_size: None,
+        }
+    }
+
+    pub fn completed(
+        request: Request,
+        name: String,
+        status: u16,
+        elapsed_ms: u128,
+        response_size: usize,
+    ) -> Self {
+        Self {
+            request,
+            timestamp: Utc::now(),
+            name,
+            status: Some(status),
+            elapsed_ms: Some(elapsed_ms),
+            response_size: Some(response_size),
         }
     }
 
@@ -53,6 +76,22 @@ impl RequestHistory {
     /// Add a request to history
     pub fn add(&mut self, request: Request, name: String) {
         let entry = HistoryEntry::new(request, name);
+        self.add_entry(entry);
+    }
+
+    pub fn add_completed(
+        &mut self,
+        request: Request,
+        name: String,
+        status: u16,
+        elapsed_ms: u128,
+        response_size: usize,
+    ) {
+        let entry = HistoryEntry::completed(request, name, status, elapsed_ms, response_size);
+        self.add_entry(entry);
+    }
+
+    fn add_entry(&mut self, entry: HistoryEntry) {
         self.entries.insert(0, entry); // Add to front (newest first)
 
         // Trim to max entries

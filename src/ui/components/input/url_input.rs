@@ -12,6 +12,7 @@ use unicode_segmentation::*;
 use crate::ui::components::common::edit_context_menu::{
     edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
 };
+use crate::ui::theme::{FONT_MONO, INFO, LINE, PANEL, TEXT};
 
 // 定义actions - 这些是键盘快捷键对应的动作
 actions!(
@@ -577,7 +578,7 @@ impl Element for UrlTextElement {
                         point(bounds.left() + cursor_pos, bounds.top()),
                         size(px(2.), bounds.bottom() - bounds.top()),
                     ),
-                    rgb(0x0000_7acc),
+                    rgb(INFO),
                 )),
             )
         } else if !content.is_empty() {
@@ -691,16 +692,17 @@ impl Render for UrlInput {
             .flex()
             .items_center()
             .px_4()
-            .bg(rgb(0x00ff_ffff))
+            .bg(rgb(PANEL))
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                rgb(0x00f9_7316)
+                rgb(INFO)
             } else {
-                rgb(0x00e2_e8f0)
+                rgb(LINE)
             })
             .rounded_lg()
-            .font_family("Menlo")
+            .font_family(FONT_MONO)
             .text_size(px(13.0))
+            .text_color(rgb(TEXT))
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::backspace))

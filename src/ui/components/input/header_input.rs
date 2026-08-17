@@ -12,6 +12,7 @@ use unicode_segmentation::*;
 use crate::ui::components::common::edit_context_menu::{
     edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
 };
+use crate::ui::theme::{FONT_MONO, INFO, LINE, PANEL, TEXT};
 
 const MASK_GLYPH: &str = "•";
 
@@ -52,6 +53,8 @@ pub struct HeaderInput {
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
     masked: bool,
+    embedded: bool,
+    font_family: &'static str,
     context_menu_position: Option<Point<Pixels>>,
 }
 
@@ -68,6 +71,8 @@ impl HeaderInput {
             last_bounds: None,
             is_selecting: false,
             masked: false,
+            embedded: false,
+            font_family: FONT_MONO,
             context_menu_position: None,
         }
     }
@@ -80,6 +85,17 @@ impl HeaderInput {
     /// Masks the rendered value while retaining the real value for editing and submission.
     pub fn with_masked(mut self, masked: bool) -> Self {
         self.masked = masked;
+        self
+    }
+
+    /// Lets a parent component provide the field background, border, radius, and padding.
+    pub fn with_embedded_chrome(mut self, embedded: bool) -> Self {
+        self.embedded = embedded;
+        self
+    }
+
+    pub fn with_font_family(mut self, font_family: &'static str) -> Self {
+        self.font_family = font_family;
         self
     }
 
@@ -616,7 +632,7 @@ impl Element for HeaderTextElement {
                         point(bounds.left() + cursor_pos, bounds.top()),
                         size(px(2.), bounds.bottom() - bounds.top()),
                     ),
-                    rgb(0x0000_7acc),
+                    rgb(INFO),
                 )),
             )
         } else if !content.is_empty() {
@@ -714,17 +730,21 @@ impl Render for HeaderInput {
             .h_full()
             .flex()
             .items_center()
-            .px_3()
-            .bg(rgb(0x00ff_ffff))
-            .border_1()
-            .border_color(if self.focus_handle.is_focused(window) {
-                rgb(0x00f9_7316)
-            } else {
-                rgb(0x00e2_e8f0)
+            .when(!self.embedded, |field| {
+                field
+                    .px_3()
+                    .bg(rgb(PANEL))
+                    .border_1()
+                    .border_color(if self.focus_handle.is_focused(window) {
+                        rgb(INFO)
+                    } else {
+                        rgb(LINE)
+                    })
+                    .rounded_lg()
             })
-            .rounded_lg()
-            .font_family("Menlo")
+            .font_family(self.font_family)
             .text_size(px(12.0))
+            .text_color(rgb(TEXT))
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::backspace))

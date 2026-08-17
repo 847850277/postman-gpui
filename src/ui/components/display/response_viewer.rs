@@ -14,9 +14,10 @@ use crate::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
     ui::theme::{
-        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, OK, PANEL,
+        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, LINE, MUTED, OK, PANEL,
         PANEL_ALT, SUBTEXT, TEXT,
     },
+    utils::formatter::format_response_body,
 };
 
 actions!(response_viewer, [Copy, SelectAll]);
@@ -76,7 +77,7 @@ impl ResponseViewer {
     fn get_content(&self, cx: &App) -> String {
         let view_model = self.view_model.read(cx);
         match (view_model.response(), self.pane) {
-            (ResponseState::Success { body, .. }, ResponsePane::Body) => body.clone(),
+            (ResponseState::Success { body, .. }, ResponsePane::Body) => format_response_body(body),
             (ResponseState::Success { headers, .. }, ResponsePane::Headers) => headers
                 .iter()
                 .map(|(k, v)| format!("{k}: {v}"))
@@ -434,7 +435,7 @@ impl Element for MultiLineTextElement {
                             ),
                             gpui::size(px(2.), line_height),
                         ),
-                        rgb(0x0000_7acc),
+                        rgb(INFO),
                     ));
                     break;
                 }
@@ -571,11 +572,18 @@ impl Element for MultiLineTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let state = self.view_model.read(cx).response().clone();
+        let (state, is_httpbingo) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.response().clone(),
+                view_model.effective_url().contains("httpbingo.org"),
+            )
+        };
         let pane = self.pane;
         let context_menu_position = self.context_menu_position;
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
         let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
+        let has_completed_response = matches!(&state, ResponseState::Success { .. });
 
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
@@ -673,6 +681,40 @@ impl Render for ResponseViewer {
                             }),
                     ),
             )
+            .when(has_completed_response, |root| {
+                root.child(
+                    div()
+                        .debug_selector(|| "response-echo-bar".into())
+                        .h(px(36.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .px_4()
+                        .bg(rgb(PANEL_ALT))
+                        .border_b_1()
+                        .border_color(rgb(LINE))
+                        .font_family(FONT_UI)
+                        .text_size(px(11.0))
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(rgb(OK))
+                                .child("●")
+                                .child(if is_httpbingo {
+                                    "HTTPBingo echo"
+                                } else {
+                                    "Response payload"
+                                }),
+                        )
+                        .when(is_httpbingo, |bar| {
+                            bar.child(div().text_color(rgb(SUBTEXT)).child("stable subset"))
+                        }),
+                )
+            })
             .child(match state {
                 ResponseState::NotSent => div()
                     .w_full()
@@ -684,7 +726,7 @@ impl Render for ResponseViewer {
                     .justify_start()
                     .gap_2()
                     .p_5()
-                    .bg(rgb(0x00f1_f5f9))
+                    .bg(rgb(PANEL_ALT))
                     .child(
                         div()
                             .font_family(FONT_HEADING)
