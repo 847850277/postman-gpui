@@ -82,6 +82,15 @@ impl HeaderInput {
         self
     }
 
+    /// Projects contextual placeholder copy without treating it as an input edit.
+    pub fn project_placeholder(&mut self, placeholder: impl Into<String>, cx: &mut Context<Self>) {
+        let placeholder: SharedString = placeholder.into().into();
+        if self.placeholder != placeholder {
+            self.placeholder = placeholder;
+            cx.notify();
+        }
+    }
+
     /// Masks the rendered value while retaining the real value for editing and submission.
     pub fn with_masked(mut self, masked: bool) -> Self {
         self.masked = masked;

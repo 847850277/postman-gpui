@@ -86,6 +86,104 @@ const HEADER_TOGGLE_SELECTORS: [&str; 16] = [
     "header-row-toggle-14",
     "header-row-toggle-15",
 ];
+const HEADER_ROW_CONTRACT_SELECTORS: [[&str; 4]; 16] = [
+    [
+        "header-row-key-0",
+        "header-row-value-0",
+        "header-row-status-0",
+        "header-row-delete-0",
+    ],
+    [
+        "header-row-key-1",
+        "header-row-value-1",
+        "header-row-status-1",
+        "header-row-delete-1",
+    ],
+    [
+        "header-row-key-2",
+        "header-row-value-2",
+        "header-row-status-2",
+        "header-row-delete-2",
+    ],
+    [
+        "header-row-key-3",
+        "header-row-value-3",
+        "header-row-status-3",
+        "header-row-delete-3",
+    ],
+    [
+        "header-row-key-4",
+        "header-row-value-4",
+        "header-row-status-4",
+        "header-row-delete-4",
+    ],
+    [
+        "header-row-key-5",
+        "header-row-value-5",
+        "header-row-status-5",
+        "header-row-delete-5",
+    ],
+    [
+        "header-row-key-6",
+        "header-row-value-6",
+        "header-row-status-6",
+        "header-row-delete-6",
+    ],
+    [
+        "header-row-key-7",
+        "header-row-value-7",
+        "header-row-status-7",
+        "header-row-delete-7",
+    ],
+    [
+        "header-row-key-8",
+        "header-row-value-8",
+        "header-row-status-8",
+        "header-row-delete-8",
+    ],
+    [
+        "header-row-key-9",
+        "header-row-value-9",
+        "header-row-status-9",
+        "header-row-delete-9",
+    ],
+    [
+        "header-row-key-10",
+        "header-row-value-10",
+        "header-row-status-10",
+        "header-row-delete-10",
+    ],
+    [
+        "header-row-key-11",
+        "header-row-value-11",
+        "header-row-status-11",
+        "header-row-delete-11",
+    ],
+    [
+        "header-row-key-12",
+        "header-row-value-12",
+        "header-row-status-12",
+        "header-row-delete-12",
+    ],
+    [
+        "header-row-key-13",
+        "header-row-value-13",
+        "header-row-status-13",
+        "header-row-delete-13",
+    ],
+    [
+        "header-row-key-14",
+        "header-row-value-14",
+        "header-row-status-14",
+        "header-row-delete-14",
+    ],
+    [
+        "header-row-key-15",
+        "header-row-value-15",
+        "header-row-status-15",
+        "header-row-delete-15",
+    ],
+];
 const BODY_FORM_KEY_SELECTORS: [&str; 16] = [
     "body-form-key-0",
     "body-form-key-1",
@@ -231,6 +329,7 @@ fn run_application_scenario(
         )?;
     }
     apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+    assert_headers_editor_contract(cx, &scenario.draft.headers)?;
 
     if !url_rows.is_empty() || !scenario.draft.params.is_empty() {
         for selector in [
@@ -278,6 +377,7 @@ fn run_application_scenario(
 
     let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&response, &scenario.expect.response)?;
+    assert_disabled_headers_absent_from_echo(&response, &scenario.draft.headers)?;
     assert_response_quick_copy(cx, &workspace, &response)?;
 
     if cx.debug_bounds("response-container").is_none() {
@@ -318,6 +418,86 @@ fn run_application_scenario(
             ));
         }
         (false, None) => {}
+    }
+
+    Ok(())
+}
+
+fn assert_headers_editor_contract(
+    cx: &mut VisualTestContext,
+    headers: &[KeyValueSpec],
+) -> Result<(), String> {
+    if headers.is_empty() {
+        return Ok(());
+    }
+
+    for selector in [
+        "headers-summary",
+        "headers-enabled-count",
+        "headers-table-header",
+        "headers-ready-indicator",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "Headers contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    for (index, _) in headers.iter().enumerate() {
+        let selectors = HEADER_ROW_CONTRACT_SELECTORS.get(index).ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Header rows",
+                HEADER_ROW_CONTRACT_SELECTORS.len()
+            )
+        })?;
+        for selector in selectors {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "Headers row contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn assert_disabled_headers_absent_from_echo(
+    response: &ResponseState,
+    headers: &[KeyValueSpec],
+) -> Result<(), String> {
+    let disabled_headers: Vec<&str> = headers
+        .iter()
+        .filter(|header| !header.enabled)
+        .map(|header| header.key.as_str())
+        .collect();
+    if disabled_headers.is_empty() {
+        return Ok(());
+    }
+
+    let ResponseState::Success { body, .. } = response else {
+        return Err(
+            "cannot verify disabled Headers because the request did not succeed".to_string(),
+        );
+    };
+    let payload: serde_json::Value = serde_json::from_str(body).map_err(|error| {
+        format!("cannot verify disabled Headers in the HTTPBingo JSON response: {error}")
+    })?;
+    let echoed_headers = payload
+        .get("headers")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "HTTPBingo response does not contain a `headers` object".to_string())?;
+
+    for disabled_header in disabled_headers {
+        if let Some(echoed_name) = echoed_headers
+            .keys()
+            .find(|name| name.eq_ignore_ascii_case(disabled_header))
+        {
+            return Err(format!(
+                "disabled Header `{disabled_header}` was unexpectedly echoed as `{echoed_name}`"
+            ));
+        }
     }
 
     Ok(())
