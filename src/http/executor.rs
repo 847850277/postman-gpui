@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_executor_execute_request_model() {
         let _executor = RequestExecutor::new();
-        let mut request = Request::new("GET", "https://httpbin.org/get");
+        let mut request = Request::new("GET", "https://httpbingo.org/get");
         request.add_header("User-Agent", "test-agent");
 
         // Just verify the model can be passed to the executor

@@ -79,6 +79,7 @@ fn reusable_design_template_follows_the_shared_shell() {
     assert_application_shell(&path, root);
 
     let all_text = collect_text(&document);
+    assert_httpbingo_endpoint(&path, &all_text);
     assert!(
         all_text.contains("Issue #NN") && all_text.contains("issue-00NN-feature.pen"),
         "{} must retain obvious placeholders",
@@ -111,6 +112,7 @@ fn validate_issue_artifact(path: &Path, readme: &str) {
     );
 
     let all_text = collect_text(&document);
+    assert_httpbingo_endpoint(path, &all_text);
     assert!(
         all_text.contains(&format!("issues/{issue}")),
         "{} must contain its GitHub issue URL",
@@ -131,6 +133,21 @@ fn validate_issue_artifact(path: &Path, readme: &str) {
         "design/README.md must map Issue #{} to {}",
         issue,
         file_name
+    );
+}
+
+fn assert_httpbingo_endpoint(path: &Path, all_text: &str) {
+    const LEGACY_HTTPBIN_HOST: &str = concat!("httpbin", ".org");
+
+    assert!(
+        all_text.contains("https://httpbingo.org"),
+        "{} must use an HTTPS HTTPBingo endpoint",
+        path.display()
+    );
+    assert!(
+        !all_text.contains(LEGACY_HTTPBIN_HOST),
+        "{} must not use the legacy HTTPBin host",
+        path.display()
     );
 }
 

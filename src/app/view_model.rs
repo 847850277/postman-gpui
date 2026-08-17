@@ -1227,7 +1227,7 @@ mod tests {
     #[test]
     fn pasted_url_query_is_projected_into_params_and_stays_synchronized() {
         let mut vm = RequestViewModel::new();
-        vm.set_url("https://httpbin.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87");
+        vm.set_url("https://httpbingo.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87");
         assert_eq!(
             vm.params(),
             &[
@@ -1242,13 +1242,13 @@ mod tests {
         vm.upsert_param("limit", "20");
         assert_eq!(
             vm.url(),
-            "https://httpbin.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
+            "https://httpbingo.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
         );
 
         vm.toggle_param(0);
         assert_eq!(
             vm.effective_url(),
-            "https://httpbin.org/get?q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
+            "https://httpbingo.org/get?q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
         );
     }
 

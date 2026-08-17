@@ -687,7 +687,7 @@
                                   "id": "tp050",
                                   "name": "URL Placeholder",
                                   "fill": "$codeText",
-                                  "content": "https://example.test/endpoint",
+                                  "content": "https://httpbingo.org/get",
                                   "fontFamily": "$fontMono",
                                   "fontSize": 12,
                                   "fontWeight": "500"

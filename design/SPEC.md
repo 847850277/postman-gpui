@@ -121,6 +121,10 @@ A response content item must show, when applicable:
 Sensitive values may be illustrative scenario values. Never place real
 credentials or production secrets in a design artifact.
 
+All public echo examples and E2E endpoint labels must use the HTTPS HTTPBingo
+origin, `https://httpbingo.org`. Do not use the legacy HTTPBin origin or generic
+placeholder origins in issue artifacts and templates.
+
 ## 5. Interaction States
 
 - If Send can be clicked while an input remains active, show that active state
@@ -214,8 +218,8 @@ The normal CI test job runs this integration test through
 - [ ] Full application shell or justified multi-state matrix is present
 - [ ] Inputs and outputs are concrete content items
 - [ ] Request and stable response evidence are visible
+- [ ] Public endpoint examples use `https://httpbingo.org`
 - [ ] ResponseState, View, and History lifecycle is represented
 - [ ] Shared tokens are unchanged
 - [ ] README and GitHub issue links are present
 - [ ] `cargo test --test design_artifacts` passes
-
