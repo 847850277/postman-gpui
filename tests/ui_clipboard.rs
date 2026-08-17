@@ -3,8 +3,10 @@
 #[path = "common/ui.rs"]
 mod ui;
 
+use std::time::Duration;
+
 use gpui::{AppContext, ClipboardItem, TestAppContext};
-use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
+use postman_gpui::app::{PostmanApp, ResponseState, WorkspaceViewModel};
 use ui::{click, right_click};
 
 fn clipboard_text(cx: &TestAppContext) -> String {
@@ -144,6 +146,116 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     right_click(cx, "response-content").unwrap();
     click(cx, "response-edit-menu-copy").unwrap();
     assert_eq!(clipboard_text(cx), "response copied from the menu");
+    response.assert();
+}
+
+#[gpui::test]
+fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
+    cx: &mut TestAppContext,
+) {
+    let raw_body = r#"{"compact":true,"message":"copy me exactly"}"#;
+    let mut server = mockito::Server::new();
+    let response = server
+        .mock("GET", "/quick-copy")
+        .with_status(500)
+        .with_header("content-type", "application/json")
+        .with_body(raw_body)
+        .create();
+    let next_body = "the current response replaces the previous clipboard value";
+    let next_response = server
+        .mock("GET", "/quick-copy-next")
+        .with_status(200)
+        .with_body(next_body)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    assert!(
+        cx.debug_bounds("response-copy-button").is_none(),
+        "Not sent must not expose an active response-copy action"
+    );
+
+    cx.write_to_clipboard(ClipboardItem::new_string(format!(
+        "{}/quick-copy",
+        server.url()
+    )));
+    click(cx, "url-input").unwrap();
+    cx.simulate_keystrokes("ctrl-v");
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    let response_before_copy = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert!(matches!(
+        response_before_copy,
+        ResponseState::Success { status: 500, .. }
+    ));
+    let history_len_before_copy = workspace.read_with(cx, |workspace, _| workspace.history_len());
+    assert!(cx.debug_bounds("response-copy-button").is_some());
+
+    cx.write_to_clipboard(ClipboardItem::new_string("sentinel".to_string()));
+    click(cx, "response-copy-button").unwrap();
+    assert_eq!(clipboard_text(cx), raw_body);
+    assert!(cx.debug_bounds("response-copy-feedback").is_some());
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        response_before_copy
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        history_len_before_copy
+    );
+
+    // The click focuses the action, so keyboard activation must copy the current body again.
+    cx.write_to_clipboard(ClipboardItem::new_string("keyboard sentinel".to_string()));
+    cx.simulate_keystrokes("enter");
+    assert_eq!(clipboard_text(cx), raw_body);
+
+    cx.executor().advance_clock(Duration::from_secs(2));
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("response-copy-feedback").is_none());
+    assert!(cx.debug_bounds("response-copy-button").is_some());
+
+    cx.write_to_clipboard(ClipboardItem::new_string(format!(
+        "{}/quick-copy-next",
+        server.url()
+    )));
+    click(cx, "url-input").unwrap();
+    cx.simulate_keystrokes("ctrl-a ctrl-v");
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    cx.write_to_clipboard(ClipboardItem::new_string("old response".to_string()));
+    click(cx, "response-copy-button").unwrap();
+    assert_eq!(clipboard_text(cx), next_body);
+
+    response.assert();
+    next_response.assert();
+}
+
+#[gpui::test]
+fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let response = server.mock("GET", "/no-content").with_status(204).create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    cx.write_to_clipboard(ClipboardItem::new_string(format!(
+        "{}/no-content",
+        server.url()
+    )));
+    click(cx, "url-input").unwrap();
+    cx.simulate_keystrokes("ctrl-v");
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 204, ref body, .. } if body.is_empty()
+    ));
+    assert!(cx.debug_bounds("response-copy-button").is_none());
     response.assert();
 }
 

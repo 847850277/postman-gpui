@@ -33,7 +33,7 @@ Scenario draft
   -> click Send
   -> WorkspaceViewModel and real RequestExecutor
   -> https://httpbingo.org
-  -> ResponseState, rendered response content, and shared history
+  -> ResponseState, rendered response content, system clipboard, and shared history
 ```
 
 It uses the rendered method dropdown, URL field, query/header row editors,
@@ -42,7 +42,11 @@ delivered through the rendered controls; the injected `WorkspaceViewModel` is
 only observed for assertions, so the runner has no second `PostmanApp` command
 surface. The runner then compares the complete request recorded by the real
 application's history, checks the stable HTTPBingo echo, and verifies that the
-response content is present in the window.
+response content is present in the window. Every populated response also clicks
+the quick-copy action, compares the system clipboard with the exact
+`ResponseState` body, and verifies that the action did not mutate request,
+response, History, or active-tab state. Empty response bodies must not expose
+the action.
 It covers public DNS, TLS, redirects, request encoding, methods, headers, bodies,
 and non-2xx responses, but does not replace the deterministic local contract.
 

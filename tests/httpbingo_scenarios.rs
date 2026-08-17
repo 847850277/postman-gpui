@@ -8,8 +8,8 @@ use common::scenario::{
     assert_requests_equivalent, assert_response_state, expected_request, load_suites, DraftSpec,
     KeyValueSpec, RequestScenario, ResponseSpec, ScenarioTarget,
 };
-use gpui::{AppContext, Entity, TestAppContext, VisualTestContext};
-use postman_gpui::app::{KeyValueRow, PostmanApp, WorkspaceViewModel};
+use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
+use postman_gpui::app::{KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel};
 use std::path::{Path, PathBuf};
 use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
@@ -278,6 +278,7 @@ fn run_application_scenario(
 
     let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&response, &scenario.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &response)?;
 
     if cx.debug_bounds("response-container").is_none() {
         return Err("response panel is not rendered in the application window".to_string());
@@ -317,6 +318,81 @@ fn run_application_scenario(
             ));
         }
         (false, None) => {}
+    }
+
+    Ok(())
+}
+
+fn assert_response_quick_copy(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    response: &ResponseState,
+) -> Result<(), String> {
+    let ResponseState::Success { body, .. } = response else {
+        if cx.debug_bounds("response-copy-button").is_some() {
+            return Err("a response without a body exposes the quick-copy action".to_string());
+        }
+        return Ok(());
+    };
+
+    if body.is_empty() {
+        if cx.debug_bounds("response-copy-button").is_some() {
+            return Err("an empty response body exposes the quick-copy action".to_string());
+        }
+        return Ok(());
+    }
+    if cx.debug_bounds("response-copy-button").is_none() {
+        return Err("a populated response does not expose the quick-copy action".to_string());
+    }
+
+    let state_before_copy = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.params().to_vec(),
+            workspace.headers().to_vec(),
+            workspace.request_body().clone(),
+            workspace.request_pane(),
+            workspace.response().clone(),
+            workspace.history_len(),
+            workspace.active_tab_index(),
+            workspace.tab_count(),
+        )
+    });
+
+    cx.write_to_clipboard(ClipboardItem::new_string(
+        "HTTPBingo quick-copy sentinel".to_string(),
+    ));
+    click(cx, "response-copy-button")?;
+    let copied = cx
+        .read_from_clipboard()
+        .and_then(|item| item.text())
+        .unwrap_or_default();
+    if copied != *body {
+        return Err(format!(
+            "quick-copy clipboard mismatch\n  expected: {body:?}\n  actual:   {copied:?}"
+        ));
+    }
+    if cx.debug_bounds("response-copy-feedback").is_none() {
+        return Err("quick-copy did not render transient Copied feedback".to_string());
+    }
+
+    let state_after_copy = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.params().to_vec(),
+            workspace.headers().to_vec(),
+            workspace.request_body().clone(),
+            workspace.request_pane(),
+            workspace.response().clone(),
+            workspace.history_len(),
+            workspace.active_tab_index(),
+            workspace.tab_count(),
+        )
+    });
+    if state_after_copy != state_before_copy {
+        return Err("quick-copy mutated request, response, history, or active tabs".to_string());
     }
 
     Ok(())
