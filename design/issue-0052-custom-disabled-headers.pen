@@ -1,0 +1,2786 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "hd001",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #52 · Custom and Disabled Headers",
+      "clip": true,
+      "width": 1600,
+      "height": 1800,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "hd002",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hd003",
+              "name": "Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "hd004",
+                  "name": "Headers Icon",
+                  "width": 34,
+                  "height": 34,
+                  "icon": "list-filter",
+                  "library": "lucide",
+                  "fill": "$accentVivid"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd005",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd006",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd007",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": [0, 11],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd008",
+                          "name": "Issue Number",
+                          "fill": "$green",
+                          "content": "ISSUE #52 · HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd009",
+                      "name": "Baseline Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 13,
+                      "padding": [0, 11],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd010",
+                          "name": "Baseline Label",
+                          "fill": "$blue",
+                          "content": "IMPLEMENTED BASELINE",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd011",
+                      "name": "Issue URL",
+                      "fill": "$blue",
+                      "content": "github.com/847850277/postman-gpui/issues/52",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "hd012",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Custom and Disabled Headers · GET /headers",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd013",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Keep every edited row in RequestState, but build the real network request from enabled rows only.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd014",
+              "name": "Contract Snapshot",
+              "width": 390,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd015",
+                  "name": "Endpoint Row",
+                  "gap": 9,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd016",
+                      "name": "Method Badge",
+                      "width": 42,
+                      "height": 24,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 7,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd017",
+                          "name": "Method Label",
+                          "fill": "$green",
+                          "content": "GET",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd018",
+                      "name": "Endpoint",
+                      "fill": "$codeText",
+                      "content": "https://httpbingo.org/headers",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd019",
+                  "name": "Header Counts",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd020",
+                      "name": "Draft Count",
+                      "height": 26,
+                      "fill": "$panel",
+                      "cornerRadius": 7,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [0, 9],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd021",
+                          "name": "Draft Count Label",
+                          "fill": "$muted",
+                          "content": "RequestState · 2 rows",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd022",
+                      "name": "Wire Count",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 7,
+                      "padding": [0, 9],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd023",
+                          "name": "Wire Count Label",
+                          "fill": "$green",
+                          "content": "On the wire · 1 row",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "750"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hd100",
+          "name": "Application State · Header Filter Proof",
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "clip": true,
+          "children": [
+            {
+              "type": "frame",
+              "id": "hd101",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {"bottom": 1},
+              "gap": 20,
+              "padding": [0, 20],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd102",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd103",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd104",
+                          "name": "Logo Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd105",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd106",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [0, 13],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hd107",
+                      "name": "Search Icon",
+                      "width": 17,
+                      "height": 17,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd108",
+                      "name": "Search Placeholder",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd109",
+                      "name": "Search Shortcut",
+                      "height": 24,
+                      "fill": "$panel",
+                      "cornerRadius": 6,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [0, 8],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hd110",
+                          "name": "Shortcut Label",
+                          "fill": "$muted",
+                          "content": "⌘ K",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd111",
+                  "name": "Header Actions",
+                  "width": 300,
+                  "gap": 12,
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd112",
+                      "name": "Environment",
+                      "height": 36,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [0, 12],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "hd113",
+                          "name": "Environment Status",
+                          "width": 8,
+                          "height": 8,
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd114",
+                          "name": "Environment Label",
+                          "fill": "$muted",
+                          "content": "No Environment",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "hd115",
+                          "name": "Environment Arrow",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "hd116",
+                      "name": "Settings",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "settings",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd120",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd121",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {"right": 1},
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [16, 0],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd122",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd123",
+                          "name": "New Request Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd124",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd125",
+                          "name": "History Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$green"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd126",
+                      "name": "Workspace Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd127",
+                          "name": "Workspace Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "panels-top-left",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd128",
+                      "name": "Keyboard Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd129",
+                          "name": "Keyboard Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "keyboard",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd130",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {"right": 1},
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hd131",
+                      "name": "History Title",
+                      "fill": "$text",
+                      "content": "History",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 19,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd132",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd133",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [0, 11],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd134",
+                          "name": "History Search Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd135",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd136",
+                      "name": "Today Label",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd137",
+                      "name": "Completed History Item",
+                      "width": "fill_container",
+                      "height": 76,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "stroke": "$accentVivid",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hd138",
+                          "name": "History Item Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hd139",
+                              "name": "History Method Badge",
+                              "height": 22,
+                              "fill": "$greenSoft",
+                              "cornerRadius": 6,
+                              "padding": [0, 8],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hd140",
+                                  "name": "History Method",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "hd141",
+                              "name": "History Status",
+                              "fill": "$green",
+                              "content": "200 · 483 ms",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "750"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd142",
+                          "name": "History URL",
+                          "fill": "$text",
+                          "content": "httpbingo.org/headers",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd143",
+                      "name": "History Consistency Note",
+                      "width": "fill_container",
+                      "height": 66,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hd144",
+                          "name": "History Consistency Header",
+                          "gap": 7,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "hd145",
+                              "name": "History Consistency Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "badge-check",
+                              "library": "lucide",
+                              "fill": "$green"
+                            },
+                            {
+                              "type": "text",
+                              "id": "hd146",
+                              "name": "History Consistency Title",
+                              "fill": "$green",
+                              "content": "Lifecycle recorded",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd147",
+                          "name": "History Consistency Body",
+                          "fill": "$muted",
+                          "content": "One successful Send → one History entry",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "550"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd150",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd151",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {"bottom": 1},
+                      "gap": 14,
+                      "padding": [0, 18],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hd152",
+                          "name": "Active Request Tab",
+                          "height": "fill_container",
+                          "gap": 9,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "hd153",
+                              "name": "Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "hd154",
+                              "name": "Tab Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "hd155",
+                              "name": "Dirty Indicator",
+                              "fill": "$accentVivid",
+                              "content": "•",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 14,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "hd156",
+                              "name": "Close Tab",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hd157",
+                          "name": "New Tab",
+                          "width": 32,
+                          "height": 32,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "hd158",
+                              "name": "New Tab Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd159",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": 774,
+                      "layout": "vertical",
+                      "gap": 14,
+                      "padding": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hd160",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hd161",
+                              "name": "Method Selector",
+                              "width": 104,
+                              "height": 46,
+                              "fill": "$greenSoft",
+                              "cornerRadius": 10,
+                              "gap": 9,
+                              "padding": [0, 14],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hd162",
+                                  "name": "Method Selector Label",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "hd163",
+                                  "name": "Method Arrow",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "hd164",
+                              "name": "URL Input",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 9,
+                              "padding": [0, 14],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "hd165",
+                                  "name": "Lock Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "lock-keyhole",
+                                  "library": "lucide",
+                                  "fill": "$subtle"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "hd166",
+                                  "name": "URL Value",
+                                  "fill": "$codeText",
+                                  "content": "https://httpbingo.org/headers",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "hd167",
+                              "name": "Send Button",
+                              "width": 100,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hd168",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "hd169",
+                                  "name": "Send Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "send",
+                                  "library": "lucide",
+                                  "fill": "$accentInk"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hd170",
+                          "name": "Request Panel",
+                          "width": "fill_container",
+                          "height": 310,
+                          "fill": "$panel",
+                          "cornerRadius": 14,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "clip": true,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hd171",
+                              "name": "Request Menu",
+                              "width": "fill_container",
+                              "height": 48,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {"bottom": 1},
+                              "gap": 28,
+                              "padding": [0, 16],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hd172",
+                                  "name": "Params Tab",
+                                  "fill": "$subtle",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "650"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "hd173",
+                                  "name": "Authorization Tab",
+                                  "fill": "$subtle",
+                                  "content": "Authorization (Bearer)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "650"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd174",
+                                  "name": "Headers Tab Active",
+                                  "height": "fill_container",
+                                  "gap": 7,
+                                  "alignItems": "center",
+                                  "stroke": "$accentVivid",
+                                  "strokeWidth": {"bottom": 3},
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "hd175",
+                                      "name": "Headers Tab Label",
+                                      "fill": "$text",
+                                      "content": "Headers (2)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "ellipse",
+                                      "id": "hd176",
+                                      "name": "Headers Dirty Dot",
+                                      "width": 5,
+                                      "height": 5,
+                                      "fill": "$accentVivid"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "hd177",
+                                  "name": "Body Tab",
+                                  "fill": "$subtle",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "650"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "hd178",
+                                  "name": "Scripts Tab",
+                                  "fill": "$subtle",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "650"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "hd179",
+                                  "name": "Tests Tab",
+                                  "fill": "$subtle",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "hd180",
+                              "name": "Headers Editor",
+                              "width": "fill_container",
+                              "height": 262,
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "hd181",
+                                  "name": "Headers Summary",
+                                  "width": "fill_container",
+                                  "height": 44,
+                                  "padding": [0, 14],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd182",
+                                      "name": "Headers Summary Text",
+                                      "gap": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd183",
+                                          "name": "Headers Summary Title",
+                                          "fill": "$text",
+                                          "content": "Request headers",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd184",
+                                          "name": "Headers Summary Hint",
+                                          "fill": "$muted",
+                                          "content": "Disabled rows stay saved but are excluded from Send",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd185",
+                                      "name": "Enabled Count",
+                                      "height": 24,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 12,
+                                      "gap": 6,
+                                      "padding": [0, 9],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "hd186",
+                                          "name": "Enabled Dot",
+                                          "width": 6,
+                                          "height": 6,
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd187",
+                                          "name": "Enabled Count Label",
+                                          "fill": "$green",
+                                          "content": "1 enabled · 1 disabled",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "750"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd188",
+                                  "name": "Headers Table Header",
+                                  "width": "fill_container",
+                                  "height": 38,
+                                  "fill": "$panelAlt",
+                                  "stroke": "$line",
+                                  "strokeWidth": {"top": 1, "bottom": 1},
+                                  "padding": [0, 10],
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd189",
+                                      "name": "Enabled Header",
+                                      "width": 42,
+                                      "height": "fill_container",
+                                      "alignItems": "center"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd190",
+                                      "name": "Key Header",
+                                      "width": 320,
+                                      "height": "fill_container",
+                                      "padding": [0, 7],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd191",
+                                          "name": "Key Header Label",
+                                          "fill": "$muted",
+                                          "content": "KEY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd192",
+                                      "name": "Value Header",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "padding": [0, 7],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd193",
+                                          "name": "Value Header Label",
+                                          "fill": "$muted",
+                                          "content": "VALUE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd194",
+                                      "name": "Action Header",
+                                      "width": 96,
+                                      "height": "fill_container",
+                                      "justifyContent": "end",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd195",
+                                          "name": "Action Header Label",
+                                          "fill": "$muted",
+                                          "content": "ACTION",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd196",
+                                  "name": "Enabled Header Row · X-Scenario",
+                                  "width": "fill_container",
+                                  "height": 52,
+                                  "fill": "$panel",
+                                  "stroke": "$line",
+                                  "strokeWidth": {"bottom": 1},
+                                  "padding": [0, 10],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd197",
+                                      "name": "Enabled Cell",
+                                      "width": 42,
+                                      "height": "fill_container",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hd198",
+                                          "name": "Enabled Toggle",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$accentVivid",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "hd199",
+                                              "name": "Enabled Check",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "check",
+                                              "library": "lucide",
+                                              "fill": "$accentInk"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd200",
+                                      "name": "Enabled Key Cell",
+                                      "width": 320,
+                                      "height": 36,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd201",
+                                          "name": "Enabled Key",
+                                          "fill": "$text",
+                                          "content": "X-Scenario",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd202",
+                                      "name": "Enabled Value Cell",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd203",
+                                          "name": "Enabled Value",
+                                          "fill": "$text",
+                                          "content": "httpbingo-headers",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd204",
+                                      "name": "Enabled Action",
+                                      "width": 96,
+                                      "height": "fill_container",
+                                      "gap": 8,
+                                      "justifyContent": "end",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hd205",
+                                          "name": "Sent Badge",
+                                          "height": 24,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 7,
+                                          "padding": [0, 8],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "hd206",
+                                              "name": "Sent Label",
+                                              "fill": "$green",
+                                              "content": "SENT",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "icon",
+                                          "id": "hd207",
+                                          "name": "Delete Enabled Row",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "trash-2",
+                                          "library": "lucide",
+                                          "fill": "$subtle"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd208",
+                                  "name": "Disabled Header Row · X-Disabled",
+                                  "width": "fill_container",
+                                  "height": 52,
+                                  "fill": "$panelAlt",
+                                  "stroke": "$line",
+                                  "strokeWidth": {"bottom": 1},
+                                  "padding": [0, 10],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd209",
+                                      "name": "Disabled Cell",
+                                      "width": 42,
+                                      "height": "fill_container",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hd210",
+                                          "name": "Disabled Toggle",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$panel",
+                                          "cornerRadius": 5,
+                                          "stroke": "$line",
+                                          "strokeWidth": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd211",
+                                      "name": "Disabled Key Cell",
+                                      "width": 320,
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd212",
+                                          "name": "Disabled Key",
+                                          "fill": "$subtle",
+                                          "content": "X-Disabled",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "550"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd213",
+                                      "name": "Disabled Value Cell",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd214",
+                                          "name": "Disabled Value",
+                                          "fill": "$subtle",
+                                          "content": "must-not-be-sent",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "550"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd215",
+                                      "name": "Disabled Action",
+                                      "width": 96,
+                                      "height": "fill_container",
+                                      "gap": 8,
+                                      "justifyContent": "end",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hd216",
+                                          "name": "Excluded Badge",
+                                          "height": 24,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 7,
+                                          "padding": [0, 8],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "hd217",
+                                              "name": "Excluded Label",
+                                              "fill": "$accent",
+                                              "content": "EXCLUDED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "icon",
+                                          "id": "hd218",
+                                          "name": "Delete Disabled Row",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "trash-2",
+                                          "library": "lucide",
+                                          "fill": "$subtle"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd219",
+                                  "name": "New Header Draft",
+                                  "width": "fill_container",
+                                  "height": 48,
+                                  "padding": [0, 10],
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd220",
+                                      "name": "Draft Spacer",
+                                      "width": 34,
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd221",
+                                      "name": "Draft Key Input",
+                                      "width": 320,
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd222",
+                                          "name": "Draft Key Placeholder",
+                                          "fill": "$subtle",
+                                          "content": "Header name",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd223",
+                                      "name": "Draft Value Input",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "padding": [0, 12],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd224",
+                                          "name": "Draft Value Placeholder",
+                                          "fill": "$subtle",
+                                          "content": "Header value",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd225",
+                                      "name": "Add Header Button",
+                                      "width": 88,
+                                      "height": 36,
+                                      "fill": "$accentVivid",
+                                      "cornerRadius": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd226",
+                                          "name": "Add Header Label",
+                                          "fill": "$accentInk",
+                                          "content": "Add row",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd227",
+                                  "name": "Headers Ready Indicator",
+                                  "width": "fill_container",
+                                  "height": 28,
+                                  "fill": "$greenSoft",
+                                  "gap": 7,
+                                  "padding": [0, 14],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "hd228",
+                                      "name": "Ready Icon",
+                                      "width": 13,
+                                      "height": 13,
+                                      "icon": "shield-check",
+                                      "library": "lucide",
+                                      "fill": "$green"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd229",
+                                      "name": "Ready Text",
+                                      "fill": "$green",
+                                      "content": "Ready to send · only checked rows participate in request construction",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hd230",
+                          "name": "Response Panel",
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 14,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "clip": true,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hd231",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {"bottom": 1},
+                              "padding": [0, 16],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "hd232",
+                                  "name": "Response Tabs",
+                                  "gap": 20,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "hd233",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 14,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd234",
+                                      "name": "Response Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd235",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$subtle",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd236",
+                                  "name": "Response Metadata",
+                                  "gap": 15,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd237",
+                                      "name": "Response Status Badge",
+                                      "height": 26,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 13,
+                                      "gap": 6,
+                                      "padding": [0, 9],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "hd238",
+                                          "name": "Response Status Icon",
+                                          "width": 13,
+                                          "height": 13,
+                                          "icon": "circle-check",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd239",
+                                          "name": "Response Status",
+                                          "fill": "$green",
+                                          "content": "200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd240",
+                                      "name": "Response Time",
+                                      "fill": "$muted",
+                                      "content": "483 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd241",
+                                      "name": "Response Size",
+                                      "fill": "$muted",
+                                      "content": "518 B",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "hd242",
+                              "name": "Response Content",
+                              "width": "fill_container",
+                              "height": 298,
+                              "gap": 14,
+                              "padding": 14,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "hd243",
+                                  "name": "HTTPBingo Echo",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd244",
+                                      "name": "Echo Header",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hd245",
+                                          "name": "Echo Title Block",
+                                          "gap": 8,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "ellipse",
+                                              "id": "hd246",
+                                              "name": "Echo Dot",
+                                              "width": 7,
+                                              "height": 7,
+                                              "fill": "$green"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "hd247",
+                                              "name": "Echo Title",
+                                              "fill": "$green",
+                                              "content": "HTTPBingo echo · stable subset",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "hd248",
+                                          "name": "Echo Proof Badge",
+                                          "height": 24,
+                                          "fill": "$panel",
+                                          "cornerRadius": 7,
+                                          "padding": [0, 8],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "hd249",
+                                              "name": "Echo Proof Label",
+                                              "fill": "$green",
+                                              "content": "1 custom header received",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "750"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "hd250",
+                                      "name": "Echo JSON",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "{\n  \"headers\": {\n    \"Accept\": [\"*/*\"],\n    \"Host\": [\"httpbingo.org\"],\n    \"User-Agent\": [\"postman-gpui/0.1.0\"],\n    \"X-Scenario\": [\"httpbingo-headers\"]\n  }\n}",
+                                      "lineHeight": 1.55,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hd251",
+                                  "name": "Verification Card",
+                                  "width": 332,
+                                  "height": "fill_container",
+                                  "fill": "$panel",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 12,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "hd252",
+                                      "name": "Verification Header",
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "hd253",
+                                          "name": "Verification Icon",
+                                          "width": 16,
+                                          "height": 16,
+                                          "icon": "shield-check",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd254",
+                                          "name": "Verification Title",
+                                          "fill": "$text",
+                                          "content": "Outgoing header proof",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd255",
+                                      "name": "Included Verification",
+                                      "width": "fill_container",
+                                      "height": 66,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd256",
+                                          "name": "Included Verification Label",
+                                          "fill": "$green",
+                                          "content": "✓ INCLUDED ON THE WIRE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd257",
+                                          "name": "Included Verification Value",
+                                          "fill": "$codeText",
+                                          "content": "X-Scenario: httpbingo-headers",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd258",
+                                      "name": "Excluded Verification",
+                                      "width": "fill_container",
+                                      "height": 66,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hd259",
+                                          "name": "Excluded Verification Label",
+                                          "fill": "$accent",
+                                          "content": "⊘ ABSENT FROM ECHO",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd260",
+                                          "name": "Excluded Verification Value",
+                                          "fill": "$muted",
+                                          "content": "X-Disabled: must-not-be-sent",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hd261",
+                                      "name": "Lifecycle Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 9,
+                                      "gap": 8,
+                                      "padding": [0, 11],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "hd262",
+                                          "name": "Lifecycle Verification Icon",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "refresh-cw",
+                                          "library": "lucide",
+                                          "fill": "$blue"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hd263",
+                                          "name": "Lifecycle Verification Text",
+                                          "fill": "$blue",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "ResponseState = View = History",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "750"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hd300",
+          "name": "Filtering Pipeline",
+          "width": "fill_container",
+          "height": 120,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 14,
+          "padding": 18,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hd301",
+              "name": "Pipeline Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 7,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hd302",
+                  "name": "Pipeline Eyebrow",
+                  "fill": "$accent",
+                  "content": "HEADER FILTERING PIPELINE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd303",
+                  "name": "Pipeline Title",
+                  "fill": "$text",
+                  "content": "Two rows saved. One row sent.",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 15,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd304",
+              "name": "UI Draft Step",
+              "width": 224,
+              "height": 78,
+              "fill": "$panelAlt",
+              "cornerRadius": 11,
+              "layout": "vertical",
+              "gap": 7,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hd305",
+                  "name": "UI Draft Label",
+                  "fill": "$blue",
+                  "content": "01 · UI HEADER TABLE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd306",
+                  "name": "UI Draft Value",
+                  "fill": "$text",
+                  "content": "2 edited rows · 1 unchecked",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "hd307",
+              "name": "Pipeline Arrow One",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "hd308",
+              "name": "Request State Step",
+              "width": 224,
+              "height": 78,
+              "fill": "$blueSoft",
+              "cornerRadius": 11,
+              "layout": "vertical",
+              "gap": 7,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hd309",
+                  "name": "Request State Label",
+                  "fill": "$blue",
+                  "content": "02 · REQUESTSTATE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd310",
+                  "name": "Request State Value",
+                  "fill": "$text",
+                  "content": "2 rows + enabled flags",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "hd311",
+              "name": "Pipeline Arrow Two",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "hd312",
+              "name": "Network Step",
+              "width": 224,
+              "height": 78,
+              "fill": "$greenSoft",
+              "cornerRadius": 11,
+              "layout": "vertical",
+              "gap": 7,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hd313",
+                  "name": "Network Label",
+                  "fill": "$green",
+                  "content": "03 · REAL HTTP REQUEST",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd314",
+                  "name": "Network Value",
+                  "fill": "$text",
+                  "content": "1 enabled custom header",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "hd315",
+              "name": "Pipeline Arrow Three",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "hd316",
+              "name": "Echo Step",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$accentSoft",
+              "cornerRadius": 11,
+              "layout": "vertical",
+              "gap": 7,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hd317",
+                  "name": "Echo Label",
+                  "fill": "$accent",
+                  "content": "04 · HTTPBINGO ECHO + HISTORY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "hd318",
+                  "name": "Echo Value",
+                  "fill": "$text",
+                  "content": "X-Scenario present · X-Disabled absent · 1 history entry",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hd400",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 480,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "clip": true,
+          "children": [
+            {
+              "type": "frame",
+              "id": "hd401",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 70,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [0, 22],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd402",
+                  "name": "Contract Icon Surface",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 11,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hd403",
+                      "name": "Contract Icon",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "list-checks",
+                      "library": "lucide",
+                      "fill": "$green"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd404",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hd405",
+                      "name": "Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #52 · implemented E2E contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 17,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd406",
+                      "name": "Contract Paths",
+                      "fill": "$line",
+                      "content": "tests/cases/httpbingo/headers.json  ·  tests/httpbingo_scenarios.rs  ·  design/issue-0052-custom-disabled-headers.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd407",
+                  "name": "Public E2E Badge",
+                  "height": 30,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 9,
+                  "padding": [0, 12],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hd408",
+                      "name": "Public E2E Label",
+                      "fill": "$accentInk",
+                      "content": "PUBLIC PR E2E",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd409",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 338,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hd410",
+                  "name": "Scenario Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd411",
+                      "name": "Scenario Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd412",
+                          "name": "Scenario Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "route",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd413",
+                          "name": "Scenario Title",
+                          "fill": "$text",
+                          "content": "Real UI scenario",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd414",
+                      "name": "Scenario Step One",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "01  Open GET https://httpbingo.org/headers.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd415",
+                      "name": "Scenario Step Two",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "02  In Headers, add X-Scenario: httpbingo-headers.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd416",
+                      "name": "Scenario Step Three",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "03  Add X-Disabled: must-not-be-sent, then uncheck it.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd417",
+                      "name": "Scenario Step Four",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "04  Click Send through the rendered application controls.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd418",
+                      "name": "Scenario Step Five",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "05  Verify the HTTPBingo response and shared History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd420",
+                  "name": "Assertions Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd421",
+                      "name": "Assertions Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd422",
+                          "name": "Assertions Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "badge-check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd423",
+                          "name": "Assertions Title",
+                          "fill": "$text",
+                          "content": "Contract assertions",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd424",
+                      "name": "Assertion One",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ RequestState preserves both values and their enabled flags.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd425",
+                      "name": "Assertion Two",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ A valid active input participates in Send without Enter, Tab, blur, or Add.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd426",
+                      "name": "Assertion Three",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ The real request includes X-Scenario: httpbingo-headers.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd427",
+                      "name": "Assertion Four",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ The real request and HTTPBingo echo omit X-Disabled.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd428",
+                      "name": "Assertion Five",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ ResponseState, rendered response, and one History entry describe the same request.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hd430",
+                  "name": "Boundaries Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hd431",
+                      "name": "Boundaries Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd432",
+                          "name": "Boundaries Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "shield-check",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd433",
+                          "name": "Boundaries Title",
+                          "fill": "$text",
+                          "content": "Slice boundaries",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd434",
+                      "name": "Included Label",
+                      "fill": "$accent",
+                      "content": "INCLUDED",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd435",
+                      "name": "Included Content",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Header row creation, enabled toggle, disabled persistence, real request filtering, response rendering, and History consistency.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd436",
+                      "name": "Excluded Label",
+                      "fill": "$accent",
+                      "content": "NOT IN THIS SLICE",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hd437",
+                      "name": "Excluded Content",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Header presets, bulk import, secret masking, cookie management, automatic header conflict resolution, or collection-level inheritance.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hd438",
+                      "name": "Tracking Link",
+                      "width": "fill_container",
+                      "height": 48,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "gap": 8,
+                      "padding": [0, 11],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hd439",
+                          "name": "Tracking Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "link-2",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "hd440",
+                          "name": "Tracking Text",
+                          "fill": "$blue",
+                          "content": "Parent roadmap #50  →  HTTPBingo E2E #52",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "750"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hd450",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "hd451",
+                  "name": "One-to-One Icon",
+                  "width": 17,
+                  "height": 17,
+                  "icon": "link-2",
+                  "library": "lucide",
+                  "fill": "$accentInk"
+                },
+                {
+                  "type": "text",
+                  "id": "hd452",
+                  "name": "One-to-One Label",
+                  "fill": "$accentInk",
+                  "content": "ISSUE #52  ·  ONE HTTPBINGO E2E SLICE  ·  issue-0052-custom-disabled-headers.pen",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {"type": "color", "value": "#F4F7F3"},
+    "panel": {"type": "color", "value": "#FFFEFB"},
+    "panelAlt": {"type": "color", "value": "#EEF5F1"},
+    "line": {"type": "color", "value": "#CFE0D7"},
+    "text": {"type": "color", "value": "#20342B"},
+    "muted": {"type": "color", "value": "#526B60"},
+    "subtle": {"type": "color", "value": "#64786E"},
+    "accent": {"type": "color", "value": "#C64B2B"},
+    "accentSoft": {"type": "color", "value": "#FFF0E8"},
+    "green": {"type": "color", "value": "#0E7A4E"},
+    "greenSoft": {"type": "color", "value": "#E4F6EA"},
+    "blue": {"type": "color", "value": "#0F718B"},
+    "blueSoft": {"type": "color", "value": "#E6F4F7"},
+    "code": {"type": "color", "value": "#F0F5F1"},
+    "codeText": {"type": "color", "value": "#243D34"},
+    "fontBody": {"type": "string", "value": "Inter"},
+    "fontMono": {"type": "string", "value": "JetBrains Mono"},
+    "accentVivid": {"type": "color", "value": "#F56B3D"},
+    "accentInk": {"type": "color", "value": "#3C1F16"}
+  },
+  "fileToken": "52d46235-69f3-4ccd-87b1-5cba1630f052"
+}
