@@ -16,8 +16,9 @@ use crate::{
             url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
         },
         theme::{
-            method_color, ACCENT, ACCENT_DARK, ACCENT_SOFT, BG, CODE_BG, CODE_PANEL, CODE_TEXT,
-            ERROR, FONT_HEADING, FONT_MONO, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+            method_color, ACCENT, ACCENT_DARK, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, BG, CODE_BG,
+            CODE_PANEL, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE,
+            MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
         },
     },
 };

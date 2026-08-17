@@ -33,6 +33,35 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "Pasting a complete query URL projects every pair into Params",
+      "draft": {
+        "method": "GET",
+        "path": "/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+        "params": []
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "existing": ["1"],
+              "q": ["rust gpui"],
+              "locale": ["中文"]
+            },
+            "method": "GET"
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }

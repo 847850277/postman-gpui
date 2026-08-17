@@ -4,7 +4,13 @@ use gpui::{
     ParentElement, Render, StatefulInteractiveElement, Styled, Window,
 };
 
-use crate::ui::theme::{ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, LINE, PANEL, SUBTEXT};
+use crate::{
+    models::HttpMethod,
+    ui::theme::{
+        method_color, ACCENT_SOFT, FONT_HEADING, INFO_SOFT, LINE, OK_SOFT, PANEL, PANEL_ALT,
+        SUBTEXT,
+    },
+};
 
 #[derive(Debug, Clone)]
 pub enum DropdownEvent {
@@ -22,6 +28,30 @@ pub struct Dropdown {
 }
 
 impl Dropdown {
+    fn method_palette(value: &str) -> (u32, u32) {
+        let method: HttpMethod = value.into();
+        let soft = match method {
+            HttpMethod::GET => OK_SOFT,
+            HttpMethod::POST => ACCENT_SOFT,
+            HttpMethod::PUT => INFO_SOFT,
+            HttpMethod::DELETE => 0x00fd_ecec,
+            HttpMethod::PATCH => 0x00f1_ecfa,
+            HttpMethod::HEAD | HttpMethod::OPTIONS => PANEL_ALT,
+        };
+        (method_color(method), soft)
+    }
+
+    fn method_border(value: &str) -> u32 {
+        match HttpMethod::from(value) {
+            HttpMethod::GET => 0x00a7_ddbd,
+            HttpMethod::POST => 0x00f2_b89f,
+            HttpMethod::PUT => 0x00a9_d3dd,
+            HttpMethod::DELETE => 0x00e3_a7a7,
+            HttpMethod::PATCH => 0x00c7_b9e5,
+            HttpMethod::HEAD | HttpMethod::OPTIONS => LINE,
+        }
+    }
+
     pub fn new(id: impl Into<ElementId>, cx: &mut Context<Self>) -> Self {
         Self {
             id: id.into(),
@@ -97,6 +127,8 @@ impl Dropdown {
         } else {
             self.selected_value.clone()
         };
+        let (method_color, method_soft) = Self::method_palette(&self.selected_value);
+        let method_border = Self::method_border(&self.selected_value);
 
         div()
             .id("dropdown-button")
@@ -107,20 +139,20 @@ impl Dropdown {
             .justify_between()
             .w_full()
             .h_full()
-            .px_3()
-            .bg(rgb(ACCENT_SOFT))
+            .px(px(13.0))
+            .bg(rgb(method_soft))
             .border_1()
             .border_color(if self.is_open {
-                rgb(ACCENT)
+                rgb(method_color)
             } else {
-                rgb(ACCENT_SOFT)
+                rgb(method_border)
             })
-            .rounded_lg()
+            .rounded(px(9.0))
             .cursor_pointer()
             .font_family(FONT_HEADING)
-            .text_size(px(15.0))
+            .text_size(px(13.0))
             .font_weight(gpui::FontWeight::BOLD)
-            .hover(|style| style.border_color(rgb(ACCENT)))
+            .hover(move |style| style.border_color(rgb(method_color)))
             .on_click(cx.listener(Self::toggle_dropdown))
             .child(
                 div()
@@ -128,16 +160,21 @@ impl Dropdown {
                     .text_color(if self.selected_value.is_empty() {
                         rgb(SUBTEXT)
                     } else {
-                        rgb(ACCENT_DARK)
+                        rgb(method_color)
                     })
                     .child(display_text),
             )
             .child(
                 div()
-                    .w_4()
-                    .h_4()
-                    .child(if self.is_open { "▴" } else { "▾" })
-                    .text_color(rgb(ACCENT_DARK)),
+                    .size(px(15.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .font_family(FONT_HEADING)
+                    .text_size(px(15.0))
+                    .font_weight(gpui::FontWeight::BOLD)
+                    .text_color(rgb(method_color))
+                    .child(if self.is_open { "⌃" } else { "⌄" }),
             )
     }
 
@@ -152,21 +189,26 @@ impl Dropdown {
         deferred(
             anchored()
                 .anchor(Anchor::TopLeft)
-                .position(point(bounds.left(), bounds.bottom() + px(2.0)))
+                .position(point(bounds.left(), bounds.bottom() + px(6.0)))
                 .snap_to_window_with_margin(px(8.))
                 .child(
                     div()
                         .debug_selector(|| "method-dropdown-menu".into())
                         .w(menu_width)
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .p_1()
                         .bg(rgb(PANEL))
                         .border_1()
                         .border_color(rgb(LINE))
-                        .rounded_lg()
+                        .rounded(px(9.0))
                         .shadow_lg()
-                        .max_h(px(260.))
+                        .max_h(px(320.0))
                         .overflow_hidden()
                         .children(self.options.iter().enumerate().map(|(index, option)| {
                             let is_selected = option == &self.selected_value;
+                            let (option_color, option_soft) = Self::method_palette(option);
                             let option_clone = option.clone();
                             let debug_selector =
                                 format!("method-option-{}", option.to_ascii_lowercase());
@@ -175,36 +217,33 @@ impl Dropdown {
                                 .id(("dropdown-option", index))
                                 .debug_selector(move || debug_selector.clone())
                                 .w_full()
-                                .h(px(34.0))
+                                .h(px(36.0))
                                 .flex()
                                 .items_center()
-                                .px_3()
+                                .justify_between()
+                                .px(px(10.0))
+                                .rounded(px(6.0))
                                 .cursor_pointer()
                                 .bg(if is_selected {
-                                    rgb(0x00ff_f7ed)
+                                    rgb(option_soft)
                                 } else {
                                     rgb(PANEL)
                                 })
-                                .hover(|style| {
+                                .hover(move |style| {
                                     if !is_selected {
-                                        style.bg(rgb(ACCENT_SOFT))
+                                        style.bg(rgb(option_soft))
                                     } else {
                                         style
                                     }
                                 })
-                                .text_color(if is_selected {
-                                    rgb(ACCENT_DARK)
-                                } else {
-                                    rgb(SUBTEXT)
-                                })
+                                .text_color(rgb(option_color))
                                 .font_family(FONT_HEADING)
-                                .text_size(px(13.0))
+                                .text_size(px(12.0))
                                 .font_weight(if is_selected {
                                     gpui::FontWeight::BOLD
                                 } else {
                                     gpui::FontWeight::SEMIBOLD
                                 })
-                                // 修复点击事件
                                 .on_mouse_down(
                                     gpui::MouseButton::Left,
                                     cx.listener(move |this, _event, window, cx| {
@@ -219,11 +258,7 @@ impl Dropdown {
                                 .child(option.clone())
                                 .when(is_selected, |this| {
                                     this.child(
-                                        div()
-                                            .absolute()
-                                            .right_2()
-                                            .child("✓")
-                                            .text_color(rgb(ACCENT)),
+                                        div().flex_none().child("✓").text_color(rgb(option_color)),
                                     )
                                 })
                         })),
@@ -252,6 +287,7 @@ impl Render for Dropdown {
             .id(self.id.clone())
             .relative()
             .w_full()
+            .h_full()
             .track_focus(&self.focus_handle)
             .child(self.render_dropdown_button(cx))
             .child(

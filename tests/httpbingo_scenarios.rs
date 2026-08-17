@@ -104,6 +104,19 @@ fn source_name(path: &Path) -> String {
         .to_string()
 }
 
+fn query_rows_from_path(path: &str) -> Vec<KeyValueRow> {
+    let Some((_, query_and_fragment)) = path.split_once('?') else {
+        return Vec::new();
+    };
+    let query = query_and_fragment
+        .split_once('#')
+        .map(|(query, _)| query)
+        .unwrap_or(query_and_fragment);
+    form_urlencoded::parse(query.as_bytes())
+        .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
+        .collect()
+}
+
 #[gpui::test]
 #[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext) {
@@ -155,8 +168,40 @@ fn run_application_scenario(
         "url-input",
         &format!("{HTTPBINGO_BASE_URL}{}", scenario.draft.path),
     )?;
+    let url_rows = query_rows_from_path(&scenario.draft.path);
+    let projected_url_rows = workspace.read_with(cx, |workspace, _| workspace.params().to_vec());
+    if projected_url_rows != url_rows {
+        return Err(format!(
+            "URL query was not projected into Params\n  expected: {url_rows:#?}\n  actual:   {projected_url_rows:#?}"
+        ));
+    }
+    for index in 0..url_rows.len() {
+        let selector = row_toggle_selector(RowEditor::Params, index)?;
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "URL query parameter row `{selector}` is not rendered"
+            ));
+        }
+    }
     apply_rows(cx, &workspace, RowEditor::Params, &scenario.draft.params)?;
     apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+
+    if !url_rows.is_empty() || !scenario.draft.params.is_empty() {
+        for selector in [
+            "params-enabled-count",
+            "effective-url-preview",
+            "params-ready-indicator",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "query parameter contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+        if !url_rows.is_empty() && cx.debug_bounds("url-query-count").is_none() {
+            return Err("URL query count badge is not rendered".to_string());
+        }
+    }
 
     if scenario.draft.bearer_token.is_some() && scenario.draft.basic_auth.is_some() {
         return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
@@ -174,7 +219,7 @@ fn run_application_scenario(
 
     apply_body(cx, &scenario.draft)?;
 
-    let assembled_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
     if assembled_url != expected.url {
         return Err(format!(
             "application URL mismatch before Send\n  expected: {:?}\n  actual:   {:?}",

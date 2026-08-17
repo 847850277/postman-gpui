@@ -211,6 +211,26 @@ impl RequestViewModel {
         &self.url
     }
 
+    /// Returns the URL that will be sent. URL input and Params are kept synchronized, so request
+    /// construction must not append the same query pairs a second time.
+    pub fn effective_url(&self) -> String {
+        self.url.clone()
+    }
+
+    /// Counts query pairs currently represented in the synchronized URL input.
+    pub fn url_query_parameter_count(&self) -> usize {
+        query_parameter_count(&self.url)
+    }
+
+    /// Counts enabled Params rows, including a valid active draft that already participates in
+    /// Send before the user presses Add or changes focus.
+    pub fn enabled_param_count(&self) -> usize {
+        self.effective_params()
+            .iter()
+            .filter(|row| row.enabled && !row.key.is_empty())
+            .count()
+    }
+
     pub fn params(&self) -> &[KeyValueRow] {
         &self.params
     }
@@ -490,7 +510,6 @@ impl RequestViewModel {
             RequestPane::Params => {
                 let draft = std::mem::take(&mut self.param_draft);
                 self.upsert_param(draft.key.trim(), draft.value.trim());
-                self.sync_url_from_params();
             }
             RequestPane::Headers => {
                 let draft = std::mem::take(&mut self.header_draft);
@@ -733,7 +752,7 @@ impl RequestViewModel {
     }
 
     fn build_request(&self) -> Request {
-        let mut request = Request::new(self.method, &self.url);
+        let mut request = Request::new(self.method, self.effective_url());
         request.headers = self
             .headers
             .iter()
@@ -845,7 +864,7 @@ impl RequestViewModel {
         }
     }
 
-    fn sync_url_from_params(&mut self) {
+    fn effective_params(&self) -> Vec<KeyValueRow> {
         let mut params = self.params.clone();
         let draft_key = self.param_draft.key.trim();
         if !draft_key.is_empty() {
@@ -857,7 +876,11 @@ impl RequestViewModel {
                 params.push(KeyValueRow::enabled(draft_key, draft_value));
             }
         }
-        self.url = apply_query_params(&self.url, &params);
+        params
+    }
+
+    fn sync_url_from_params(&mut self) {
+        self.url = apply_query_params(&self.url, &self.effective_params());
     }
 }
 
@@ -984,8 +1007,11 @@ impl WorkspaceViewModel {
         pending: PendingRequest,
         result: Result<RequestResult, AppError>,
     ) -> bool {
-        let succeeded = result.is_ok();
         let was_cancelled = pending.was_cancelled();
+        let completed_response = result
+            .as_ref()
+            .ok()
+            .map(|response| (response.status, response.elapsed_ms, response.body.len()));
         match &result {
             Ok(response) if !was_cancelled => {
                 tracing::info!(
@@ -1018,9 +1044,16 @@ impl WorkspaceViewModel {
             .iter_mut()
             .find(|tab| tab.tab_id == pending.tab_id)
             .is_some_and(|tab| tab.complete_send(&pending, result));
-        if succeeded && !was_cancelled {
-            self.history
-                .add(pending.request.clone(), history_label(&pending.request.url));
+        if let Some((status, elapsed_ms, response_size)) =
+            completed_response.filter(|_| !was_cancelled)
+        {
+            self.history.add_completed(
+                pending.request.clone(),
+                history_label(&pending.request.url),
+                status,
+                elapsed_ms,
+                response_size,
+            );
         }
         applied
     }
@@ -1064,31 +1097,54 @@ impl Default for RequestViewModel {
     }
 }
 
+fn query_parameter_count(url: &str) -> usize {
+    let Some((_, query_and_fragment)) = url.split_once('?') else {
+        return 0;
+    };
+    let query = query_and_fragment
+        .split_once('#')
+        .map(|(query, _)| query)
+        .unwrap_or(query_and_fragment);
+    form_urlencoded::parse(query.as_bytes()).count()
+}
+
 fn parse_query_params(url: &str) -> Vec<KeyValueRow> {
-    let Some((_, query)) = url.split_once('?') else {
+    let Some((_, query_and_fragment)) = url.split_once('?') else {
         return Vec::new();
     };
-    if query.is_empty() {
-        return Vec::new();
-    }
+    let query = query_and_fragment
+        .split_once('#')
+        .map(|(query, _)| query)
+        .unwrap_or(query_and_fragment);
+
     form_urlencoded::parse(query.as_bytes())
         .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
         .collect()
 }
 
 fn apply_query_params(url: &str, params: &[KeyValueRow]) -> String {
-    let base = url.split('?').next().unwrap_or(url);
     let mut serializer = form_urlencoded::Serializer::new(String::new());
     for row in params {
         if row.enabled && !row.key.is_empty() {
             serializer.append_pair(&row.key, &row.value);
         }
     }
+    let (url_without_fragment, fragment) = url
+        .split_once('#')
+        .map(|(base, fragment)| (base, Some(fragment)))
+        .unwrap_or((url, None));
+    let base_url = url_without_fragment
+        .split_once('?')
+        .map(|(base, _)| base)
+        .unwrap_or(url_without_fragment);
     let query = serializer.finish();
+    let fragment = fragment
+        .map(|fragment| format!("#{fragment}"))
+        .unwrap_or_default();
     if query.is_empty() {
-        base.to_string()
+        format!("{base_url}{fragment}")
     } else {
-        format!("{base}?{query}")
+        format!("{base_url}?{query}{fragment}")
     }
 }
 
@@ -1169,16 +1225,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn url_and_params_remain_one_consistent_draft() {
+    fn pasted_url_query_is_projected_into_params_and_stays_synchronized() {
         let mut vm = RequestViewModel::new();
-        vm.set_url("https://example.com/users?page=1");
-        assert_eq!(vm.params(), &[KeyValueRow::enabled("page", "1")]);
+        vm.set_url("https://httpbin.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87");
+        assert_eq!(
+            vm.params(),
+            &[
+                KeyValueRow::enabled("existing", "1"),
+                KeyValueRow::enabled("q", "rust gpui"),
+                KeyValueRow::enabled("locale", "中文"),
+            ]
+        );
+        assert_eq!(vm.url_query_parameter_count(), 3);
+        assert_eq!(vm.enabled_param_count(), 3);
 
         vm.upsert_param("limit", "20");
-        assert_eq!(vm.url(), "https://example.com/users?page=1&limit=20");
+        assert_eq!(
+            vm.url(),
+            "https://httpbin.org/get?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
+        );
 
         vm.toggle_param(0);
-        assert_eq!(vm.url(), "https://example.com/users?limit=20");
+        assert_eq!(
+            vm.effective_url(),
+            "https://httpbin.org/get?q=rust+gpui&locale=%E4%B8%AD%E6%96%87&limit=20"
+        );
+    }
+
+    #[test]
+    fn query_edits_rewrite_the_url_before_its_fragment() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://example.com/get?existing=hello%20world#result");
+        assert_eq!(
+            vm.effective_url(),
+            "https://example.com/get?existing=hello%20world#result"
+        );
+        vm.upsert_param("q", "rust gpui");
+        vm.set_row_draft_key(RequestPane::Params, "locale");
+        vm.set_row_draft_value(RequestPane::Params, "中文");
+
+        assert_eq!(vm.url_query_parameter_count(), 3);
+        assert_eq!(vm.enabled_param_count(), 3);
+        assert_eq!(
+            vm.effective_url(),
+            "https://example.com/get?existing=hello+world&q=rust+gpui&locale=%E4%B8%AD%E6%96%87#result"
+        );
+        assert_eq!(
+            vm.build_request().url,
+            "https://example.com/get?existing=hello+world&q=rust+gpui&locale=%E4%B8%AD%E6%96%87#result"
+        );
     }
 
     #[test]
@@ -1191,6 +1286,8 @@ mod tests {
         vm.set_row_draft_value(RequestPane::Headers, "saved-before-add");
 
         assert_eq!(vm.url(), "https://example.com/live?source=typed");
+        assert_eq!(vm.effective_url(), "https://example.com/live?source=typed");
+        assert_eq!(vm.enabled_param_count(), 1);
         assert_eq!(vm.row_draft(RequestPane::Params), Some(("source", "typed")));
         let request = vm.build_request();
         assert!(request
@@ -1484,6 +1581,9 @@ mod tests {
             workspace.history()[0].request.url,
             "https://example.com/shared-history"
         );
+        assert_eq!(workspace.history()[0].status, Some(204));
+        assert_eq!(workspace.history()[0].elapsed_ms, Some(2));
+        assert_eq!(workspace.history()[0].response_size, Some(0));
     }
 
     #[test]

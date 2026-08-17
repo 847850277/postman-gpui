@@ -17,7 +17,7 @@ impl PostmanApp {
                     .flex()
                     .items_center()
                     .gap_3()
-                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT)))
+                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT_VIVID)))
                     .child(
                         div()
                             .font_family(FONT_HEADING)
@@ -236,7 +236,13 @@ impl RequestEditor {
     }
 
     pub(super) fn render_request_head(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let is_sending = self.view_model.read(cx).is_sending();
+        let (is_sending, url_query_count) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.is_sending(),
+                view_model.url_query_parameter_count(),
+            )
+        };
         div()
             .debug_selector(|| "request-head".into())
             .h(px(46.0))
@@ -245,7 +251,34 @@ impl RequestEditor {
             .items_center()
             .gap_2()
             .child(self.method_selector.clone())
-            .child(self.url_input.clone())
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(self.url_input.clone())
+                    .when(url_query_count > 0, |url| {
+                        url.child(
+                            div()
+                                .debug_selector(|| "url-query-count".into())
+                                .h(px(28.0))
+                                .px_2()
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .rounded_lg()
+                                .bg(rgb(INFO_SOFT))
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(11.0))
+                                .text_color(rgb(INFO))
+                                .child(format!("{url_query_count} in URL")),
+                        )
+                    }),
+            )
             .child(
                 div()
                     .debug_selector(|| "send-button".into())
@@ -256,14 +289,18 @@ impl RequestEditor {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(if is_sending { ERROR } else { ACCENT }))
-                    .text_color(rgb(PANEL))
+                    .bg(rgb(if is_sending { ERROR } else { ACCENT_VIVID }))
+                    .text_color(rgb(if is_sending { PANEL } else { ACCENT_INK }))
                     .font_family(FONT_HEADING)
                     .text_size(px(15.0))
                     .font_weight(FontWeight::BOLD)
                     .cursor_pointer()
                     .hover(move |style| {
-                        style.bg(rgb(if is_sending { 0x00b9_1c1c } else { ACCENT_DARK }))
+                        if is_sending {
+                            style.bg(rgb(0x00a8_2f2f))
+                        } else {
+                            style.bg(rgb(ACCENT)).text_color(rgb(PANEL))
+                        }
                     })
                     .child(if is_sending { "Cancel" } else { "Send" })
                     .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),

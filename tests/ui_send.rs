@@ -9,7 +9,7 @@ mod ui;
 use gpui::{AppContext, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
-    app::{BodyKind, PostmanApp, ResponseState, WorkspaceViewModel},
+    app::{BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel},
     models::{MultipartValue, RequestBody},
 };
 use ui::{choose_method, click, replace_text, type_into};
@@ -150,11 +150,13 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
 }
 
 #[gpui::test]
-fn query_parameter_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
+fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
         .mock("GET", "/live-query")
-        .match_query(Matcher::UrlEncoded("source".into(), "typed".into()))
+        .match_query(Matcher::Exact(
+            "existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87".into(),
+        ))
         .with_status(200)
         .with_body("query-saved")
         .create();
@@ -163,16 +165,40 @@ fn query_parameter_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) 
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
-    type_into(cx, "url-input", &format!("{}/live-query", server.url())).unwrap();
+    let base_url = format!("{}/live-query?existing=1", server.url());
+    type_into(cx, "url-input", &base_url).unwrap();
     click(cx, "request-pane-params").unwrap();
-    type_into(cx, "row-key-input", "source").unwrap();
-    type_into(cx, "row-value-input", "typed").unwrap();
+    type_into(cx, "row-key-input", "q").unwrap();
+    type_into(cx, "row-value-input", "rust gpui").unwrap();
+    click(cx, "add-row-button").unwrap();
+    type_into(cx, "row-key-input", "locale").unwrap();
+    type_into(cx, "row-value-input", "中文").unwrap();
 
+    let synchronized_url = format!(
+        "{}/live-query?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+        server.url()
+    );
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
-        format!("{}/live-query?source=typed", server.url())
+        synchronized_url
     );
-    // Send while the value editor is still active; Add was never clicked.
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.effective_url()),
+        synchronized_url
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url_query_parameter_count()),
+        3
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.enabled_param_count()),
+        3
+    );
+    assert!(cx.debug_bounds("url-query-count").is_some());
+    assert!(cx.debug_bounds("params-enabled-count").is_some());
+    assert!(cx.debug_bounds("effective-url-preview").is_some());
+    assert!(cx.debug_bounds("params-ready-indicator").is_some());
+    // Send while the final value editor is still active; that row was never committed with Add.
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
@@ -180,6 +206,74 @@ fn query_parameter_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) 
         workspace.read_with(cx, |workspace, _| workspace.response().clone()),
         ResponseState::Success { status: 200, .. }
     ));
+    assert!(cx.debug_bounds("response-echo-bar").is_some());
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| entry.request.url.clone())
+        }),
+        Some(synchronized_url)
+    );
+    request.assert();
+}
+
+#[gpui::test]
+fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/pasted-query")
+        .match_query(Matcher::Exact(
+            "existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87".into(),
+        ))
+        .with_status(200)
+        .with_body("pasted-query-saved")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let pasted_url = format!(
+        "{}/pasted-query?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+        server.url()
+    );
+    type_into(cx, "url-input", &pasted_url).unwrap();
+    click(cx, "request-pane-params").unwrap();
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.params().to_vec()),
+        vec![
+            KeyValueRow::enabled("existing", "1"),
+            KeyValueRow::enabled("q", "rust gpui"),
+            KeyValueRow::enabled("locale", "中文"),
+        ]
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.enabled_param_count()),
+        3
+    );
+    assert!(cx.debug_bounds("param-row-toggle-0").is_some());
+    assert!(cx.debug_bounds("param-row-toggle-1").is_some());
+    assert!(cx.debug_bounds("param-row-toggle-2").is_some());
+
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| entry.request.url.clone())
+        }),
+        Some(pasted_url)
+    );
     request.assert();
 }
 
