@@ -26,3 +26,4 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | E2E issue | Design file |
 | --- | --- |
 | [#51 Query Parameter Encoding](https://github.com/847850277/postman-gpui/issues/51) | [`issue-0051-query-parameter-encoding.pen`](issue-0051-query-parameter-encoding.pen) |
+| [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
