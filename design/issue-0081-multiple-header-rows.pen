@@ -1,0 +1,3876 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "r72-q5061",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #81 - Multiple Header Rows",
+      "clip": true,
+      "width": 1600,
+      "height": 1680,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "r72-q5022",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-q5002",
+              "name": "Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "r72-q5001",
+                  "name": "Multiple Header Rows Icon",
+                  "width": 34,
+                  "height": 34,
+                  "icon": "list-plus",
+                  "library": "lucide",
+                  "fill": "$accentVivid"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5011",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5008",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5004",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5003",
+                          "name": "Issue Badge Label",
+                          "fill": "$green",
+                          "content": "ISSUE #81 - HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-q5006",
+                      "name": "Baseline Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5005",
+                          "name": "Baseline Badge Label",
+                          "fill": "$blue",
+                          "content": "DESIGN CONTRACT",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5007",
+                      "name": "Issue URL",
+                      "fill": "$blue",
+                      "content": "github.com/847850277/postman-gpui/issues/81",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5009",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Multiple Header Rows - GET /headers",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5010",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Every Add Header action appends one independent blank row. Enabled headers are sent; disabled rows remain visible and are excluded.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5021",
+              "name": "Contract Snapshot",
+              "width": 410,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5015",
+                  "name": "Endpoint Row",
+                  "gap": 9,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5013",
+                      "name": "Method Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5012",
+                          "name": "Method Badge Label",
+                          "fill": "$green",
+                          "content": "GET",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5014",
+                      "name": "Endpoint",
+                      "fill": "$codeText",
+                      "content": "https://httpbingo.org/headers",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5020",
+                  "name": "Encoding Row",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5017",
+                      "name": "Space Encoding",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5016",
+                          "name": "Space Encoding Label",
+                          "fill": "$blue",
+                          "content": "Auto-grow - up to 6 visible",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-q5019",
+                      "name": "Unicode Encoding",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-q5018",
+                          "name": "Unicode Encoding Label",
+                          "fill": "$green",
+                          "content": "Visible scrollbar - rows unlimited",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r72-nMscc",
+          "name": "Application State - Multiple Header Rows",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-cfMUS",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 20,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-tEDf3",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-Zao6f",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-FmWNf",
+                          "name": "Logo Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-dXy0H",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-oDvex",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "r72-hG96G",
+                      "name": "Search Icon",
+                      "width": 17,
+                      "height": 17,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-IuJrd",
+                      "name": "Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests, history, and collections",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-XA2PQ",
+                  "name": "Header Actions",
+                  "width": 320,
+                  "gap": 12,
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-Po00c",
+                      "name": "Environment",
+                      "height": 36,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "r72-Ms8Dc",
+                          "name": "Environment Status",
+                          "fill": "$green",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-Zm1Yj",
+                          "name": "Environment Label",
+                          "fill": "$muted",
+                          "content": "No Environment",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "r72-jNYfS",
+                          "name": "Environment Arrow",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "r72-b1N7q",
+                      "name": "Settings",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "settings",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-vbOk2",
+              "name": "Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-TJqch",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    16,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-TjC9T",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-vkAiM",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "clock-3",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-S3pxZ",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-IB72Z",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-bEOmw",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-jeCMn",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "layout-grid",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-dgxol",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-UdvrK",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "cookie",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-KBGXk",
+                      "name": "Rail Action",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-ArKFc",
+                          "name": "Rail Icon",
+                          "width": 19,
+                          "height": 19,
+                          "icon": "settings-2",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-sDDkP",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    18,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-FPNqx",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r72-zLfsi",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 20,
+                          "fontWeight": "750"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "r72-dRigo",
+                          "name": "History Options",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "ellipsis",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-e0cWF7",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-DtCAI",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        11
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-HP2CF",
+                          "name": "History Search Icon",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-ZIWjT",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-d3PB5",
+                      "name": "History Date",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-GERUm",
+                      "name": "History - httpbingo.org/headers",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "stroke": "#F2B89F",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-DkgIY",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panel",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-lsZ9P",
+                              "name": "History Method Label",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-OGBuD",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-P8ZkR",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-isdcL",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 - 436 ms - just now",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-oFzrS",
+                      "name": "History · httpbingo.org/post",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$panel",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-sACLC",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-eE0KY",
+                              "name": "History Method Label",
+                              "fill": "$accent",
+                              "content": "POST",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-y95xjO",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-mthWw",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/post",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-v83ld",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 · 1.0 KB",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-zOoSf",
+                      "name": "History · httpbingo.org/json",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$panel",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-Lx84Y",
+                          "name": "History Method",
+                          "width": 48,
+                          "height": 24,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-eisUY",
+                              "name": "History Method Label",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-OprGY",
+                          "name": "History Content",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-QmNvp",
+                              "name": "History Request Name",
+                              "fill": "$text",
+                              "content": "httpbingo.org/json",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-aS6QX",
+                              "name": "History Request Detail",
+                              "fill": "$muted",
+                              "content": "200 · yesterday",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-HAJHI",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-ZF9Kw",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-jiaQb",
+                          "name": "Active Request Tab",
+                          "height": 43,
+                          "stroke": "$accent",
+                          "strokeWidth": {
+                            "bottom": 2
+                          },
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r72-S4bm81",
+                              "name": "Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r72-lCJbE",
+                              "name": "Tab Title",
+                              "fill": "$text",
+                              "content": "httpbingo.org/headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "650"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "r72-pl0qA",
+                              "name": "Close Tab",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-JqgZu",
+                          "name": "New Tab",
+                          "width": 34,
+                          "height": 34,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "r72-BHs4L",
+                              "name": "New Tab Icon",
+                              "width": 17,
+                              "height": 17,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r72-cPugt",
+                      "name": "Request Workspace",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r72-RtOMz",
+                          "name": "Request Bar",
+                          "width": "fill_container",
+                          "height": 46,
+                          "gap": 10,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r72-hLDNO",
+                              "name": "Method Selector · GET",
+                              "width": 120,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "stroke": "#A7DDBD",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                13
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r72-jTA4j",
+                                  "name": "Selected Method",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "r72-d7LSNd",
+                                  "name": "Method Menu Arrow",
+                                  "width": 15,
+                                  "height": 15,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-muWPW",
+                              "name": "Request URL",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 9,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 9,
+                              "padding": [
+                                0,
+                                13
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "r72-ISk3d",
+                                  "name": "Secure URL",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "lock",
+                                  "library": "lucide",
+                                  "fill": "$subtle"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r72-W3u8b",
+                                  "name": "URL Value",
+                                  "fill": "$text",
+                                  "content": "https://httpbingo.org/headers",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-NC7Q3",
+                                  "x": 305,
+                                  "y": 11,
+                                  "name": "Existing Query Badge",
+                                  "enabled": false,
+                                  "height": 24,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    0,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-VxYvB",
+                                      "name": "Existing Query Label",
+                                      "fill": "$blue",
+                                      "content": "1 in URL",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-R3aOOG",
+                              "name": "Send Button",
+                              "width": 110,
+                              "height": "fill_container",
+                              "fill": "$accentVivid",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r72-LymFG",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "750"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "r72-u314x",
+                                  "name": "Send Icon",
+                                  "width": 15,
+                                  "height": 15,
+                                  "icon": "send",
+                                  "library": "lucide",
+                                  "fill": "$accentInk"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "m5onL",
+                          "name": "Headers Request Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 428,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "TfYvF",
+                              "name": "Request Subtabs",
+                              "width": "fill_container",
+                              "height": 44,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "diWzA",
+                                  "name": "Request Tab - Params",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "UiayT",
+                                      "name": "Request Tab Label - Params",
+                                      "fill": "$subtle",
+                                      "content": "Params",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "KnY7D",
+                                  "name": "Request Tab - Authorization",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "pPa6C",
+                                      "name": "Request Tab Label - Authorization",
+                                      "fill": "$subtle",
+                                      "content": "Authorization",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "KKII5",
+                                  "name": "Request Tab - Headers (3)",
+                                  "height": 44,
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "bottom": 2
+                                  },
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "ceAkq",
+                                      "name": "Request Tab Label - Headers (3)",
+                                      "fill": "$text",
+                                      "content": "Headers (3)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "VhHqF",
+                                  "name": "Request Tab - Body",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "w7fhSD",
+                                      "name": "Request Tab Label - Body",
+                                      "fill": "$subtle",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hm33s",
+                                  "name": "Request Tab - Scripts",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "eyDBc",
+                                      "name": "Request Tab Label - Scripts",
+                                      "fill": "$subtle",
+                                      "content": "Scripts",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "S3Nzu6",
+                                  "name": "Request Tab - Tests",
+                                  "height": 44,
+                                  "stroke": "$panel",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "VXy4N",
+                                      "name": "Request Tab Label - Tests",
+                                      "fill": "$subtle",
+                                      "content": "Tests",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "zTCdN",
+                              "name": "Header Summary",
+                              "width": "fill_container",
+                              "height": 42,
+                              "fill": "$panel",
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "U2LzLq",
+                                  "name": "Header Summary Text",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "G3nNJZ",
+                                      "name": "Header Title",
+                                      "fill": "$text",
+                                      "content": "Request headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 13,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "kudWH",
+                                      "name": "Header Description",
+                                      "fill": "$muted",
+                                      "content": "6 rows stored - 4 shown - Add stays fixed",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "LZC8P",
+                                  "name": "Header Counts",
+                                  "height": 24,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 12,
+                                  "gap": 6,
+                                  "padding": [
+                                    0,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "F4JI8W",
+                                      "name": "Header Count Dot",
+                                      "fill": "$green",
+                                      "width": 6,
+                                      "height": 6
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "MhHIQ",
+                                      "name": "Header Count Label",
+                                      "fill": "$green",
+                                      "content": "2 sent - 1 excluded - 3 blank",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FV9vH",
+                              "name": "Header Table Header",
+                              "width": "fill_container",
+                              "height": 36,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "top": 1,
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "AlxRI",
+                                  "name": "Enabled Header",
+                                  "width": 40,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "rDzaX",
+                                  "name": "Header Name Column",
+                                  "width": 310,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Skdx4",
+                                      "name": "Header Name Column Label",
+                                      "fill": "$muted",
+                                      "content": "KEY",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "oxTp5",
+                                  "name": "Header Value Column",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "k28QZ",
+                                      "name": "Header Value Column Label",
+                                      "fill": "$muted",
+                                      "content": "VALUE",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "x2FH6",
+                                  "name": "Header State Column",
+                                  "width": 92,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "tXhDs",
+                                      "name": "Header State Column Label",
+                                      "fill": "$muted",
+                                      "content": "STATE",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "iEO3m",
+                                  "name": "Header Actions Column",
+                                  "width": 52,
+                                  "height": "fill_container",
+                                  "padding": [
+                                    0,
+                                    6
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "FCzSq",
+                                      "name": "Header Actions Column Label",
+                                      "fill": "$muted",
+                                      "content": "ACTION",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "LUCh8",
+                              "name": "Header Rows Viewport",
+                              "clip": true,
+                              "width": "fill_container",
+                              "height": 200,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "UuzRP",
+                                  "name": "Scrollable Header Rows",
+                                  "width": "fill_container",
+                                  "height": 324,
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "QuUxE",
+                                      "name": "Header Row - X-Scenario",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "H2N9G",
+                                          "name": "Header Row - X-Scenario Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "f5e9yO",
+                                              "name": "Header Row - X-Scenario Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$blue",
+                                              "cornerRadius": 5,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "u4AFEW",
+                                                  "name": "Header Row - X-Scenario Checkbox Check",
+                                                  "width": 12,
+                                                  "height": 12,
+                                                  "icon": "check",
+                                                  "library": "lucide",
+                                                  "fill": "#FFFCF8"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "N3JUx",
+                                          "name": "Header Row - X-Scenario Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "OlP0D",
+                                              "name": "Header Row - X-Scenario Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "qeXcW",
+                                                  "name": "Header Row - X-Scenario Key Value",
+                                                  "fill": "$text",
+                                                  "content": "X-Scenario",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "eBLvc",
+                                          "name": "Header Row - X-Scenario Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "q6aJA3",
+                                              "name": "Header Row - X-Scenario Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "d02jQW",
+                                                  "name": "Header Row - X-Scenario Value Value",
+                                                  "fill": "$text",
+                                                  "content": "multiple-header-rows",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "cgrxE",
+                                          "name": "Header Row - X-Scenario State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "ltAsD",
+                                              "name": "Header Row - X-Scenario SENT Badge",
+                                              "height": 24,
+                                              "fill": "$greenSoft",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "oZKQ2",
+                                                  "name": "Header Row - X-Scenario State Label",
+                                                  "fill": "$green",
+                                                  "content": "SENT",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "P1Cj39",
+                                          "name": "Header Row - X-Scenario Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "gRqxT",
+                                              "name": "Header Row - X-Scenario Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "tNYJe",
+                                                  "name": "Header Row - X-Scenario Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "LQjOT",
+                                      "name": "Header Row - X-Locale",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "i8ikn9",
+                                          "name": "Header Row - X-Locale Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "O9xxr",
+                                              "name": "Header Row - X-Locale Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$blue",
+                                              "cornerRadius": 5,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "ql5j9",
+                                                  "name": "Header Row - X-Locale Checkbox Check",
+                                                  "width": 12,
+                                                  "height": 12,
+                                                  "icon": "check",
+                                                  "library": "lucide",
+                                                  "fill": "#FFFCF8"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "WIECd",
+                                          "name": "Header Row - X-Locale Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "fmF0a",
+                                              "name": "Header Row - X-Locale Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "FjUKE",
+                                                  "name": "Header Row - X-Locale Key Value",
+                                                  "fill": "$text",
+                                                  "content": "X-Locale",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ibnsH",
+                                          "name": "Header Row - X-Locale Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "x4dd6W",
+                                              "name": "Header Row - X-Locale Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 2,
+                                              "effect": {
+                                                "type": "shadow",
+                                                "shadowType": "outer",
+                                                "color": "#2563EB1F",
+                                                "spread": 3
+                                              },
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "MS40j",
+                                                  "name": "Header Row - X-Locale Value Value",
+                                                  "fill": "$text",
+                                                  "content": "zh-CN",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                },
+                                                {
+                                                  "type": "rectangle",
+                                                  "id": "xCuN1",
+                                                  "name": "Header Row - X-Locale Text Caret",
+                                                  "fill": "$blue",
+                                                  "width": 1,
+                                                  "height": 19
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "iIUMb",
+                                          "name": "Header Row - X-Locale State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "Snxor",
+                                              "name": "Header Row - X-Locale SENT Badge",
+                                              "height": 24,
+                                              "fill": "$greenSoft",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "qLO45",
+                                                  "name": "Header Row - X-Locale State Label",
+                                                  "fill": "$green",
+                                                  "content": "SENT",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "kQ080",
+                                          "name": "Header Row - X-Locale Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "wil8C",
+                                              "name": "Header Row - X-Locale Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "R8KFK",
+                                                  "name": "Header Row - X-Locale Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "QC47u",
+                                      "name": "Header Row - X-Disabled",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panelAlt",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "lAaxP",
+                                          "name": "Header Row - X-Disabled Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "T9mUXH",
+                                              "name": "Header Row - X-Disabled Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$panel",
+                                              "cornerRadius": 5,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "H53g0",
+                                          "name": "Header Row - X-Disabled Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "X0po0",
+                                              "name": "Header Row - X-Disabled Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "YKXFw",
+                                                  "name": "Header Row - X-Disabled Key Value",
+                                                  "fill": "$subtle",
+                                                  "content": "X-Disabled",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "qMnc3",
+                                          "name": "Header Row - X-Disabled Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "Yt6pu",
+                                              "name": "Header Row - X-Disabled Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "irwHX",
+                                                  "name": "Header Row - X-Disabled Value Value",
+                                                  "fill": "$subtle",
+                                                  "content": "must-not-be-sent",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "hBObd",
+                                          "name": "Header Row - X-Disabled State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "ntJ2n",
+                                              "name": "Header Row - X-Disabled EXCLUDED Badge",
+                                              "height": 24,
+                                              "fill": "$accentSoft",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "Up10R",
+                                                  "name": "Header Row - X-Disabled State Label",
+                                                  "fill": "$accent",
+                                                  "content": "EXCLUDED",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "DjDxB",
+                                          "name": "Header Row - X-Disabled Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "Odtoi",
+                                              "name": "Header Row - X-Disabled Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "w4nau",
+                                                  "name": "Header Row - X-Disabled Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "uoaN4",
+                                      "name": "Header Row - Blank 1",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "i4NVG",
+                                          "name": "Header Row - Blank 1 Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "xjQHh",
+                                              "name": "Header Row - Blank 1 Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$panel",
+                                              "cornerRadius": 5,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "z1p2s",
+                                          "name": "Header Row - Blank 1 Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "QcVq7",
+                                              "name": "Header Row - Blank 1 Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "D2bdV",
+                                                  "name": "Header Row - Blank 1 Key Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header name",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "nSZy7",
+                                          "name": "Header Row - Blank 1 Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "P9CwaK",
+                                              "name": "Header Row - Blank 1 Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "ABSVf",
+                                                  "name": "Header Row - Blank 1 Value Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header value",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ao8pJ",
+                                          "name": "Header Row - Blank 1 State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "ApNrz",
+                                              "name": "Header Row - Blank 1 DRAFT Badge",
+                                              "height": 24,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "Adoxr",
+                                                  "name": "Header Row - Blank 1 State Label",
+                                                  "fill": "$subtle",
+                                                  "content": "DRAFT",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "l5vSzl",
+                                          "name": "Header Row - Blank 1 Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "utx6c",
+                                              "name": "Header Row - Blank 1 Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "mDNZ7",
+                                                  "name": "Header Row - Blank 1 Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "ysdOc",
+                                      "name": "Header Row - Blank 2",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "KbWXt",
+                                          "name": "Header Row - Blank 2 Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "McQZP",
+                                              "name": "Header Row - Blank 2 Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$panel",
+                                              "cornerRadius": 5,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "u8tFEl",
+                                          "name": "Header Row - Blank 2 Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "DsS77",
+                                              "name": "Header Row - Blank 2 Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "J78sHv",
+                                                  "name": "Header Row - Blank 2 Key Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header name",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "BC3fx",
+                                          "name": "Header Row - Blank 2 Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "ZxagF",
+                                              "name": "Header Row - Blank 2 Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "SlSB4",
+                                                  "name": "Header Row - Blank 2 Value Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header value",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "VpieU",
+                                          "name": "Header Row - Blank 2 State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "tzvQV",
+                                              "name": "Header Row - Blank 2 DRAFT Badge",
+                                              "height": 24,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "BCglQ",
+                                                  "name": "Header Row - Blank 2 State Label",
+                                                  "fill": "$subtle",
+                                                  "content": "DRAFT",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "sR5Md",
+                                          "name": "Header Row - Blank 2 Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "TfZA1",
+                                              "name": "Header Row - Blank 2 Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "t5kuV",
+                                                  "name": "Header Row - Blank 2 Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Hw5VP",
+                                      "name": "Header Row - Blank 3",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "u4v1y",
+                                          "name": "Header Row - Blank 3 Enabled Cell",
+                                          "width": 40,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "dkoyY",
+                                              "name": "Header Row - Blank 3 Checkbox",
+                                              "width": 18,
+                                              "height": 18,
+                                              "fill": "$panel",
+                                              "cornerRadius": 5,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "justifyContent": "center",
+                                              "alignItems": "center"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "GMfGH",
+                                          "name": "Header Row - Blank 3 Key Cell",
+                                          "width": 310,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "v6Er6",
+                                              "name": "Header Row - Blank 3 Key Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "TEAqo",
+                                                  "name": "Header Row - Blank 3 Key Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header name",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "cAewB",
+                                          "name": "Header Row - Blank 3 Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "g48FlG",
+                                              "name": "Header Row - Blank 3 Value Input",
+                                              "width": "fill_container",
+                                              "height": 36,
+                                              "fill": "$panel",
+                                              "cornerRadius": 7,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "gap": 2,
+                                              "padding": [
+                                                0,
+                                                11
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "B907w",
+                                                  "name": "Header Row - Blank 3 Value Value",
+                                                  "fill": "$subtle",
+                                                  "content": "Header value",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "500"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ms5U6",
+                                          "name": "Header Row - Blank 3 State Cell",
+                                          "width": 92,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "J4VNwF",
+                                              "name": "Header Row - Blank 3 DRAFT Badge",
+                                              "height": 24,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 12,
+                                              "padding": [
+                                                0,
+                                                8
+                                              ],
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "h3zMN",
+                                                  "name": "Header Row - Blank 3 State Label",
+                                                  "fill": "$subtle",
+                                                  "content": "DRAFT",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "800"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "T9Dgy8",
+                                          "name": "Header Row - Blank 3 Action Cell",
+                                          "width": 52,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            6
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "XWLMW",
+                                              "name": "Header Row - Blank 3 Delete Header",
+                                              "width": 30,
+                                              "height": 30,
+                                              "fill": "$panelAlt",
+                                              "cornerRadius": 7,
+                                              "justifyContent": "center",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "icon",
+                                                  "id": "Pak8n",
+                                                  "name": "Header Row - Blank 3 Delete Icon",
+                                                  "width": 14,
+                                                  "height": 14,
+                                                  "icon": "x",
+                                                  "library": "lucide",
+                                                  "fill": "$muted"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "A34995",
+                                  "name": "Header Rows Scrollbar",
+                                  "width": 14,
+                                  "height": "fill_container",
+                                  "fill": "$panelAlt",
+                                  "padding": [
+                                    8,
+                                    4
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "g8NRH6",
+                                      "name": "Scrollbar Track",
+                                      "width": 6,
+                                      "height": "fill_container",
+                                      "fill": "$line",
+                                      "cornerRadius": 3,
+                                      "layout": "vertical",
+                                      "padding": [
+                                        18,
+                                        0
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "gb34t",
+                                          "name": "Scrollbar Thumb",
+                                          "width": 6,
+                                          "height": 64,
+                                          "fill": "$blue",
+                                          "cornerRadius": 3
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "oHjHk",
+                              "name": "Add Header Bar",
+                              "width": "fill_container",
+                              "height": 42,
+                              "fill": "$blueSoft",
+                              "stroke": "$blue",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "jlTtL",
+                                  "name": "Add Header Action",
+                                  "height": 28,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "n0OiJI",
+                                      "name": "Add Header Icon",
+                                      "width": 14,
+                                      "height": 14,
+                                      "icon": "plus",
+                                      "library": "lucide",
+                                      "fill": "$muted"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "eUBjL",
+                                      "name": "Add Header Label",
+                                      "fill": "$text",
+                                      "content": "Add another header row",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "CgFxW",
+                                  "name": "Add Header Hint",
+                                  "fill": "$muted",
+                                  "content": "Click repeatedly - rows are unlimited",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "rOC5d",
+                              "name": "Header Persistence and Send Projection",
+                              "width": "fill_container",
+                              "height": 64,
+                              "fill": "$panel",
+                              "layout": "vertical",
+                              "gap": 5,
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "JocWO",
+                                  "name": "Immediate Persistence Status",
+                                  "gap": 7,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "jsKzJ",
+                                      "name": "Ready Icon",
+                                      "width": 14,
+                                      "height": 14,
+                                      "icon": "circle-check",
+                                      "library": "lucide",
+                                      "fill": "$green"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "s6OCq",
+                                      "name": "Ready Message",
+                                      "fill": "$muted",
+                                      "content": "Ready to send - active values already live in ViewModel",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "550"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "tCivY",
+                                  "name": "Send Projection",
+                                  "fill": "$blue",
+                                  "content": "Sent: X-Scenario, X-Locale  |  Excluded but retained: X-Disabled",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r72-X3zb82",
+                          "name": "HTTPBingo Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 264,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r72-hjs1c",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-NyuhE",
+                                  "name": "Response Navigation",
+                                  "gap": 18,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-ic3r9",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 14,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-kClZ0",
+                                      "name": "Response Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-ypPz6",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$subtle",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-vFGer",
+                                  "name": "Response Metrics",
+                                  "gap": 14,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-iIscJ",
+                                      "name": "HTTP Status",
+                                      "height": 24,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 12,
+                                      "gap": 5,
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "r72-YzDpl",
+                                          "name": "Status Check",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "circle-check",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r72-d4BTMF",
+                                          "name": "Status Label",
+                                          "fill": "$green",
+                                          "content": "200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-uC5lb",
+                                      "name": "Response Time",
+                                      "fill": "$muted",
+                                      "content": "436 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r72-kMS4f",
+                                      "name": "Response Size",
+                                      "fill": "$muted",
+                                      "content": "512 B",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r72-gAJ3I",
+                              "name": "Response Body",
+                              "width": "fill_container",
+                              "height": 218,
+                              "fill": "$panel",
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r72-ebjmo",
+                                  "name": "HTTPBingo Echo Bar",
+                                  "width": "fill_container",
+                                  "height": 36,
+                                  "fill": "$panelAlt",
+                                  "stroke": "$line",
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    0,
+                                    16
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r72-RRClN",
+                                      "name": "Echo Source",
+                                      "gap": 7,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "r72-GcIW5",
+                                          "name": "Echo Live Dot",
+                                          "fill": "$green",
+                                          "width": 7,
+                                          "height": 7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r72-t1Nin",
+                                          "name": "Echo Label",
+                                          "fill": "$green",
+                                          "content": "HTTPBingo echo",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "IoWC8",
+                                      "name": "Echo Actions",
+                                      "gap": 10,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "UbXwr",
+                                          "name": "Copy Response Button",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 6,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "gap": 5,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "XJrSQ",
+                                              "name": "Copy Response Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "copy",
+                                              "library": "lucide",
+                                              "fill": "$blue"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "YBa1d",
+                                              "name": "Copy Response Label",
+                                              "fill": "$blue",
+                                              "content": "Copy",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "THHGb",
+                                          "name": "Echo Scope",
+                                          "fill": "$muted",
+                                          "content": "disabled omitted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r72-YxnTC",
+                                  "name": "Response JSON",
+                                  "width": "fill_container",
+                                  "height": 182,
+                                  "fill": "$panel",
+                                  "padding": [
+                                    16,
+                                    18
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r72-d0ya8b",
+                                      "name": "HTTPBingo JSON Body",
+                                      "fill": "$text",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "{\n  \"headers\": {\n    \"X-Locale\": [\"zh-CN\"],\n    \"X-Scenario\": [\"multiple-header-rows\"]\n  }\n}\n\nX-Disabled is not present in the echoed request.",
+                                      "lineHeight": 1.55,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "450"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r72-q5060",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r72-q5030",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [
+                0,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5024",
+                  "name": "Contract Icon Surface",
+                  "width": 42,
+                  "height": 42,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "r72-q5023",
+                      "name": "Contract Icon",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "list-plus",
+                      "library": "lucide",
+                      "fill": "$green"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5027",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r72-q5025",
+                      "name": "Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #81 - planned E2E contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5026",
+                      "name": "Contract Paths",
+                      "fill": "$line",
+                      "content": "tests/cases/httpbingo/headers.json - tests/ui_send.rs - tests/ui_layout.rs - design/issue-0081-multiple-header-rows.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5029",
+                  "name": "Public E2E Badge",
+                  "height": 30,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 8,
+                  "padding": [
+                    0,
+                    9
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r72-q5028",
+                      "name": "Public E2E Badge Label",
+                      "fill": "$accentInk",
+                      "content": "PR E2E TARGET",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5056",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r72-q5038",
+                  "name": "Scenario Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5033",
+                      "name": "Scenario Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5031",
+                          "name": "Scenario Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "route",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5032",
+                          "name": "Scenario Column Title",
+                          "fill": "$text",
+                          "content": "Real UI scenario",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5034",
+                      "name": "Scenario Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "01  Open GET https://httpbingo.org/headers and select Headers.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5035",
+                      "name": "Scenario Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "02  Click Add Header repeatedly until six rows exist; verify the visible scrollbar and fixed Add action.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5036",
+                      "name": "Scenario Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "03  Enter X-Scenario=multiple-header-rows, X-Locale=zh-CN, and X-Disabled=must-not-be-sent; disable the third row; click Send while X-Locale is active.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5037",
+                      "name": "Scenario Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "04  Verify the HTTPBingo echo, omitted X-Disabled, response state, rendered view, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5047",
+                  "name": "Assertions Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5041",
+                      "name": "Assertions Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5039",
+                          "name": "Assertions Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "badge-check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5040",
+                          "name": "Assertions Column Title",
+                          "fill": "$text",
+                          "content": "Contract assertions",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5042",
+                      "name": "Assertions Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  Every click appends exactly one independent blank row; repeated clicks remain unlimited.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5043",
+                      "name": "Assertions Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  The panel grows to its visible cap, then exposes a scrollbar while Add Header stays fixed.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5044",
+                      "name": "Assertions Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  Every row owns independent key, value, enabled state, and delete action.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5045",
+                      "name": "Assertions Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  Active edits already live in the ViewModel; enabled rows are sent and disabled rows are retained but excluded.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5046",
+                      "name": "Assertions Column Item 5",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PASS  HTTPBingo, ResponseState, rendered View, and History agree.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r72-q5055",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r72-q5050",
+                      "name": "Boundary Column Header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "r72-q5048",
+                          "name": "Boundary Column Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "shield-check",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r72-q5049",
+                          "name": "Boundary Column Title",
+                          "fill": "$text",
+                          "content": "Slice boundaries",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5051",
+                      "name": "Boundary Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED - repeated Add Header, unlimited blank rows, adaptive height, visible overflow scrollbar, per-row editing, toggle, delete, outbound projection, response, and History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5052",
+                      "name": "Boundary Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INTERACTION - Add never overwrites another row; Send needs no Enter, Tab, blur, or final Add.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5053",
+                      "name": "Boundary Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NOT IN THIS SLICE - drag reorder, duplicate-name merge policy, environment substitution, or bulk import.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r72-q5054",
+                      "name": "Boundary Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Parent roadmap #50 - custom and disabled headers #52 - row behavior baseline #72 - HTTPBingo E2E #81.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r72-q5059",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "r72-q5057",
+                  "name": "One-to-One Icon",
+                  "width": 17,
+                  "height": 17,
+                  "icon": "link-2",
+                  "library": "lucide",
+                  "fill": "$accentInk"
+                },
+                {
+                  "type": "text",
+                  "id": "r72-q5058",
+                  "name": "One-to-One Label",
+                  "fill": "$accentInk",
+                  "content": "ISSUE #81 - ONE HTTPBINGO E2E SLICE - issue-0081-multiple-header-rows.pen",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "0616a375-b474-43e0-a5a1-6bfabf45def3"
+}
