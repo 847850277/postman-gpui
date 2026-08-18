@@ -28,6 +28,38 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "PATCH sends the active JSON body with an automatic content type",
+      "draft": {
+        "method": "PATCH",
+        "path": "/patch",
+        "body": "{\"patched\":true}",
+        "body_kind": "json"
+      },
+      "mock": {
+        "status": 200,
+        "body": "{\"method\":\"PATCH\",\"json\":{\"patched\":true}}"
+      },
+      "expect": {
+        "request": {
+          "method": "PATCH",
+          "path": "/patch",
+          "headers": [["Content-Type", "application/json"]],
+          "body": "{\"patched\":true}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "PATCH",
+            "json": {
+              "patched": true
+            }
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }

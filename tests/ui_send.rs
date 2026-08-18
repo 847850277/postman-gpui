@@ -163,6 +163,83 @@ fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("PATCH", "/patch")
+        .match_header("content-type", "application/json")
+        .match_body(Matcher::Exact(r#"{"patched":true}"#.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"method":"PATCH","json":{"patched":true}}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "PATCH").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.method()),
+        HttpMethod::PATCH,
+        "the rendered method selector must save PATCH directly to the ViewModel"
+    );
+
+    let url = format!("{}/patch", server.url());
+    type_into(cx, "url-input", &url).unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", r#"{"patched":true}"#).unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.body_kind(), BodyKind::Json);
+        assert_eq!(
+            workspace.request_body(),
+            &RequestBody::Json(r#"{"patched":true}"#.to_string()),
+            "the active JSON editor must save its latest value before blur"
+        );
+    });
+    assert!(cx.debug_bounds("method-dropdown-selected-value").is_some());
+    assert!(cx.debug_bounds("request-tab-method-0").is_some());
+    assert!(cx.debug_bounds("body-kind-json").is_some());
+    assert!(cx.debug_bounds("body-input").is_some());
+
+    // Issue #56 sends directly from the active body editor: no Enter, Tab, or blur is involved.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(status, 200);
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the mock should return a JSON echo");
+            assert_eq!(echo["method"], "PATCH");
+            assert_eq!(echo["json"]["patched"], true);
+        }
+        other => panic!("PATCH should complete as a response: {other:?}"),
+    }
+    assert!(cx.debug_bounds("response-container").is_some());
+    assert!(cx.debug_bounds("response-content").is_some());
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::PATCH);
+        assert_eq!(entry.request.url, url);
+        assert_eq!(
+            entry.request.body,
+            RequestBody::Json(r#"{"patched":true}"#.to_string())
+        );
+        assert!(entry.request.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("content-type") && value == "application/json"
+        }));
+        assert_eq!(entry.status, Some(200));
+    });
+    assert!(cx.debug_bounds("history-method-0").is_some());
+    request.assert();
+}
+
+#[gpui::test]
 fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
