@@ -168,6 +168,7 @@ impl RequestEditor {
                             .hover(|style| style.bg(rgb(PANEL)))
                             .child(
                                 div()
+                                    .debug_selector(move || format!("request-tab-method-{index}"))
                                     .text_color(rgb(method_color(method)))
                                     .font_weight(FontWeight::BOLD)
                                     .child(method.to_string()),
