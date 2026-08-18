@@ -1,24 +1,17 @@
 use crate::errors::AppError;
 use crate::http::response::HttpResponse;
-use crate::models::{HttpMethod, MultipartValue, RequestBody};
+use crate::models::{HttpMethod, MultipartValue, Request, RequestBody};
 use reqwest::{multipart, Client, RequestBuilder};
-use std::collections::HashMap;
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Clone)]
-pub struct HttpClient {
+pub(super) struct HttpClient {
     client: Client,
 }
 
-impl Default for HttpClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl HttpClient {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         HttpClient {
             client: Client::builder()
                 .user_agent(DEFAULT_USER_AGENT)
@@ -27,63 +20,22 @@ impl HttpClient {
         }
     }
 
-    pub async fn get(&self, url: &str) -> Result<HttpResponse, AppError> {
-        self.request(HttpMethod::GET, url, Vec::new(), RequestBody::None)
-            .await
-    }
-
-    pub async fn get_with_headers(
-        &self,
-        url: &str,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<HttpResponse, AppError> {
-        self.request(
-            HttpMethod::GET,
+    /// Executes the complete request command without rebuilding or coercing its semantics.
+    pub(super) async fn execute(&self, request: Request) -> Result<HttpResponse, AppError> {
+        let Request {
+            method,
             url,
-            headers
-                .map(HashMap::into_iter)
-                .into_iter()
-                .flatten()
-                .collect(),
-            RequestBody::None,
-        )
-        .await
-    }
-
-    pub async fn post(
-        &self,
-        url: &str,
-        body: &str,
-        headers: Option<HashMap<String, String>>,
-    ) -> Result<HttpResponse, AppError> {
-        self.request(
-            HttpMethod::POST,
-            url,
-            headers
-                .map(HashMap::into_iter)
-                .into_iter()
-                .flatten()
-                .collect(),
-            RequestBody::Raw(body.to_string()),
-        )
-        .await
-    }
-
-    pub async fn request(
-        &self,
-        method: HttpMethod,
-        url: &str,
-        headers: Vec<(String, String)>,
-        body: RequestBody,
-    ) -> Result<HttpResponse, AppError> {
+            headers,
+            body,
+        } = request;
         let mut request = match method {
-            HttpMethod::GET => self.client.get(url),
-            HttpMethod::POST => self.client.post(url),
-            HttpMethod::PUT => self.client.put(url),
-            HttpMethod::DELETE => self.client.delete(url),
-            HttpMethod::PATCH => self.client.patch(url),
-            HttpMethod::HEAD => self.client.head(url),
-            HttpMethod::OPTIONS => self.client.request(reqwest::Method::OPTIONS, url),
+            HttpMethod::GET => self.client.get(&url),
+            HttpMethod::POST => self.client.post(&url),
+            HttpMethod::PUT => self.client.put(&url),
+            HttpMethod::DELETE => self.client.delete(&url),
+            HttpMethod::PATCH => self.client.patch(&url),
+            HttpMethod::HEAD => self.client.head(&url),
+            HttpMethod::OPTIONS => self.client.request(reqwest::Method::OPTIONS, &url),
         };
 
         for (key, value) in headers {
@@ -155,20 +107,6 @@ mod tests {
     use crate::models::{MultipartPart, MultipartValue};
     use mockito::{Matcher, Server};
 
-    #[test]
-    fn test_http_client_creation() {
-        let client = HttpClient::new();
-        // Verify that the client can be created
-        assert!(std::mem::size_of_val(&client) > 0);
-    }
-
-    #[test]
-    fn test_default_client() {
-        let client = HttpClient::default();
-        // Verify that default implementation works
-        assert!(std::mem::size_of_val(&client) > 0);
-    }
-
     #[tokio::test]
     async fn default_client_sends_product_user_agent() {
         let mut server = Server::new_async().await;
@@ -181,7 +119,10 @@ mod tests {
             .await;
 
         let response = HttpClient::new()
-            .get(&format!("{}/headers", server.url()))
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/headers", server.url()),
+            ))
             .await
             .expect("request should succeed");
 
@@ -219,7 +160,8 @@ mod tests {
             .create_async()
             .await;
 
-        let body = RequestBody::Multipart(vec![
+        let mut request = Request::new(HttpMethod::POST, format!("{}/upload", server.url()));
+        request.body = RequestBody::Multipart(vec![
             MultipartPart::text("note", "hello multipart"),
             MultipartPart {
                 name: "attachment".to_string(),
@@ -231,12 +173,7 @@ mod tests {
             },
         ]);
         let response = HttpClient::new()
-            .request(
-                HttpMethod::POST,
-                &format!("{}/upload", server.url()),
-                Vec::new(),
-                body,
-            )
+            .execute(request)
             .await
             .expect("multipart request should succeed");
 

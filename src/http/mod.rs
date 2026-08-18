@@ -1,4 +1,4 @@
 // src/http/mod.rs
-pub mod client;
+mod client;
 pub mod executor;
 pub mod response;
