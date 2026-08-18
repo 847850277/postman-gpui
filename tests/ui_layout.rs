@@ -1,7 +1,7 @@
 //! Visual-contract checks derived from the issue-linked Pencil artifacts in `design/`.
 
 use gpui::{px, AppContext, Modifiers, TestAppContext};
-use postman_gpui::app::{PostmanApp, RequestPane, WorkspaceViewModel};
+use postman_gpui::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::http::executor::RequestResult;
 
 #[gpui::test]
@@ -209,6 +209,63 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
     assert!(input.size.width > px(0.0));
     assert!(outgoing.size.width > px(0.0));
     assert!(outgoing.bottom() <= ready.origin.y);
+    assert!(ready.bottom() <= panel.bottom());
+}
+
+#[gpui::test]
+fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://httpbingo.org/basic-auth/scenario-user/scenario-pass");
+        workspace.set_request_pane(RequestPane::Authorization);
+        workspace.set_authorization_kind(AuthorizationKind::Basic);
+        workspace.set_basic_username("scenario-user");
+        workspace.set_basic_password("scenario-pass");
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let panel = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should render");
+    let summary = cx
+        .debug_bounds("authorization-summary")
+        .expect("Authorization summary should render");
+    let kind = cx
+        .debug_bounds("authorization-kind-selector")
+        .expect("Authorization type selector should render");
+    let username = cx
+        .debug_bounds("basic-auth-username-field")
+        .expect("Basic username should render");
+    let password = cx
+        .debug_bounds("basic-auth-password-field")
+        .expect("masked Basic password should render");
+    let outgoing = cx
+        .debug_bounds("basic-auth-header-preview")
+        .expect("Basic outgoing header should render");
+    let projection = cx
+        .debug_bounds("basic-auth-projection-note")
+        .expect("Basic ViewModel projection note should render");
+    let ready = cx
+        .debug_bounds("authorization-ready-indicator")
+        .expect("Authorization ready state should render");
+
+    assert_eq!(panel.size.height, px(360.0));
+    assert!(summary.origin.y >= panel.origin.y);
+    assert!(summary.bottom() <= kind.origin.y);
+    assert!(kind.bottom() <= username.origin.y);
+    assert_eq!(username.origin.y, password.origin.y);
+    assert!(username.origin.x < password.origin.x);
+    assert!(username.size.width > px(0.0));
+    assert!(password.size.width > px(0.0));
+    assert!(username.bottom() <= outgoing.origin.y);
+    assert!(outgoing.bottom() <= projection.origin.y);
+    assert!(
+        projection.bottom() <= ready.origin.y,
+        "Basic projection {projection:?} overlaps ready state {ready:?}"
+    );
     assert!(ready.bottom() <= panel.bottom());
 }
 

@@ -9,7 +9,9 @@ use common::scenario::{
     KeyValueSpec, RequestScenario, ResponseSpec, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
-use postman_gpui::app::{KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel};
+use postman_gpui::app::{
+    AuthorizationKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
+};
 use std::path::{Path, PathBuf};
 use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
@@ -411,8 +413,47 @@ fn run_application_scenario(
     if let Some(credentials) = &scenario.draft.basic_auth {
         click(cx, "request-pane-authorization")?;
         click(cx, "auth-kind-basic")?;
+        assert_basic_auth_editor_contract(cx)?;
         type_into(cx, "basic-auth-username-input", &credentials.username)?;
+        let live_username =
+            workspace.read_with(cx, |workspace, _| workspace.basic_username().to_string());
+        if live_username != credentials.username {
+            return Err(format!(
+                "active Basic username was not saved to the ViewModel\n  expected: {:?}\n  actual:   {live_username:?}",
+                credentials.username
+            ));
+        }
         type_into(cx, "basic-auth-password-input", &credentials.password)?;
+        let (kind, live_password, header_preview) = workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.authorization_kind(),
+                workspace.basic_password().to_string(),
+                workspace.authorization_header_preview(),
+            )
+        });
+        if kind != AuthorizationKind::Basic {
+            return Err(
+                "Basic Auth editor did not select the Basic authorization kind".to_string(),
+            );
+        }
+        if live_password != credentials.password {
+            return Err(format!(
+                "active Basic password was not saved to the ViewModel\n  expected: {:?}\n  actual:   {live_password:?}",
+                credentials.password
+            ));
+        }
+        let expected_authorization = scenario
+            .expect
+            .request
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+            .map(|(_, value)| format!("Authorization: {value}"));
+        if header_preview != expected_authorization {
+            return Err(format!(
+                "Basic Authorization preview mismatch\n  expected: {expected_authorization:?}\n  actual:   {header_preview:?}"
+            ));
+        }
     }
 
     apply_body(cx, &scenario.draft)?;
@@ -488,6 +529,31 @@ fn assert_bearer_editor_contract(cx: &mut VisualTestContext) -> Result<(), Strin
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "Bearer design contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn assert_basic_auth_editor_contract(cx: &mut VisualTestContext) -> Result<(), String> {
+    for selector in [
+        "authorization-summary",
+        "authorization-kind-selector",
+        "basic-auth-credentials",
+        "basic-auth-username-field",
+        "basic-auth-username-input",
+        "basic-auth-username-saved",
+        "basic-auth-password-field",
+        "basic-auth-password-input",
+        "basic-auth-password-masked",
+        "basic-auth-password-saved",
+        "basic-auth-header-preview",
+        "basic-auth-projection-note",
+        "authorization-ready-indicator",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "Basic Auth design contract element `{selector}` is not rendered"
             ));
         }
     }

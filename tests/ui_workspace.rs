@@ -229,11 +229,51 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
+    type_into(cx, "url-input", &format!("{}/basic-auth", server.url())).unwrap();
     click(cx, "request-pane-authorization").unwrap();
     click(cx, "auth-kind-basic").unwrap();
+    for selector in [
+        "authorization-summary",
+        "authorization-kind-selector",
+        "basic-auth-credentials",
+        "basic-auth-username-field",
+        "basic-auth-username-input",
+        "basic-auth-username-saved",
+        "basic-auth-password-field",
+        "basic-auth-password-input",
+        "basic-auth-password-masked",
+        "basic-auth-password-saved",
+        "basic-auth-header-preview",
+        "basic-auth-projection-note",
+        "authorization-ready-indicator",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Basic Auth design contract element `{selector}` should be rendered"
+        );
+    }
+
     type_into(cx, "basic-auth-username-input", "ui-user").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_username().to_string()),
+        "ui-user"
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        ""
+    );
+
     type_into(cx, "basic-auth-password-input", "ui-pass").unwrap();
-    type_into(cx, "url-input", &format!("{}/basic-auth", server.url())).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        "ui-pass"
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.authorization_header_preview()),
+        Some("Authorization: Basic dWktdXNlcjp1aS1wYXNz".to_string())
+    );
+
+    // Send directly while the masked password field is still active: no Enter, Tab, or blur.
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
@@ -249,6 +289,32 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
         workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
         "ui-pass"
     );
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        1
+    );
+    let authorization_headers = workspace.read_with(cx, |workspace, _| {
+        workspace.history()[0]
+            .request
+            .headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+            .cloned()
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(
+        authorization_headers,
+        vec![(
+            "Authorization".to_string(),
+            "Basic dWktdXNlcjp1aS1wYXNz".to_string()
+        )]
+    );
+    assert!(cx.debug_bounds("response-content").is_some());
+    assert!(cx.debug_bounds("history-item-0").is_some());
     secured.assert();
 }
 
