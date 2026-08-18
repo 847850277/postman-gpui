@@ -1,7 +1,8 @@
 use crate::{
     app::{
-        request_runner::RequestRunner, AuthorizationKind, BodyKind, KeyValueRow, PendingRequest,
-        RequestPane, SendId, WorkspaceViewModel,
+        request_runner::RequestRunner, AuthorizationKind, BodyKind, EffectiveHeader,
+        EffectiveHeaderSource, KeyValueRow, PendingRequest, RequestPane, SendId,
+        WorkspaceViewModel,
     },
     models::{MultipartPart, MultipartValue, Request, RequestBody},
     ui::{

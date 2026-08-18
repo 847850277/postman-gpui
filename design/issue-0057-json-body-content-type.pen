@@ -244,7 +244,7 @@
           "name": "Application State · JSON Body and Effective Headers",
           "clip": true,
           "width": "fill_container",
-          "height": 932,
+          "height": 900,
           "fill": "$panel",
           "cornerRadius": 18,
           "stroke": "$line",
@@ -382,7 +382,7 @@
               "id": "j570170",
               "name": "Application Body",
               "width": "fill_container",
-              "height": 860,
+              "height": 828,
               "children": [
                 {
                   "type": "frame",

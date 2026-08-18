@@ -52,6 +52,22 @@ enum ContentTypeSource {
     User,
 }
 
+/// Explains where one header in the final request came from. The Body view consumes this
+/// projection instead of recreating request-building rules in the UI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EffectiveHeaderSource {
+    Generated,
+    User,
+}
+
+/// One enabled header exactly as it will participate in the next Send.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EffectiveHeader {
+    pub name: String,
+    pub value: String,
+    pub source: EffectiveHeaderSource,
+}
+
 /// A row in the params/headers editor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KeyValueRow {
@@ -156,6 +172,7 @@ pub struct RequestViewModel {
     header_draft: KeyValueDraft,
     body: RequestBody,
     content_type_source: ContentTypeSource,
+    accept_source: ContentTypeSource,
     authorization_kind: AuthorizationKind,
     bearer_token: String,
     basic_username: String,
@@ -185,6 +202,7 @@ impl RequestViewModel {
             header_draft: KeyValueDraft::default(),
             body: RequestBody::None,
             content_type_source: ContentTypeSource::Unset,
+            accept_source: ContentTypeSource::Unset,
             authorization_kind: AuthorizationKind::Bearer,
             bearer_token: String::new(),
             basic_username: String::new(),
@@ -243,6 +261,39 @@ impl RequestViewModel {
 
     pub fn headers(&self) -> &[KeyValueRow] {
         &self.headers
+    }
+
+    /// Returns the enabled headers produced by the same request-construction path used by Send.
+    /// This is a read-only View projection; it never becomes a second header store.
+    pub fn effective_headers(&self) -> Vec<EffectiveHeader> {
+        let mut generated_content_type = self.content_type_source == ContentTypeSource::Automatic;
+        let mut generated_accept = self.accept_source == ContentTypeSource::Automatic;
+
+        self.build_request()
+            .headers
+            .into_iter()
+            .map(|(name, value)| {
+                let generated =
+                    if generated_content_type && name.eq_ignore_ascii_case("content-type") {
+                        generated_content_type = false;
+                        true
+                    } else if generated_accept && name.eq_ignore_ascii_case("accept") {
+                        generated_accept = false;
+                        true
+                    } else {
+                        false
+                    };
+                EffectiveHeader {
+                    name,
+                    value,
+                    source: if generated {
+                        EffectiveHeaderSource::Generated
+                    } else {
+                        EffectiveHeaderSource::User
+                    },
+                }
+            })
+            .collect()
     }
 
     /// Counts complete, enabled Header rows, including the active row that already participates
@@ -358,16 +409,12 @@ impl RequestViewModel {
         self.dirty = true;
 
         if method == HttpMethod::POST && self.body.is_empty() {
-            let add_default_accept = self.headers.is_empty();
             self.body = RequestBody::Json(default_json_body());
             self.sync_automatic_content_type();
-            if add_default_accept {
-                self.headers
-                    .push(KeyValueRow::enabled("Accept", "application/json"));
-            }
         } else {
             self.sync_automatic_content_type();
         }
+        self.sync_automatic_accept();
     }
 
     pub fn set_url(&mut self, url: impl Into<String>) {
@@ -564,6 +611,9 @@ impl RequestViewModel {
         if draft.key.eq_ignore_ascii_case("content-type") {
             self.content_type_source = ContentTypeSource::User;
         }
+        if draft.key.eq_ignore_ascii_case("accept") {
+            self.accept_source = ContentTypeSource::User;
+        }
         self.headers
             .push(KeyValueRow::enabled(draft.key, draft.value));
         self.dirty = true;
@@ -648,6 +698,7 @@ impl RequestViewModel {
             return;
         }
         let is_content_type = key.eq_ignore_ascii_case("content-type");
+        let is_accept = key.eq_ignore_ascii_case("accept");
         if let Some(row) = self
             .headers
             .iter_mut()
@@ -660,6 +711,9 @@ impl RequestViewModel {
         }
         if is_content_type {
             self.content_type_source = ContentTypeSource::User;
+        }
+        if is_accept {
+            self.accept_source = ContentTypeSource::User;
         }
         self.dirty = true;
     }
@@ -678,6 +732,9 @@ impl RequestViewModel {
         {
             self.content_type_source = ContentTypeSource::User;
         }
+        if row.key.eq_ignore_ascii_case("accept") || key.eq_ignore_ascii_case("accept") {
+            self.accept_source = ContentTypeSource::User;
+        }
         row.key = key;
         self.dirty = true;
     }
@@ -692,6 +749,9 @@ impl RequestViewModel {
         }
         if row.key.eq_ignore_ascii_case("content-type") {
             self.content_type_source = ContentTypeSource::User;
+        }
+        if row.key.eq_ignore_ascii_case("accept") {
+            self.accept_source = ContentTypeSource::User;
         }
         row.value = value;
         self.dirty = true;
@@ -709,6 +769,9 @@ impl RequestViewModel {
             if row.key.eq_ignore_ascii_case("content-type") {
                 self.content_type_source = ContentTypeSource::User;
             }
+            if row.key.eq_ignore_ascii_case("accept") {
+                self.accept_source = ContentTypeSource::User;
+            }
             row.enabled = !row.enabled;
             self.dirty = true;
         }
@@ -718,6 +781,9 @@ impl RequestViewModel {
         if index < self.headers.len() {
             if self.headers[index].key.eq_ignore_ascii_case("content-type") {
                 self.content_type_source = ContentTypeSource::User;
+            }
+            if self.headers[index].key.eq_ignore_ascii_case("accept") {
+                self.accept_source = ContentTypeSource::User;
             }
             self.headers.remove(index);
             self.dirty = true;
@@ -734,6 +800,7 @@ impl RequestViewModel {
         self.header_draft = KeyValueDraft::default();
         self.body = RequestBody::None;
         self.content_type_source = ContentTypeSource::Unset;
+        self.accept_source = ContentTypeSource::Unset;
         self.authorization_kind = AuthorizationKind::Bearer;
         self.bearer_token.clear();
         self.basic_username.clear();
@@ -786,9 +853,10 @@ impl RequestViewModel {
             .map(|(key, value)| KeyValueRow::enabled(key, value))
             .collect();
         self.body = request.body.clone();
-        // A loaded request is an exact saved draft. Its Content-Type, including
-        // an intentional absence, must not be replaced by automatic defaults.
+        // A loaded request is an exact saved draft. Its managed headers, including an
+        // intentional absence, must not be replaced by automatic defaults.
         self.content_type_source = ContentTypeSource::User;
+        self.accept_source = ContentTypeSource::User;
         self.request_pane = if self.body.is_empty() {
             RequestPane::Headers
         } else {
@@ -916,6 +984,15 @@ impl RequestViewModel {
             }
             request.body = self.body.clone();
         }
+        if self.method == HttpMethod::POST
+            && self.accept_source != ContentTypeSource::User
+            && !request
+                .headers
+                .iter()
+                .any(|(key, _)| key.eq_ignore_ascii_case("accept"))
+        {
+            request.add_header("Accept", "application/json");
+        }
         request
     }
 
@@ -980,6 +1057,48 @@ impl RequestViewModel {
             }
             (_, None, None) => {
                 self.content_type_source = ContentTypeSource::Unset;
+            }
+        }
+    }
+
+    fn sync_automatic_accept(&mut self) {
+        if self.accept_source == ContentTypeSource::User {
+            return;
+        }
+
+        let desired = (self.method == HttpMethod::POST).then_some("application/json");
+        let accept_index = self
+            .headers
+            .iter()
+            .position(|row| row.key.eq_ignore_ascii_case("accept"));
+
+        match (self.accept_source, accept_index, desired) {
+            (ContentTypeSource::User, _, _) => unreachable!("handled above"),
+            (ContentTypeSource::Unset, Some(_), _) => {
+                // An existing value predates automatic management and is therefore user-owned.
+                self.accept_source = ContentTypeSource::User;
+            }
+            (_, Some(index), Some(value)) => {
+                let row = &mut self.headers[index];
+                if row.value != value || !row.enabled {
+                    row.value = value.to_string();
+                    row.enabled = true;
+                    self.dirty = true;
+                }
+                self.accept_source = ContentTypeSource::Automatic;
+            }
+            (_, None, Some(value)) => {
+                self.headers.push(KeyValueRow::enabled("Accept", value));
+                self.accept_source = ContentTypeSource::Automatic;
+                self.dirty = true;
+            }
+            (ContentTypeSource::Automatic, Some(index), None) => {
+                self.headers.remove(index);
+                self.accept_source = ContentTypeSource::Unset;
+                self.dirty = true;
+            }
+            (_, None, None) => {
+                self.accept_source = ContentTypeSource::Unset;
             }
         }
     }
@@ -1606,6 +1725,75 @@ mod tests {
             .headers()
             .iter()
             .any(|row| row.key == "Accept" && row.value == "application/json"));
+    }
+
+    #[test]
+    fn post_json_defaults_do_not_depend_on_custom_headers_being_absent() {
+        let mut vm = RequestViewModel::new();
+        vm.upsert_header("X-Scenario", "httpbingo-json");
+
+        vm.set_method(HttpMethod::POST);
+        vm.set_body_kind(BodyKind::Json);
+
+        let request = vm.build_request();
+        for (name, value) in [
+            ("Content-Type", "application/json"),
+            ("Accept", "application/json"),
+            ("X-Scenario", "httpbingo-json"),
+        ] {
+            assert!(request.headers.iter().any(|(actual_name, actual_value)| {
+                actual_name.eq_ignore_ascii_case(name) && actual_value == value
+            }));
+        }
+
+        let effective = vm.effective_headers();
+        assert_eq!(effective.len(), 3);
+        for name in ["Content-Type", "Accept"] {
+            assert_eq!(
+                effective
+                    .iter()
+                    .find(|header| header.name.eq_ignore_ascii_case(name))
+                    .map(|header| header.source),
+                Some(EffectiveHeaderSource::Generated)
+            );
+        }
+        assert_eq!(
+            effective
+                .iter()
+                .find(|header| header.name.eq_ignore_ascii_case("X-Scenario"))
+                .map(|header| header.source),
+            Some(EffectiveHeaderSource::User)
+        );
+    }
+
+    #[test]
+    fn a_user_accept_header_is_preserved_instead_of_duplicated_by_post_defaults() {
+        let mut vm = RequestViewModel::new();
+        vm.upsert_header("Accept", "application/problem+json");
+
+        vm.set_method(HttpMethod::POST);
+
+        let accepts: Vec<_> = vm
+            .effective_headers()
+            .into_iter()
+            .filter(|header| header.name.eq_ignore_ascii_case("accept"))
+            .collect();
+        assert_eq!(accepts.len(), 1);
+        assert_eq!(accepts[0].value, "application/problem+json");
+        assert_eq!(accepts[0].source, EffectiveHeaderSource::User);
+    }
+
+    #[test]
+    fn leaving_post_removes_only_the_automatic_accept_header() {
+        let mut vm = RequestViewModel::new();
+        vm.set_method(HttpMethod::POST);
+
+        vm.set_method(HttpMethod::PUT);
+
+        assert!(!vm
+            .effective_headers()
+            .iter()
+            .any(|header| header.name.eq_ignore_ascii_case("accept")));
     }
 
     #[test]

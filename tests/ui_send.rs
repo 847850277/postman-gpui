@@ -240,6 +240,100 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
 }
 
 #[gpui::test]
+fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_value(
+    cx: &mut TestAppContext,
+) {
+    let body = r#"{"name":"Ada","active":true}"#;
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("POST", "/anything/post-json")
+        .match_header("content-type", "application/json")
+        .match_header("accept", "application/json")
+        .match_header("x-scenario", "httpbingo-json")
+        .match_body(Matcher::Exact(body.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"method":"POST","headers":{"Content-Type":["application/json"],"X-Scenario":["httpbingo-json"]},"data":"{\"name\":\"Ada\",\"active\":true}","json":{"name":"Ada","active":true}}"#,
+        )
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    // Add the custom row first. Generated JSON defaults must not depend on Headers being empty.
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Scenario").unwrap();
+    type_into(cx, "row-value-input", "httpbingo-json").unwrap();
+    click(cx, "add-row-button").unwrap();
+
+    choose_method(cx, "POST").unwrap();
+    type_into(
+        cx,
+        "url-input",
+        &format!("{}/anything/post-json", server.url()),
+    )
+    .unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", body).unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.body_kind(), BodyKind::Json);
+        assert_eq!(
+            workspace.request_body(),
+            &RequestBody::Json(body.to_string())
+        );
+    });
+    for selector in [
+        "body-live-saved",
+        "body-effective-headers",
+        "body-effective-header-content-type",
+        "body-effective-header-accept",
+        "body-effective-header-x-scenario",
+        "body-source-of-truth",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #57 design contract element `{selector}` should be rendered"
+        );
+    }
+
+    // Send while the JSON editor is still active: no Enter, Tab, blur, or submit-time backfill.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(status, 200);
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the mock should return a JSON echo");
+            assert_eq!(echo["data"], r#"{"name":"Ada","active":true}"#);
+            assert_eq!(echo["json"]["name"], "Ada");
+            assert_eq!(echo["json"]["active"], true);
+        }
+        other => panic!("POST JSON should complete as a response: {other:?}"),
+    }
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let recorded = &workspace.history()[0].request;
+        assert_eq!(recorded.body, RequestBody::Json(body.to_string()));
+        for (name, value) in [
+            ("Content-Type", "application/json"),
+            ("Accept", "application/json"),
+            ("X-Scenario", "httpbingo-json"),
+        ] {
+            assert!(recorded.headers.iter().any(|(actual_name, actual_value)| {
+                actual_name.eq_ignore_ascii_case(name) && actual_value == value
+            }));
+        }
+    });
+    request.assert();
+}
+
+#[gpui::test]
 fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
