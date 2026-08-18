@@ -1,8 +1,9 @@
 //! Visual-contract checks derived from the issue-linked Pencil artifacts in `design/`.
 
 use gpui::{px, AppContext, Modifiers, TestAppContext};
-use postman_gpui::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
+use postman_gpui::app::{AuthorizationKind, BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::http::executor::RequestResult;
+use postman_gpui::models::HttpMethod;
 
 #[gpui::test]
 fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
@@ -267,6 +268,63 @@ fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut T
         "Basic projection {projection:?} overlaps ready state {ready:?}"
     );
     assert!(ready.bottom() <= panel.bottom());
+}
+
+#[gpui::test]
+fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
+    cx: &mut TestAppContext,
+) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.upsert_header("X-Scenario", "httpbingo-json");
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://httpbingo.org/anything/post-json");
+        workspace.set_body_kind(BodyKind::Json);
+        workspace.set_body(r#"{"name":"Ada","active":true}"#);
+        workspace.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let panel = cx
+        .debug_bounds("request-panel")
+        .expect("Body panel should render");
+    let kinds = cx
+        .debug_bounds("body-kind-selector")
+        .expect("Body type selector should render");
+    let editor = cx
+        .debug_bounds("body-editor-shell")
+        .expect("JSON editor shell should render");
+    let source = cx
+        .debug_bounds("body-source-of-truth")
+        .expect("single-source projection should render");
+    let headers = cx
+        .debug_bounds("body-effective-headers")
+        .expect("effective headers should render");
+
+    for selector in [
+        "body-kind-json",
+        "body-live-saved",
+        "body-input",
+        "body-effective-header-content-type",
+        "body-effective-header-accept",
+        "body-effective-header-x-scenario",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #57 contract element `{selector}` should render"
+        );
+    }
+    assert_eq!(panel.size.height, px(360.0));
+    assert_eq!(kinds.size.height, px(44.0));
+    assert!(kinds.origin.y >= panel.origin.y);
+    assert!(editor.origin.y >= kinds.bottom());
+    assert!(editor.origin.x < headers.origin.x);
+    assert!(editor.bottom() <= source.origin.y);
+    assert!(source.bottom() <= panel.bottom());
+    assert!(headers.bottom() <= panel.bottom());
 }
 
 #[gpui::test]

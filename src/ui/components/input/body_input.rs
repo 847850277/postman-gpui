@@ -14,6 +14,7 @@ use unicode_segmentation::*;
 use crate::ui::components::common::edit_context_menu::{
     edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
 };
+use crate::ui::theme::{CODE_BG, CODE_TEXT, INFO, LINE, TEXT};
 
 actions!(
     body_input,
@@ -1710,7 +1711,7 @@ impl Element for JsonTextElement {
                         point(bounds.left() + cursor_x, bounds.top() + cursor_y),
                         size(px(2.), line_height),
                     ),
-                    rgb(0x0000_7acc),
+                    rgb(INFO),
                 )),
             )
         } else if !selected_range.is_empty() && !content.is_empty() {
@@ -1986,7 +1987,7 @@ impl Element for FormTextElement {
                         point(bounds.left() + cursor_x, bounds.top()),
                         size(px(2.), line_height),
                     ),
-                    rgb(0x0000_7acc),
+                    rgb(INFO),
                 )),
             )
         } else {
@@ -2076,7 +2077,7 @@ impl Render for BodyInput {
             .w_full()
             .h_full()
             .min_h_0()
-            .bg(rgb(0x000f_172a))
+            .bg(rgb(CODE_BG))
             // Tab headers
             .when(self.show_type_tabs, |root| {
                 root.child(
@@ -2096,12 +2097,12 @@ impl Render for BodyInput {
                                 .font_family("Helvetica Neue")
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Json, |div| {
-                                    div.text_color(rgb(0x0025_63eb))
+                                    div.text_color(rgb(INFO))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::Json, |div| {
                                     div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                        .hover(|style| style.text_color(rgb(TEXT)))
                                 })
                                 .child("● JSON ▾")
                                 .on_mouse_up(
@@ -2117,12 +2118,12 @@ impl Render for BodyInput {
                                 .font_family("Helvetica Neue")
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::FormData, |div| {
-                                    div.text_color(rgb(0x0025_63eb))
+                                    div.text_color(rgb(INFO))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::FormData, |div| {
                                     div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                        .hover(|style| style.text_color(rgb(TEXT)))
                                 })
                                 .child("○ form-data")
                                 .on_mouse_up(
@@ -2138,12 +2139,12 @@ impl Render for BodyInput {
                                 .font_family("Helvetica Neue")
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Raw, |div| {
-                                    div.text_color(rgb(0x0025_63eb))
+                                    div.text_color(rgb(INFO))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::Raw, |div| {
                                     div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(0x000f_172a)))
+                                        .hover(|style| style.text_color(rgb(TEXT)))
                                 })
                                 .child("○ raw")
                                 .on_mouse_up(
@@ -2169,21 +2170,21 @@ impl Render for BodyInput {
                             .min_h_0()
                             .px_3()
                             .py_2()
-                            .bg(rgb(0x000b_1328))
+                            .bg(rgb(CODE_BG))
                             .border_1()
                             .border_color(
                                 if self.focus_handle.is_focused(window)
                                     && self.current_type != BodyType::FormData
                                 {
-                                    rgb(0x0025_63eb)
+                                    rgb(INFO)
                                 } else {
-                                    rgb(0x000b_1328)
+                                    rgb(LINE)
                                 },
                             )
                             .rounded_lg()
                             .font_family("Menlo")
                             .text_size(px(13.0))
-                            .text_color(rgb(0x00ba_e6fd))
+                            .text_color(rgb(CODE_TEXT))
                             .cursor(CursorStyle::IBeam)
                             .track_focus(&self.focus_handle(cx))
                             .on_action(cx.listener(Self::json_backspace))
@@ -2313,7 +2314,7 @@ impl Render for BodyInput {
                                         .rounded_sm()
                                         .cursor_pointer()
                                         .when(entry_enabled, |style| {
-                                            style.bg(rgb(0x0000_7acc)).child(
+                                            style.bg(rgb(INFO)).child(
                                                 div().w_2().h_2().bg(rgb(0x00ff_ffff)).m_auto(),
                                             )
                                         })
@@ -2334,7 +2335,7 @@ impl Render for BodyInput {
                                         .bg(rgb(0x00ff_ffff))
                                         .border_1()
                                         .border_color(if self.editing_key_index == Some(index) {
-                                            rgb(0x0000_7acc)
+                                            rgb(INFO)
                                         } else {
                                             rgb(0x00cc_cccc)
                                         })
@@ -2436,7 +2437,7 @@ impl Render for BodyInput {
                                         .bg(rgb(0x00ff_ffff))
                                         .border_1()
                                         .border_color(if self.editing_value_index == Some(index) {
-                                            rgb(0x0000_7acc)
+                                            rgb(INFO)
                                         } else {
                                             rgb(0x00cc_cccc)
                                         })
