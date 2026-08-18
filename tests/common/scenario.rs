@@ -226,7 +226,13 @@ fn execute_scenario(
     apply_draft(&mut workspace, &scenario.draft, server_url)?;
     let pending = workspace.begin_send();
     let sent = vec![pending.request().clone()];
-    let result = RequestExecutor::new().execute_request(pending.request());
+    let executor = RequestExecutor::new();
+    let task = executor.spawn(pending.request().clone());
+    let result = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| format!("failed to create scenario scheduling adapter: {error}"))?
+        .block_on(task);
     workspace.complete_send(pending, result);
 
     assert_outgoing_request(&sent, &scenario.expect.request, server_url)?;

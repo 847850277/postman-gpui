@@ -30,13 +30,14 @@ impl RequestRunner {
         cx: &mut Context<Self>,
     ) {
         let send_id = pending.send_id();
-        let (abort_handle, request_task) = self.executor.spawn_request(pending.request().clone());
-        self.in_flight.insert(send_id, abort_handle);
+        let request_task = self.executor.spawn(pending.request().clone());
+        self.in_flight.insert(send_id, request_task.abort_handle());
 
-        let executor = self.executor.clone();
+        // Joining the Tokio task on GPUI's background executor keeps transport wake-ups away
+        // from the foreground executor and remains deterministic for long-running GPUI tests.
         let result_task = cx
             .background_executor()
-            .spawn(async move { executor.wait_for_request(request_task) });
+            .spawn(async move { request_task.join_on_background_thread() });
         cx.spawn(async move |this, cx| {
             let result = result_task.await;
             let _ = this.update(cx, |this, cx| {
