@@ -33,6 +33,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#51 Query Parameter Encoding](https://github.com/847850277/postman-gpui/issues/51) | [`issue-0051-query-parameter-encoding.pen`](issue-0051-query-parameter-encoding.pen) |
 | [#52 Custom and Disabled Headers](https://github.com/847850277/postman-gpui/issues/52) | [`issue-0052-custom-disabled-headers.pen`](issue-0052-custom-disabled-headers.pen) |
 | [#53 Bearer Auth](https://github.com/847850277/postman-gpui/issues/53) | [`issue-0053-bearer-auth.pen`](issue-0053-bearer-auth.pen) |
+| [#54 Basic Auth](https://github.com/847850277/postman-gpui/issues/54) | [`issue-0054-basic-auth.pen`](issue-0054-basic-auth.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
