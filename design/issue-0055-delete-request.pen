@@ -1,0 +1,3148 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "d550267",
+      "name": "Issue #55 · DELETE Request",
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 1840,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "clip": true,
+      "children": [
+        {
+          "type": "frame",
+          "id": "d550020",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "horizontal",
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "d550003",
+              "name": "Issue Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "layout": "vertical",
+              "gap": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550001",
+                  "name": "Issue Mark Number",
+                  "content": "#55",
+                  "fill": "$accent",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550002",
+                  "name": "Issue Mark Label",
+                  "content": "DELETE",
+                  "fill": "$accent",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550012",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550009",
+                  "name": "Eyebrow",
+                  "layout": "horizontal",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550005",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550004",
+                          "name": "Issue Badge Label",
+                          "content": "ISSUE #55 · HTTPBINGO E2E",
+                          "fill": "$blue",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550007",
+                      "name": "Status Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550006",
+                          "name": "Status Badge Label",
+                          "content": "IMPLEMENTED BASELINE",
+                          "fill": "$green",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550008",
+                      "name": "Issue URL",
+                      "content": "https://github.com/847850277/postman-gpui/issues/55",
+                      "fill": "$subtle",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "400"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "d550010",
+                  "name": "Design Title",
+                  "content": "DELETE Request · DELETE /delete",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 26,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550011",
+                  "name": "Design Summary",
+                  "content": "Select DELETE in the rendered method menu, send a bodyless request, and keep HTTPBingo, ResponseState, View, and History on one lifecycle.",
+                  "fill": "$muted",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "400",
+                  "width": "fill_container"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550019",
+              "name": "Scope Snapshot",
+              "width": 390,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 14,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550013",
+                  "name": "Scope Label",
+                  "content": "FEATURE SCOPE",
+                  "fill": "$subtle",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "d550017",
+                  "name": "Endpoint Row",
+                  "layout": "horizontal",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550015",
+                      "name": "DELETE Method Badge",
+                      "height": 24,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550014",
+                          "name": "DELETE Method Badge Label",
+                          "content": "DELETE",
+                          "fill": "$accent",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550016",
+                      "name": "Endpoint",
+                      "content": "https://httpbingo.org/delete",
+                      "fill": "$text",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "d550018",
+                  "name": "Scope Note",
+                  "content": "No request body · 200 echo · one History entry",
+                  "fill": "$muted",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "d550155",
+          "name": "Application State · DELETE Request Lifecycle",
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "clip": true,
+          "children": [
+            {
+              "type": "frame",
+              "id": "d550031",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "layout": "horizontal",
+              "gap": 18,
+              "padding": 16,
+              "alignItems": "center",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550024",
+                  "name": "Brand",
+                  "width": 280,
+                  "layout": "horizontal",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550022",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550021",
+                          "name": "Logo Letter",
+                          "content": "P",
+                          "fill": "$panel",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550023",
+                      "name": "Product Name",
+                      "content": "Postman GPUI",
+                      "fill": "$text",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550027",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "horizontal",
+                  "gap": 9,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550025",
+                      "name": "Search Icon",
+                      "content": "⌕",
+                      "fill": "$muted",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "400"
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550026",
+                      "name": "Search Placeholder",
+                      "content": "Search requests and history",
+                      "fill": "$subtle",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "400"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550030",
+                  "name": "Environment",
+                  "width": 190,
+                  "height": 36,
+                  "fill": "$panel",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "horizontal",
+                  "gap": 8,
+                  "padding": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "d550028",
+                      "name": "Environment Dot",
+                      "width": 8,
+                      "height": 8,
+                      "fill": "$green"
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550029",
+                      "name": "Environment Label",
+                      "content": "No Environment",
+                      "fill": "$text",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550154",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "layout": "horizontal",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550040",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550033",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550032",
+                          "name": "New Request Glyph",
+                          "content": "+",
+                          "fill": "$muted",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550035",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550034",
+                          "name": "History Navigation Glyph",
+                          "content": "◷",
+                          "fill": "$accent",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550037",
+                      "name": "Workspace Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550036",
+                          "name": "Workspace Navigation Glyph",
+                          "content": "◇",
+                          "fill": "$muted",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550039",
+                      "name": "Keyboard Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550038",
+                          "name": "Keyboard Navigation Glyph",
+                          "content": "⌘",
+                          "fill": "$muted",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550057",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 16,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550041",
+                      "name": "History Title",
+                      "content": "History",
+                      "fill": "$text",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550042",
+                      "name": "History Subtitle",
+                      "content": "Requests in this workspace",
+                      "fill": "$muted",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "400"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550045",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "horizontal",
+                      "gap": 8,
+                      "padding": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550043",
+                          "name": "History Search Icon",
+                          "content": "⌕",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "400"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550044",
+                          "name": "History Search Placeholder",
+                          "content": "Filter history",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "400"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550046",
+                      "name": "History Group Label",
+                      "content": "TODAY",
+                      "fill": "$subtle",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550053",
+                      "name": "DELETE History Result Content Item",
+                      "width": "fill_container",
+                      "height": 86,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$accent",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550050",
+                          "name": "History Result Header",
+                          "width": "fill_container",
+                          "layout": "horizontal",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "d550048",
+                              "name": "History DELETE Badge",
+                              "height": 24,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 13,
+                              "padding": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d550047",
+                                  "name": "History DELETE Badge Label",
+                                  "content": "DELETE",
+                                  "fill": "$accent",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550049",
+                              "name": "History Status",
+                              "content": "200 · 468 ms",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550051",
+                          "name": "History URL",
+                          "content": "httpbingo.org/delete",
+                          "fill": "$text",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700",
+                          "width": "fill_container"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550052",
+                          "name": "History Detail",
+                          "content": "0 B request body · completed response",
+                          "fill": "$muted",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "400"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550056",
+                      "name": "History Lifecycle Proof",
+                      "width": "fill_container",
+                      "height": 72,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550054",
+                          "name": "History Lifecycle Proof Kicker",
+                          "content": "ONE SEND · ONE HISTORY ENTRY",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550055",
+                          "name": "History Lifecycle Proof Value",
+                          "content": "DELETE method and 200 response stay attached to the same request.",
+                          "fill": "$green",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600",
+                          "width": "fill_container"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550153",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550065",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "layout": "horizontal",
+                      "gap": 10,
+                      "padding": 14,
+                      "alignItems": "center",
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550059",
+                          "name": "Tab DELETE Badge",
+                          "height": 24,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 13,
+                          "padding": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550058",
+                              "name": "Tab DELETE Badge Label",
+                              "content": "DELETE",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550060",
+                          "name": "Request Tab Name",
+                          "content": "httpbingo.org/delete",
+                          "fill": "$text",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "d550061",
+                          "name": "Dirty Indicator",
+                          "width": 6,
+                          "height": 6,
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550062",
+                          "name": "Close Tab",
+                          "content": "×",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "400"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550064",
+                          "name": "New Tab",
+                          "width": 32,
+                          "height": 32,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 9,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550063",
+                              "name": "New Tab Glyph",
+                              "content": "+",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 17,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550152",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": 774,
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550076",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "layout": "horizontal",
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "d550068",
+                              "name": "Method Selector",
+                              "width": 120,
+                              "height": 46,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 10,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "layout": "horizontal",
+                              "padding": 12,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d550066",
+                                  "name": "Method Selector Label",
+                                  "content": "DELETE",
+                                  "fill": "$accent",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550067",
+                                  "name": "Method Selector Chevron",
+                                  "content": "⌃",
+                                  "fill": "$accent",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "d550073",
+                              "name": "URL Input",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "horizontal",
+                              "gap": 8,
+                              "padding": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d550069",
+                                  "name": "URL Lock",
+                                  "content": "♙",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550070",
+                                  "name": "URL Value",
+                                  "content": "https://httpbingo.org/delete",
+                                  "fill": "$text",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "d550072",
+                                  "name": "URL Saved Badge",
+                                  "height": 24,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 13,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "d550071",
+                                      "name": "URL Saved Badge Label",
+                                      "content": "SAVED",
+                                      "fill": "$blue",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "d550075",
+                              "name": "Send Button",
+                              "width": 100,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d550074",
+                                  "name": "Send Label",
+                                  "content": "Send",
+                                  "fill": "$accentInk",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550118",
+                          "name": "Request Panel",
+                          "width": "fill_container",
+                          "height": 310,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "clip": true,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "d550083",
+                              "name": "Request Menu",
+                              "width": "fill_container",
+                              "height": 48,
+                              "fill": "$panelAlt",
+                              "layout": "horizontal",
+                              "gap": 24,
+                              "padding": 14,
+                              "alignItems": "center",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d550077",
+                                  "name": "Params Tab",
+                                  "content": "Params",
+                                  "fill": "$text",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550078",
+                                  "name": "Authorization Tab",
+                                  "content": "Authorization (Bearer)",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550079",
+                                  "name": "Headers Tab",
+                                  "content": "Headers (0)",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550080",
+                                  "name": "Body Tab",
+                                  "content": "Body",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550081",
+                                  "name": "Scripts Tab",
+                                  "content": "Scripts",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d550082",
+                                  "name": "Tests Tab",
+                                  "content": "Tests",
+                                  "fill": "$muted",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "400"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "d550117",
+                              "name": "Method Selection Editor",
+                              "width": "fill_container",
+                              "height": 262,
+                              "layout": "horizontal",
+                              "gap": 14,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "d550100",
+                                  "name": "Rendered Method Menu",
+                                  "width": 220,
+                                  "height": "fill_container",
+                                  "fill": "$panel",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 4,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "d550084",
+                                      "name": "Method Menu Label",
+                                      "content": "METHOD MENU · RENDERED CONTROL",
+                                      "fill": "$subtle",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550086",
+                                      "name": "GET Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550085",
+                                          "name": "GET Method Label",
+                                          "content": "GET",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550088",
+                                      "name": "POST Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550087",
+                                          "name": "POST Method Label",
+                                          "content": "POST",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550090",
+                                      "name": "PUT Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550089",
+                                          "name": "PUT Method Label",
+                                          "content": "PUT",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550093",
+                                      "name": "DELETE Method Option · Selected",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "stroke": "$accent",
+                                      "strokeWidth": 1,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550091",
+                                          "name": "DELETE Method Label",
+                                          "content": "DELETE",
+                                          "fill": "$accent",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550092",
+                                          "name": "DELETE Selected Check",
+                                          "content": "✓",
+                                          "fill": "$accent",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550095",
+                                      "name": "PATCH Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550094",
+                                          "name": "PATCH Method Label",
+                                          "content": "PATCH",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550097",
+                                      "name": "HEAD Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550096",
+                                          "name": "HEAD Method Label",
+                                          "content": "HEAD",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550099",
+                                      "name": "OPTIONS Method Option",
+                                      "width": "fill_container",
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "padding": 8,
+                                      "alignItems": "center",
+                                      "justifyContent": "space_between",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550098",
+                                          "name": "OPTIONS Method Label",
+                                          "content": "OPTIONS",
+                                          "fill": "$muted",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "d550116",
+                                  "name": "DELETE Request Contract",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 9,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "d550106",
+                                      "name": "Request Contract Header",
+                                      "width": "fill_container",
+                                      "layout": "horizontal",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "d550103",
+                                          "name": "Request Contract Heading",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "d550101",
+                                              "name": "Request Contract Title",
+                                              "content": "DELETE request contract",
+                                              "fill": "$text",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 14,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "d550102",
+                                              "name": "Request Contract Hint",
+                                              "content": "The selected method is already stored before Send.",
+                                              "fill": "$muted",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "400"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "d550105",
+                                          "name": "Ready Badge",
+                                          "height": 26,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "d550104",
+                                              "name": "Ready Badge Label",
+                                              "content": "READY TO SEND",
+                                              "fill": "$green",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550109",
+                                      "name": "Selected Method Content Item",
+                                      "width": "fill_container",
+                                      "height": 52,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550107",
+                                          "name": "Selected Method Content Item Kicker",
+                                          "content": "VIEWMODEL METHOD · SELECTED",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550108",
+                                          "name": "Selected Method Content Item Value",
+                                          "content": "DELETE",
+                                          "fill": "$accent",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 13,
+                                          "fontWeight": "700",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550112",
+                                      "name": "Body Policy Content Item",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550110",
+                                          "name": "Body Policy Content Item Kicker",
+                                          "content": "REQUESTBODY · NONE",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550111",
+                                          "name": "Body Policy Content Item Value",
+                                          "content": "No Content-Length payload is created; the Body editor does not participate.",
+                                          "fill": "$text",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550115",
+                                      "name": "Outgoing Request Content Item",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550113",
+                                          "name": "Outgoing Request Content Item Kicker",
+                                          "content": "OUTGOING REQUEST REPRESENTATION",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550114",
+                                          "name": "Outgoing Request Content Item Value",
+                                          "content": "DELETE https://httpbingo.org/delete · body = None",
+                                          "fill": "$blue",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550151",
+                          "name": "Response Panel",
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "clip": true,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "d550130",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panelAlt",
+                              "layout": "horizontal",
+                              "padding": 14,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "d550122",
+                                  "name": "Response Tabs",
+                                  "layout": "horizontal",
+                                  "gap": 18,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "d550119",
+                                      "name": "Response Title",
+                                      "content": "Response",
+                                      "fill": "$text",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 15,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550120",
+                                      "name": "Response Body Tab",
+                                      "content": "Body",
+                                      "fill": "$text",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550121",
+                                      "name": "Response Headers Tab",
+                                      "content": "Headers",
+                                      "fill": "$muted",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "400"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "d550129",
+                                  "name": "Response Header Actions",
+                                  "layout": "horizontal",
+                                  "gap": 12,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "d550124",
+                                      "name": "Copy Response Button",
+                                      "height": 28,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550123",
+                                          "name": "Copy Response Button Label",
+                                          "content": "⧉  Copy",
+                                          "fill": "$blue",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550126",
+                                      "name": "Response Status",
+                                      "height": 26,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550125",
+                                          "name": "Response Status Label",
+                                          "content": "● 200 OK",
+                                          "fill": "$green",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550127",
+                                      "name": "Response Time",
+                                      "content": "468 ms",
+                                      "fill": "$muted",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550128",
+                                      "name": "Response Size",
+                                      "content": "82 B",
+                                      "fill": "$muted",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "d550150",
+                              "name": "Response Content",
+                              "width": "fill_container",
+                              "height": 298,
+                              "layout": "horizontal",
+                              "gap": 14,
+                              "padding": 14,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "d550136",
+                                  "name": "Stable Response Subset",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "d550133",
+                                      "name": "Echo Header",
+                                      "width": "fill_container",
+                                      "layout": "horizontal",
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "d550131",
+                                          "name": "Echo Dot",
+                                          "width": 7,
+                                          "height": 7,
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550132",
+                                          "name": "Echo Label",
+                                          "content": "HTTPBingo echo · stable subset",
+                                          "fill": "$green",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550134",
+                                      "name": "Echo JSON",
+                                      "content": "{\n  \"method\": \"DELETE\",\n  \"data\": \"\"\n}",
+                                      "fill": "$codeText",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 14,
+                                      "fontWeight": "500",
+                                      "width": "fill_container"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "d550135",
+                                      "name": "Copy Contract",
+                                      "content": "Copy reads the complete raw body from ResponseState; this subset is only the stable visual assertion.",
+                                      "fill": "$subtle",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "400",
+                                      "width": "fill_container"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "d550149",
+                                  "name": "Response Verification",
+                                  "width": 332,
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 9,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "d550139",
+                                      "name": "Method Verification Content Item",
+                                      "width": "fill_container",
+                                      "height": 55,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550137",
+                                          "name": "Method Verification Content Item Kicker",
+                                          "content": "✓ INCLUDED",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550138",
+                                          "name": "Method Verification Content Item Value",
+                                          "content": "method = DELETE",
+                                          "fill": "$green",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 13,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550142",
+                                      "name": "Body Verification Content Item",
+                                      "width": "fill_container",
+                                      "height": 55,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550140",
+                                          "name": "Body Verification Content Item Kicker",
+                                          "content": "✓ EMPTY BODY",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550141",
+                                          "name": "Body Verification Content Item Value",
+                                          "content": "data = \"\"",
+                                          "fill": "$green",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 13,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550145",
+                                      "name": "Lifecycle Verification Content Item",
+                                      "width": "fill_container",
+                                      "height": 68,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550143",
+                                          "name": "Lifecycle Verification Content Item Kicker",
+                                          "content": "RESPONSESTATE = VIEW = HISTORY",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550144",
+                                          "name": "Lifecycle Verification Content Item Value",
+                                          "content": "200 response and DELETE history entry describe the same request.",
+                                          "fill": "$text",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d550148",
+                                      "name": "Negative Evidence Content Item",
+                                      "width": "fill_container",
+                                      "height": 55,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "d550146",
+                                          "name": "Negative Evidence Content Item Kicker",
+                                          "content": "⊘ ABSENT",
+                                          "fill": "$subtle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "d550147",
+                                          "name": "Negative Evidence Content Item Value",
+                                          "content": "No request payload is sent.",
+                                          "fill": "$accent",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 13,
+                                          "fontWeight": "600",
+                                          "width": "fill_container"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "d550175",
+          "name": "Feature Flow",
+          "width": "fill_container",
+          "height": 140,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "horizontal",
+          "gap": 14,
+          "padding": 20,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "d550159",
+              "name": "Flow Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550156",
+                  "name": "Flow Eyebrow",
+                  "content": "DELETE LIFECYCLE",
+                  "fill": "$accent",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550157",
+                  "name": "Flow Title",
+                  "content": "One typed request",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550158",
+                  "name": "Flow Subtitle",
+                  "content": "No body coercion",
+                  "fill": "$muted",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "400"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550162",
+              "name": "Rendered Control Step",
+              "width": "fill_container",
+              "height": 76,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550160",
+                  "name": "Rendered Control Step Kicker",
+                  "content": "01 · RENDERED CONTROL",
+                  "fill": "$blue",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550161",
+                  "name": "Rendered Control Step Detail",
+                  "content": "Select DELETE in MethodSelector",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600",
+                  "width": "fill_container"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "d550163",
+              "name": "Flow Arrow One",
+              "content": "→",
+              "fill": "$subtle",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "d550166",
+              "name": "ViewModel Step",
+              "width": "fill_container",
+              "height": 76,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550164",
+                  "name": "ViewModel Step Kicker",
+                  "content": "02 · VIEWMODEL",
+                  "fill": "$blue",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550165",
+                  "name": "ViewModel Step Detail",
+                  "content": "method = DELETE · body = None",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600",
+                  "width": "fill_container"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "d550167",
+              "name": "Flow Arrow Two",
+              "content": "→",
+              "fill": "$subtle",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "d550170",
+              "name": "Request Step",
+              "width": "fill_container",
+              "height": 76,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550168",
+                  "name": "Request Step Kicker",
+                  "content": "03 · REAL REQUEST",
+                  "fill": "$blue",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550169",
+                  "name": "Request Step Detail",
+                  "content": "DELETE /delete · zero payload",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600",
+                  "width": "fill_container"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "d550171",
+              "name": "Flow Arrow Three",
+              "content": "→",
+              "fill": "$subtle",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "d550174",
+              "name": "Response Step",
+              "width": "fill_container",
+              "height": 76,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "d550172",
+                  "name": "Response Step Kicker",
+                  "content": "04 · RESPONSE / HISTORY",
+                  "fill": "$blue",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d550173",
+                  "name": "Response Step Detail",
+                  "content": "200 · method echo · one entry",
+                  "fill": "$text",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600",
+                  "width": "fill_container"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "d550266",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "clip": true,
+          "children": [
+            {
+              "type": "frame",
+              "id": "d550183",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$panelAlt",
+              "layout": "horizontal",
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550178",
+                  "name": "Contract Title Block",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550176",
+                      "name": "Contract Title",
+                      "content": "Issue #55 · DELETE /delete E2E contract",
+                      "fill": "$text",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550177",
+                      "name": "Contract Paths",
+                      "content": "tests/httpbingo_scenarios.rs · tests/cases/httpbingo/methods.json · design/issue-0055-delete-request.pen",
+                      "fill": "$muted",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "400"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550182",
+                  "name": "Contract Links",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d550180",
+                      "name": "Contract Status",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550179",
+                          "name": "Contract Status Label",
+                          "content": "IMPLEMENTED · TRACKING OPEN",
+                          "fill": "$green",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550181",
+                      "name": "GitHub Issue URL",
+                      "content": "https://github.com/847850277/postman-gpui/issues/55",
+                      "fill": "$blue",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "400"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550259",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "layout": "horizontal",
+              "gap": 18,
+              "padding": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550215",
+                  "name": "Scenario Column",
+                  "width": 470,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550184",
+                      "name": "Scenario Column Title",
+                      "content": "REAL UI SCENARIO",
+                      "fill": "$accent",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550190",
+                      "name": "Open Method Menu Step",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550186",
+                          "name": "Open Method Menu Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550185",
+                              "name": "Open Method Menu Step Mark Label",
+                              "content": "1",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550189",
+                          "name": "Open Method Menu Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550187",
+                              "name": "Open Method Menu Step Title",
+                              "content": "Open the rendered method selector",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550188",
+                              "name": "Open Method Menu Step Detail",
+                              "content": "Drive MethodSelector through TestAppContext; do not write the ViewModel directly.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550196",
+                      "name": "Choose DELETE Step",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550192",
+                          "name": "Choose DELETE Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550191",
+                              "name": "Choose DELETE Step Mark Label",
+                              "content": "2",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550195",
+                          "name": "Choose DELETE Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550193",
+                              "name": "Choose DELETE Step Title",
+                              "content": "Choose DELETE",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550194",
+                              "name": "Choose DELETE Step Detail",
+                              "content": "The selected value is projected immediately into RequestViewModel.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550202",
+                      "name": "Enter URL Step",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550198",
+                          "name": "Enter URL Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550197",
+                              "name": "Enter URL Step Mark Label",
+                              "content": "3",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550201",
+                          "name": "Enter URL Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550199",
+                              "name": "Enter URL Step Title",
+                              "content": "Enter https://httpbingo.org/delete",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550200",
+                              "name": "Enter URL Step Detail",
+                              "content": "The active URL value is saved without requiring Enter, Tab, blur, or Add.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550208",
+                      "name": "Send Request Step",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550204",
+                          "name": "Send Request Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550203",
+                              "name": "Send Request Step Mark Label",
+                              "content": "4",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550207",
+                          "name": "Send Request Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550205",
+                              "name": "Send Request Step Title",
+                              "content": "Click Send",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550206",
+                              "name": "Send Request Step Detail",
+                              "content": "Send emits one typed Request with RequestBody::None.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550214",
+                      "name": "Observe Lifecycle Step",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550210",
+                          "name": "Observe Lifecycle Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550209",
+                              "name": "Observe Lifecycle Step Mark Label",
+                              "content": "5",
+                              "fill": "$accent",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550213",
+                          "name": "Observe Lifecycle Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550211",
+                              "name": "Observe Lifecycle Step Title",
+                              "content": "Observe response and History",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550212",
+                              "name": "Observe Lifecycle Step Detail",
+                              "content": "The completed request appears once in History.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550247",
+                  "name": "Assertions Column",
+                  "width": 500,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550216",
+                      "name": "Assertions Column Title",
+                      "content": "OBSERVABLE ASSERTIONS",
+                      "fill": "$green",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550222",
+                      "name": "Method Assertion",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550218",
+                          "name": "Method Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550217",
+                              "name": "Method Assertion Mark Label",
+                              "content": "✓",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550221",
+                          "name": "Method Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550219",
+                              "name": "Method Assertion Title",
+                              "content": "The real request method is DELETE",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550220",
+                              "name": "Method Assertion Detail",
+                              "content": "HTTPBingo echoes method = DELETE.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550228",
+                      "name": "Body Assertion",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550224",
+                          "name": "Body Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550223",
+                              "name": "Body Assertion Mark Label",
+                              "content": "✓",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550227",
+                          "name": "Body Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550225",
+                              "name": "Body Assertion Title",
+                              "content": "The real request has no body",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550226",
+                              "name": "Body Assertion Detail",
+                              "content": "HTTPBingo echoes data = \"\".",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550234",
+                      "name": "Status Assertion",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550230",
+                          "name": "Status Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550229",
+                              "name": "Status Assertion Mark Label",
+                              "content": "✓",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550233",
+                          "name": "Status Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550231",
+                              "name": "Status Assertion Title",
+                              "content": "Response status is 200",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550232",
+                              "name": "Status Assertion Detail",
+                              "content": "A non-body DELETE is treated as a completed response.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550240",
+                      "name": "Copy Assertion",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550236",
+                          "name": "Copy Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550235",
+                              "name": "Copy Assertion Mark Label",
+                              "content": "✓",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550239",
+                          "name": "Copy Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550237",
+                              "name": "Copy Assertion Title",
+                              "content": "Populated response exposes Copy",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550238",
+                              "name": "Copy Assertion Detail",
+                              "content": "Copy uses the complete raw body from ResponseState.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550246",
+                      "name": "Consistency Assertion",
+                      "width": "fill_container",
+                      "layout": "horizontal",
+                      "gap": 9,
+                      "alignItems": "start",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d550242",
+                          "name": "Consistency Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550241",
+                              "name": "Consistency Assertion Mark Label",
+                              "content": "✓",
+                              "fill": "$green",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d550245",
+                          "name": "Consistency Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d550243",
+                              "name": "Consistency Assertion Title",
+                              "content": "Tab, ResponseState, View, and History agree",
+                              "fill": "$text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d550244",
+                              "name": "Consistency Assertion Detail",
+                              "content": "All surfaces describe the same DELETE lifecycle.",
+                              "fill": "$subtle",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "400",
+                              "width": "fill_container"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550258",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550248",
+                      "name": "Boundary Column Title",
+                      "content": "SLICE BOUNDARIES",
+                      "fill": "$blue",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550251",
+                      "name": "Included Scope",
+                      "width": "fill_container",
+                      "height": 94,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550249",
+                          "name": "Included Scope Kicker",
+                          "content": "INCLUDED",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550250",
+                          "name": "Included Scope Value",
+                          "content": "Method menu selection · live ViewModel projection · bodyless typed Request · HTTPBingo echo · Response/History consistency.",
+                          "fill": "$green",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600",
+                          "width": "fill_container"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550254",
+                      "name": "Excluded Scope",
+                      "width": "fill_container",
+                      "height": 88,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550252",
+                          "name": "Excluded Scope Kicker",
+                          "content": "NOT IN THIS SLICE",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550253",
+                          "name": "Excluded Scope Value",
+                          "content": "DELETE with a body · confirmation dialogs · bulk deletion · resource semantics · retry or redirect policy.",
+                          "fill": "$accent",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600",
+                          "width": "fill_container"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d550257",
+                      "name": "Tracking Relationship",
+                      "width": "fill_container",
+                      "height": 70,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "d550255",
+                          "name": "Tracking Relationship Kicker",
+                          "content": "TRACEABILITY",
+                          "fill": "$subtle",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d550256",
+                          "name": "Tracking Relationship Value",
+                          "content": "Parent roadmap #50 → E2E issue #55 · baseline stays open for tracking.",
+                          "fill": "$blue",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600",
+                          "width": "fill_container"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d550265",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentSoft",
+              "layout": "horizontal",
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "d550262",
+                  "name": "Traceability Copy",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550260",
+                      "name": "One-to-One Label",
+                      "content": "ONE ISSUE · ONE E2E SLICE · ONE .PEN FILE",
+                      "fill": "$accent",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "d550261",
+                      "name": "One-to-One Detail",
+                      "content": "#55 ↔ issue-0055-delete-request.pen ↔ methods.json",
+                      "fill": "$muted",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "400"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d550264",
+                  "name": "Acceptance Badge",
+                  "height": 26,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 13,
+                  "padding": 8,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "d550263",
+                      "name": "Acceptance Badge Label",
+                      "content": "✓ DELETE · NO BODY · 200 · HISTORY",
+                      "fill": "$green",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "55000000-5500-4550-8550-000000000055"
+}
