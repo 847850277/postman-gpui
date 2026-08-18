@@ -4,6 +4,7 @@ const REQUEST_PANEL_BASE_HEIGHT: f32 = 360.0;
 const PARAM_ROWS_AT_BASE_HEIGHT: usize = 2;
 const PARAM_ROW_PITCH: f32 = 46.0;
 const PARAM_PANEL_MAX_VISIBLE_ROWS: usize = 6;
+const HEADER_PANEL_MAX_VISIBLE_ROWS: usize = 4;
 const REQUEST_EDITOR_RESERVED_HEIGHT: f32 = 400.0;
 
 #[derive(Clone, Debug)]
@@ -12,32 +13,58 @@ pub(super) enum RequestEditorEvent {
     Abort(SendId),
 }
 
-#[derive(Clone, Debug)]
-enum ParamRowEditorEvent {
-    KeyChanged { index: usize, value: String },
-    ValueChanged { index: usize, value: String },
-    SubmitRequested,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PersistentRowKind {
+    Params,
+    Headers,
 }
 
-/// Editing buffers for one persistent Params row. Business values remain in the ViewModel;
-/// these entities only retain cursor and selection state.
-struct ParamRowEditor {
+#[derive(Clone, Debug)]
+enum PersistentRowEditorEvent {
+    KeyChanged {
+        kind: PersistentRowKind,
+        index: usize,
+        value: String,
+    },
+    ValueChanged {
+        kind: PersistentRowKind,
+        index: usize,
+        value: String,
+    },
+    SubmitRequested {
+        kind: PersistentRowKind,
+    },
+}
+
+/// Editing buffers for one persistent Params or Headers row. Business values remain in the
+/// ViewModel; these entities only retain cursor and selection state.
+struct PersistentRowEditor {
+    kind: PersistentRowKind,
     index: usize,
     key_input: Entity<HeaderInput>,
     value_input: Entity<HeaderInput>,
     _subscriptions: Vec<Subscription>,
 }
 
-impl ParamRowEditor {
-    fn new(index: usize, row: KeyValueRow, cx: &mut Context<Self>) -> Self {
+impl PersistentRowEditor {
+    fn new(
+        kind: PersistentRowKind,
+        index: usize,
+        row: KeyValueRow,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let KeyValueRow { key, value, .. } = row;
+        let (key_placeholder, value_placeholder) = match kind {
+            PersistentRowKind::Params => ("Key", "Value"),
+            PersistentRowKind::Headers => ("Header name", "Header value"),
+        };
         let key_input = cx.new(|cx| {
-            let mut input = HeaderInput::new(cx).with_placeholder("Key");
+            let mut input = HeaderInput::new(cx).with_placeholder(key_placeholder);
             input.project_content(key, cx);
             input
         });
         let value_input = cx.new(|cx| {
-            let mut input = HeaderInput::new(cx).with_placeholder("Value");
+            let mut input = HeaderInput::new(cx).with_placeholder(value_placeholder);
             input.project_content(value, cx);
             input
         });
@@ -46,6 +73,7 @@ impl ParamRowEditor {
             cx.subscribe(&value_input, Self::on_value_event),
         ];
         Self {
+            kind,
             index,
             key_input,
             value_input,
@@ -60,11 +88,16 @@ impl ParamRowEditor {
         cx: &mut Context<Self>,
     ) {
         match event {
-            HeaderInputEvent::ValueChanged(value) => cx.emit(ParamRowEditorEvent::KeyChanged {
-                index: self.index,
-                value: value.clone(),
-            }),
-            HeaderInputEvent::SubmitRequested => cx.emit(ParamRowEditorEvent::SubmitRequested),
+            HeaderInputEvent::ValueChanged(value) => {
+                cx.emit(PersistentRowEditorEvent::KeyChanged {
+                    kind: self.kind,
+                    index: self.index,
+                    value: value.clone(),
+                })
+            }
+            HeaderInputEvent::SubmitRequested => {
+                cx.emit(PersistentRowEditorEvent::SubmitRequested { kind: self.kind })
+            }
         }
     }
 
@@ -75,21 +108,39 @@ impl ParamRowEditor {
         cx: &mut Context<Self>,
     ) {
         match event {
-            HeaderInputEvent::ValueChanged(value) => cx.emit(ParamRowEditorEvent::ValueChanged {
-                index: self.index,
-                value: value.clone(),
-            }),
-            HeaderInputEvent::SubmitRequested => cx.emit(ParamRowEditorEvent::SubmitRequested),
+            HeaderInputEvent::ValueChanged(value) => {
+                cx.emit(PersistentRowEditorEvent::ValueChanged {
+                    kind: self.kind,
+                    index: self.index,
+                    value: value.clone(),
+                })
+            }
+            HeaderInputEvent::SubmitRequested => {
+                cx.emit(PersistentRowEditorEvent::SubmitRequested { kind: self.kind })
+            }
         }
     }
 }
 
-impl EventEmitter<ParamRowEditorEvent> for ParamRowEditor {}
+impl EventEmitter<PersistentRowEditorEvent> for PersistentRowEditor {}
 
-impl Render for ParamRowEditor {
+impl Render for PersistentRowEditor {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let key_selector = format!("param-row-key-input-{}", self.index);
-        let value_selector = format!("param-row-value-input-{}", self.index);
+        let (key_cell_selector, key_input_selector, value_cell_selector, value_input_selector) =
+            match self.kind {
+                PersistentRowKind::Params => (
+                    format!("param-row-key-input-{}", self.index),
+                    None,
+                    format!("param-row-value-input-{}", self.index),
+                    None,
+                ),
+                PersistentRowKind::Headers => (
+                    format!("header-row-key-{}", self.index),
+                    Some(format!("header-row-key-input-{}", self.index)),
+                    format!("header-row-value-{}", self.index),
+                    Some(format!("header-row-value-input-{}", self.index)),
+                ),
+            };
         div()
             .h_full()
             .flex_1()
@@ -99,19 +150,33 @@ impl Render for ParamRowEditor {
             .gap_2()
             .child(
                 div()
-                    .debug_selector(move || key_selector.clone())
+                    .debug_selector(move || key_cell_selector.clone())
                     .h_full()
                     .flex_1()
                     .min_w_0()
-                    .child(self.key_input.clone()),
+                    .child(
+                        div()
+                            .when_some(key_input_selector, |this, selector| {
+                                this.debug_selector(move || selector.clone())
+                            })
+                            .h_full()
+                            .child(self.key_input.clone()),
+                    ),
             )
             .child(
                 div()
-                    .debug_selector(move || value_selector.clone())
+                    .debug_selector(move || value_cell_selector.clone())
                     .h_full()
                     .flex_1()
                     .min_w_0()
-                    .child(self.value_input.clone()),
+                    .child(
+                        div()
+                            .when_some(value_input_selector, |this, selector| {
+                                this.debug_selector(move || selector.clone())
+                            })
+                            .h_full()
+                            .child(self.value_input.clone()),
+                    ),
             )
     }
 }
@@ -123,9 +188,12 @@ pub(super) struct RequestEditor {
     pub(super) method_selector: Entity<MethodSelector>,
     pub(super) url_input: Entity<UrlInput>,
     body_input: Entity<BodyInput>,
-    param_row_editors: Vec<Entity<ParamRowEditor>>,
+    param_row_editors: Vec<Entity<PersistentRowEditor>>,
     param_row_subscriptions: Vec<Subscription>,
     param_rows_scroll_handle: ScrollHandle,
+    header_row_editors: Vec<Entity<PersistentRowEditor>>,
+    header_row_subscriptions: Vec<Subscription>,
+    header_rows_scroll_handle: ScrollHandle,
     row_key_input: Entity<HeaderInput>,
     row_value_input: Entity<HeaderInput>,
     authorization_input: Entity<HeaderInput>,
@@ -197,6 +265,9 @@ impl RequestEditor {
             param_row_editors: Vec::new(),
             param_row_subscriptions: Vec::new(),
             param_rows_scroll_handle: ScrollHandle::new(),
+            header_row_editors: Vec::new(),
+            header_row_subscriptions: Vec::new(),
+            header_rows_scroll_handle: ScrollHandle::new(),
             row_key_input,
             row_value_input,
             authorization_input,
@@ -228,33 +299,69 @@ impl RequestEditor {
         self.param_row_editors.clear();
         self.param_row_subscriptions.clear();
         for (index, row) in rows.into_iter().enumerate() {
-            let editor = cx.new(|cx| ParamRowEditor::new(index, row, cx));
-            let subscription = cx.subscribe(&editor, Self::on_param_row_event);
+            let editor =
+                cx.new(|cx| PersistentRowEditor::new(PersistentRowKind::Params, index, row, cx));
+            let subscription = cx.subscribe(&editor, Self::on_persistent_row_event);
             self.param_row_editors.push(editor);
             self.param_row_subscriptions.push(subscription);
         }
     }
 
-    fn on_param_row_event(
+    fn rebuild_header_row_editors(&mut self, cx: &mut Context<Self>) {
+        let rows = self.view_model.read(cx).headers().to_vec();
+        self.header_row_editors.clear();
+        self.header_row_subscriptions.clear();
+        for (index, row) in rows.into_iter().enumerate() {
+            let editor =
+                cx.new(|cx| PersistentRowEditor::new(PersistentRowKind::Headers, index, row, cx));
+            let subscription = cx.subscribe(&editor, Self::on_persistent_row_event);
+            self.header_row_editors.push(editor);
+            self.header_row_subscriptions.push(subscription);
+        }
+    }
+
+    fn on_persistent_row_event(
         &mut self,
-        _editor: Entity<ParamRowEditor>,
-        event: &ParamRowEditorEvent,
+        _editor: Entity<PersistentRowEditor>,
+        event: &PersistentRowEditorEvent,
         cx: &mut Context<Self>,
     ) {
         match event {
-            ParamRowEditorEvent::KeyChanged { index, value } => {
-                self.update_view_model(cx, |view_model| {
-                    view_model.set_param_key(*index, value.clone())
-                });
-                self.project_url(cx);
+            PersistentRowEditorEvent::KeyChanged { kind, index, value } => match kind {
+                PersistentRowKind::Params => {
+                    self.update_view_model(cx, |view_model| {
+                        view_model.set_param_key(*index, value.clone())
+                    });
+                    self.project_url(cx);
+                }
+                PersistentRowKind::Headers => {
+                    self.update_view_model(cx, |view_model| {
+                        view_model.set_header_key(*index, value.clone())
+                    });
+                }
+            },
+            PersistentRowEditorEvent::ValueChanged { kind, index, value } => match kind {
+                PersistentRowKind::Params => {
+                    self.update_view_model(cx, |view_model| {
+                        view_model.set_param_value(*index, value.clone())
+                    });
+                    self.project_url(cx);
+                }
+                PersistentRowKind::Headers => {
+                    self.update_view_model(cx, |view_model| {
+                        view_model.set_header_value(*index, value.clone())
+                    });
+                }
+            },
+            PersistentRowEditorEvent::SubmitRequested { kind } => {
+                self.append_row(
+                    match kind {
+                        PersistentRowKind::Params => RequestPane::Params,
+                        PersistentRowKind::Headers => RequestPane::Headers,
+                    },
+                    cx,
+                );
             }
-            ParamRowEditorEvent::ValueChanged { index, value } => {
-                self.update_view_model(cx, |view_model| {
-                    view_model.set_param_value(*index, value.clone())
-                });
-                self.project_url(cx);
-            }
-            ParamRowEditorEvent::SubmitRequested => self.add_current_row(cx),
         }
     }
 
@@ -458,11 +565,23 @@ impl RequestEditor {
 
     pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.set_request_pane(pane));
+        match pane {
+            RequestPane::Params => self.rebuild_param_row_editors(cx),
+            RequestPane::Headers => self.rebuild_header_row_editors(cx),
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => {}
+        }
         self.project_row_draft(cx);
     }
 
     fn add_current_row(&mut self, cx: &mut Context<Self>) {
         let request_pane = self.view_model.read(cx).request_pane();
+        self.append_row(request_pane, cx);
+    }
+
+    fn append_row(&mut self, request_pane: RequestPane, cx: &mut Context<Self>) {
         match request_pane {
             RequestPane::Params => {
                 self.update_view_model(cx, |view_model| view_model.append_param_row());
@@ -471,9 +590,9 @@ impl RequestEditor {
                 self.project_url(cx);
             }
             RequestPane::Headers => {
-                self.update_view_model(cx, |view_model| {
-                    view_model.commit_row_draft(RequestPane::Headers)
-                });
+                self.update_view_model(cx, |view_model| view_model.append_header_row());
+                self.rebuild_header_row_editors(cx);
+                self.header_rows_scroll_handle.scroll_to_bottom();
             }
             RequestPane::Authorization
             | RequestPane::Body
@@ -498,8 +617,25 @@ impl RequestEditor {
         self.update_view_model(cx, |view_model| view_model.toggle_header(index));
     }
 
+    fn toggle_header_draft(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| {
+            let index = view_model.headers().len();
+            view_model.append_header_row();
+            view_model.toggle_header(index);
+        });
+        self.rebuild_header_row_editors(cx);
+        self.header_rows_scroll_handle.scroll_to_bottom();
+        self.project_row_draft(cx);
+    }
+
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.remove_header(index));
+        self.rebuild_header_row_editors(cx);
+    }
+
+    fn clear_header_draft(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.clear_header_draft());
+        self.project_row_draft(cx);
     }
 
     fn set_authorization_kind(&mut self, kind: AuthorizationKind, cx: &mut Context<Self>) {
@@ -572,6 +708,7 @@ impl RequestEditor {
         self.project_method(cx);
         self.project_url(cx);
         self.rebuild_param_row_editors(cx);
+        self.rebuild_header_row_editors(cx);
         self.project_row_draft(cx);
         self.project_body(cx);
         self.project_authorization(cx);
@@ -700,19 +837,23 @@ impl RequestEditor {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let request_pane = self.view_model.read(cx).request_pane();
-        let visible_param_rows = self.view_model.read(cx).visible_param_row_count();
+        let visible_rows = match request_pane {
+            RequestPane::Params => self.view_model.read(cx).visible_param_row_count(),
+            RequestPane::Headers => self.view_model.read(cx).visible_header_row_count(),
+            RequestPane::Authorization
+            | RequestPane::Body
+            | RequestPane::Scripts
+            | RequestPane::Tests => 0,
+        };
         let panel_height = adaptive_request_panel_height(
             request_pane,
-            visible_param_rows,
+            visible_rows,
             window.viewport_size().height.as_f32(),
         );
         let editor = match request_pane {
             RequestPane::Params => self.render_params_editor(panel_height, cx),
             RequestPane::Authorization => self.render_authorization_editor(cx),
-            RequestPane::Headers => {
-                let rows = self.view_model.read(cx).headers().to_vec();
-                self.render_headers_editor(rows, cx)
-            }
+            RequestPane::Headers => self.render_headers_editor(panel_height, cx),
             RequestPane::Body => self.render_body_editor(cx),
             RequestPane::Scripts => self.render_script_editor(
                 "Pre-request script",
@@ -962,9 +1103,9 @@ impl RequestEditor {
         let draft_row_selector = format!("param-row-{draft_index}");
         let draft_key_selector = format!("param-row-key-input-{draft_index}");
         let draft_value_selector = format!("param-row-value-input-{draft_index}");
-        let visible_capacity = visible_param_capacity(panel_height);
+        let visible_capacity = visible_row_capacity(RequestPane::Params, panel_height);
         let show_scrollbar = visible_row_count > visible_capacity;
-        let scrollbar = param_scrollbar_geometry(
+        let scrollbar = row_scrollbar_geometry(
             visible_row_count,
             visible_capacity,
             self.param_rows_scroll_handle.offset().y.as_f32(),
@@ -1329,11 +1470,45 @@ impl RequestEditor {
 
     pub(super) fn render_headers_editor(
         &self,
-        rows: Vec<KeyValueRow>,
+        panel_height: f32,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        let enabled_count = rows.iter().filter(|row| row.enabled).count();
-        let disabled_count = rows.len() - enabled_count;
+        let row_editors = self.header_row_editors.clone();
+        let (rows, draft_key, draft_value, visible_row_count, enabled_count) = {
+            let view_model = self.view_model.read(cx);
+            let (draft_key, draft_value) = view_model
+                .row_draft(RequestPane::Headers)
+                .unwrap_or_default();
+            (
+                view_model.headers().to_vec(),
+                draft_key.to_string(),
+                draft_value.to_string(),
+                view_model.visible_header_row_count(),
+                view_model.enabled_header_count(),
+            )
+        };
+        let disabled_count = rows
+            .iter()
+            .filter(|row| header_row_complete(row) && !row.enabled)
+            .count();
+        let draft_complete = !draft_key.trim().is_empty() && !draft_value.trim().is_empty();
+        let draft_index = visible_row_count - 1;
+        let draft_row_selector = format!("header-row-{draft_index}");
+        let draft_toggle_selector = format!("header-row-toggle-{draft_index}");
+        let draft_key_selector = format!("header-row-key-{draft_index}");
+        let draft_key_input_selector = format!("header-row-key-input-{draft_index}");
+        let draft_value_selector = format!("header-row-value-{draft_index}");
+        let draft_value_input_selector = format!("header-row-value-input-{draft_index}");
+        let draft_status_selector = format!("header-row-status-{draft_index}");
+        let draft_delete_selector = format!("header-row-delete-{draft_index}");
+        let visible_capacity = visible_row_capacity(RequestPane::Headers, panel_height);
+        let show_scrollbar = visible_row_count > visible_capacity;
+        let scrollbar = row_scrollbar_geometry(
+            visible_row_count,
+            visible_capacity,
+            self.header_rows_scroll_handle.offset().y.as_f32(),
+            self.header_rows_scroll_handle.max_offset().y.as_f32(),
+        );
 
         div()
             .flex_1()
@@ -1424,169 +1599,302 @@ impl RequestEditor {
             )
             .child(
                 div()
-                    .id("headers-rows-scroll")
-                    .debug_selector(|| "headers-rows-scroll".into())
                     .flex_1()
                     .min_h_0()
                     .flex()
-                    .flex_col()
-                    .gap_2()
-                    .p_3()
-                    .overflow_y_scroll()
-                    .children(rows.into_iter().enumerate().map(|(index, row)| {
-                        let is_enabled = row.enabled;
-                        let row_selector = format!("header-row-{index}");
-                        let toggle_selector = format!("header-row-toggle-{index}");
-                        let key_selector = format!("header-row-key-{index}");
-                        let value_selector = format!("header-row-value-{index}");
-                        let status_selector = format!("header-row-status-{index}");
-                        let delete_selector = format!("header-row-delete-{index}");
-
+                    .relative()
+                    .child(
                         div()
-                            .debug_selector(move || row_selector.clone())
-                            .h(px(40.0))
-                            .flex_none()
+                            .id("headers-rows-scroll")
+                            .debug_selector(|| "headers-rows-scroll".into())
+                            .flex_1()
+                            .min_h_0()
                             .flex()
-                            .items_center()
+                            .flex_col()
                             .gap_2()
-                            .font_family(FONT_MONO)
-                            .text_size(px(12.0))
+                            .p_3()
+                            .when(show_scrollbar, |this| this.pr(px(22.0)))
+                            .overflow_y_scroll()
+                            .track_scroll(&self.header_rows_scroll_handle)
+                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                            .children(rows.into_iter().zip(row_editors).enumerate().map(
+                                |(index, (row, row_editor))| {
+                                    let is_complete = header_row_complete(&row);
+                                    let is_sent = row.enabled && is_complete;
+                                    let (status, status_bg, status_color) = if !is_complete {
+                                        ("DRAFT", PANEL_ALT, SUBTEXT)
+                                    } else if row.enabled {
+                                        ("SENT", OK_SOFT, OK)
+                                    } else {
+                                        ("EXCLUDED", ACCENT_SOFT, ACCENT)
+                                    };
+                                    let row_selector = format!("header-row-{index}");
+                                    let toggle_selector = format!("header-row-toggle-{index}");
+                                    let status_selector = format!("header-row-status-{index}");
+                                    let delete_selector = format!("header-row-delete-{index}");
+
+                                    div()
+                                        .debug_selector(move || row_selector.clone())
+                                        .h(px(40.0))
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .font_family(FONT_MONO)
+                                        .text_size(px(12.0))
+                                        .child(
+                                            div()
+                                                .debug_selector(move || toggle_selector.clone())
+                                                .size(px(18.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_sm()
+                                                .border_1()
+                                                .border_color(rgb(if is_sent {
+                                                    INFO
+                                                } else {
+                                                    LINE
+                                                }))
+                                                .bg(rgb(if is_sent { INFO } else { PANEL }))
+                                                .text_color(rgb(PANEL))
+                                                .cursor_pointer()
+                                                .child(if is_sent { "✓" } else { "" })
+                                                .on_mouse_up(
+                                                    gpui::MouseButton::Left,
+                                                    cx.listener(move |this, _, _, cx| {
+                                                        this.toggle_header(index, cx)
+                                                    }),
+                                                ),
+                                        )
+                                        .child(row_editor)
+                                        .child(
+                                            div()
+                                                .w(px(112.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_between()
+                                                .gap_2()
+                                                .child(
+                                                    div()
+                                                        .debug_selector(move || {
+                                                            status_selector.clone()
+                                                        })
+                                                        .h(px(24.0))
+                                                        .w(px(76.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .justify_center()
+                                                        .rounded_lg()
+                                                        .bg(rgb(status_bg))
+                                                        .font_family(FONT_UI)
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_size(px(9.0))
+                                                        .text_color(rgb(status_color))
+                                                        .child(status),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .debug_selector(move || {
+                                                            delete_selector.clone()
+                                                        })
+                                                        .size(px(28.0))
+                                                        .flex()
+                                                        .items_center()
+                                                        .justify_center()
+                                                        .rounded_lg()
+                                                        .cursor_pointer()
+                                                        .text_color(rgb(MUTED))
+                                                        .hover(|style| {
+                                                            style
+                                                                .bg(rgb(ACCENT_SOFT))
+                                                                .text_color(rgb(ERROR))
+                                                        })
+                                                        .child("×")
+                                                        .on_mouse_up(
+                                                            gpui::MouseButton::Left,
+                                                            cx.listener(move |this, _, _, cx| {
+                                                                this.remove_header(index, cx)
+                                                            }),
+                                                        ),
+                                                ),
+                                        )
+                                },
+                            ))
                             .child(
                                 div()
-                                    .debug_selector(move || toggle_selector.clone())
-                                    .size(px(18.0))
+                                    .debug_selector(move || draft_row_selector.clone())
+                                    .h(px(40.0))
                                     .flex_none()
                                     .flex()
                                     .items_center()
-                                    .justify_center()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .border_color(rgb(if is_enabled { INFO } else { LINE }))
-                                    .bg(rgb(if is_enabled { INFO } else { PANEL }))
-                                    .text_color(rgb(PANEL))
-                                    .cursor_pointer()
-                                    .child(if is_enabled { "✓" } else { "" })
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, _, cx| {
-                                            this.toggle_header(index, cx)
-                                        }),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(move || key_selector.clone())
-                                    .h_full()
-                                    .min_w_0()
-                                    .flex_1()
-                                    .flex()
-                                    .items_center()
-                                    .px_3()
-                                    .rounded_lg()
-                                    .border_1()
-                                    .border_color(rgb(LINE))
-                                    .bg(rgb(PANEL_ALT))
-                                    .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
-                                    .child(row.key),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(move || value_selector.clone())
-                                    .h_full()
-                                    .min_w_0()
-                                    .flex_1()
-                                    .flex()
-                                    .items_center()
-                                    .px_3()
-                                    .rounded_lg()
-                                    .border_1()
-                                    .border_color(rgb(LINE))
-                                    .bg(rgb(PANEL_ALT))
-                                    .text_color(rgb(if is_enabled { TEXT } else { MUTED }))
-                                    .child(row.value),
-                            )
-                            .child(
-                                div()
-                                    .w(px(112.0))
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
                                     .gap_2()
+                                    .font_family(FONT_MONO)
+                                    .text_size(px(12.0))
                                     .child(
                                         div()
-                                            .debug_selector(move || status_selector.clone())
-                                            .h(px(24.0))
-                                            .w(px(76.0))
+                                            .debug_selector(move || draft_toggle_selector.clone())
+                                            .size(px(18.0))
+                                            .flex_none()
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded_lg()
-                                            .bg(rgb(if is_enabled { OK_SOFT } else { ACCENT_SOFT }))
-                                            .font_family(FONT_UI)
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .text_size(px(9.0))
-                                            .text_color(rgb(if is_enabled { OK } else { ACCENT }))
-                                            .child(if is_enabled { "SENT" } else { "EXCLUDED" }),
+                                            .rounded_sm()
+                                            .border_1()
+                                            .border_color(rgb(if draft_complete {
+                                                INFO
+                                            } else {
+                                                LINE
+                                            }))
+                                            .bg(rgb(if draft_complete { INFO } else { PANEL }))
+                                            .text_color(rgb(PANEL))
+                                            .child(if draft_complete { "✓" } else { "" })
+                                            .when(draft_complete, |this| {
+                                                this.cursor_pointer().on_mouse_up(
+                                                    gpui::MouseButton::Left,
+                                                    cx.listener(|this, _, _, cx| {
+                                                        this.toggle_header_draft(cx)
+                                                    }),
+                                                )
+                                            }),
                                     )
                                     .child(
                                         div()
-                                            .debug_selector(move || delete_selector.clone())
-                                            .size(px(28.0))
+                                            .debug_selector(move || draft_key_selector.clone())
+                                            .h_full()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .child(
+                                                div()
+                                                    .debug_selector(move || {
+                                                        draft_key_input_selector.clone()
+                                                    })
+                                                    .h_full()
+                                                    .child(
+                                                        div()
+                                                            .debug_selector(|| {
+                                                                "row-key-input".into()
+                                                            })
+                                                            .h_full()
+                                                            .child(self.row_key_input.clone()),
+                                                    ),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .debug_selector(move || draft_value_selector.clone())
+                                            .h_full()
+                                            .min_w_0()
+                                            .flex_1()
+                                            .child(
+                                                div()
+                                                    .debug_selector(move || {
+                                                        draft_value_input_selector.clone()
+                                                    })
+                                                    .h_full()
+                                                    .child(
+                                                        div()
+                                                            .debug_selector(|| {
+                                                                "row-value-input".into()
+                                                            })
+                                                            .h_full()
+                                                            .child(self.row_value_input.clone()),
+                                                    ),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .w(px(112.0))
+                                            .flex_none()
                                             .flex()
                                             .items_center()
-                                            .justify_center()
-                                            .rounded_lg()
-                                            .cursor_pointer()
-                                            .text_color(rgb(MUTED))
-                                            .hover(|style| {
-                                                style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ERROR))
-                                            })
-                                            .child("×")
-                                            .on_mouse_up(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(move |this, _, _, cx| {
-                                                    this.remove_header(index, cx)
-                                                }),
+                                            .justify_between()
+                                            .gap_2()
+                                            .child(
+                                                div()
+                                                    .debug_selector(move || {
+                                                        draft_status_selector.clone()
+                                                    })
+                                                    .h(px(24.0))
+                                                    .w(px(76.0))
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .rounded_lg()
+                                                    .bg(rgb(if draft_complete {
+                                                        OK_SOFT
+                                                    } else {
+                                                        PANEL_ALT
+                                                    }))
+                                                    .font_family(FONT_UI)
+                                                    .font_weight(FontWeight::SEMIBOLD)
+                                                    .text_size(px(9.0))
+                                                    .text_color(rgb(if draft_complete {
+                                                        OK
+                                                    } else {
+                                                        SUBTEXT
+                                                    }))
+                                                    .child(if draft_complete {
+                                                        "SENT"
+                                                    } else {
+                                                        "DRAFT"
+                                                    }),
+                                            )
+                                            .child(
+                                                div()
+                                                    .debug_selector(move || {
+                                                        draft_delete_selector.clone()
+                                                    })
+                                                    .size(px(28.0))
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .rounded_lg()
+                                                    .cursor_pointer()
+                                                    .text_color(rgb(MUTED))
+                                                    .hover(|style| {
+                                                        style
+                                                            .bg(rgb(ACCENT_SOFT))
+                                                            .text_color(rgb(ERROR))
+                                                    })
+                                                    .child("×")
+                                                    .on_mouse_up(
+                                                        gpui::MouseButton::Left,
+                                                        cx.listener(|this, _, _, cx| {
+                                                            this.clear_header_draft(cx)
+                                                        }),
+                                                    ),
                                             ),
                                     ),
-                            )
-                    }))
-                    .child(
-                        div()
-                            .debug_selector(|| "header-draft-row".into())
-                            .h(px(40.0))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .size(px(18.0))
-                                    .flex_none()
-                                    .rounded_sm()
-                                    .border_1()
-                                    .border_color(rgb(LINE))
-                                    .bg(rgb(PANEL)),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "row-key-input".into())
-                                    .h_full()
-                                    .min_w_0()
-                                    .flex_1()
-                                    .child(self.row_key_input.clone()),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "row-value-input".into())
-                                    .h_full()
-                                    .min_w_0()
-                                    .flex_1()
-                                    .child(self.row_value_input.clone()),
-                            )
-                            .child(div().w(px(112.0))),
-                    ),
+                            ),
+                    )
+                    .when_some(scrollbar, |this, scrollbar| {
+                        this.child(
+                            div()
+                                .debug_selector(|| "headers-scrollbar".into())
+                                .absolute()
+                                .top(px(8.0))
+                                .right(px(5.0))
+                                .bottom(px(8.0))
+                                .w(px(8.0))
+                                .rounded_full()
+                                .bg(rgb(PANEL_ALT))
+                                .border_1()
+                                .border_color(rgb(LINE))
+                                .child(
+                                    div()
+                                        .debug_selector(|| "headers-scrollbar-thumb".into())
+                                        .absolute()
+                                        .top(relative(scrollbar.thumb_top))
+                                        .w_full()
+                                        .h(relative(scrollbar.thumb_height))
+                                        .rounded_full()
+                                        .bg(rgb(INFO)),
+                                ),
+                        )
+                    }),
             )
             .child(
                 div()
@@ -1597,6 +1905,7 @@ impl RequestEditor {
                     .px_3()
                     .border_t_1()
                     .border_color(rgb(LINE))
+                    .bg(rgb(INFO_SOFT))
                     .child(
                         div()
                             .debug_selector(|| "add-row-button".into())
@@ -1605,6 +1914,8 @@ impl RequestEditor {
                             .px_3()
                             .flex()
                             .items_center()
+                            .justify_between()
+                            .gap_3()
                             .rounded_lg()
                             .border_1()
                             .border_color(rgb(LINE))
@@ -1620,7 +1931,13 @@ impl RequestEditor {
                                     .border_color(rgb(INFO))
                                     .text_color(rgb(INFO))
                             })
-                            .child("＋ Add header")
+                            .child("＋ Add another header row")
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::NORMAL)
+                                    .text_color(rgb(MUTED))
+                                    .child("Click repeatedly — rows are unlimited"),
+                            )
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _, _, cx| this.add_current_row(cx)),
@@ -1630,10 +1947,11 @@ impl RequestEditor {
             .child(
                 div()
                     .debug_selector(|| "headers-ready-indicator".into())
-                    .h(px(34.0))
+                    .h(px(54.0))
                     .flex_none()
                     .flex()
-                    .items_center()
+                    .flex_col()
+                    .justify_center()
                     .gap_2()
                     .px_3()
                     .border_t_1()
@@ -1641,8 +1959,19 @@ impl RequestEditor {
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
                     .text_color(rgb(SUBTEXT))
-                    .child(div().text_color(rgb(OK)).child("✓"))
-                    .child("Ready to send — only checked rows participate in request construction"),
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(div().text_color(rgb(OK)).child("✓"))
+                            .child("Ready to send — active values are already in the ViewModel"),
+                    )
+                    .child(
+                        div().font_family(FONT_MONO).text_color(rgb(INFO)).child(
+                            "Only complete, checked rows participate in request construction",
+                        ),
+                    ),
             )
             .into_any_element()
     }
@@ -1821,16 +2150,28 @@ impl Render for RequestEditor {
     }
 }
 
+fn header_row_complete(row: &KeyValueRow) -> bool {
+    !row.key.trim().is_empty() && !row.value.trim().is_empty()
+}
+
 fn adaptive_request_panel_height(
     pane: RequestPane,
     visible_param_rows: usize,
     viewport_height: f32,
 ) -> f32 {
-    if pane != RequestPane::Params {
+    if !matches!(pane, RequestPane::Params | RequestPane::Headers) {
         return REQUEST_PANEL_BASE_HEIGHT;
     }
 
-    let expandable_rows = PARAM_PANEL_MAX_VISIBLE_ROWS - PARAM_ROWS_AT_BASE_HEIGHT;
+    let max_visible_rows = match pane {
+        RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Authorization
+        | RequestPane::Body
+        | RequestPane::Scripts
+        | RequestPane::Tests => unreachable!("non-row panes returned above"),
+    };
+    let expandable_rows = max_visible_rows - PARAM_ROWS_AT_BASE_HEIGHT;
     let added_rows = visible_param_rows
         .saturating_sub(PARAM_ROWS_AT_BASE_HEIGHT)
         .min(expandable_rows);
@@ -1842,25 +2183,33 @@ fn adaptive_request_panel_height(
     desired_height.min(viewport_height)
 }
 
-fn visible_param_capacity(panel_height: f32) -> usize {
+fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usize {
+    let max_visible_rows = match pane {
+        RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Authorization
+        | RequestPane::Body
+        | RequestPane::Scripts
+        | RequestPane::Tests => return 0,
+    };
     let additional_rows = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH)
         .max(0.0)
         .floor() as usize;
-    (PARAM_ROWS_AT_BASE_HEIGHT + additional_rows).min(PARAM_PANEL_MAX_VISIBLE_ROWS)
+    (PARAM_ROWS_AT_BASE_HEIGHT + additional_rows).min(max_visible_rows)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct ParamScrollbarGeometry {
+struct RowScrollbarGeometry {
     thumb_top: f32,
     thumb_height: f32,
 }
 
-fn param_scrollbar_geometry(
+fn row_scrollbar_geometry(
     visible_rows: usize,
     visible_capacity: usize,
     offset_y: f32,
     max_offset_y: f32,
-) -> Option<ParamScrollbarGeometry> {
+) -> Option<RowScrollbarGeometry> {
     if visible_rows <= visible_capacity || visible_capacity == 0 {
         return None;
     }
@@ -1872,7 +2221,7 @@ fn param_scrollbar_geometry(
         0.0
     };
 
-    Some(ParamScrollbarGeometry {
+    Some(RowScrollbarGeometry {
         thumb_top: progress * (1.0 - thumb_height),
         thumb_height,
     })
@@ -1922,16 +2271,17 @@ mod tests {
         );
         assert_eq!(
             adaptive_request_panel_height(RequestPane::Headers, 30, 980.0),
-            360.0
+            452.0
         );
 
-        assert_eq!(visible_param_capacity(360.0), 2);
-        assert_eq!(visible_param_capacity(406.0), 3);
-        assert_eq!(visible_param_capacity(544.0), 6);
-        assert_eq!(param_scrollbar_geometry(6, 6, 0.0, 0.0), None);
+        assert_eq!(visible_row_capacity(RequestPane::Params, 360.0), 2);
+        assert_eq!(visible_row_capacity(RequestPane::Params, 406.0), 3);
+        assert_eq!(visible_row_capacity(RequestPane::Params, 544.0), 6);
+        assert_eq!(visible_row_capacity(RequestPane::Headers, 452.0), 4);
+        assert_eq!(row_scrollbar_geometry(6, 6, 0.0, 0.0), None);
         assert_eq!(
-            param_scrollbar_geometry(12, 6, -100.0, 200.0),
-            Some(ParamScrollbarGeometry {
+            row_scrollbar_geometry(12, 6, -100.0, 200.0),
+            Some(RowScrollbarGeometry {
                 thumb_top: 0.25,
                 thumb_height: 0.5,
             })

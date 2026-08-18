@@ -3,12 +3,14 @@
   "target": "httpbingo",
   "cases": [
     {
-      "name": "HTTPBingo receives enabled custom headers only",
+      "name": "HTTPBingo receives enabled values from multiple independently editable Header rows",
       "draft": {
         "method": "GET",
         "path": "/headers",
+        "precreate_header_rows": 5,
         "headers": [
-          { "key": "X-Scenario", "value": "httpbingo-headers" },
+          { "key": "X-Scenario", "value": "multiple-header-rows" },
+          { "key": "X-Locale", "value": "zh-CN" },
           { "key": "X-Disabled", "value": "must-not-be-sent", "enabled": false }
         ]
       },
@@ -16,7 +18,10 @@
         "request": {
           "method": "GET",
           "path": "/headers",
-          "headers": [["X-Scenario", "httpbingo-headers"]],
+          "headers": [
+            ["X-Scenario", "multiple-header-rows"],
+            ["X-Locale", "zh-CN"]
+          ],
           "body": null
         },
         "response": {
@@ -24,7 +29,8 @@
           "status": 200,
           "body_json_contains": {
             "headers": {
-              "X-Scenario": ["httpbingo-headers"]
+              "X-Scenario": ["multiple-header-rows"],
+              "X-Locale": ["zh-CN"]
             }
           }
         },

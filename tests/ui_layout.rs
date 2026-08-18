@@ -1,7 +1,7 @@
 //! Visual-contract checks derived from `design/issue-0051-query-parameter-encoding.pen`.
 
 use gpui::{px, AppContext, Modifiers, TestAppContext};
-use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
+use postman_gpui::app::{PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::http::executor::RequestResult;
 
 #[gpui::test]
@@ -241,4 +241,80 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
             .height,
         capped_panel.size.height
     );
+}
+
+#[gpui::test]
+fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_request_pane(RequestPane::Headers);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let initial_panel = cx
+        .debug_bounds("request-panel")
+        .expect("Headers panel should render");
+    let initial_rows = cx
+        .debug_bounds("headers-rows-scroll")
+        .expect("Headers rows should render");
+    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(cx.debug_bounds("headers-scrollbar").is_none());
+
+    workspace.update(cx, |workspace, cx| {
+        for _ in 0..3 {
+            workspace.append_header_row();
+        }
+        cx.notify();
+    });
+    cx.run_until_parked();
+
+    let grown_panel = cx
+        .debug_bounds("request-panel")
+        .expect("Headers panel should grow");
+    let grown_rows = cx
+        .debug_bounds("headers-rows-scroll")
+        .expect("Headers rows should grow");
+    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_rows.size.height - initial_rows.size.height,
+        grown_panel.size.height - initial_panel.size.height
+    );
+
+    workspace.update(cx, |workspace, cx| {
+        for _ in 0..20 {
+            workspace.append_header_row();
+        }
+        cx.notify();
+    });
+    cx.run_until_parked();
+
+    let capped_panel = cx
+        .debug_bounds("request-panel")
+        .expect("Headers panel should remain visible");
+    let response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should retain space");
+    let scrollbar = cx
+        .debug_bounds("headers-scrollbar")
+        .expect("overflowing Header rows should expose a scrollbar");
+    let thumb = cx
+        .debug_bounds("headers-scrollbar-thumb")
+        .expect("the Headers scrollbar should expose its thumb");
+    let add_action = cx
+        .debug_bounds("add-row-button")
+        .expect("Add Header should remain outside the scroll region");
+    let rows_viewport = cx
+        .debug_bounds("headers-rows-scroll")
+        .expect("Headers rows should remain scrollable");
+
+    assert!(capped_panel.size.height >= grown_panel.size.height);
+    assert!(capped_panel.size.height <= px(452.0));
+    assert!(response.size.height > px(0.0));
+    assert!(thumb.origin.y >= scrollbar.origin.y);
+    assert!(thumb.bottom() <= scrollbar.bottom());
+    assert!(thumb.size.height < scrollbar.size.height);
+    assert!(add_action.origin.y >= rows_viewport.bottom());
 }
