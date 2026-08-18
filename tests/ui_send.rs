@@ -10,7 +10,7 @@ use gpui::{AppContext, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel},
-    models::{MultipartValue, RequestBody},
+    models::{HttpMethod, MultipartValue, RequestBody},
 };
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
@@ -67,6 +67,67 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
         1
     );
     mock.assert();
+}
+
+#[gpui::test]
+fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("DELETE", "/delete")
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"method":"DELETE","data":""}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "DELETE").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.method()),
+        HttpMethod::DELETE,
+        "the rendered method selector must save directly to the ViewModel"
+    );
+    assert!(cx.debug_bounds("method-dropdown-selected-value").is_some());
+    assert!(cx.debug_bounds("request-tab-method-0").is_some());
+
+    let url = format!("{}/delete", server.url());
+    type_into(cx, "url-input", &url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        url,
+        "the active URL input must already be saved before blur"
+    );
+
+    // Send directly from the active URL input: no Enter, Tab, or explicit blur is involved.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(status, 200);
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the mock should return a JSON echo");
+            assert_eq!(echo["method"], "DELETE");
+            assert_eq!(echo["data"], "");
+        }
+        other => panic!("DELETE should complete as a response: {other:?}"),
+    }
+    assert!(cx.debug_bounds("response-container").is_some());
+    assert!(cx.debug_bounds("response-content").is_some());
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::DELETE);
+        assert_eq!(entry.request.url, url);
+        assert_eq!(entry.request.body, RequestBody::None);
+        assert_eq!(entry.status, Some(200));
+    });
+    assert!(cx.debug_bounds("history-method-0").is_some());
+    request.assert();
 }
 
 #[gpui::test]

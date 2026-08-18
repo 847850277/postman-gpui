@@ -335,6 +335,20 @@ fn run_application_scenario(
         test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     choose_method(cx, &scenario.draft.method)?;
+    let selected_method = workspace.read_with(cx, |workspace, _| workspace.method().to_string());
+    if selected_method != scenario.draft.method {
+        return Err(format!(
+            "method selector was not saved to the ViewModel\n  expected: {:?}\n  actual:   {selected_method:?}",
+            scenario.draft.method
+        ));
+    }
+    for selector in ["method-dropdown-selected-value", "request-tab-method-0"] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "selected request method surface `{selector}` is not rendered"
+            ));
+        }
+    }
     type_into(
         cx,
         "url-input",
@@ -491,6 +505,9 @@ fn run_application_scenario(
             "history length mismatch: expected {}, actual {history_len}",
             scenario.expect.history_len
         ));
+    }
+    if scenario.expect.history_len > 0 && cx.debug_bounds("history-method-0").is_none() {
+        return Err("completed request method is not rendered in History".to_string());
     }
 
     let recorded_request = workspace.read_with(cx, |workspace, _| {

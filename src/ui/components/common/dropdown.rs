@@ -156,6 +156,7 @@ impl Dropdown {
             .on_click(cx.listener(Self::toggle_dropdown))
             .child(
                 div()
+                    .debug_selector(|| "method-dropdown-selected-value".into())
                     .flex_1()
                     .text_color(if self.selected_value.is_empty() {
                         rgb(SUBTEXT)

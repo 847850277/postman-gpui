@@ -332,7 +332,9 @@ mod tests {
     #[test]
     fn test_http_method_allows_body() {
         assert!(!HttpMethod::GET.allows_body());
+        assert!(!HttpMethod::DELETE.allows_body());
         assert!(!HttpMethod::HEAD.allows_body());
+        assert!(!HttpMethod::OPTIONS.allows_body());
         assert!(HttpMethod::POST.allows_body());
         assert!(HttpMethod::PUT.allows_body());
         assert!(HttpMethod::PATCH.allows_body());
