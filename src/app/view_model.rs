@@ -895,15 +895,12 @@ impl RequestViewModel {
 
         let authorization = self.authorization_header_value();
         if let Some(value) = authorization {
-            if let Some((_, existing_value)) = request
+            // Authorization is managed by this editor mode. Remove every manually-entered
+            // variant first so the transport cannot emit two competing credentials.
+            request
                 .headers
-                .iter_mut()
-                .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
-            {
-                *existing_value = value;
-            } else {
-                request.add_header("Authorization", value);
-            }
+                .retain(|(key, _)| !key.eq_ignore_ascii_case("authorization"));
+            request.add_header("Authorization", value);
         }
 
         if self.method.allows_body() {
@@ -1730,16 +1727,34 @@ mod tests {
     fn basic_auth_is_encoded_and_sent_as_authorization_header() {
         let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/basic-auth");
+        vm.set_row_draft_key(RequestPane::Headers, "Authorization");
+        vm.set_row_draft_value(RequestPane::Headers, "Basic stale-one");
+        vm.commit_row_draft(RequestPane::Headers);
+        vm.set_row_draft_key(RequestPane::Headers, "authorization");
+        vm.set_row_draft_value(RequestPane::Headers, "Basic stale-two");
+        vm.commit_row_draft(RequestPane::Headers);
         vm.set_authorization_kind(AuthorizationKind::Basic);
         vm.set_basic_username("scenario-user");
         vm.set_basic_password("scenario-pass");
+        assert_eq!(
+            vm.authorization_header_preview(),
+            Some("Authorization: Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz".to_string())
+        );
         let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
-        assert!(request
+        let authorization_headers = request
             .headers
             .iter()
-            .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
-                && value == "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz"));
+            .filter(|(key, _)| key.eq_ignore_ascii_case("authorization"))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(
+            authorization_headers,
+            vec![(
+                "Authorization".to_string(),
+                "Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz".to_string()
+            )]
+        );
     }
 
     #[test]

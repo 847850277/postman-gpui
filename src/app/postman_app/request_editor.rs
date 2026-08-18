@@ -225,11 +225,16 @@ impl RequestEditor {
         let row_value_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Value"));
         let authorization_input =
             cx.new(|cx| HeaderInput::new(cx).with_placeholder("Token or Bearer token"));
-        let basic_username_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder("Username"));
+        let basic_username_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Username")
+                .with_embedded_chrome(true)
+        });
         let basic_password_input = cx.new(|cx| {
             HeaderInput::new(cx)
                 .with_placeholder("Password")
                 .with_masked(true)
+                .with_embedded_chrome(true)
         });
         let script_input = cx.new(|cx| {
             BodyInput::new(cx)
@@ -886,26 +891,30 @@ impl RequestEditor {
     }
 
     pub(super) fn render_authorization_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let (authorization_kind, normalized_token, header_preview, auth_ready) = {
+        let (
+            authorization_kind,
+            normalized_token,
+            header_preview,
+            basic_username_saved,
+            basic_password_saved,
+            auth_ready,
+        ) = {
             let view_model = self.view_model.read(cx);
             let authorization_kind = view_model.authorization_kind();
             let normalized_token = view_model.normalized_bearer_token();
-            let header_preview = if authorization_kind == AuthorizationKind::Bearer {
-                view_model.authorization_header_preview()
-            } else {
-                None
-            };
+            let header_preview = view_model.authorization_header_preview();
+            let basic_username_saved = !view_model.basic_username().is_empty();
+            let basic_password_saved = !view_model.basic_password().is_empty();
             let auth_ready = match authorization_kind {
                 AuthorizationKind::Bearer => !normalized_token.is_empty(),
-                AuthorizationKind::Basic => {
-                    !view_model.basic_username().is_empty()
-                        || !view_model.basic_password().is_empty()
-                }
+                AuthorizationKind::Basic => basic_username_saved && basic_password_saved,
             };
             (
                 authorization_kind,
                 normalized_token,
                 header_preview,
+                basic_username_saved,
+                basic_password_saved,
                 auth_ready,
             )
         };
@@ -1072,22 +1081,113 @@ impl RequestEditor {
                 )
                 .into_any_element(),
             AuthorizationKind::Basic => div()
+                .debug_selector(|| "basic-auth-credentials".into())
                 .flex_1()
                 .min_h_0()
                 .flex()
                 .flex_col()
                 .gap_2()
-                .p_3()
-                .child(self.render_basic_auth_field(
-                    "Username",
-                    "basic-auth-username-input",
-                    self.basic_username_input.clone(),
-                ))
-                .child(self.render_basic_auth_field(
-                    "Password",
-                    "basic-auth-password-input",
-                    self.basic_password_input.clone(),
-                ))
+                .px_3()
+                .child(
+                    div()
+                        .h(px(20.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .font_family(FONT_UI)
+                        .child(
+                            div()
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(12.0))
+                                .text_color(rgb(TEXT))
+                                .child("Basic Auth credentials"),
+                        )
+                        .child(
+                            div()
+                                .debug_selector(|| "basic-auth-password-masked".into())
+                                .text_size(px(10.0))
+                                .text_color(rgb(SUBTEXT))
+                                .child("Password remains masked in the View"),
+                        ),
+                )
+                .child(
+                    div()
+                        .h(px(72.0))
+                        .flex_none()
+                        .flex()
+                        .gap_3()
+                        .child(self.render_basic_auth_field(
+                            "Username",
+                            "basic-auth-username-field",
+                            "basic-auth-username-input",
+                            "basic-auth-username-saved",
+                            self.basic_username_input.clone(),
+                            basic_username_saved,
+                        ))
+                        .child(self.render_basic_auth_field(
+                            "Password",
+                            "basic-auth-password-field",
+                            "basic-auth-password-input",
+                            "basic-auth-password-saved",
+                            self.basic_password_input.clone(),
+                            basic_password_saved,
+                        )),
+                )
+                .child(
+                    div()
+                        .debug_selector(|| "basic-auth-header-preview".into())
+                        .h(px(58.0))
+                        .flex_none()
+                        .flex()
+                        .flex_col()
+                        .justify_center()
+                        .gap_1()
+                        .px_3()
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(rgb(INFO))
+                        .bg(rgb(INFO_SOFT))
+                        .child(
+                            div()
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(9.0))
+                                .text_color(rgb(INFO))
+                                .child("OUTGOING HEADER · ONE CANONICAL VALUE"),
+                        )
+                        .child(
+                            div()
+                                .min_w_0()
+                                .overflow_hidden()
+                                .font_family(FONT_MONO)
+                                .text_size(px(11.0))
+                                .text_color(rgb(if header_preview.is_some() {
+                                    TEXT
+                                } else {
+                                    MUTED
+                                }))
+                                .child(header_preview.unwrap_or_else(|| {
+                                    "Authorization header will appear here".to_string()
+                                })),
+                        ),
+                )
+                .child(
+                    div()
+                        .debug_selector(|| "basic-auth-projection-note".into())
+                        .h(px(20.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .font_family(FONT_UI)
+                        .text_size(px(10.0))
+                        .text_color(rgb(SUBTEXT))
+                        .child(div().text_color(rgb(OK)).child("●"))
+                        .child(
+                            "View fields → RequestViewModel → Basic encoder; no blur, Enter, or Tab required.",
+                        ),
+                )
                 .into_any_element(),
         };
         let (mode_label, ready_message) = match authorization_kind {
@@ -1102,9 +1202,9 @@ impl RequestEditor {
             AuthorizationKind::Basic => (
                 "Basic Auth",
                 if auth_ready {
-                    "Ready to send — credentials are already in the ViewModel"
+                    "Ready to send — the active password is already in the ViewModel"
                 } else {
-                    "Enter credentials — input is saved to the ViewModel as you type"
+                    "Enter username and password — each input is saved as you type"
                 },
             ),
         };
@@ -1267,33 +1367,63 @@ impl RequestEditor {
     pub(super) fn render_basic_auth_field(
         &self,
         label: &'static str,
-        selector: &'static str,
+        field_selector: &'static str,
+        input_selector: &'static str,
+        saved_selector: &'static str,
         input: Entity<HeaderInput>,
+        saved: bool,
     ) -> impl IntoElement {
         div()
-            .h(px(48.0))
+            .debug_selector(move || field_selector.into())
+            .min_w_0()
+            .flex_1()
             .flex()
-            .items_center()
-            .gap_4()
-            .px_3()
-            .rounded_lg()
-            .bg(rgb(CODE_PANEL))
+            .flex_col()
+            .gap_1()
             .child(
                 div()
-                    .w(px(120.0))
-                    .flex_none()
                     .font_family(FONT_UI)
                     .font_weight(FontWeight::BOLD)
-                    .text_size(px(12.0))
-                    .text_color(rgb(0x0093_c5fd))
-                    .child(label),
+                    .text_size(px(9.0))
+                    .text_color(rgb(SUBTEXT))
+                    .child(label.to_ascii_uppercase()),
             )
             .child(
                 div()
-                    .debug_selector(move || selector.into())
-                    .h(px(34.0))
-                    .flex_1()
-                    .child(input),
+                    .h(px(48.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(rgb(INFO))
+                    .bg(rgb(PANEL))
+                    .child(
+                        div()
+                            .debug_selector(move || input_selector.into())
+                            .min_w_0()
+                            .h(px(34.0))
+                            .flex_1()
+                            .child(input),
+                    )
+                    .child(
+                        div()
+                            .debug_selector(move || saved_selector.into())
+                            .h(px(24.0))
+                            .px_2()
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .rounded_lg()
+                            .bg(rgb(if saved { OK_SOFT } else { PANEL_ALT }))
+                            .font_family(FONT_UI)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_size(px(9.0))
+                            .text_color(rgb(if saved { OK } else { MUTED }))
+                            .child(if saved { "SAVED" } else { "EMPTY" }),
+                    ),
             )
     }
 
