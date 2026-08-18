@@ -86,6 +86,42 @@ const HEADER_TOGGLE_SELECTORS: [&str; 16] = [
     "header-row-toggle-14",
     "header-row-toggle-15",
 ];
+const HEADER_KEY_SELECTORS: [&str; 16] = [
+    "header-row-key-input-0",
+    "header-row-key-input-1",
+    "header-row-key-input-2",
+    "header-row-key-input-3",
+    "header-row-key-input-4",
+    "header-row-key-input-5",
+    "header-row-key-input-6",
+    "header-row-key-input-7",
+    "header-row-key-input-8",
+    "header-row-key-input-9",
+    "header-row-key-input-10",
+    "header-row-key-input-11",
+    "header-row-key-input-12",
+    "header-row-key-input-13",
+    "header-row-key-input-14",
+    "header-row-key-input-15",
+];
+const HEADER_VALUE_SELECTORS: [&str; 16] = [
+    "header-row-value-input-0",
+    "header-row-value-input-1",
+    "header-row-value-input-2",
+    "header-row-value-input-3",
+    "header-row-value-input-4",
+    "header-row-value-input-5",
+    "header-row-value-input-6",
+    "header-row-value-input-7",
+    "header-row-value-input-8",
+    "header-row-value-input-9",
+    "header-row-value-input-10",
+    "header-row-value-input-11",
+    "header-row-value-input-12",
+    "header-row-value-input-13",
+    "header-row-value-input-14",
+    "header-row-value-input-15",
+];
 const HEADER_ROW_CONTRACT_SELECTORS: [[&str; 4]; 16] = [
     [
         "header-row-key-0",
@@ -328,7 +364,16 @@ fn run_application_scenario(
             &scenario.draft.params,
         )?;
     }
-    apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+    if scenario.draft.precreate_header_rows == 0 {
+        apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+    } else {
+        apply_precreated_header_rows(
+            cx,
+            &workspace,
+            scenario.draft.precreate_header_rows,
+            &scenario.draft.headers,
+        )?;
+    }
     assert_headers_editor_contract(cx, &scenario.draft.headers)?;
 
     if !url_rows.is_empty() || !scenario.draft.params.is_empty() {
@@ -678,6 +723,106 @@ fn apply_precreated_param_rows(
                 "precreated Params row {index} mismatch\n  expected: {expected:#?}\n  actual:   {row:#?}"
             ));
         }
+    }
+    Ok(())
+}
+
+fn apply_precreated_header_rows(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    row_count: usize,
+    rows: &[KeyValueSpec],
+) -> Result<(), String> {
+    if rows.len() > row_count {
+        return Err(format!(
+            "scenario defines {} Headers rows but precreates only {row_count}",
+            rows.len()
+        ));
+    }
+
+    click(cx, "request-pane-headers")?;
+    for _ in 0..row_count {
+        click(cx, "add-row-button")?;
+        cx.run_until_parked();
+    }
+    let expected_visible_rows = row_count + 1;
+    let actual_visible_rows =
+        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count());
+    if actual_visible_rows != expected_visible_rows {
+        return Err(format!(
+            "Add Header did not append one row per click: expected {expected_visible_rows}, got {actual_visible_rows}"
+        ));
+    }
+    for index in 0..expected_visible_rows {
+        let selectors = HEADER_ROW_CONTRACT_SELECTORS.get(index).ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Header rows",
+                HEADER_ROW_CONTRACT_SELECTORS.len()
+            )
+        })?;
+        for selector in selectors {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "Header row {index} created by Add is missing `{selector}`"
+                ));
+            }
+        }
+    }
+    if expected_visible_rows > 4 {
+        for selector in [
+            "headers-scrollbar",
+            "headers-scrollbar-thumb",
+            "add-row-button",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "overflowing Header rows do not render `{selector}`"
+                ));
+            }
+        }
+    }
+
+    scroll_up(cx, "headers-rows-scroll", 1000.0)?;
+    for (index, row) in rows.iter().enumerate() {
+        if index > 0 {
+            scroll_down(cx, "headers-rows-scroll", 54.0)?;
+        }
+        let key_selector = HEADER_KEY_SELECTORS.get(index).copied().ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Header rows",
+                HEADER_KEY_SELECTORS.len()
+            )
+        })?;
+        let value_selector = HEADER_VALUE_SELECTORS.get(index).copied().ok_or_else(|| {
+            format!(
+                "the UI scenario driver supports at most {} Header rows",
+                HEADER_VALUE_SELECTORS.len()
+            )
+        })?;
+        type_into(cx, key_selector, &row.key)?;
+        type_into(cx, value_selector, &row.value)?;
+        if !row.enabled {
+            click(cx, row_toggle_selector(RowEditor::Headers, index)?)?;
+        }
+    }
+
+    let actual = workspace.read_with(cx, |workspace, _| workspace.headers().to_vec());
+    for (index, expected) in rows.iter().enumerate() {
+        let Some(row) = actual.get(index) else {
+            return Err(format!("precreated Header row {index} disappeared"));
+        };
+        if row.key != expected.key || row.value != expected.value || row.enabled != expected.enabled
+        {
+            return Err(format!(
+                "precreated Header row {index} mismatch\n  expected: {expected:#?}\n  actual:   {row:#?}"
+            ));
+        }
+    }
+
+    // Issue #81 explicitly sends while X-Locale remains active to prove live ViewModel writes.
+    if rows.len() > 1 {
+        scroll_up(cx, "headers-rows-scroll", 1000.0)?;
+        click(cx, HEADER_VALUE_SELECTORS[1])?;
     }
     Ok(())
 }

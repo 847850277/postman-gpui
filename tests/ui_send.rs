@@ -537,6 +537,143 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
 }
 
 #[gpui::test]
+fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/multiple-headers")
+        .match_header("x-scenario", "multiple-header-rows")
+        .match_header("x-locale", "zh-CN")
+        .match_header("x-disabled", Matcher::Missing)
+        .with_status(200)
+        .with_body("multiple-headers-saved")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(
+        cx,
+        "url-input",
+        &format!("{}/multiple-headers", server.url()),
+    )
+    .unwrap();
+    click(cx, "request-pane-headers").unwrap();
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+        1
+    );
+    for expected_rows in 2..=4 {
+        click(cx, "add-row-button").unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+            expected_rows,
+            "each Add Header click must append exactly one independent row"
+        );
+    }
+
+    scroll_up(cx, "headers-rows-scroll", 1000.0).unwrap();
+    type_into(cx, "header-row-key-input-0", "X-Scenario").unwrap();
+    type_into(cx, "header-row-value-input-0", "multiple-header-rows").unwrap();
+    type_into(cx, "header-row-key-input-1", "X-Locale").unwrap();
+    type_into(cx, "header-row-value-input-1", "zh-CN").unwrap();
+    type_into(cx, "header-row-key-input-2", "X-Disabled").unwrap();
+    type_into(cx, "header-row-value-input-2", "must-not-be-sent").unwrap();
+    click(cx, "header-row-toggle-2").unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.headers().len(), 3);
+        assert_eq!(
+            workspace.headers()[0],
+            KeyValueRow::enabled("X-Scenario", "multiple-header-rows")
+        );
+        assert_eq!(
+            workspace.headers()[1],
+            KeyValueRow::enabled("X-Locale", "zh-CN")
+        );
+        assert!(!workspace.headers()[2].enabled);
+    });
+
+    // The value is already in the ViewModel; focus need not leave X-Locale before Send.
+    click(cx, "header-row-value-input-1").unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| entry.request.headers.clone())
+        }),
+        Some(vec![
+            ("X-Scenario".to_string(), "multiple-header-rows".to_string()),
+            ("X-Locale".to_string(), "zh-CN".to_string()),
+        ])
+    );
+
+    click(cx, "header-row-delete-0").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.headers().len(), 2);
+        assert_eq!(workspace.headers()[0].key, "X-Locale");
+        assert_eq!(workspace.headers()[1].key, "X-Disabled");
+    });
+    request.assert();
+}
+
+#[gpui::test]
+fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    click(cx, "request-pane-headers").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+        1
+    );
+
+    let newest_row_selectors = [
+        "header-row-1",
+        "header-row-2",
+        "header-row-3",
+        "header-row-4",
+        "header-row-5",
+        "header-row-6",
+        "header-row-7",
+        "header-row-8",
+        "header-row-9",
+        "header-row-10",
+        "header-row-11",
+        "header-row-12",
+    ];
+    for (click_index, newest_row_selector) in newest_row_selectors.into_iter().enumerate() {
+        let click_count = click_index + 1;
+        click(cx, "add-row-button").unwrap();
+        cx.run_until_parked();
+        workspace.read_with(cx, |workspace, _| {
+            assert_eq!(workspace.headers().len(), click_count);
+            assert_eq!(workspace.visible_header_row_count(), click_count + 1);
+            assert!(workspace
+                .headers()
+                .iter()
+                .all(|row| row.key.is_empty() && row.value.is_empty()));
+        });
+        assert!(
+            cx.debug_bounds(newest_row_selector).is_some(),
+            "the blank row created by click {click_count} must be rendered"
+        );
+    }
+}
+
+#[gpui::test]
 fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let pending = workspace.update(cx, |workspace, _| {

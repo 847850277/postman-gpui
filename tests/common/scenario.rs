@@ -57,6 +57,8 @@ pub struct DraftSpec {
     pub precreate_param_rows: usize,
     #[serde(default)]
     pub headers: Vec<KeyValueSpec>,
+    #[serde(default)]
+    pub precreate_header_rows: usize,
     pub body: Option<String>,
     pub body_kind: Option<String>,
     pub bearer_token: Option<String>,
@@ -315,15 +317,35 @@ fn apply_draft(
             workspace.toggle_param(index);
         }
     }
-    for header in &draft.headers {
-        workspace.upsert_header(&header.key, &header.value);
-        if !header.enabled {
-            let index = workspace
-                .headers()
-                .iter()
-                .position(|row| row.key.eq_ignore_ascii_case(&header.key))
-                .ok_or_else(|| format!("header `{}` was not added", header.key))?;
-            workspace.toggle_header(index);
+    if draft.precreate_header_rows == 0 {
+        for header in &draft.headers {
+            workspace.upsert_header(&header.key, &header.value);
+            if !header.enabled {
+                let index = workspace
+                    .headers()
+                    .iter()
+                    .position(|row| row.key.eq_ignore_ascii_case(&header.key))
+                    .ok_or_else(|| format!("header `{}` was not added", header.key))?;
+                workspace.toggle_header(index);
+            }
+        }
+    } else {
+        if draft.headers.len() > draft.precreate_header_rows {
+            return Err(format!(
+                "scenario defines {} Headers rows but precreates only {}",
+                draft.headers.len(),
+                draft.precreate_header_rows
+            ));
+        }
+        for _ in 0..draft.precreate_header_rows {
+            workspace.append_header_row();
+        }
+        for (index, header) in draft.headers.iter().enumerate() {
+            workspace.set_header_key(index, &header.key);
+            workspace.set_header_value(index, &header.value);
+            if !header.enabled {
+                workspace.toggle_header(index);
+            }
         }
     }
     if let Some(body) = &draft.body {

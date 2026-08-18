@@ -245,6 +245,24 @@ impl RequestViewModel {
         &self.headers
     }
 
+    /// Counts complete, enabled Header rows, including the active row that already participates
+    /// in Send before the user presses Add or changes focus.
+    pub fn enabled_header_count(&self) -> usize {
+        let saved = self
+            .headers
+            .iter()
+            .filter(|row| row.enabled && header_row_is_complete(row))
+            .count();
+        let active = usize::from(header_draft_is_complete(&self.header_draft));
+        saved + active
+    }
+
+    /// Number of rows rendered by the Headers editor. As with Params, one active row is always
+    /// visible, so every Add Header action increases this count by exactly one.
+    pub fn visible_header_row_count(&self) -> usize {
+        self.headers.len() + 1
+    }
+
     /// Returns the in-progress row shown by the Params or Headers editor. The draft belongs to
     /// the request tab, not to the text controls, and participates in request construction as
     /// soon as it is valid.
@@ -523,14 +541,25 @@ impl RequestViewModel {
         self.dirty = true;
     }
 
+    /// Preserves the current Header row and appends one fresh Header name/value row.
+    ///
+    /// Empty rows are intentional and unlimited. Header controls are editing buffers only; once a
+    /// preserved row is edited, every keystroke is written directly to that indexed ViewModel row.
+    pub fn append_header_row(&mut self) {
+        let draft = std::mem::take(&mut self.header_draft);
+        if draft.key.eq_ignore_ascii_case("content-type") {
+            self.content_type_source = ContentTypeSource::User;
+        }
+        self.headers
+            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.dirty = true;
+    }
+
     /// Confirms the active row for the selected key/value editor.
     pub fn commit_row_draft(&mut self, pane: RequestPane) {
         match pane {
             RequestPane::Params => self.append_param_row(),
-            RequestPane::Headers => {
-                let draft = std::mem::take(&mut self.header_draft);
-                self.upsert_header(draft.key.trim(), draft.value.trim());
-            }
+            RequestPane::Headers => self.append_header_row(),
             RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
@@ -619,6 +648,46 @@ impl RequestViewModel {
             self.content_type_source = ContentTypeSource::User;
         }
         self.dirty = true;
+    }
+
+    /// Updates one persistent Header row. Duplicate names remain independent because Header rows
+    /// model ordered request fields rather than a key-addressed map.
+    pub fn set_header_key(&mut self, index: usize, key: impl Into<String>) {
+        let key = key.into();
+        let Some(row) = self.headers.get_mut(index) else {
+            return;
+        };
+        if row.key == key {
+            return;
+        }
+        if row.key.eq_ignore_ascii_case("content-type") || key.eq_ignore_ascii_case("content-type")
+        {
+            self.content_type_source = ContentTypeSource::User;
+        }
+        row.key = key;
+        self.dirty = true;
+    }
+
+    pub fn set_header_value(&mut self, index: usize, value: impl Into<String>) {
+        let value = value.into();
+        let Some(row) = self.headers.get_mut(index) else {
+            return;
+        };
+        if row.value == value {
+            return;
+        }
+        if row.key.eq_ignore_ascii_case("content-type") {
+            self.content_type_source = ContentTypeSource::User;
+        }
+        row.value = value;
+        self.dirty = true;
+    }
+
+    pub fn clear_header_draft(&mut self) {
+        if self.header_draft != KeyValueDraft::default() {
+            self.header_draft = KeyValueDraft::default();
+            self.dirty = true;
+        }
     }
 
     pub fn toggle_header(&mut self, index: usize) {
@@ -800,22 +869,14 @@ impl RequestViewModel {
         request.headers = self
             .headers
             .iter()
-            .filter(|row| row.enabled && !row.key.trim().is_empty())
+            .filter(|row| row.enabled && header_row_is_complete(row))
             .map(|row| (row.key.clone(), row.value.clone()))
             .collect();
 
         let draft_key = self.header_draft.key.trim();
         let draft_value = self.header_draft.value.trim();
-        if !draft_key.is_empty() && !draft_value.is_empty() {
-            if let Some((_, value)) = request
-                .headers
-                .iter_mut()
-                .find(|(key, _)| key.eq_ignore_ascii_case(draft_key))
-            {
-                *value = draft_value.to_string();
-            } else {
-                request.add_header(draft_key, draft_value);
-            }
+        if header_draft_is_complete(&self.header_draft) {
+            request.add_header(draft_key, draft_value);
         }
 
         let authorization = match self.authorization_kind {
@@ -1260,6 +1321,14 @@ fn default_json_body() -> String {
     .to_string()
 }
 
+fn header_row_is_complete(row: &KeyValueRow) -> bool {
+    !row.key.trim().is_empty() && !row.value.trim().is_empty()
+}
+
+fn header_draft_is_complete(draft: &KeyValueDraft) -> bool {
+    !draft.key.trim().is_empty() && !draft.value.trim().is_empty()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1332,6 +1401,68 @@ mod tests {
         assert_eq!(
             vm.effective_url(),
             "https://httpbingo.org/get?locale=%E4%B8%AD%E6%96%87"
+        );
+    }
+
+    #[test]
+    fn repeated_add_keeps_multiple_blank_header_rows_independent() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://httpbingo.org/headers");
+
+        assert_eq!(vm.visible_header_row_count(), 1);
+
+        const ADD_CLICKS: usize = 32;
+        for _ in 0..ADD_CLICKS {
+            let previous_count = vm.visible_header_row_count();
+            vm.append_header_row();
+            assert_eq!(vm.visible_header_row_count(), previous_count + 1);
+        }
+        assert_eq!(vm.headers().len(), ADD_CLICKS);
+        assert!(vm
+            .headers()
+            .iter()
+            .all(|row| row.key.is_empty() && row.value.is_empty()));
+
+        vm.set_header_key(0, "X-Scenario");
+        vm.set_header_value(0, "multiple-header-rows");
+        vm.set_header_key(1, "X-Locale");
+        vm.set_header_value(1, "zh-CN");
+        vm.set_header_key(2, "X-Disabled");
+        vm.set_header_value(2, "must-not-be-sent");
+        vm.toggle_header(2);
+
+        let request = vm.build_request();
+        assert_eq!(
+            request.headers,
+            vec![
+                ("X-Scenario".to_string(), "multiple-header-rows".to_string()),
+                ("X-Locale".to_string(), "zh-CN".to_string()),
+            ]
+        );
+        assert_eq!(vm.enabled_header_count(), 2);
+        assert!(!vm.headers()[2].enabled);
+
+        vm.remove_header(0);
+        assert_eq!(vm.headers()[0].key, "X-Locale");
+        assert_eq!(vm.headers()[1].key, "X-Disabled");
+    }
+
+    #[test]
+    fn active_and_saved_header_rows_with_the_same_name_remain_independent() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://httpbingo.org/headers");
+        vm.append_header_row();
+        vm.set_header_key(0, "X-Repeated");
+        vm.set_header_value(0, "saved");
+        vm.set_row_draft_key(RequestPane::Headers, "X-Repeated");
+        vm.set_row_draft_value(RequestPane::Headers, "active");
+
+        assert_eq!(
+            vm.build_request().headers,
+            vec![
+                ("X-Repeated".to_string(), "saved".to_string()),
+                ("X-Repeated".to_string(), "active".to_string()),
+            ]
         );
     }
 
