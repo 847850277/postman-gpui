@@ -4,7 +4,9 @@
 mod ui;
 
 use gpui::{AppContext, TestAppContext};
-use postman_gpui::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
+use postman_gpui::app::{
+    AuthorizationKind, PostmanApp, RequestPane, ResponseState, WorkspaceViewModel,
+};
 use ui::{click, replace_text, type_into};
 
 #[gpui::test]
@@ -159,9 +161,40 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
-    click(cx, "request-pane-authorization").unwrap();
-    type_into(cx, "authorization-input", "Bearer ui-secret").unwrap();
     type_into(cx, "url-input", &format!("{}/secured", server.url())).unwrap();
+    click(cx, "request-pane-authorization").unwrap();
+    for selector in [
+        "authorization-summary",
+        "authorization-kind-selector",
+        "authorization-input",
+        "authorization-normalized-token",
+        "authorization-header-preview",
+        "authorization-ready-indicator",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Bearer design contract element `{selector}` should be rendered"
+        );
+    }
+
+    type_into(cx, "authorization-input", "Bearer ui-secret").unwrap();
+
+    // Live input remains verbatim in the VM. The normalized request value is a projection, not a
+    // second editable source of truth.
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        "Bearer ui-secret"
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.normalized_bearer_token()),
+        "ui-secret"
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.authorization_header_preview()),
+        Some("Authorization: Bearer ui-secret".to_string())
+    );
+
+    // Send directly while the Bearer input is still active: no Enter, Tab, blur, or Add.
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
@@ -169,6 +202,16 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
         workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
         "ui-secret"
     );
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        1
+    );
+    assert!(cx.debug_bounds("response-content").is_some());
+    assert!(cx.debug_bounds("history-item-0").is_some());
     secured.assert();
 }
 

@@ -300,6 +300,20 @@ impl RequestViewModel {
         &self.bearer_token
     }
 
+    /// Returns the canonical token that will participate in request construction without
+    /// mutating the live editor value. The UI uses this projection to explain the same
+    /// transformation that Send applies.
+    pub fn normalized_bearer_token(&self) -> String {
+        normalize_bearer_token(&self.bearer_token)
+    }
+
+    /// Returns the complete managed header exactly as it will be sent. Keeping this projection
+    /// next to request construction prevents the UI preview from becoming a second auth policy.
+    pub fn authorization_header_preview(&self) -> Option<String> {
+        self.authorization_header_value()
+            .map(|value| format!("Authorization: {value}"))
+    }
+
     pub fn authorization_kind(&self) -> AuthorizationKind {
         self.authorization_kind
     }
@@ -879,21 +893,7 @@ impl RequestViewModel {
             request.add_header(draft_key, draft_value);
         }
 
-        let authorization = match self.authorization_kind {
-            AuthorizationKind::Bearer if !self.bearer_token.is_empty() => {
-                Some(format!("Bearer {}", self.bearer_token))
-            }
-            AuthorizationKind::Bearer => None,
-            AuthorizationKind::Basic
-                if !self.basic_username.is_empty() || !self.basic_password.is_empty() =>
-            {
-                Some(basic_authorization_value(
-                    &self.basic_username,
-                    &self.basic_password,
-                ))
-            }
-            AuthorizationKind::Basic => None,
-        };
+        let authorization = self.authorization_header_value();
         if let Some(value) = authorization {
             if let Some((_, existing_value)) = request
                 .headers
@@ -920,6 +920,24 @@ impl RequestViewModel {
             request.body = self.body.clone();
         }
         request
+    }
+
+    fn authorization_header_value(&self) -> Option<String> {
+        match self.authorization_kind {
+            AuthorizationKind::Bearer => {
+                let token = self.normalized_bearer_token();
+                (!token.is_empty()).then(|| format!("Bearer {token}"))
+            }
+            AuthorizationKind::Basic
+                if !self.basic_username.is_empty() || !self.basic_password.is_empty() =>
+            {
+                Some(basic_authorization_value(
+                    &self.basic_username,
+                    &self.basic_password,
+                ))
+            }
+            AuthorizationKind::Basic => None,
+        }
     }
 
     fn sync_automatic_content_type(&mut self) {
@@ -1262,12 +1280,13 @@ fn history_label(url: &str) -> String {
 
 fn normalize_bearer_token(value: &str) -> String {
     let value = value.trim();
-    value
-        .strip_prefix("Bearer ")
-        .or_else(|| value.strip_prefix("bearer "))
-        .unwrap_or(value)
-        .trim()
-        .to_string()
+    let mut segments = value.splitn(2, char::is_whitespace);
+    let first = segments.next().unwrap_or_default();
+    if first.eq_ignore_ascii_case("bearer") {
+        segments.next().unwrap_or_default().trim().to_string()
+    } else {
+        value.to_string()
+    }
 }
 
 fn bearer_token_from_header(value: &str) -> Option<String> {
@@ -1669,6 +1688,14 @@ mod tests {
         let mut vm = RequestViewModel::new();
         vm.set_url("https://example.com/me");
         vm.set_bearer_token("Bearer secret-token");
+
+        assert_eq!(vm.bearer_token(), "Bearer secret-token");
+        assert_eq!(vm.normalized_bearer_token(), "secret-token");
+        assert_eq!(
+            vm.authorization_header_preview(),
+            Some("Authorization: Bearer secret-token".to_string())
+        );
+
         let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
         assert_eq!(vm.bearer_token(), "secret-token");
@@ -1677,6 +1704,26 @@ mod tests {
             .iter()
             .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
                 && value == "Bearer secret-token"));
+    }
+
+    #[test]
+    fn bearer_normalization_removes_one_case_insensitive_scheme_and_extra_spacing() {
+        let mut vm = RequestViewModel::new();
+
+        vm.set_bearer_token("  BEARER    scenario-token  ");
+        assert_eq!(vm.bearer_token(), "  BEARER    scenario-token  ");
+        assert_eq!(vm.normalized_bearer_token(), "scenario-token");
+        assert_eq!(
+            vm.authorization_header_preview(),
+            Some("Authorization: Bearer scenario-token".to_string())
+        );
+
+        vm.set_bearer_token("Bearer Bearer scenario-token");
+        assert_eq!(vm.normalized_bearer_token(), "Bearer scenario-token");
+
+        vm.set_bearer_token("Bearer");
+        assert_eq!(vm.normalized_bearer_token(), "");
+        assert_eq!(vm.authorization_header_preview(), None);
     }
 
     #[test]

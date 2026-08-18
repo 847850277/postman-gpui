@@ -398,7 +398,15 @@ fn run_application_scenario(
     }
     if let Some(token) = &scenario.draft.bearer_token {
         click(cx, "request-pane-authorization")?;
+        assert_bearer_editor_contract(cx)?;
         type_into(cx, "authorization-input", token)?;
+        let live_token =
+            workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string());
+        if live_token != *token {
+            return Err(format!(
+                "active Bearer input was not saved to the ViewModel\n  expected: {token:?}\n  actual:   {live_token:?}"
+            ));
+        }
     }
     if let Some(credentials) = &scenario.draft.basic_auth {
         click(cx, "request-pane-authorization")?;
@@ -465,6 +473,24 @@ fn run_application_scenario(
         (false, None) => {}
     }
 
+    Ok(())
+}
+
+fn assert_bearer_editor_contract(cx: &mut VisualTestContext) -> Result<(), String> {
+    for selector in [
+        "authorization-summary",
+        "authorization-kind-selector",
+        "authorization-input",
+        "authorization-normalized-token",
+        "authorization-header-preview",
+        "authorization-ready-indicator",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "Bearer design contract element `{selector}` is not rendered"
+            ));
+        }
+    }
     Ok(())
 }
 

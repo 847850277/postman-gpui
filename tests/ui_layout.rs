@@ -1,4 +1,4 @@
-//! Visual-contract checks derived from `design/issue-0051-query-parameter-encoding.pen`.
+//! Visual-contract checks derived from the issue-linked Pencil artifacts in `design/`.
 
 use gpui::{px, AppContext, Modifiers, TestAppContext};
 use postman_gpui::app::{PostmanApp, RequestPane, WorkspaceViewModel};
@@ -163,6 +163,52 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
     assert!(cx.debug_bounds("param-row-toggle-2").is_some());
     assert!(preview.origin.y >= panel.origin.y);
     assert!(preview.bottom() <= ready.origin.y);
+    assert!(ready.bottom() <= panel.bottom());
+}
+
+#[gpui::test]
+fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://httpbingo.org/bearer");
+        workspace.set_request_pane(RequestPane::Authorization);
+        workspace.set_bearer_token("Bearer scenario-token");
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let panel = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should render");
+    let summary = cx
+        .debug_bounds("authorization-summary")
+        .expect("Authorization summary should render");
+    let kind = cx
+        .debug_bounds("authorization-kind-selector")
+        .expect("Authorization type selector should render");
+    let input = cx
+        .debug_bounds("authorization-input")
+        .expect("Bearer input should render");
+    let normalized = cx
+        .debug_bounds("authorization-normalized-token")
+        .expect("normalized token should render");
+    let outgoing = cx
+        .debug_bounds("authorization-header-preview")
+        .expect("outgoing header should render");
+    let ready = cx
+        .debug_bounds("authorization-ready-indicator")
+        .expect("Authorization ready state should render");
+
+    assert_eq!(panel.size.height, px(360.0));
+    assert!(summary.origin.y >= panel.origin.y);
+    assert!(summary.bottom() <= kind.origin.y);
+    assert!(kind.bottom() <= input.origin.y);
+    assert!(normalized.origin.x < outgoing.origin.x);
+    assert!(input.size.width > px(0.0));
+    assert!(outgoing.size.width > px(0.0));
+    assert!(outgoing.bottom() <= ready.origin.y);
     assert!(ready.bottom() <= panel.bottom());
 }
 
