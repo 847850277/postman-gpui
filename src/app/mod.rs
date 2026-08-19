@@ -6,6 +6,6 @@ pub mod view_model;
 pub use postman_app::PostmanApp;
 pub use view_model::{
     AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
-    PendingRequest, RequestPane, RequestTabId, RequestViewModel, ResponseState, SendId,
-    WorkspaceViewModel,
+    MultipartDraftPart, MultipartDraftValue, PendingRequest, RequestBodyDraft, RequestPane,
+    RequestTabId, RequestViewModel, ResponseState, SendId, WorkspaceViewModel,
 };

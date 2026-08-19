@@ -5,9 +5,11 @@ mod ui;
 
 use gpui::{AppContext, TestAppContext};
 use postman_gpui::app::{
-    AuthorizationKind, PostmanApp, RequestPane, ResponseState, WorkspaceViewModel,
+    AuthorizationKind, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PostmanApp,
+    RequestBodyDraft, RequestPane, ResponseState, WorkspaceViewModel,
 };
-use ui::{click, replace_text, type_into};
+use postman_gpui::models::{MultipartPart, MultipartValue, RequestBody};
+use ui::{click, replace_text, scroll_down, scroll_up, type_into};
 
 #[gpui::test]
 fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext) {
@@ -89,6 +91,183 @@ fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) 
     assert!(workspace.read_with(cx, |workspace, _| {
         workspace.row_draft(RequestPane::Headers) == Some(("X-Tab-Draft", "one"))
     }));
+}
+
+#[gpui::test]
+fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
+    cx: &mut TestAppContext,
+) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-url-encoded").unwrap();
+    type_into(cx, "body-form-key-0", "tag").unwrap();
+    type_into(cx, "body-form-value-0", "rust 你好").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-1", "ignored").unwrap();
+    type_into(cx, "body-form-value-1", "draft-only").unwrap();
+    click(cx, "body-form-toggle-1").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-value-2", "blank-key-draft").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-4", "tag").unwrap();
+    type_into(cx, "body-form-value-4", "gpui").unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(
+            workspace.body_draft(),
+            &RequestBodyDraft::UrlEncoded(vec![
+                KeyValueRow::enabled("tag", "rust 你好"),
+                KeyValueRow {
+                    enabled: false,
+                    key: "ignored".to_string(),
+                    value: "draft-only".to_string(),
+                },
+                KeyValueRow::enabled("", "blank-key-draft"),
+                KeyValueRow::enabled("", ""),
+                KeyValueRow::enabled("tag", "gpui"),
+            ])
+        );
+    });
+
+    click(cx, "new-tab-button").unwrap();
+    click(cx, "request-tab-0").unwrap();
+    assert!(cx.debug_bounds("body-form-row-4").is_some());
+
+    // Re-enabling the restored disabled row proves its enabled state was projected from the
+    // ViewModel rather than normalized to `true` while the tab was inactive.
+    click(cx, "body-form-toggle-1").unwrap();
+    click(cx, "body-form-value-4").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(
+            workspace.body_draft(),
+            &RequestBodyDraft::UrlEncoded(vec![
+                KeyValueRow::enabled("tag", "rust 你好"),
+                KeyValueRow::enabled("ignored", "draft-only"),
+                KeyValueRow::enabled("", "blank-key-draft"),
+                KeyValueRow::enabled("", ""),
+                KeyValueRow::enabled("tag", "gpui-restored"),
+            ])
+        );
+        assert_eq!(
+            workspace.request_body(),
+            RequestBody::UrlEncoded(
+                "tag=rust+%E4%BD%A0%E5%A5%BD&ignored=draft-only&tag=gpui-restored".to_string()
+            )
+        );
+    });
+}
+
+#[gpui::test]
+fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut TestAppContext) {
+    let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/httpbingo-upload.txt");
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-form-data").unwrap();
+    type_into(cx, "body-form-key-0", "note").unwrap();
+    type_into(cx, "body-form-value-0", "hello").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-1", "ignored-text").unwrap();
+    type_into(cx, "body-form-value-1", "draft-only").unwrap();
+    click(cx, "body-form-toggle-1").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-2", "upload").unwrap();
+    cx.simulate_keystrokes("enter");
+    click(cx, "body-form-type-2").unwrap();
+    click(cx, "body-form-file-2").unwrap();
+    assert!(cx.did_prompt_for_paths());
+    let selected_path = fixture_path.clone();
+    cx.simulate_path_prompt_response(move |_| Some(vec![selected_path]));
+    cx.run_until_parked();
+    click(cx, "body-form-toggle-2").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-value-3", "blank-key-draft").unwrap();
+
+    // Content type is transport metadata that the current picker does not expose as an editable
+    // field. Seed it in the authoritative draft, then prove projection and the next visible edit
+    // round-trip it together with the path and optional file name.
+    workspace.update(cx, |workspace, cx| {
+        let RequestBodyDraft::Multipart(mut parts) = workspace.body_draft().clone() else {
+            panic!("form-data selection must create a multipart draft");
+        };
+        let MultipartDraftValue::File { content_type, .. } = &mut parts[2].value else {
+            panic!("selected upload row must remain a file");
+        };
+        *content_type = Some("text/plain".to_string());
+        workspace.set_multipart_draft_parts(parts);
+        cx.notify();
+    });
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(
+            workspace.body_draft(),
+            &RequestBodyDraft::Multipart(vec![
+                MultipartDraftPart::text("note", "hello", true),
+                MultipartDraftPart::text("ignored-text", "draft-only", false),
+                MultipartDraftPart::file(
+                    "upload",
+                    fixture_path.clone(),
+                    Some("httpbingo-upload.txt".to_string()),
+                    Some("text/plain".to_string()),
+                    false,
+                ),
+                MultipartDraftPart::text("", "blank-key-draft", true),
+            ])
+        );
+    });
+
+    click(cx, "new-tab-button").unwrap();
+    click(cx, "request-tab-0").unwrap();
+    assert!(cx.debug_bounds("body-form-row-3").is_some());
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        RequestBody::Multipart(vec![MultipartPart::text("note", "hello")])
+    );
+
+    // If projection had normalized either row to enabled, these clicks would disable them and the
+    // effective request assertion below would fail.
+    scroll_up(cx, "body-form-scroll", 1_000.0).unwrap();
+    click(cx, "body-form-toggle-1").unwrap();
+    scroll_down(cx, "body-form-scroll", 1_000.0).unwrap();
+    click(cx, "body-form-toggle-2").unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(
+            workspace.request_body(),
+            RequestBody::Multipart(vec![
+                MultipartPart::text("note", "hello"),
+                MultipartPart::text("ignored-text", "draft-only"),
+                MultipartPart {
+                    name: "upload".to_string(),
+                    value: MultipartValue::File {
+                        path: fixture_path,
+                        file_name: Some("httpbingo-upload.txt".to_string()),
+                        content_type: Some("text/plain".to_string()),
+                    },
+                },
+            ])
+        );
+    });
 }
 
 #[gpui::test]
