@@ -195,7 +195,7 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
         assert_eq!(workspace.body_kind(), BodyKind::Json);
         assert_eq!(
             workspace.request_body(),
-            &RequestBody::Json(r#"{"patched":true}"#.to_string()),
+            RequestBody::Json(r#"{"patched":true}"#.to_string()),
             "the active JSON editor must save its latest value before blur"
         );
     });
@@ -283,7 +283,7 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
         assert_eq!(workspace.body_kind(), BodyKind::Json);
         assert_eq!(
             workspace.request_body(),
-            &RequestBody::Json(body.to_string())
+            RequestBody::Json(body.to_string())
         );
     });
     for selector in [
@@ -452,7 +452,7 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         assert_eq!(workspace.body_kind(), BodyKind::UrlEncoded);
         assert_eq!(
             workspace.request_body(),
-            &RequestBody::UrlEncoded(encoded_body.to_string()),
+            RequestBody::UrlEncoded(encoded_body.to_string()),
             "the active URL-encoded Value must already be persisted before blur"
         );
         let effective_headers = workspace.effective_headers();

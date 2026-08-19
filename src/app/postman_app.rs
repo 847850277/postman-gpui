@@ -1,10 +1,10 @@
 use crate::{
     app::{
         request_runner::RequestRunner, AuthorizationKind, BodyKind, EffectiveHeader,
-        EffectiveHeaderSource, KeyValueRow, PendingRequest, RequestPane, SendId,
-        WorkspaceViewModel,
+        EffectiveHeaderSource, KeyValueRow, MultipartDraftPart, MultipartDraftValue,
+        PendingRequest, RequestBodyDraft, RequestPane, SendId, WorkspaceViewModel,
     },
-    models::{MultipartPart, MultipartValue, Request, RequestBody},
+    models::Request,
     ui::{
         components::{
             body_input::{

@@ -2,12 +2,16 @@ use crate::utils::log::display_url_for_log;
 use crate::{
     errors::AppError,
     http::executor::RequestResult,
-    models::{HistoryEntry, HttpMethod, MultipartPart, Request, RequestBody, RequestHistory},
+    models::{
+        HistoryEntry, HttpMethod, MultipartPart, MultipartValue, Request, RequestBody,
+        RequestHistory,
+    },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
     fmt,
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -34,8 +38,8 @@ pub enum AuthorizationKind {
     Basic,
 }
 
-/// Body encoding selected in the editor. The payload and encoding are stored together in
-/// `RequestBody`; this enum is only a compact value for rendering controls.
+/// Body encoding selected in the editor. The editable payload and encoding are stored together
+/// in `RequestBodyDraft`; this enum is only a compact value for rendering controls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BodyKind {
     None,
@@ -82,6 +86,207 @@ impl KeyValueRow {
             enabled: true,
             key: key.into(),
             value: value.into(),
+        }
+    }
+}
+
+/// Editable value for one multipart row. Unlike the transport `MultipartValue`, a file value may
+/// intentionally have an empty path while the user is still completing the row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MultipartDraftValue {
+    Text(String),
+    File {
+        path: PathBuf,
+        file_name: Option<String>,
+        content_type: Option<String>,
+    },
+}
+
+/// One complete multipart editor row, including state that does not participate in the outgoing
+/// request yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MultipartDraftPart {
+    pub enabled: bool,
+    pub name: String,
+    pub value: MultipartDraftValue,
+}
+
+impl MultipartDraftPart {
+    pub fn text(name: impl Into<String>, value: impl Into<String>, enabled: bool) -> Self {
+        Self {
+            enabled,
+            name: name.into(),
+            value: MultipartDraftValue::Text(value.into()),
+        }
+    }
+
+    pub fn file(
+        name: impl Into<String>,
+        path: impl Into<PathBuf>,
+        file_name: Option<String>,
+        content_type: Option<String>,
+        enabled: bool,
+    ) -> Self {
+        Self {
+            enabled,
+            name: name.into(),
+            value: MultipartDraftValue::File {
+                path: path.into(),
+                file_name,
+                content_type,
+            },
+        }
+    }
+}
+
+/// Authoritative editable body state for one request tab.
+///
+/// Form variants intentionally retain disabled, blank, duplicate, ordered, and incomplete rows.
+/// `RequestBody` is derived only when the ViewModel builds an effective request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum RequestBodyDraft {
+    #[default]
+    None,
+    Json(String),
+    Raw(String),
+    UrlEncoded(Vec<KeyValueRow>),
+    Multipart(Vec<MultipartDraftPart>),
+}
+
+impl RequestBodyDraft {
+    fn kind(&self) -> BodyKind {
+        match self {
+            Self::None => BodyKind::None,
+            Self::Json(_) => BodyKind::Json,
+            Self::Raw(_) => BodyKind::Raw,
+            Self::UrlEncoded(_) => BodyKind::UrlEncoded,
+            Self::Multipart(_) => BodyKind::Multipart,
+        }
+    }
+
+    fn empty_for(kind: BodyKind) -> Self {
+        match kind {
+            BodyKind::None => Self::None,
+            BodyKind::Json => Self::Json(String::new()),
+            BodyKind::Raw => Self::Raw(String::new()),
+            BodyKind::UrlEncoded => Self::UrlEncoded(blank_url_encoded_rows()),
+            BodyKind::Multipart => Self::Multipart(blank_multipart_parts()),
+        }
+    }
+
+    fn from_request_body(body: &RequestBody) -> Self {
+        match body {
+            RequestBody::None => Self::None,
+            RequestBody::Json(value) => Self::Json(value.clone()),
+            RequestBody::Raw(value) => Self::Raw(value.clone()),
+            RequestBody::UrlEncoded(value) => Self::UrlEncoded(parse_url_encoded_rows(value)),
+            RequestBody::Multipart(parts) => Self::Multipart(nonempty_multipart_parts(
+                parts
+                    .iter()
+                    .map(|part| MultipartDraftPart {
+                        enabled: true,
+                        name: part.name.clone(),
+                        value: match &part.value {
+                            MultipartValue::Text(value) => MultipartDraftValue::Text(value.clone()),
+                            MultipartValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } => MultipartDraftValue::File {
+                                path: path.clone(),
+                                file_name: file_name.clone(),
+                                content_type: content_type.clone(),
+                            },
+                        },
+                    })
+                    .collect(),
+            )),
+        }
+    }
+
+    fn effective_body(&self) -> RequestBody {
+        match self {
+            Self::None => RequestBody::None,
+            Self::Json(value) => RequestBody::Json(value.clone()),
+            Self::Raw(value) => RequestBody::Raw(value.clone()),
+            Self::UrlEncoded(rows) => RequestBody::UrlEncoded(serialize_url_encoded_rows(rows)),
+            Self::Multipart(parts) => RequestBody::Multipart(
+                parts
+                    .iter()
+                    .filter(|part| part.enabled && !part.name.trim().is_empty())
+                    .filter_map(|part| {
+                        let value = match &part.value {
+                            MultipartDraftValue::Text(value) => MultipartValue::Text(value.clone()),
+                            MultipartDraftValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } if !path.as_os_str().is_empty() => MultipartValue::File {
+                                path: path.clone(),
+                                file_name: file_name.clone(),
+                                content_type: content_type.clone(),
+                            },
+                            MultipartDraftValue::File { .. } => return None,
+                        };
+                        Some(MultipartPart {
+                            name: part.name.clone(),
+                            value,
+                        })
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
+    fn editor_text(&self) -> String {
+        match self {
+            Self::Json(value) | Self::Raw(value) => value.clone(),
+            Self::UrlEncoded(rows) => serialize_url_encoded_rows(rows),
+            Self::None | Self::Multipart(_) => String::new(),
+        }
+    }
+
+    fn converted_to(&self, kind: BodyKind) -> Self {
+        if self.kind() == kind {
+            return self.clone();
+        }
+
+        match kind {
+            BodyKind::None => Self::None,
+            BodyKind::Json => Self::Json(self.editor_text()),
+            BodyKind::Raw => Self::Raw(self.editor_text()),
+            BodyKind::UrlEncoded => match self {
+                Self::Multipart(parts) => Self::UrlEncoded(nonempty_url_encoded_rows(
+                    parts
+                        .iter()
+                        .map(|part| KeyValueRow {
+                            enabled: part.enabled,
+                            key: part.name.clone(),
+                            value: match &part.value {
+                                MultipartDraftValue::Text(value) => value.clone(),
+                                MultipartDraftValue::File { path, .. } => {
+                                    path.display().to_string()
+                                }
+                            },
+                        })
+                        .collect(),
+                )),
+                _ => Self::UrlEncoded(parse_url_encoded_rows(&self.editor_text())),
+            },
+            BodyKind::Multipart => match self {
+                Self::UrlEncoded(rows) => Self::Multipart(nonempty_multipart_parts(
+                    rows.iter()
+                        .map(|row| {
+                            MultipartDraftPart::text(
+                                row.key.clone(),
+                                row.value.clone(),
+                                row.enabled,
+                            )
+                        })
+                        .collect(),
+                )),
+                _ => Self::Multipart(parse_multipart_text_parts(&self.editor_text())),
+            },
         }
     }
 }
@@ -170,7 +375,7 @@ pub struct RequestViewModel {
     param_draft: KeyValueDraft,
     headers: Vec<KeyValueRow>,
     header_draft: KeyValueDraft,
-    body: RequestBody,
+    body_draft: RequestBodyDraft,
     content_type_source: ContentTypeSource,
     accept_source: ContentTypeSource,
     authorization_kind: AuthorizationKind,
@@ -200,7 +405,7 @@ impl RequestViewModel {
             param_draft: KeyValueDraft::default(),
             headers: Vec::new(),
             header_draft: KeyValueDraft::default(),
-            body: RequestBody::None,
+            body_draft: RequestBodyDraft::None,
             content_type_source: ContentTypeSource::Unset,
             accept_source: ContentTypeSource::Unset,
             authorization_kind: AuthorizationKind::Bearer,
@@ -329,22 +534,23 @@ impl RequestViewModel {
         Some((&draft.key, &draft.value))
     }
 
-    pub fn body(&self) -> &str {
-        self.body.as_text().unwrap_or_default()
+    /// Returns the text projection used by previews and legacy scenario helpers. URL-encoded
+    /// drafts are serialized from their effective rows; multipart drafts remain structured.
+    pub fn body(&self) -> String {
+        self.body_draft.editor_text()
     }
 
-    pub fn request_body(&self) -> &RequestBody {
-        &self.body
+    pub fn body_draft(&self) -> &RequestBodyDraft {
+        &self.body_draft
+    }
+
+    /// Derives the body that will be used by Send without mutating or normalizing the draft.
+    pub fn request_body(&self) -> RequestBody {
+        self.body_draft.effective_body()
     }
 
     pub fn body_kind(&self) -> BodyKind {
-        match self.body {
-            RequestBody::None => BodyKind::None,
-            RequestBody::Json(_) => BodyKind::Json,
-            RequestBody::Raw(_) => BodyKind::Raw,
-            RequestBody::UrlEncoded(_) => BodyKind::UrlEncoded,
-            RequestBody::Multipart(_) => BodyKind::Multipart,
-        }
+        self.body_draft.kind()
     }
 
     pub fn bearer_token(&self) -> &str {
@@ -408,8 +614,8 @@ impl RequestViewModel {
         self.method = method;
         self.dirty = true;
 
-        if method == HttpMethod::POST && self.body.is_empty() {
-            self.body = RequestBody::Json(default_json_body());
+        if method == HttpMethod::POST && matches!(self.body_draft, RequestBodyDraft::None) {
+            self.body_draft = RequestBodyDraft::Json(default_json_body());
             self.sync_automatic_content_type();
         } else {
             self.sync_automatic_content_type();
@@ -430,30 +636,28 @@ impl RequestViewModel {
 
     pub fn set_body(&mut self, body: impl Into<String>) {
         let body = body.into();
-        let next = match &self.body {
-            RequestBody::None => RequestBody::Raw(body),
-            RequestBody::Json(_) => RequestBody::Json(body),
-            RequestBody::Raw(_) => RequestBody::Raw(body),
-            RequestBody::UrlEncoded(_) => RequestBody::UrlEncoded(body),
-            RequestBody::Multipart(_) => RequestBody::Multipart(parse_multipart_text_parts(&body)),
+        let next = match &self.body_draft {
+            RequestBodyDraft::None => RequestBodyDraft::Raw(body),
+            RequestBodyDraft::Json(_) => RequestBodyDraft::Json(body),
+            RequestBodyDraft::Raw(_) => RequestBodyDraft::Raw(body),
+            RequestBodyDraft::UrlEncoded(_) => {
+                RequestBodyDraft::UrlEncoded(parse_url_encoded_rows(&body))
+            }
+            RequestBodyDraft::Multipart(_) => {
+                RequestBodyDraft::Multipart(parse_multipart_text_parts(&body))
+            }
         };
-        if self.body != next {
-            self.body = next;
+        if self.body_draft != next {
+            self.body_draft = next;
             self.dirty = true;
         }
     }
 
     /// Clears the payload without guessing or changing its selected encoding.
     pub fn clear_body(&mut self) {
-        let next = match self.body {
-            RequestBody::None => RequestBody::None,
-            RequestBody::Json(_) => RequestBody::Json(String::new()),
-            RequestBody::Raw(_) => RequestBody::Raw(String::new()),
-            RequestBody::UrlEncoded(_) => RequestBody::UrlEncoded(String::new()),
-            RequestBody::Multipart(_) => RequestBody::Multipart(Vec::new()),
-        };
-        if self.body != next {
-            self.body = next;
+        let next = RequestBodyDraft::empty_for(self.body_kind());
+        if self.body_draft != next {
+            self.body_draft = next;
             self.dirty = true;
         }
         self.sync_automatic_content_type();
@@ -461,26 +665,37 @@ impl RequestViewModel {
 
     pub fn set_body_kind(&mut self, body_kind: BodyKind) {
         if self.body_kind() != body_kind {
-            let text = self.body.as_text().unwrap_or_default().to_string();
-            self.body = match body_kind {
-                BodyKind::None => RequestBody::None,
-                BodyKind::Json => RequestBody::Json(text),
-                BodyKind::Raw => RequestBody::Raw(text),
-                BodyKind::UrlEncoded => RequestBody::UrlEncoded(text),
-                BodyKind::Multipart => RequestBody::Multipart(parse_multipart_text_parts(&text)),
-            };
+            self.body_draft = self.body_draft.converted_to(body_kind);
             self.dirty = true;
         }
         self.sync_automatic_content_type();
     }
 
-    pub fn set_multipart_parts(&mut self, parts: Vec<MultipartPart>) {
-        let body = RequestBody::Multipart(parts);
-        if self.body != body {
-            self.body = body;
+    pub fn set_url_encoded_rows(&mut self, rows: Vec<KeyValueRow>) {
+        let body_draft = RequestBodyDraft::UrlEncoded(nonempty_url_encoded_rows(rows));
+        if self.body_draft != body_draft {
+            self.body_draft = body_draft;
             self.dirty = true;
         }
         self.sync_automatic_content_type();
+    }
+
+    pub fn set_multipart_draft_parts(&mut self, parts: Vec<MultipartDraftPart>) {
+        let body_draft = RequestBodyDraft::Multipart(nonempty_multipart_parts(parts));
+        if self.body_draft != body_draft {
+            self.body_draft = body_draft;
+            self.dirty = true;
+        }
+        self.sync_automatic_content_type();
+    }
+
+    /// Loads an already-effective multipart body as enabled editor rows.
+    pub fn set_multipart_parts(&mut self, parts: Vec<MultipartPart>) {
+        let draft = RequestBodyDraft::from_request_body(&RequestBody::Multipart(parts));
+        let RequestBodyDraft::Multipart(parts) = draft else {
+            unreachable!("multipart conversion must produce a multipart draft");
+        };
+        self.set_multipart_draft_parts(parts);
     }
 
     pub fn set_bearer_token(&mut self, token: impl Into<String>) {
@@ -798,7 +1013,7 @@ impl RequestViewModel {
         self.param_draft = KeyValueDraft::default();
         self.headers.clear();
         self.header_draft = KeyValueDraft::default();
-        self.body = RequestBody::None;
+        self.body_draft = RequestBodyDraft::None;
         self.content_type_source = ContentTypeSource::Unset;
         self.accept_source = ContentTypeSource::Unset;
         self.authorization_kind = AuthorizationKind::Bearer;
@@ -852,12 +1067,12 @@ impl RequestViewModel {
             })
             .map(|(key, value)| KeyValueRow::enabled(key, value))
             .collect();
-        self.body = request.body.clone();
+        self.body_draft = RequestBodyDraft::from_request_body(&request.body);
         // A loaded request is an exact saved draft. Its managed headers, including an
         // intentional absence, must not be replaced by automatic defaults.
         self.content_type_source = ContentTypeSource::User;
         self.accept_source = ContentTypeSource::User;
-        self.request_pane = if self.body.is_empty() {
+        self.request_pane = if request.body.is_empty() {
             RequestPane::Headers
         } else {
             RequestPane::Body
@@ -982,7 +1197,7 @@ impl RequestViewModel {
                     request.add_header("Content-Type", value);
                 }
             }
-            request.body = self.body.clone();
+            request.body = self.request_body();
         }
         if self.method == HttpMethod::POST
             && self.accept_source != ContentTypeSource::User
@@ -1436,14 +1651,55 @@ fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
     }
 }
 
-fn parse_multipart_text_parts(body: &str) -> Vec<MultipartPart> {
-    if body.is_empty() {
-        return Vec::new();
-    }
+fn blank_url_encoded_rows() -> Vec<KeyValueRow> {
+    vec![KeyValueRow::enabled("", "")]
+}
 
-    form_urlencoded::parse(body.as_bytes())
-        .map(|(name, value)| MultipartPart::text(name.into_owned(), value.into_owned()))
-        .collect()
+fn nonempty_url_encoded_rows(mut rows: Vec<KeyValueRow>) -> Vec<KeyValueRow> {
+    if rows.is_empty() {
+        rows = blank_url_encoded_rows();
+    }
+    rows
+}
+
+fn parse_url_encoded_rows(body: &str) -> Vec<KeyValueRow> {
+    nonempty_url_encoded_rows(
+        form_urlencoded::parse(body.as_bytes())
+            .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
+            .collect(),
+    )
+}
+
+fn serialize_url_encoded_rows(rows: &[KeyValueRow]) -> String {
+    let mut serializer = form_urlencoded::Serializer::new(String::new());
+    for row in rows
+        .iter()
+        .filter(|row| row.enabled && !row.key.trim().is_empty())
+    {
+        serializer.append_pair(&row.key, &row.value);
+    }
+    serializer.finish()
+}
+
+fn blank_multipart_parts() -> Vec<MultipartDraftPart> {
+    vec![MultipartDraftPart::text("", "", true)]
+}
+
+fn nonempty_multipart_parts(mut parts: Vec<MultipartDraftPart>) -> Vec<MultipartDraftPart> {
+    if parts.is_empty() {
+        parts = blank_multipart_parts();
+    }
+    parts
+}
+
+fn parse_multipart_text_parts(body: &str) -> Vec<MultipartDraftPart> {
+    nonempty_multipart_parts(
+        form_urlencoded::parse(body.as_bytes())
+            .map(|(name, value)| {
+                MultipartDraftPart::text(name.into_owned(), value.into_owned(), true)
+            })
+            .collect(),
+    )
 }
 
 fn default_json_body() -> String {
@@ -2001,6 +2257,83 @@ mod tests {
             workspace.row_draft(RequestPane::Headers),
             Some(("X-Second-Draft", "two"))
         );
+    }
+
+    #[test]
+    fn tabs_preserve_complete_url_encoded_body_drafts() {
+        let rows = vec![
+            KeyValueRow::enabled("tag", "rust"),
+            KeyValueRow {
+                enabled: false,
+                key: "ignored".to_string(),
+                value: "draft-only".to_string(),
+            },
+            KeyValueRow::enabled("", "blank-key-draft"),
+            KeyValueRow::enabled("tag", "gpui"),
+        ];
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_body_kind(BodyKind::UrlEncoded);
+        workspace.set_url_encoded_rows(rows.clone());
+
+        workspace.new_request();
+        assert!(workspace.select_tab(0));
+
+        assert_eq!(workspace.body_draft(), &RequestBodyDraft::UrlEncoded(rows));
+        assert_eq!(
+            workspace.request_body(),
+            RequestBody::UrlEncoded("tag=rust&tag=gpui".to_string())
+        );
+
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://example.test/form");
+        let pending = workspace.begin_send();
+        assert_eq!(
+            pending.request().body,
+            RequestBody::UrlEncoded("tag=rust&tag=gpui".to_string())
+        );
+    }
+
+    #[test]
+    fn tabs_preserve_complete_multipart_body_drafts() {
+        let fixture_path = std::path::PathBuf::from("tests/fixtures/httpbingo-upload.txt");
+        let parts = vec![
+            MultipartDraftPart::text("note", "hello", true),
+            MultipartDraftPart::text("ignored", "draft-only", false),
+            MultipartDraftPart::text("", "blank-key-draft", true),
+            MultipartDraftPart::file(
+                "upload",
+                fixture_path.clone(),
+                Some("renamed.txt".to_string()),
+                Some("text/plain".to_string()),
+                true,
+            ),
+            MultipartDraftPart::file("pending", std::path::PathBuf::new(), None, None, true),
+        ];
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_body_kind(BodyKind::Multipart);
+        workspace.set_multipart_draft_parts(parts.clone());
+
+        workspace.new_request();
+        assert!(workspace.select_tab(0));
+
+        assert_eq!(workspace.body_draft(), &RequestBodyDraft::Multipart(parts));
+        let expected_body = RequestBody::Multipart(vec![
+            MultipartPart::text("note", "hello"),
+            MultipartPart {
+                name: "upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture_path,
+                    file_name: Some("renamed.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+        ]);
+        assert_eq!(workspace.request_body(), expected_body);
+
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://example.test/upload");
+        let pending = workspace.begin_send();
+        assert_eq!(pending.request().body, expected_body);
     }
 
     #[test]

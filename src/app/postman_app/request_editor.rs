@@ -412,38 +412,37 @@ impl RequestEditor {
                 let entries = entries.clone();
                 self.update_view_model(cx, |view_model| match view_model.body_kind() {
                     BodyKind::UrlEncoded => {
-                        let mut serializer = form_urlencoded::Serializer::new(String::new());
-                        for entry in entries
-                            .iter()
-                            .filter(|entry| entry.enabled && !entry.key.trim().is_empty())
-                        {
-                            serializer.append_pair(&entry.key, &entry.value);
-                        }
-                        view_model.set_body(serializer.finish());
+                        view_model.set_url_encoded_rows(
+                            entries
+                                .into_iter()
+                                .map(|entry| KeyValueRow {
+                                    enabled: entry.enabled,
+                                    key: entry.key,
+                                    value: entry.value,
+                                })
+                                .collect(),
+                        );
                     }
                     BodyKind::Multipart => {
                         let parts = entries
                             .into_iter()
-                            .filter(|entry| entry.enabled && !entry.key.is_empty())
-                            .filter_map(|entry| {
+                            .map(|entry| {
                                 let value = match entry.file {
-                                    Some(file) if !file.path.as_os_str().is_empty() => {
-                                        MultipartValue::File {
-                                            path: file.path,
-                                            file_name: file.file_name,
-                                            content_type: file.content_type,
-                                        }
-                                    }
-                                    Some(_) => return None,
-                                    None => MultipartValue::Text(entry.value),
+                                    Some(file) => MultipartDraftValue::File {
+                                        path: file.path,
+                                        file_name: file.file_name,
+                                        content_type: file.content_type,
+                                    },
+                                    None => MultipartDraftValue::Text(entry.value),
                                 };
-                                Some(MultipartPart {
+                                MultipartDraftPart {
+                                    enabled: entry.enabled,
                                     name: entry.key,
                                     value,
-                                })
+                                }
                             })
                             .collect();
-                        view_model.set_multipart_parts(parts);
+                        view_model.set_multipart_draft_parts(parts);
                     }
                     BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
                 });
@@ -761,38 +760,43 @@ impl RequestEditor {
     }
 
     fn project_body(&self, cx: &mut Context<Self>) {
-        let (body, body_kind) = {
+        let (body_draft, body_kind) = {
             let view_model = self.view_model.read(cx);
-            (view_model.request_body().clone(), view_model.body_kind())
+            (view_model.body_draft().clone(), view_model.body_kind())
         };
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
             input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
-            match body {
-                RequestBody::None => input.project_content("", cx),
-                RequestBody::Json(body) | RequestBody::Raw(body) => input.project_content(body, cx),
-                RequestBody::UrlEncoded(body) => {
-                    let entries = form_urlencoded::parse(body.as_bytes())
-                        .map(|(key, value)| {
-                            FormDataEntry::text(key.into_owned(), value.into_owned(), true)
-                        })
+            match body_draft {
+                RequestBodyDraft::None => input.project_content("", cx),
+                RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
+                    input.project_content(body, cx)
+                }
+                RequestBodyDraft::UrlEncoded(rows) => {
+                    let entries = rows
+                        .into_iter()
+                        .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
                         .collect();
                     input.project_form_data_entries(entries, cx);
                 }
-                RequestBody::Multipart(parts) => {
+                RequestBodyDraft::Multipart(parts) => {
                     let entries = parts
                         .into_iter()
                         .map(|part| match part.value {
-                            MultipartValue::Text(value) => {
-                                FormDataEntry::text(part.name, value, true)
+                            MultipartDraftValue::Text(value) => {
+                                FormDataEntry::text(part.name, value, part.enabled)
                             }
-                            MultipartValue::File {
+                            MultipartDraftValue::File {
                                 path,
                                 file_name,
                                 content_type,
-                            } => {
-                                FormDataEntry::file(part.name, path, file_name, content_type, true)
-                            }
+                            } => FormDataEntry::file(
+                                part.name,
+                                path,
+                                file_name,
+                                content_type,
+                                part.enabled,
+                            ),
                         })
                         .collect();
                     input.project_form_data_entries(entries, cx);
@@ -2612,7 +2616,7 @@ impl RequestEditor {
                                     .text_size(px(9.0))
                                     .text_color(rgb(TEXT))
                                     .child(
-                                        "The active value already lives in RequestBody; Send performs no backfill",
+                                        "The active value already lives in the ViewModel draft; Send performs no backfill",
                                     ),
                             ),
                     ),
@@ -2737,7 +2741,9 @@ impl RequestEditor {
                     .text_size(px(9.0))
                     .text_color(rgb(OK))
                     .child("✓")
-                    .child("Ready to send — active values are already saved in RequestBody"),
+                    .child(
+                        "Ready to send — active values are already saved in the ViewModel draft",
+                    ),
             )
             .into_any_element()
     }
