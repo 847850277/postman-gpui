@@ -472,6 +472,7 @@ fn run_application_scenario(
 
     apply_body(cx, &scenario.draft)?;
     assert_json_body_editor_contract(cx, &workspace, scenario)?;
+    assert_url_encoded_body_editor_contract(cx, &workspace, scenario)?;
 
     let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
     if assembled_url != expected.url {
@@ -640,6 +641,99 @@ fn assert_json_body_editor_contract(
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "effective JSON header row `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn assert_url_encoded_body_editor_contract(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    if !scenario
+        .draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("url_encoded"))
+    {
+        return Ok(());
+    }
+
+    let expected_body = scenario
+        .draft
+        .body
+        .as_deref()
+        .ok_or_else(|| "a URL-encoded UI scenario must contain a body".to_string())?;
+    let (kind, active_body, effective_headers) = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.body_kind(),
+            workspace.request_body().clone(),
+            workspace.effective_headers(),
+        )
+    });
+    if kind != BodyKind::UrlEncoded
+        || active_body != postman_gpui::models::RequestBody::UrlEncoded(expected_body.to_string())
+    {
+        return Err(format!(
+            "active URL-encoded form was not saved directly to the ViewModel\n  expected: {expected_body:?}\n  actual:   {active_body:?}"
+        ));
+    }
+
+    for selector in [
+        "body-kind-selector",
+        "body-kind-url-encoded",
+        "body-url-encoded-live-saved",
+        "body-url-encoded-editor",
+        "body-form-table-header",
+        "body-form-add-row",
+        "body-url-encoded-effective-request",
+        "body-url-encoded-effective-body",
+        "body-url-encoded-effective-headers",
+        "body-url-encoded-field-count",
+        "body-url-encoded-ready-indicator",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "URL-encoded Body design contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    let row_count = form_urlencoded::parse(expected_body.as_bytes()).count();
+    if row_count > BODY_FORM_KEY_SELECTORS.len() {
+        return Err("the URL-encoded UI contract supports at most 16 fields".to_string());
+    }
+    for (key_selector, value_selector) in BODY_FORM_KEY_SELECTORS
+        .iter()
+        .copied()
+        .zip(BODY_FORM_VALUE_SELECTORS.iter().copied())
+        .take(row_count)
+    {
+        for selector in [key_selector, value_selector] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "URL-encoded Body row contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+    }
+
+    for (name, value) in &scenario.expect.request.headers {
+        if !effective_headers
+            .iter()
+            .any(|header| header.name.eq_ignore_ascii_case(name) && header.value == *value)
+        {
+            return Err(format!(
+                "effective URL-encoded header preview is missing `{name}: {value}`"
+            ));
+        }
+        let selector = body_effective_header_selector(name)?;
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "effective URL-encoded header chip `{selector}` is not rendered"
             ));
         }
     }

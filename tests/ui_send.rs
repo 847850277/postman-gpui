@@ -334,6 +334,132 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
 }
 
 #[gpui::test]
+fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut TestAppContext) {
+    let encoded_body = "name=Ada+Lovelace&active=true";
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("POST", "/anything/form")
+        .match_header("content-type", "application/x-www-form-urlencoded")
+        .match_header("accept", "application/json")
+        .match_body(Matcher::Exact(encoded_body.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"method":"POST","form":{"name":["Ada Lovelace"],"active":["true"]}}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    let url = format!("{}/anything/form", server.url());
+    type_into(cx, "url-input", &url).unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-url-encoded").unwrap();
+
+    type_into(cx, "body-form-key-0", "name").unwrap();
+    type_into(cx, "body-form-value-0", "Ada Lovelace").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-1", "ignored").unwrap();
+    type_into(cx, "body-form-value-1", "not-sent").unwrap();
+    click(cx, "body-form-toggle-1").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-2", "active").unwrap();
+    type_into(cx, "body-form-value-2", "true").unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.body_kind(), BodyKind::UrlEncoded);
+        assert_eq!(
+            workspace.request_body(),
+            &RequestBody::UrlEncoded(encoded_body.to_string()),
+            "the active URL-encoded Value must already be persisted before blur"
+        );
+        let effective_headers = workspace.effective_headers();
+        for (name, value) in [
+            ("Content-Type", "application/x-www-form-urlencoded"),
+            ("Accept", "application/json"),
+        ] {
+            assert_eq!(
+                effective_headers
+                    .iter()
+                    .filter(|header| {
+                        header.name.eq_ignore_ascii_case(name) && header.value == value
+                    })
+                    .count(),
+                1,
+                "`{name}` should appear exactly once in the effective request"
+            );
+        }
+    });
+    for selector in [
+        "body-url-encoded-editor",
+        "body-form-table-header",
+        "body-form-row-0",
+        "body-form-row-1",
+        "body-form-row-2",
+        "body-url-encoded-effective-request",
+        "body-url-encoded-effective-body",
+        "body-effective-header-content-type",
+        "body-effective-header-accept",
+        "body-url-encoded-ready-indicator",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #58 design contract element `{selector}` should be rendered"
+        );
+    }
+
+    // Send while the final Value cell is active: no Enter, Tab, blur, or extra Add action.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(status, 200);
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the mock should return a JSON form echo");
+            assert_eq!(echo["method"], "POST");
+            assert_eq!(echo["form"]["name"][0], "Ada Lovelace");
+            assert_eq!(echo["form"]["active"][0], "true");
+            assert!(echo["form"].get("ignored").is_none());
+        }
+        other => panic!("URL-encoded POST should complete as a response: {other:?}"),
+    }
+    assert!(cx.debug_bounds("response-content").is_some());
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let recorded = &workspace.history()[0].request;
+        assert_eq!(recorded.method, HttpMethod::POST);
+        assert_eq!(recorded.url, url);
+        assert_eq!(
+            recorded.body,
+            RequestBody::UrlEncoded(encoded_body.to_string())
+        );
+        assert!(!recorded.body.searchable_text().contains("ignored"));
+        for (name, value) in [
+            ("Content-Type", "application/x-www-form-urlencoded"),
+            ("Accept", "application/json"),
+        ] {
+            assert_eq!(
+                recorded
+                    .headers
+                    .iter()
+                    .filter(|(actual_name, actual_value)| {
+                        actual_name.eq_ignore_ascii_case(name) && actual_value == value
+                    })
+                    .count(),
+                1
+            );
+        }
+    });
+    assert!(cx.debug_bounds("history-method-0").is_some());
+    request.assert();
+}
+
+#[gpui::test]
 fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server

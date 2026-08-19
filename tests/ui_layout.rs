@@ -328,6 +328,84 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
 }
 
 #[gpui::test]
+fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://httpbingo.org/anything/form");
+        workspace.set_body_kind(BodyKind::UrlEncoded);
+        workspace.set_body("name=Ada+Lovelace&active=true");
+        workspace.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let panel = cx
+        .debug_bounds("request-panel")
+        .expect("Body panel should render");
+    let kinds = cx
+        .debug_bounds("body-kind-selector")
+        .expect("Body type selector should render");
+    let editor = cx
+        .debug_bounds("body-url-encoded-editor")
+        .expect("URL-encoded editor should render");
+    let table = cx
+        .debug_bounds("body-form-table-header")
+        .expect("URL-encoded table header should render");
+    let first_row = cx
+        .debug_bounds("body-form-row-0")
+        .expect("first URL-encoded row should render");
+    let second_row = cx
+        .debug_bounds("body-form-row-1")
+        .expect("second URL-encoded row should render");
+    let effective = cx
+        .debug_bounds("body-url-encoded-effective-request")
+        .expect("effective request preview should render");
+    let ready = cx
+        .debug_bounds("body-url-encoded-ready-indicator")
+        .expect("ready indicator should render");
+
+    for selector in [
+        "body-kind-url-encoded",
+        "body-url-encoded-live-saved",
+        "body-form-toggle-0",
+        "body-form-key-0",
+        "body-form-value-0",
+        "body-form-delete-0",
+        "body-form-add-row",
+        "body-url-encoded-effective-body",
+        "body-effective-header-content-type",
+        "body-effective-header-accept",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #58 contract element `{selector}` should render"
+        );
+    }
+
+    let content_type = cx
+        .debug_bounds("body-effective-header-content-type")
+        .expect("Content-Type preview should render");
+    let accept = cx
+        .debug_bounds("body-effective-header-accept")
+        .expect("Accept preview should render");
+
+    assert_eq!(panel.size.height, px(360.0));
+    assert_eq!(kinds.size.height, px(44.0));
+    assert!(editor.origin.y >= kinds.bottom());
+    assert!(table.origin.y >= editor.origin.y);
+    assert!(first_row.origin.y >= table.bottom());
+    assert!(second_row.origin.y >= first_row.bottom());
+    assert!(second_row.bottom() <= effective.origin.y);
+    assert!(effective.bottom() <= ready.origin.y);
+    assert!(ready.bottom() <= panel.bottom());
+    assert!(content_type.origin.x >= effective.origin.x);
+    assert!(accept.right() <= effective.right());
+}
+
+#[gpui::test]
 fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
