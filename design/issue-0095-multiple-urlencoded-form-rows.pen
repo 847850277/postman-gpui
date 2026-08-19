@@ -1,0 +1,3271 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "tp141",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #95 · Multiple URL-Encoded Form Rows",
+      "context": "GitHub Issue #95 · child of #58 · parity with #72 and #81 · POST /anything/form",
+      "clip": true,
+      "width": 1600,
+      "height": 1840,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "tp016",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tp002",
+              "name": "Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "tp001",
+                  "name": "Feature Icon",
+                  "width": 34,
+                  "height": 34,
+                  "icon": "rows-3",
+                  "library": "lucide",
+                  "fill": "$accentVivid"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp011",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tp008",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tp004",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp003",
+                          "name": "Issue Badge Label",
+                          "fill": "$green",
+                          "content": "ISSUE #95 · UI E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp006",
+                      "name": "Status Badge",
+                      "width": 75,
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp005",
+                          "name": "Status Badge Label",
+                          "fill": "$blue",
+                          "content": "DESIGNED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp007",
+                      "name": "Issue URL",
+                      "fill": "$blue",
+                      "content": "github.com/847850277/postman-gpui/issues/95",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "tp009",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Multiple URL-Encoded Form Rows",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp010",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Every Add row click appends one independent draft; values save live, disabled rows stay visible, and long lists scroll.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp015",
+              "name": "Scope Snapshot",
+              "width": 390,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp012",
+                  "name": "Scope Label",
+                  "fill": "$subtle",
+                  "content": "FEATURE SCOPE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp013",
+                  "name": "Scope Value",
+                  "fill": "$codeText",
+                  "content": "POST · /anything/form",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "tp014",
+                  "name": "Scope Note",
+                  "fill": "$muted",
+                  "content": "Child of #58 · interaction parity with #72 Params and #81 Headers.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "tp091",
+          "name": "Application State · Feature",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tp029",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 20,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tp020",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tp018",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp017",
+                          "name": "Logo Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp019",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp025",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "tp021",
+                      "name": "Search Icon",
+                      "width": 17,
+                      "height": 17,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp022",
+                      "name": "Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp024",
+                      "name": "Search Shortcut",
+                      "height": 26,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp023",
+                          "name": "Search Shortcut Label",
+                          "fill": "$muted",
+                          "content": "⌘ K",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp028",
+                  "name": "Environment",
+                  "width": 190,
+                  "height": 36,
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "tp026",
+                      "name": "Environment Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp027",
+                      "name": "Environment Label",
+                      "fill": "$muted",
+                      "content": "No Environment",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp090",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tp034",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    16,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tp031",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "tp030",
+                          "name": "New Request Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp033",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "tp032",
+                          "name": "History Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$green"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp043",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp035",
+                      "name": "History Title",
+                      "fill": "$text",
+                      "content": "History",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 19,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp036",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp039",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        11
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "tp037",
+                          "name": "History Search Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tp038",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp042",
+                      "name": "History Result Content Item",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp040",
+                          "name": "History Result Content Item Title",
+                          "fill": "$accent",
+                          "content": "POST · httpbingo.org/anything/form",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tp041",
+                          "name": "History Result Content Item Detail",
+                          "fill": "$muted",
+                          "content": "200 · completed · URL-encoded",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp089",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tp047",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 14,
+                      "padding": [
+                        0,
+                        18
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "tp044",
+                          "name": "Request Tab Method",
+                          "fill": "$accent",
+                          "content": "POST",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tp045",
+                          "name": "Request Tab Name",
+                          "fill": "$text",
+                          "content": "httpbingo.org/anything/form",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tp046",
+                          "name": "Dirty Indicator",
+                          "fill": "$accentVivid",
+                          "content": "•",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tp088",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": 774,
+                      "layout": "vertical",
+                      "gap": 14,
+                      "padding": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "tp054",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "tp049",
+                              "name": "Method Selector",
+                              "width": 76,
+                              "height": 26,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 8,
+                              "stroke": "$accent",
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tp048",
+                                  "name": "Method Selector Label",
+                                  "fill": "$accent",
+                                  "content": "POST",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "tp051",
+                              "name": "URL Input",
+                              "width": 998,
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tp050",
+                                  "name": "URL Placeholder",
+                                  "fill": "$text",
+                                  "content": "https://httpbingo.org/anything/form",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "tp053",
+                              "name": "Send Button",
+                              "width": 100,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tp052",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tp068",
+                          "name": "Request Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 410,
+                          "fill": "$panel",
+                          "cornerRadius": 14,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "w21Hr",
+                              "x": 0,
+                              "y": 0,
+                              "name": "Request Menu",
+                              "width": 1194,
+                              "height": 48,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 22,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EVtXC",
+                                  "name": "Request Tab · Params",
+                                  "height": 48,
+                                  "stroke": "$panelAlt",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "syV0d",
+                                      "name": "Request Tab Label · Params",
+                                      "fill": "$muted",
+                                      "content": "Params",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "T9Ezfu",
+                                  "name": "Request Tab · Authorization",
+                                  "height": 48,
+                                  "stroke": "$panelAlt",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "yC1LI",
+                                      "name": "Request Tab Label · Authorization",
+                                      "fill": "$muted",
+                                      "content": "Authorization",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "BknZH",
+                                  "name": "Request Tab · Headers (0)",
+                                  "height": 48,
+                                  "stroke": "$panelAlt",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "XTNdG",
+                                      "name": "Request Tab Label · Headers (0)",
+                                      "fill": "$muted",
+                                      "content": "Headers (0)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "htB91",
+                                  "name": "Request Tab · Body",
+                                  "height": 48,
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "bottom": 2
+                                  },
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "pRy6K",
+                                      "name": "Request Tab Label · Body",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QF8ao",
+                                  "name": "Request Tab · Scripts",
+                                  "height": 48,
+                                  "stroke": "$panelAlt",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "CznC4",
+                                      "name": "Request Tab Label · Scripts",
+                                      "fill": "$muted",
+                                      "content": "Scripts",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "poLxJ",
+                                  "name": "Request Tab · Tests",
+                                  "height": 48,
+                                  "stroke": "$panelAlt",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "oUFnh",
+                                      "name": "Request Tab Label · Tests",
+                                      "fill": "$muted",
+                                      "content": "Tests",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "PDq6r",
+                              "x": 0,
+                              "y": 48,
+                              "name": "Multiple URL-Encoded Rows Editor",
+                              "width": 1194,
+                              "height": 362,
+                              "fill": "$panel",
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "rTTg4",
+                                  "name": "Body Type and Row State Bar",
+                                  "width": "fill_container",
+                                  "height": 40,
+                                  "fill": "$panel",
+                                  "stroke": "$line",
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "padding": [
+                                    6,
+                                    14
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "deRTk",
+                                      "name": "Body Type Options",
+                                      "height": 28,
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "F76Sv",
+                                          "name": "Body Type Label",
+                                          "fill": "$subtle",
+                                          "content": "BODY TYPE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "Bx0tw",
+                                          "name": "Body Type · none",
+                                          "height": 28,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "stroke": "$panel",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "YuOZ6",
+                                              "name": "Body Type Label · none",
+                                              "fill": "$muted",
+                                              "content": "○ none",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "sYPWp",
+                                          "name": "Body Type · form-data",
+                                          "height": 28,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "stroke": "$panel",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "W7TTd5",
+                                              "name": "Body Type Label · form-data",
+                                              "fill": "$muted",
+                                              "content": "○ form-data",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "MGuHR",
+                                          "name": "Body Type · x-www-form-urlencoded",
+                                          "height": 28,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 8,
+                                          "stroke": "$accent",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "jUv0q",
+                                              "name": "Body Type Label · x-www-form-urlencoded",
+                                              "fill": "$accent",
+                                              "content": "● x-www-form-urlencoded  ✓",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "c98VN",
+                                          "name": "Body Type · raw",
+                                          "height": 28,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "stroke": "$panel",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Zx1pB",
+                                              "name": "Body Type Label · raw",
+                                              "fill": "$muted",
+                                              "content": "○ raw",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "M9hADw",
+                                          "name": "Body Type · JSON",
+                                          "height": 28,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "stroke": "$panel",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "vllOt",
+                                              "name": "Body Type Label · JSON",
+                                              "fill": "$muted",
+                                              "content": "○ JSON",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "e3xqn",
+                                      "name": "Live Multi-Row State",
+                                      "height": 28,
+                                      "gap": 7,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "NS31m",
+                                          "name": "Live Saved Badge",
+                                          "height": 28,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 13,
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "d0K4r",
+                                              "name": "Live Saved Label",
+                                              "fill": "$green",
+                                              "content": "LIVE · SAVED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "knKxi",
+                                          "name": "Row Count Badge",
+                                          "width": 140,
+                                          "height": 28,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "vwMRQ",
+                                              "name": "Row Count Label",
+                                              "fill": "$blue",
+                                              "content": "4 ON · 1 OFF · 2 DRAFTS",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "SHtg6",
+                                  "name": "URL-Encoded Row Header",
+                                  "width": "fill_container",
+                                  "height": 36,
+                                  "fill": "$panelAlt",
+                                  "stroke": "$line",
+                                  "strokeWidth": {
+                                    "bottom": 1
+                                  },
+                                  "gap": 8,
+                                  "padding": [
+                                    0,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "LO808",
+                                      "name": "Header Cell · Enabled",
+                                      "width": 32,
+                                      "height": 36,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "QrFQw",
+                                          "name": "Header Label · Enabled",
+                                          "fill": "$subtle",
+                                          "content": "✓",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "o3eJzK",
+                                      "name": "Header Cell · Key",
+                                      "width": 430,
+                                      "height": 36,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "x0GEJo",
+                                          "name": "Header Label · Key",
+                                          "fill": "$subtle",
+                                          "content": "KEY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "RdTMS",
+                                      "name": "Header Cell · Value",
+                                      "width": 584,
+                                      "height": 36,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "oCoY7",
+                                          "name": "Header Label · Value",
+                                          "fill": "$subtle",
+                                          "content": "VALUE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "g2TUa",
+                                      "name": "Header Cell · Action",
+                                      "width": 96,
+                                      "height": 36,
+                                      "justifyContent": "end",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "tf98W",
+                                          "name": "Header Label · Action",
+                                          "fill": "$green",
+                                          "content": "↑ 1 ROW ABOVE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Nl9fh",
+                                  "name": "Scrollable URL-Encoded Row Viewport",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "height": 216,
+                                  "fill": "$panel",
+                                  "layout": "none",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "ObN99",
+                                      "x": 0,
+                                      "y": 0,
+                                      "name": "URL-Encoded Row Content · scrolled",
+                                      "width": 1178,
+                                      "height": 216,
+                                      "fill": "$panel",
+                                      "layout": "none",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "HriQD",
+                                          "x": 0,
+                                          "y": 0,
+                                          "name": "URL-Encoded Row · active",
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panel",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "YjdHl",
+                                              "name": "Enabled Cell · active",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "z4UW8D",
+                                                  "name": "Enabled Checkbox · active",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$accent",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$accent",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "HoI5G",
+                                                      "name": "Enabled Checkmark · active",
+                                                      "fill": "#FFFFFF",
+                                                      "content": "✓",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 9,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "ASJ0C",
+                                              "name": "Key Input · active",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "ea2w5",
+                                                  "name": "Key Text · active",
+                                                  "fill": "$text",
+                                                  "content": "active",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "T71iC",
+                                              "name": "Value Input · active",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "WmNhP",
+                                                  "name": "Value Text · active",
+                                                  "fill": "$text",
+                                                  "content": "true",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "QM6FS",
+                                              "name": "Delete Action · active",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "jWOtf",
+                                                  "name": "Delete Label · active",
+                                                  "fill": "$accent",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "utCVZ",
+                                          "x": 0,
+                                          "y": 36,
+                                          "name": "URL-Encoded Row · tag rust",
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panel",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "twH8O",
+                                              "name": "Enabled Cell · tag rust",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "IOmBM",
+                                                  "name": "Enabled Checkbox · tag rust",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$accent",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$accent",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "IsFT1",
+                                                      "name": "Enabled Checkmark · tag rust",
+                                                      "fill": "#FFFFFF",
+                                                      "content": "✓",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 9,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "bFAJp",
+                                              "name": "Key Input · tag rust",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "s095Pu",
+                                                  "name": "Key Text · tag rust",
+                                                  "fill": "$text",
+                                                  "content": "tag",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "xU1vt",
+                                              "name": "Value Input · tag rust",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "ihuU2",
+                                                  "name": "Value Text · tag rust",
+                                                  "fill": "$text",
+                                                  "content": "rust",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "QlZcS",
+                                              "name": "Delete Action · tag rust",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "j06l9r",
+                                                  "name": "Delete Label · tag rust",
+                                                  "fill": "$accent",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "twmPf",
+                                          "x": 0,
+                                          "y": 72,
+                                          "name": "URL-Encoded Row · tag gpui",
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panel",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "kmmIC",
+                                              "name": "Enabled Cell · tag gpui",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "hvLO9",
+                                                  "name": "Enabled Checkbox · tag gpui",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$accent",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$accent",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "rDc1c",
+                                                      "name": "Enabled Checkmark · tag gpui",
+                                                      "fill": "#FFFFFF",
+                                                      "content": "✓",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 9,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "XAs5Z",
+                                              "name": "Key Input · tag gpui",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "HyLUO",
+                                                  "name": "Key Text · tag gpui",
+                                                  "fill": "$text",
+                                                  "content": "tag",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "hGG0V",
+                                              "name": "Value Input · tag gpui",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$blue",
+                                              "strokeWidth": 2,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "E7XXZD",
+                                                  "name": "Value Text · tag gpui",
+                                                  "fill": "$text",
+                                                  "content": "gpui",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                },
+                                                {
+                                                  "type": "frame",
+                                                  "id": "e3yvc",
+                                                  "name": "Active Caret · tag gpui",
+                                                  "width": 1,
+                                                  "height": 16,
+                                                  "fill": "$blue"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "lCj1L",
+                                              "name": "Delete Action · tag gpui",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "vKKkY",
+                                                  "name": "Delete Label · tag gpui",
+                                                  "fill": "$accent",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "dqVur",
+                                          "x": 0,
+                                          "y": 108,
+                                          "name": "URL-Encoded Row · ignored",
+                                          "opacity": 0.62,
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panelAlt",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "z5orR",
+                                              "name": "Enabled Cell · ignored",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "yV1X5",
+                                                  "name": "Enabled Checkbox · ignored",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$panel",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$line",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "Z8d37",
+                                              "name": "Key Input · ignored",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "x8NdXB",
+                                                  "name": "Key Text · ignored",
+                                                  "fill": "$text",
+                                                  "content": "ignored",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "Arsvz",
+                                              "name": "Value Input · ignored",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "LRVpO",
+                                                  "name": "Value Text · ignored",
+                                                  "fill": "$text",
+                                                  "content": "not-sent",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "wxyUK",
+                                              "name": "Delete Action · ignored",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "YHtHj",
+                                                  "name": "Disabled Badge · ignored",
+                                                  "height": 20,
+                                                  "fill": "$panel",
+                                                  "cornerRadius": 10,
+                                                  "padding": [
+                                                    0,
+                                                    7
+                                                  ],
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "h5QNII",
+                                                      "name": "Disabled Label · ignored",
+                                                      "fill": "$muted",
+                                                      "content": "DISABLED",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 7,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "text",
+                                                  "id": "E2x9rg",
+                                                  "name": "Delete Label · ignored",
+                                                  "fill": "$muted",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "cDKW7",
+                                          "x": 0,
+                                          "y": 144,
+                                          "name": "URL-Encoded Row · draft 1",
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panel",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "R7BoR",
+                                              "name": "Enabled Cell · draft 1",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "Alu6M",
+                                                  "name": "Enabled Checkbox · draft 1",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$accentSoft",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$accent",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "h1B6cR",
+                                                      "name": "Enabled Checkmark · draft 1",
+                                                      "fill": "$accent",
+                                                      "content": "✓",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 9,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "ji6n3",
+                                              "name": "Key Input · draft 1",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "HH8YI",
+                                                  "name": "Key Text · draft 1",
+                                                  "fill": "$subtle",
+                                                  "content": "Key",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "G4YLpf",
+                                              "name": "Value Input · draft 1",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "HVRtG",
+                                                  "name": "Value Text · draft 1",
+                                                  "fill": "$subtle",
+                                                  "content": "Value",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "iNlmA",
+                                              "name": "Delete Action · draft 1",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "fNhAN",
+                                                  "name": "Delete Label · draft 1",
+                                                  "fill": "$accent",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "pBqxU",
+                                          "x": 0,
+                                          "y": 180,
+                                          "name": "URL-Encoded Row · draft 2",
+                                          "width": 1178,
+                                          "height": 36,
+                                          "fill": "$panel",
+                                          "stroke": "$line",
+                                          "strokeWidth": {
+                                            "bottom": 1
+                                          },
+                                          "gap": 8,
+                                          "padding": [
+                                            3,
+                                            14
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "TjQeo",
+                                              "name": "Enabled Cell · draft 2",
+                                              "width": 32,
+                                              "height": 30,
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "frame",
+                                                  "id": "F39Xh",
+                                                  "name": "Enabled Checkbox · draft 2",
+                                                  "width": 16,
+                                                  "height": 16,
+                                                  "fill": "$accentSoft",
+                                                  "cornerRadius": 4,
+                                                  "stroke": "$accent",
+                                                  "strokeWidth": 1,
+                                                  "justifyContent": "center",
+                                                  "alignItems": "center",
+                                                  "children": [
+                                                    {
+                                                      "type": "text",
+                                                      "id": "KN6ss",
+                                                      "name": "Enabled Checkmark · draft 2",
+                                                      "fill": "$accent",
+                                                      "content": "✓",
+                                                      "fontFamily": "$fontBody",
+                                                      "fontSize": 9,
+                                                      "fontWeight": "700"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "KNAeL",
+                                              "name": "Key Input · draft 2",
+                                              "width": 430,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "MaB2h",
+                                                  "name": "Key Text · draft 2",
+                                                  "fill": "$subtle",
+                                                  "content": "Key",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "A5OemH",
+                                              "name": "Value Input · draft 2",
+                                              "width": 580,
+                                              "height": 30,
+                                              "fill": "$panel",
+                                              "cornerRadius": 6,
+                                              "stroke": "$line",
+                                              "strokeWidth": 1,
+                                              "padding": [
+                                                0,
+                                                10
+                                              ],
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "nKkye",
+                                                  "name": "Value Text · draft 2",
+                                                  "fill": "$subtle",
+                                                  "content": "Value",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "bYDjO",
+                                              "name": "Delete Action · draft 2",
+                                              "width": 84,
+                                              "height": 30,
+                                              "justifyContent": "end",
+                                              "alignItems": "center",
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "Y3tTMb",
+                                                  "name": "Delete Label · draft 2",
+                                                  "fill": "$accent",
+                                                  "content": "×",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 13,
+                                                  "fontWeight": "700"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "P8cFhH",
+                                      "x": 1182,
+                                      "y": 8,
+                                      "name": "Visible Internal Scrollbar Track",
+                                      "width": 6,
+                                      "height": 200,
+                                      "fill": "$line",
+                                      "cornerRadius": 3,
+                                      "layout": "none",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "Kw5Il",
+                                          "x": 0,
+                                          "y": 62,
+                                          "name": "Visible Internal Scrollbar Thumb",
+                                          "width": 6,
+                                          "height": 78,
+                                          "fill": "$accent",
+                                          "cornerRadius": 3
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QYPLU",
+                                  "name": "Fixed Add Row Action",
+                                  "width": "fill_container",
+                                  "height": 34,
+                                  "gap": 10,
+                                  "padding": [
+                                    4,
+                                    14
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "EZ059",
+                                      "name": "Add URL-Encoded Row Button",
+                                      "width": "fill_container",
+                                      "height": 26,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 6,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 7,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "Y6bCgq",
+                                          "name": "Add Row Icon",
+                                          "width": 13,
+                                          "height": 13,
+                                          "icon": "plus",
+                                          "library": "lucide",
+                                          "fill": "$accent"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "V6IwTh",
+                                          "name": "Add Row Label",
+                                          "fill": "$accent",
+                                          "content": "Add form field",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "X64Y8",
+                                      "name": "Unlimited Rows Hint",
+                                      "fill": "$muted",
+                                      "content": "one click = one row · no limit",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "yCDj1",
+                                  "name": "Fixed Effective Request Preview",
+                                  "width": "fill_container",
+                                  "height": 36,
+                                  "fill": "$blueSoft",
+                                  "stroke": "$blue",
+                                  "strokeWidth": {
+                                    "top": 1
+                                  },
+                                  "padding": [
+                                    4,
+                                    14
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "iPlO8",
+                                      "name": "Effective Encoded Body",
+                                      "height": 28,
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "yIKou",
+                                          "name": "Effective Body Label",
+                                          "fill": "$blue",
+                                          "content": "EFFECTIVE BODY · 4 FIELDS",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "vHA4o",
+                                          "name": "Effective Body Value",
+                                          "fill": "$text",
+                                          "content": "name=Ada+Lovelace&active=true&tag=rust&tag=gpui",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "q2nOat",
+                                      "name": "Generated Header Badges",
+                                      "height": 26,
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "z0Zmxm",
+                                          "name": "Generated Header · Content-Type · generated",
+                                          "height": 24,
+                                          "fill": "$panel",
+                                          "cornerRadius": 12,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "GCAPV",
+                                              "name": "Generated Header Label · Content-Type · generated",
+                                              "fill": "$blue",
+                                              "content": "Content-Type · generated",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "nhX6A",
+                                          "name": "Generated Header · Accept · generated",
+                                          "height": 24,
+                                          "fill": "$panel",
+                                          "cornerRadius": 12,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "padding": [
+                                            0,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "e6n25P",
+                                              "name": "Generated Header Label · Accept · generated",
+                                              "fill": "$blue",
+                                              "content": "Accept · generated",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tp087",
+                          "name": "Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 250,
+                          "fill": "$panel",
+                          "cornerRadius": 14,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "tp072",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                16
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tp069",
+                                  "name": "Response Title",
+                                  "fill": "$text",
+                                  "content": "Response",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 14,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "SAkgI",
+                                  "name": "Response Tab · Body",
+                                  "fill": "$text",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "XYKMb",
+                                  "name": "Response Tab · Headers",
+                                  "fill": "$muted",
+                                  "content": "Headers",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "l5C31",
+                                  "name": "Response Header Actions",
+                                  "width": 133,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "e3jfqd",
+                                      "name": "Copy Response Button",
+                                      "height": 26,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 6,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 1,
+                                      "gap": 5,
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "X2Sr3Q",
+                                          "name": "Copy Response Icon",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "copy",
+                                          "library": "lucide",
+                                          "fill": "$blue"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "Vngtn",
+                                          "name": "Copy Response Label",
+                                          "fill": "$blue",
+                                          "content": "Copy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "d5Sa1f",
+                                      "name": "Response Status",
+                                      "width": 64,
+                                      "height": 26,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 8,
+                                      "padding": [
+                                        0,
+                                        9
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "f6Jap",
+                                          "name": "Response Status Label",
+                                          "fill": "$green",
+                                          "content": "200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "tp086",
+                              "name": "Response Content",
+                              "width": "fill_container",
+                              "height": 198,
+                              "gap": 14,
+                              "padding": 14,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "tp075",
+                                  "name": "Stable Response Subset",
+                                  "width": "fill_container",
+                                  "height": 178,
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "tp073",
+                                      "name": "Stable Response Label",
+                                      "fill": "$green",
+                                      "content": "HTTPBINGO · STABLE RESPONSE SUBSET",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "tp074",
+                                      "name": "Stable Response Value",
+                                      "fill": "$text",
+                                      "textGrowth": "fixed-width",
+                                      "width": 790,
+                                      "content": "{\n  \"method\": \"POST\",\n  \"form\": {\n    \"name\": [\"Ada Lovelace\"],\n    \"active\": [\"true\"],\n    \"tag\": [\"rust\", \"gpui\"]\n  }\n}",
+                                      "lineHeight": 1.5,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "tp085",
+                                  "name": "Response Verification",
+                                  "width": 332,
+                                  "height": 178,
+                                  "fill": "$panel",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "tp078",
+                                      "name": "Positive Evidence Content Item",
+                                      "width": "fill_container",
+                                      "height": 43,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "tp076",
+                                          "name": "Positive Evidence Content Item Title",
+                                          "fill": "$green",
+                                          "content": "✓ 4 ENABLED FIELDS ECHOED",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "tp077",
+                                          "name": "Positive Evidence Content Item Detail",
+                                          "fill": "$muted",
+                                          "content": "name · active · tag × 2",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "tp081",
+                                      "name": "Negative Evidence Content Item",
+                                      "width": "fill_container",
+                                      "height": 43,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "tp079",
+                                          "name": "Negative Evidence Content Item Title",
+                                          "fill": "$muted",
+                                          "content": "⊘ DISABLED + DRAFTS OMITTED",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "tp080",
+                                          "name": "Negative Evidence Content Item Detail",
+                                          "fill": "$muted",
+                                          "content": "ignored and empty keys are absent",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "tp084",
+                                      "name": "Lifecycle Content Item",
+                                      "width": "fill_container",
+                                      "height": 43,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "tp082",
+                                          "name": "Lifecycle Content Item Title",
+                                          "fill": "$blue",
+                                          "content": "RESPONSESTATE = VIEW = HISTORY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "tp083",
+                                          "name": "Lifecycle Content Item Detail",
+                                          "fill": "$muted",
+                                          "content": "Exact encoded POST lifecycle",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "tp110",
+          "name": "Feature Flow",
+          "width": "fill_container",
+          "height": 140,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 12,
+          "padding": 18,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tp094",
+              "name": "Flow Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 7,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp092",
+                  "name": "Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "FEATURE FLOW",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp093",
+                  "name": "Flow Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Add repeatedly → live row drafts → filter + encode → echo",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp097",
+              "name": "Rendered Control Step",
+              "width": "fill_container",
+              "height": 58,
+              "fill": "$blueSoft",
+              "cornerRadius": 9,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp095",
+                  "name": "Rendered Control Step Title",
+                  "fill": "$text",
+                  "content": "01 · ADD REPEATEDLY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp096",
+                  "name": "Rendered Control Step Detail",
+                  "fill": "$muted",
+                  "content": "Each click appends exactly one blank row",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "tp098",
+              "name": "Flow Arrow One",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "tp101",
+              "name": "ViewModel Step",
+              "width": "fill_container",
+              "height": 58,
+              "fill": "$panelAlt",
+              "cornerRadius": 9,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp099",
+                  "name": "ViewModel Step Title",
+                  "fill": "$text",
+                  "content": "02 · LIVE ROW DRAFTS",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp100",
+                  "name": "ViewModel Step Detail",
+                  "fill": "$muted",
+                  "content": "Values, toggles, order live in ViewModel",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "tp102",
+              "name": "Flow Arrow Two",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "tp105",
+              "name": "Request Step",
+              "width": "fill_container",
+              "height": 58,
+              "fill": "$greenSoft",
+              "cornerRadius": 9,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp103",
+                  "name": "Request Step Title",
+                  "fill": "$text",
+                  "content": "03 · FILTER + ENCODE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp104",
+                  "name": "Request Step Detail",
+                  "fill": "$muted",
+                  "content": "Enabled complete rows; duplicates stay ordered",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "tp106",
+              "name": "Flow Arrow Three",
+              "width": 18,
+              "height": 18,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "tp109",
+              "name": "Response Step",
+              "width": "fill_container",
+              "height": 58,
+              "fill": "$accentSoft",
+              "cornerRadius": 9,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tp107",
+                  "name": "Response Step Title",
+                  "fill": "$text",
+                  "content": "04 · ECHO / HISTORY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tp108",
+                  "name": "Response Step Detail",
+                  "fill": "$muted",
+                  "content": "Exact body, stable echo, one lifecycle",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "tp140",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "tp118",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [
+                0,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tp112",
+                  "name": "Contract Icon Surface",
+                  "width": 42,
+                  "height": 42,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "tp111",
+                      "name": "Contract Icon",
+                      "width": 19,
+                      "height": 19,
+                      "icon": "list-checks",
+                      "library": "lucide",
+                      "fill": "$green"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp115",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp113",
+                      "name": "Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #95 · Multiple URL-Encoded Form Rows E2E contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp114",
+                      "name": "Contract Paths",
+                      "fill": "$line",
+                      "content": "tests/cases/httpbingo/bodies.json · tests/ui_send.rs · design/issue-0095-multiple-urlencoded-form-rows.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp117",
+                  "name": "Contract Status",
+                  "width": 75,
+                  "height": 26,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 8,
+                  "padding": [
+                    0,
+                    9
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp116",
+                      "name": "Contract Status Label",
+                      "fill": "$accentInk",
+                      "content": "DESIGNED",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp136",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tp124",
+                  "name": "Scenario Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp119",
+                      "name": "Scenario Column Title",
+                      "fill": "$text",
+                      "content": "Real rendered-control scenario",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp120",
+                      "name": "Scenario Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "01  Open POST https://httpbingo.org/anything/form.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp121",
+                      "name": "Scenario Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "02  Click Add row repeatedly before editing new rows.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp122",
+                      "name": "Scenario Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "03  Edit live; disable one row; keep duplicate tag keys.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp123",
+                      "name": "Scenario Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "04  Send from the active Value and verify echo + History.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp130",
+                  "name": "Assertions Column",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp125",
+                      "name": "Assertions Column Title",
+                      "fill": "$text",
+                      "content": "Observable contract assertions",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp126",
+                      "name": "Assertions Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ Every Add row click appends one independent draft.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp127",
+                      "name": "Assertions Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ Draft values, toggles, order and duplicate keys stay live.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp128",
+                      "name": "Assertions Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ Disabled and incomplete rows are visible but not sent.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp129",
+                      "name": "Assertions Column Item 4",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "✓ Row viewport scrolls; Add + effective preview stay fixed.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tp135",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 13,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tp131",
+                      "name": "Boundary Column Title",
+                      "fill": "$text",
+                      "content": "Slice boundaries",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp132",
+                      "name": "Boundary Column Item 1",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED · unlimited row lifecycle, ordering, toggle, delete, scroll.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp133",
+                      "name": "Boundary Column Item 2",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "BUILDS ON · #58 encoding, generated headers, HTTPBingo transport.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tp134",
+                      "name": "Boundary Column Item 3",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "PARITY · #72 Params rows and #81 Header rows · roadmap #50.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "550"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tp139",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "tp137",
+                  "name": "One-to-One Icon",
+                  "width": 17,
+                  "height": 17,
+                  "icon": "link-2",
+                  "library": "lucide",
+                  "fill": "$accentInk"
+                },
+                {
+                  "type": "text",
+                  "id": "tp138",
+                  "name": "One-to-One Label",
+                  "fill": "$accentInk",
+                  "content": "ONE CHILD ISSUE · ONE MULTI-ROW INTERACTION SLICE · ONE .PEN FILE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "4c3a4668-2fe0-477d-833b-3b83265a24e4"
+}

@@ -46,3 +46,4 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#91 Multipart Text Rows](https://github.com/847850277/postman-gpui/issues/91) | [`issue-0091-multipart-text-rows.pen`](issue-0091-multipart-text-rows.pen) |
 | [#92 Multipart File Picker and Upload](https://github.com/847850277/postman-gpui/issues/92) | [`issue-0092-multipart-file-picker-upload.pen`](issue-0092-multipart-file-picker-upload.pen) |
 | [#93 Multipart Disabled Rows and Invalid Files](https://github.com/847850277/postman-gpui/issues/93) | [`issue-0093-multipart-disabled-invalid-files.pen`](issue-0093-multipart-disabled-invalid-files.pen) |
+| [#95 Multiple URL-Encoded Form Rows](https://github.com/847850277/postman-gpui/issues/95) | [`issue-0095-multiple-urlencoded-form-rows.pen`](issue-0095-multiple-urlencoded-form-rows.pen) |
