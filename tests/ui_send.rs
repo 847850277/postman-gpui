@@ -335,7 +335,53 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
 
 #[gpui::test]
 fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut TestAppContext) {
-    let encoded_body = "name=Ada+Lovelace&active=true";
+    const ROW_SELECTORS: [&str; 10] = [
+        "body-form-row-0",
+        "body-form-row-1",
+        "body-form-row-2",
+        "body-form-row-3",
+        "body-form-row-4",
+        "body-form-row-5",
+        "body-form-row-6",
+        "body-form-row-7",
+        "body-form-row-8",
+        "body-form-row-9",
+    ];
+    const KEY_SELECTORS: [&str; 8] = [
+        "body-form-key-0",
+        "body-form-key-1",
+        "body-form-key-2",
+        "body-form-key-3",
+        "body-form-key-4",
+        "body-form-key-5",
+        "body-form-key-6",
+        "body-form-key-7",
+    ];
+    const VALUE_SELECTORS: [&str; 8] = [
+        "body-form-value-0",
+        "body-form-value-1",
+        "body-form-value-2",
+        "body-form-value-3",
+        "body-form-value-4",
+        "body-form-value-5",
+        "body-form-value-6",
+        "body-form-value-7",
+    ];
+    const TOGGLE_SELECTORS: [&str; 8] = [
+        "body-form-toggle-0",
+        "body-form-toggle-1",
+        "body-form-toggle-2",
+        "body-form-toggle-3",
+        "body-form-toggle-4",
+        "body-form-toggle-5",
+        "body-form-toggle-6",
+        "body-form-toggle-7",
+    ];
+    let encoded_body = concat!(
+        "name=Ada+Lovelace&active=true&tag=rust&",
+        "unicode=%E4%BD%A0%E5%A5%BD+%E4%B8%96%E7%95%8C&",
+        "reserved=a%26b%3Dc%2F%25+done&tag=gpui"
+    );
     let mut server = mockito::Server::new();
     let request = server
         .mock("POST", "/anything/form")
@@ -344,7 +390,9 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         .match_body(Matcher::Exact(encoded_body.to_string()))
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body(r#"{"method":"POST","form":{"name":["Ada Lovelace"],"active":["true"]}}"#)
+        .with_body(
+            r#"{"method":"POST","form":{"name":["Ada Lovelace"],"active":["true"],"tag":["rust","gpui"],"unicode":["你好 世界"],"reserved":["a&b=c/% done"]}}"#,
+        )
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -357,17 +405,48 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-url-encoded").unwrap();
 
-    type_into(cx, "body-form-key-0", "name").unwrap();
-    type_into(cx, "body-form-value-0", "Ada Lovelace").unwrap();
+    // Precreate blank rows before entering any data. Every Add click must append exactly one row,
+    // preserve all existing drafts, and remain reachable outside the scrolling viewport.
+    for (index, row_selector) in ROW_SELECTORS.iter().copied().enumerate().skip(1) {
+        assert!(
+            cx.debug_bounds(row_selector).is_none(),
+            "row {index} should not exist before its Add click"
+        );
+        click(cx, "body-form-add-row").unwrap();
+        assert!(
+            cx.debug_bounds(row_selector).is_some(),
+            "Add click should create row {index}"
+        );
+    }
+    click(cx, "body-form-delete-9").unwrap();
+    assert!(
+        cx.debug_bounds("body-form-row-9").is_none(),
+        "deleting one row must remove only that row"
+    );
 
-    click(cx, "body-form-add-row").unwrap();
-    type_into(cx, "body-form-key-1", "ignored").unwrap();
-    type_into(cx, "body-form-value-1", "not-sent").unwrap();
-    click(cx, "body-form-toggle-1").unwrap();
-
-    click(cx, "body-form-add-row").unwrap();
-    type_into(cx, "body-form-key-2", "active").unwrap();
-    type_into(cx, "body-form-value-2", "true").unwrap();
+    scroll_up(cx, "body-form-scroll", 1000.0).unwrap();
+    let rows = [
+        ("name", "Ada Lovelace", true),
+        ("active", "true", true),
+        ("tag", "rust", true),
+        ("ignored", "not-sent", false),
+        ("", "draft-only", true),
+        ("unicode", "你好 世界", true),
+        ("reserved", "a&b=c/% done", true),
+        ("tag", "gpui", true),
+    ];
+    for (index, (key, value, enabled)) in rows.into_iter().enumerate() {
+        if index > 0 {
+            scroll_down(cx, "body-form-scroll", 52.0).unwrap();
+        }
+        if !key.is_empty() {
+            type_into(cx, KEY_SELECTORS[index], key).unwrap();
+        }
+        type_into(cx, VALUE_SELECTORS[index], value).unwrap();
+        if !enabled {
+            click(cx, TOGGLE_SELECTORS[index]).unwrap();
+        }
+    }
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.body_kind(), BodyKind::UrlEncoded);
@@ -395,10 +474,17 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     });
     for selector in [
         "body-url-encoded-editor",
+        "body-url-encoded-row-count",
         "body-form-table-header",
         "body-form-row-0",
         "body-form-row-1",
         "body-form-row-2",
+        "body-form-row-8",
+        "body-form-scroll",
+        "body-form-scrollbar",
+        "body-form-scrollbar-thumb",
+        "body-form-add-row",
+        "body-form-add-row-hint",
         "body-url-encoded-effective-request",
         "body-url-encoded-effective-body",
         "body-effective-header-content-type",
@@ -407,7 +493,7 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     ] {
         assert!(
             cx.debug_bounds(selector).is_some(),
-            "Issue #58 design contract element `{selector}` should be rendered"
+            "Issue #95 design contract element `{selector}` should be rendered"
         );
     }
 
@@ -423,6 +509,9 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
             assert_eq!(echo["method"], "POST");
             assert_eq!(echo["form"]["name"][0], "Ada Lovelace");
             assert_eq!(echo["form"]["active"][0], "true");
+            assert_eq!(echo["form"]["tag"], serde_json::json!(["rust", "gpui"]));
+            assert_eq!(echo["form"]["unicode"][0], "你好 世界");
+            assert_eq!(echo["form"]["reserved"][0], "a&b=c/% done");
             assert!(echo["form"].get("ignored").is_none());
         }
         other => panic!("URL-encoded POST should complete as a response: {other:?}"),
@@ -439,6 +528,7 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
             RequestBody::UrlEncoded(encoded_body.to_string())
         );
         assert!(!recorded.body.searchable_text().contains("ignored"));
+        assert!(!recorded.body.searchable_text().contains("draft-only"));
         for (name, value) in [
             ("Content-Type", "application/x-www-form-urlencoded"),
             ("Accept", "application/json"),

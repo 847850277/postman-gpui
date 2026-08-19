@@ -44,12 +44,21 @@
       }
     },
     {
-      "name": "HTTPBingo parses a POST form body sent by the client",
+      "name": "HTTPBingo preserves multiple URL-encoded rows and omits drafts",
       "draft": {
         "method": "POST",
         "path": "/anything/form",
-        "body": "name=Ada+Lovelace&active=true",
-        "body_kind": "url_encoded"
+        "body": "name=Ada+Lovelace&active=true&tag=rust&tag=gpui",
+        "body_kind": "url_encoded",
+        "precreate_body_rows": 9,
+        "body_rows": [
+          { "key": "name", "value": "Ada Lovelace" },
+          { "key": "active", "value": "true" },
+          { "key": "tag", "value": "rust" },
+          { "key": "ignored", "value": "not-sent", "enabled": false },
+          { "key": "", "value": "draft-only" },
+          { "key": "tag", "value": "gpui" }
+        ]
       },
       "expect": {
         "request": {
@@ -59,7 +68,7 @@
             ["Content-Type", "application/x-www-form-urlencoded"],
             ["Accept", "application/json"]
           ],
-          "body": "name=Ada+Lovelace&active=true"
+          "body": "name=Ada+Lovelace&active=true&tag=rust&tag=gpui"
         },
         "response": {
           "kind": "success",
@@ -71,7 +80,8 @@
             },
             "form": {
               "name": ["Ada Lovelace"],
-              "active": ["true"]
+              "active": ["true"],
+              "tag": ["rust", "gpui"]
             }
           }
         },
