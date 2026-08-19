@@ -1,32 +1,13 @@
 use crate::{
-    app::{
-        request_runner::RequestRunner, AuthorizationKind, BodyKind, EffectiveHeader,
-        EffectiveHeaderSource, KeyValueRow, MultipartDraftPart, MultipartDraftValue,
-        PendingRequest, RequestBodyDraft, RequestPane, SendId, WorkspaceViewModel,
-    },
-    models::Request,
+    app::{request_runner::RequestRunner, WorkspaceViewModel},
     ui::{
-        components::{
-            body_input::{
-                setup_body_input_key_bindings, BodyInput, BodyInputEvent, BodyType, FormDataEntry,
-            },
-            header_input::{setup_header_input_key_bindings, HeaderInput, HeaderInputEvent},
-            history_list::{HistoryList, HistoryListEvent},
-            method_selector::{MethodSelector, MethodSelectorEvent},
-            response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
-            url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
-        },
-        theme::{
-            method_color, ACCENT, ACCENT_DARK, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, BG, CODE_BG,
-            CODE_PANEL, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE,
-            MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
-        },
+        components::history_list::{HistoryList, HistoryListEvent},
+        theme::{BG, FONT_UI, TEXT},
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, rgb, AppContext, Context, Entity, EventEmitter,
-    FontWeight, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    div, rgb, AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render,
+    Styled, Subscription, Window,
 };
 
 mod chrome;
@@ -127,16 +108,5 @@ impl Render for PostmanApp {
                     .child(self.history_list.clone())
                     .child(self.request_editor.clone()),
             )
-    }
-}
-
-fn request_pane_selector(pane: RequestPane) -> &'static str {
-    match pane {
-        RequestPane::Params => "request-pane-params",
-        RequestPane::Authorization => "request-pane-authorization",
-        RequestPane::Headers => "request-pane-headers",
-        RequestPane::Body => "request-pane-body",
-        RequestPane::Scripts => "request-pane-scripts",
-        RequestPane::Tests => "request-pane-tests",
     }
 }
