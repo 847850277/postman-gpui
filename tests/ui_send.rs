@@ -1196,16 +1196,9 @@ fn multipart_text_value_is_saved_before_the_active_cell_loses_focus(cx: &mut Tes
 
 #[gpui::test]
 fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
-    let fixture_path = std::env::temp_dir().join(format!(
-        "postman-gpui-ui-upload-{}-{}.txt",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("system clock should follow the Unix epoch")
-            .as_nanos()
-    ));
-    std::fs::write(&fixture_path, "file payload from the GPUI editor")
-        .expect("upload fixture should be writable");
+    let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/httpbingo-upload.txt");
+    assert!(fixture_path.is_file(), "upload fixture should exist");
     let mut server = mockito::Server::new();
     let upload = server
         .mock("POST", "/upload")
@@ -1215,7 +1208,7 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
         )
         .match_body(Matcher::AllOf(vec![
             Matcher::Regex("name=\\\"upload\\\"".to_string()),
-            Matcher::Regex("file payload from the GPUI editor".to_string()),
+            Matcher::Regex("hello from postman-gpui fixture".to_string()),
         ]))
         .with_status(201)
         .with_body(r#"{"uploaded":true}"#)
@@ -1270,5 +1263,62 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
         1
     );
     upload.assert();
-    let _ = std::fs::remove_file(&fixture_path);
+}
+
+#[gpui::test]
+fn missing_multipart_file_reports_error_without_response_copy_or_history(cx: &mut TestAppContext) {
+    let fixture_path = std::env::temp_dir().join(format!(
+        "postman-gpui-missing-upload-{}-{}.txt",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock should follow the Unix epoch")
+            .as_nanos()
+    ));
+    std::fs::write(&fixture_path, "removed before Send")
+        .expect("temporary upload fixture should be writable");
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-form-data").unwrap();
+    type_into(cx, "body-form-key-0", "upload").unwrap();
+    cx.simulate_keystrokes("enter");
+    click(cx, "body-form-type-0").unwrap();
+    click(cx, "body-form-file-0").unwrap();
+    assert!(cx.did_prompt_for_paths());
+
+    let selected = fixture_path.clone();
+    cx.simulate_path_prompt_response(move |options| {
+        assert!(options.files);
+        assert!(!options.directories);
+        assert!(!options.multiple);
+        Some(vec![selected])
+    });
+    cx.run_until_parked();
+    std::fs::remove_file(&fixture_path).expect("selected file should be removable before Send");
+
+    type_into(cx, "url-input", "http://127.0.0.1:9/upload").unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Error { message } => {
+            assert!(message.contains("failed to read multipart file"));
+            assert!(message.contains("postman-gpui-missing-upload"));
+        }
+        other => panic!("missing multipart file should fail before transport, got {other:?}"),
+    }
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        0,
+        "a file-read failure must not create successful History"
+    );
+    assert!(
+        cx.debug_bounds("response-copy-button").is_none(),
+        "an error without a populated response body must not expose Copy"
+    );
 }

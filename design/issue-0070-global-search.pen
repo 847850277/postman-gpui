@@ -94,6 +94,32 @@
                       ]
                     },
                     {
+                      "type": "frame",
+                      "id": "gs553",
+                      "name": "Status Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 13,
+                      "padding": [
+                        0,
+                        11
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gs554",
+                          "name": "Status Label",
+                          "fill": "$blue",
+                          "content": "PLANNED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
                       "type": "text",
                       "id": "gs009",
                       "name": "Issue URL",
@@ -2830,7 +2856,7 @@
                       "id": "gs506",
                       "name": "Contract Test Path",
                       "fill": "$line",
-                      "content": "tests/ui_global_search.rs  ·  design/issue-0070-global-search.pen",
+                      "content": "tests/design_artifacts.rs · design/issue-0070-global-search.pen",
                       "fontFamily": "$fontMono",
                       "fontSize": 10,
                       "fontWeight": "500"

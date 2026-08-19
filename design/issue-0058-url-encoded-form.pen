@@ -204,7 +204,7 @@
         {
           "type": "frame",
           "id": "tp091",
-          "name": "Application State · Feature",
+          "name": "Application State · URL-Encoded Form",
           "clip": true,
           "width": "fill_container",
           "height": 900,
@@ -1225,7 +1225,7 @@
                                               "type": "text",
                                               "id": "OWNd8",
                                               "name": "Check Mark · name",
-                                              "fill": "#FFFFFF",
+                                              "fill": "$panel",
                                               "content": "✓",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 10,
@@ -1351,7 +1351,7 @@
                                               "type": "text",
                                               "id": "afLH4",
                                               "name": "Check Mark · active",
-                                              "fill": "#FFFFFF",
+                                              "fill": "$panel",
                                               "content": "✓",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 10,
@@ -1576,7 +1576,7 @@
                                               "id": "LBWMD",
                                               "name": "Generated Header Label · Content-Type · generated",
                                               "fill": "$blue",
-                                              "content": "Content-Type · generated",
+                                              "content": "Content-Type: application/x-www-form-urlencoded · generated",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 9,
                                               "fontWeight": "700"
@@ -1603,7 +1603,7 @@
                                               "id": "n1RYUM",
                                               "name": "Generated Header Label · Accept · generated",
                                               "fill": "$blue",
-                                              "content": "Accept · generated",
+                                              "content": "Accept: application/json · generated",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 9,
                                               "fontWeight": "700"
@@ -2509,7 +2509,7 @@
                   "id": "tp138",
                   "name": "One-to-One Label",
                   "fill": "$accentInk",
-                  "content": "ONE ISSUE · ONE URL-ENCODED E2E SLICE · ONE .PEN FILE",
+                  "content": "ONE ISSUE · ONE URL-ENCODED E2E SLICE · issue-0058-url-encoded-form.pen",
                   "fontFamily": "$fontBody",
                   "fontSize": 11,
                   "fontWeight": "800"

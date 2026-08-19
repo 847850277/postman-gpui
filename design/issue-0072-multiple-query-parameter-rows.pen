@@ -714,7 +714,7 @@
                       "height": 58,
                       "fill": "$accentSoft",
                       "cornerRadius": 9,
-                      "stroke": "#F2B89F",
+                      "stroke": "$accent",
                       "strokeWidth": 1,
                       "gap": 10,
                       "padding": [
@@ -1050,7 +1050,7 @@
                               "height": "fill_container",
                               "fill": "$greenSoft",
                               "cornerRadius": 9,
-                              "stroke": "#A7DDBD",
+                              "stroke": "$green",
                               "strokeWidth": 1,
                               "padding": [
                                 0,
@@ -1586,7 +1586,7 @@
                                           "height": 12,
                                           "icon": "check",
                                           "library": "lucide",
-                                          "fill": "#FFFCF8"
+                                          "fill": "$panel"
                                         }
                                       ]
                                     }
@@ -1769,7 +1769,7 @@
                                           "height": 12,
                                           "icon": "check",
                                           "library": "lucide",
-                                          "fill": "#FFFCF8"
+                                          "fill": "$panel"
                                         }
                                       ]
                                     }
@@ -2164,7 +2164,7 @@
                               "width": "fill_container",
                               "height": 66,
                               "fill": "$blueSoft",
-                              "stroke": "#A9D7E1",
+                              "stroke": "$blue",
                               "strokeWidth": {
                                 "top": 1,
                                 "bottom": 1

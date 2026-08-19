@@ -7,7 +7,7 @@
       "x": 0,
       "y": 0,
       "name": "Issue #93 · Multipart Disabled Rows & Invalid Files",
-      "context": "GitHub Issue #58 · POST /anything/form · one E2E issue maps to this Pencil design",
+      "context": "GitHub Issue #93 · POST /post · one E2E issue maps to this Pencil design",
       "clip": true,
       "width": 1600,
       "height": 1840,
@@ -204,7 +204,7 @@
         {
           "type": "frame",
           "id": "tp091",
-          "name": "Application State · Feature",
+          "name": "Application State · Multipart Safety",
           "clip": true,
           "width": "fill_container",
           "height": 900,
@@ -1249,7 +1249,7 @@
                                               "type": "text",
                                               "id": "fyfVZ",
                                               "name": "Check Mark · note",
-                                              "fill": "#FFFFFF",
+                                              "fill": "$panel",
                                               "content": "✓",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 10,
@@ -1573,7 +1573,7 @@
                                               "type": "text",
                                               "id": "mVKVD",
                                               "name": "Check Mark · upload",
-                                              "fill": "#FFFFFF",
+                                              "fill": "$panel",
                                               "content": "✓",
                                               "fontFamily": "$fontBody",
                                               "fontSize": 10,
@@ -1916,48 +1916,10 @@
                                   "type": "frame",
                                   "id": "l5C31",
                                   "name": "Response Header Actions",
-                                  "width": 133,
+                                  "width": 64,
                                   "gap": 10,
                                   "alignItems": "center",
                                   "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "e3jfqd",
-                                      "name": "Copy Response Button",
-                                      "height": 26,
-                                      "fill": "$blueSoft",
-                                      "cornerRadius": 6,
-                                      "stroke": "$blue",
-                                      "strokeWidth": 1,
-                                      "gap": 5,
-                                      "padding": [
-                                        0,
-                                        9
-                                      ],
-                                      "alignItems": "center",
-                                      "children": [
-                                        {
-                                          "type": "icon",
-                                          "id": "X2Sr3Q",
-                                          "name": "Copy Response Icon",
-                                          "width": 12,
-                                          "height": 12,
-                                          "icon": "copy",
-                                          "library": "lucide",
-                                          "fill": "$blue"
-                                        },
-                                        {
-                                          "type": "text",
-                                          "id": "Vngtn",
-                                          "name": "Copy Response Label",
-                                          "fill": "$blue",
-                                          "content": "Copy",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 9,
-                                          "fontWeight": "700"
-                                        }
-                                      ]
-                                    },
                                     {
                                       "type": "frame",
                                       "id": "d5Sa1f",
@@ -2456,7 +2418,7 @@
                       "id": "tp114",
                       "name": "Contract Paths",
                       "fill": "$line",
-                      "content": "tests/cases/httpbingo/multipart.json · tests/ui_send.rs · src/http/client.rs · design/issue-0093-multipart-disabled-invalid-files.pen",
+                      "content": "tests/ui_send.rs · src/http/client.rs · design/issue-0093-multipart-disabled-invalid-files.pen",
                       "fontFamily": "$fontMono",
                       "fontSize": 8.8,
                       "fontWeight": "500"
@@ -2695,7 +2657,7 @@
                       "fill": "$muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "BUILDS ON · Text rows (#91) and File picker (#92).",
+                      "content": "PARENT #64 · ROADMAP #50 · BUILDS ON Text rows (#91) and File picker (#92).",
                       "lineHeight": 1.45,
                       "fontFamily": "$fontBody",
                       "fontSize": 11,
@@ -2744,7 +2706,7 @@
                   "id": "tp138",
                   "name": "One-to-One Label",
                   "fill": "$accentInk",
-                  "content": "ONE ISSUE · ONE MULTIPART SAFETY SLICE · ONE .PEN FILE",
+                  "content": "ONE ISSUE · ONE MULTIPART SAFETY SLICE · issue-0093-multipart-disabled-invalid-files.pen",
                   "fontFamily": "$fontBody",
                   "fontSize": 11,
                   "fontWeight": "800"

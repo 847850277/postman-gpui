@@ -162,9 +162,9 @@
                 {
                   "type": "text",
                   "id": "xyKRw",
-                  "name": "Artifact Snapshot",
+                  "name": "Issue URL",
                   "fill": "$subtle",
-                  "content": "design/issue-0054-basic-auth.pen",
+                  "content": "https://github.com/847850277/postman-gpui/issues/54",
                   "fontFamily": "$fontMono",
                   "fontSize": 10
                 }

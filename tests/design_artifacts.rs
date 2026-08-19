@@ -8,6 +8,7 @@ const ROOT_WIDTH: i64 = 1600;
 const ROOT_PADDING: i64 = 32;
 const ROOT_GAP: i64 = 24;
 const APP_HEIGHT: i64 = 900;
+const GITHUB_ISSUE_BASE: &str = "github.com/847850277/postman-gpui/issues";
 
 const SHARED_TOKENS: &[(&str, &str, &str)] = &[
     ("bg", "color", "#F4F7F3"),
@@ -31,6 +32,274 @@ const SHARED_TOKENS: &[(&str, &str, &str)] = &[
     ("accentInk", "color", "#3C1F16"),
 ];
 
+struct IssueContentContract {
+    issue: u32,
+    required_node_names: &'static [&'static str],
+    required_visible_text: &'static [&'static str],
+}
+
+// Static design validation cannot infer product meaning from arbitrary canvas nodes. Requiring
+// issue-specific controls and visible values keeps a copied shell or explanatory-card-only design
+// from satisfying the contract. These markers are intentionally scoped to the feature stage; text
+// repeated only in the Design Header or E2E Contract does not count.
+const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
+    IssueContentContract {
+        issue: 51,
+        required_node_names: &[
+            "Parameter Row · q",
+            "Parameter Row · locale",
+            "Effective URL Preview",
+            "HTTPBingo Response Panel",
+        ],
+        required_visible_text: &[
+            "existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+            "Ready to send — the active value is already in the ViewModel",
+            "\"q\": [\"rust gpui\"]",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 52,
+        required_node_names: &[
+            "Headers Editor",
+            "Enabled Header Row · X-Scenario",
+            "Disabled Header Row · X-Disabled",
+            "Response Panel",
+        ],
+        required_visible_text: &[
+            "X-Scenario: httpbingo-headers",
+            "X-Disabled: must-not-be-sent",
+            "X-Scenario present · X-Disabled absent",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 53,
+        required_node_names: &[
+            "Token Input",
+            "Before Send Content Item",
+            "Generated Header Content Item",
+            "Response Panel",
+        ],
+        required_visible_text: &[
+            "Bearer scenario-token",
+            "Authorization: Bearer scenario-token",
+            "\"authenticated\": true",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 54,
+        required_node_names: &[
+            "Username Input",
+            "Password Input Active",
+            "Authorization Ready Row",
+            "Response Panel",
+        ],
+        required_visible_text: &[
+            "scenario-user",
+            "Authorization: Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz",
+            "\"authenticated\": true",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 55,
+        required_node_names: &[
+            "Method Selection Editor",
+            "Selected Method Content Item",
+            "Outgoing Request Content Item",
+            "DELETE History Result Content Item",
+        ],
+        required_visible_text: &[
+            "DELETE https://httpbingo.org/delete · body = None",
+            "\"method\": \"DELETE\"",
+            "200 OK",
+            "Copy reads the complete raw body from ResponseState",
+        ],
+    },
+    IssueContentContract {
+        issue: 56,
+        required_node_names: &[
+            "JSON Editor Active",
+            "ViewModel Body Content Item",
+            "Outgoing PATCH Content Item",
+            "PATCH History Result Content Item",
+        ],
+        required_visible_text: &[
+            "{\"patched\":true}",
+            "RequestBody::Json",
+            "Content-Type: application/json",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 57,
+        required_node_names: &[
+            "JSON Editor Active",
+            "ViewModel Body Content Item",
+            "Effective Headers Column",
+            "POST JSON History Result Content Item",
+        ],
+        required_visible_text: &[
+            "{\"name\":\"Ada\",\"active\":true}",
+            "JSON · application/json",
+            "X-Scenario",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 58,
+        required_node_names: &[
+            "URL-Encoded Form Editor",
+            "Form Row · name",
+            "Active Value Input · true",
+            "Effective Request Preview",
+        ],
+        required_visible_text: &[
+            "name=Ada+Lovelace&active=true",
+            "application/x-www-form-urlencoded",
+            "\"name\": [\"Ada Lovelace\"]",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 59,
+        required_node_names: &[
+            "HTML Form Submission Editor",
+            "Form Row · comments active",
+            "Effective Submission Preview",
+            "History Result · GET Form Discovery",
+        ],
+        required_visible_text: &[
+            "custname=Ada+Lovelace",
+            "comments=Ring+the+bell",
+            "\"topping\": [\"bacon\", \"cheese\"]",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 70,
+        required_node_names: &[
+            "Global Search Idle",
+            "Search Results Popover",
+            "Selected History Result",
+            "Empty Results Popover",
+        ],
+        required_visible_text: &[
+            "Search requests and history",
+            "OPEN REQUESTS  ·  1",
+            "↑↓ Navigate · ↵ Open · Esc Close",
+            "No matching requests",
+        ],
+    },
+    IssueContentContract {
+        issue: 72,
+        required_node_names: &[
+            "Parameter Row · q",
+            "Parameter Row · locale",
+            "Parameter Row - limit (disabled)",
+            "Effective URL Preview",
+        ],
+        required_visible_text: &[
+            "8 rows stored in ViewModel",
+            "existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
+            "7 enabled / 1 disabled",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 74,
+        required_node_names: &[
+            "Copy Response Button",
+            "Positive Evidence Content Item",
+            "Negative Evidence Content Item",
+            "Lifecycle Content Item",
+        ],
+        required_visible_text: &[
+            "Clipboard equals the complete ResponseState body",
+            "Not sent and empty states expose no active Copy action",
+            "Copied",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 81,
+        required_node_names: &[
+            "Header Row - X-Scenario",
+            "Header Row - X-Locale",
+            "Header Row - X-Disabled",
+            "Header Persistence and Send Projection",
+        ],
+        required_visible_text: &[
+            "active values already live in ViewModel",
+            "Sent: X-Scenario, X-Locale",
+            "X-Disabled is not present",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 91,
+        required_node_names: &[
+            "Multipart Text Editor",
+            "Multipart Text Row · note",
+            "Active Value Input · gpui",
+            "Effective Multipart Preview",
+        ],
+        required_visible_text: &[
+            "Text(note = hello multipart)  ·  Text(category = gpui)",
+            "multipart/form-data; boundary=<generated>",
+            "\"category\": [\"gpui\"]",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 92,
+        required_node_names: &[
+            "Multipart File Upload Editor",
+            "Multipart File Row · upload",
+            "Replace File Button",
+            "Effective File Upload Preview",
+        ],
+        required_visible_text: &[
+            "httpbingo-upload.txt",
+            "File(upload = httpbingo-upload.txt · text/plain)",
+            "files.upload matches repository fixture",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 93,
+        required_node_names: &[
+            "Multipart Safety Editor",
+            "Multipart Row · ignored",
+            "Multipart Row · upload",
+            "Effective Safe Request Preview",
+        ],
+        required_visible_text: &[
+            "Saved in ViewModel; excluded from request",
+            "request not executed · no successful History entry",
+            "\"response_state\": \"error\"",
+            "NOT SENT",
+        ],
+    },
+    IssueContentContract {
+        issue: 95,
+        required_node_names: &[
+            "Multiple URL-Encoded Rows Editor",
+            "URL-Encoded Row · tag rust",
+            "URL-Encoded Row · ignored",
+            "Fixed Effective Request Preview",
+        ],
+        required_visible_text: &[
+            "name=Ada+Lovelace&active=true&tag=rust&tag=gpui",
+            "ignored and empty keys are absent",
+            "\"tag\": [\"rust\", \"gpui\"]",
+            "200 OK",
+        ],
+    },
+];
+
 #[test]
 fn issue_design_artifacts_follow_the_shared_contract() {
     let design_dir = manifest_dir().join("design");
@@ -38,10 +307,19 @@ fn issue_design_artifacts_follow_the_shared_contract() {
         .expect("design/README.md should be readable");
     let spec =
         fs::read_to_string(design_dir.join("SPEC.md")).expect("design/SPEC.md should be readable");
-    assert!(
-        spec.contains("## 4. Content Items"),
-        "SPEC.md must define the content-item contract"
-    );
+    for section in [
+        "## 3. Canvas and Application Shell",
+        "## 4. Content Items",
+        "## 5. Interaction States",
+        "## 6. E2E Contract Section",
+        "## 7. Shared Tokens",
+        "## 8. Mapping and Traceability",
+    ] {
+        assert!(
+            spec.contains(section),
+            "SPEC.md must retain normative section {section}"
+        );
+    }
 
     let mut artifacts = fs::read_dir(&design_dir)
         .expect("design directory should be readable")
@@ -57,6 +335,31 @@ fn issue_design_artifacts_follow_the_shared_contract() {
     assert!(
         !artifacts.is_empty(),
         "at least one issue design is required"
+    );
+
+    let artifact_issues = artifacts
+        .iter()
+        .map(|path| {
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("design filename should be UTF-8");
+            issue_number(file_name)
+                .unwrap_or_else(|| panic!("{file_name} does not match issue-NNNN-feature.pen"))
+        })
+        .collect::<HashSet<_>>();
+    let contracted_issues = ISSUE_CONTENT_CONTRACTS
+        .iter()
+        .map(|contract| contract.issue)
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        artifact_issues, contracted_issues,
+        "every issue artifact must have exactly one issue-specific content contract"
+    );
+    assert_eq!(
+        artifacts.len(),
+        artifact_issues.len(),
+        "an issue must not own multiple design artifacts"
     );
 
     for path in artifacts {
@@ -77,6 +380,7 @@ fn reusable_design_template_follows_the_shared_shell() {
     assert_canonical_root(&path, root);
     assert_section_order(&path, root);
     assert_application_shell(&path, root);
+    assert_tokenized_colors(&path, root);
 
     let all_text = collect_text(&document);
     assert_httpbingo_endpoint(&path, &all_text);
@@ -102,6 +406,7 @@ fn validate_issue_artifact(path: &Path, readme: &str) {
     assert_section_order(path, root);
     assert_application_shell(path, root);
     assert_root_contains_children(path, root);
+    assert_tokenized_colors(path, root);
 
     let root_name = string_field(root, "name", path);
     assert!(
@@ -110,6 +415,24 @@ fn validate_issue_artifact(path: &Path, readme: &str) {
         path.display(),
         issue
     );
+    if let Some(context) = root.get("context").and_then(Value::as_str) {
+        assert!(
+            context.contains(&format!("GitHub Issue #{issue}")),
+            "{} root context must identify its owning GitHub Issue #{issue}, got {context:?}",
+            path.display()
+        );
+    }
+
+    let sections = child_nodes(root, path);
+    let header = sections[0];
+    let contract = sections
+        .last()
+        .copied()
+        .expect("a validated root has an E2E Contract");
+    let feature_stages = &sections[1..sections.len() - 1];
+    assert_design_header(path, header, issue);
+    assert_feature_content(path, feature_stages, issue);
+    assert_e2e_contract(path, contract, issue, file_name);
 
     let all_text = collect_text(&document);
     assert_httpbingo_endpoint(path, &all_text);
@@ -129,11 +452,656 @@ fn validate_issue_artifact(path: &Path, readme: &str) {
         path.display()
     );
     assert!(
-        readme.contains(&format!("[#{issue} ")) && readme.contains(file_name),
+        readme.contains(&format!("[#{issue} "))
+            && readme.contains(file_name)
+            && readme.contains(&format!("https://{GITHUB_ISSUE_BASE}/{issue}")),
         "design/README.md must map Issue #{} to {}",
         issue,
         file_name
     );
+}
+
+fn assert_design_header(path: &Path, header: &Value, issue: u32) {
+    assert_eq!(
+        header.get("width").and_then(Value::as_str),
+        Some("fill_container"),
+        "{} Design Header must fill the root",
+        path.display()
+    );
+
+    let header_text = collect_text(header);
+    assert!(
+        header_text.contains(&format!("#{issue}")),
+        "{} Design Header must show Issue #{issue}",
+        path.display()
+    );
+
+    let issue_url = find_descendant(header, &|node| {
+        node_name(node).is_some_and(|name| name.to_ascii_lowercase().contains("issue url"))
+    })
+    .unwrap_or_else(|| panic!("{} Design Header is missing Issue URL", path.display()));
+    let issue_url_text = collect_text(issue_url);
+    assert!(
+        issue_url_text.contains(&format!("{GITHUB_ISSUE_BASE}/{issue}")),
+        "{} Design Header has the wrong Issue URL: {issue_url_text:?}",
+        path.display()
+    );
+
+    let title = find_descendant(header, &|node| {
+        node_name(node).is_some_and(|name| name == "Design Title")
+    })
+    .unwrap_or_else(|| panic!("{} Design Header is missing Design Title", path.display()));
+    let title_text = collect_text(title);
+    assert!(
+        !title_text.trim().is_empty() && !title_text.eq_ignore_ascii_case("feature title"),
+        "{} Design Header must use a real feature title",
+        path.display()
+    );
+
+    let status = find_descendant(header, &|node| {
+        node_name(node).is_some_and(|name| {
+            let name = name.to_ascii_lowercase();
+            name.contains("status") || name.contains("baseline")
+        })
+    })
+    .unwrap_or_else(|| {
+        panic!(
+            "{} Design Header is missing delivery status",
+            path.display()
+        )
+    });
+    assert!(
+        !collect_text(status).trim().is_empty(),
+        "{} Design Header delivery status must be visible text",
+        path.display()
+    );
+
+    let endpoint_or_scope = find_descendant(header, &|node| {
+        node_name(node).is_some_and(|name| {
+            let name = name.to_ascii_lowercase();
+            name.contains("endpoint") || name.contains("scope")
+        })
+    })
+    .unwrap_or_else(|| {
+        panic!(
+            "{} Design Header is missing endpoint or scope",
+            path.display()
+        )
+    });
+    assert!(
+        !collect_text(endpoint_or_scope).trim().is_empty(),
+        "{} Design Header endpoint or scope must be visible text",
+        path.display()
+    );
+
+    let summary = find_descendant(header, &|node| {
+        node_name(node).is_some_and(|name| name == "Design Summary")
+    })
+    .unwrap_or_else(|| panic!("{} Design Header is missing Design Summary", path.display()));
+    let summary_text = collect_text(summary);
+    let summary_text = summary_text.trim();
+    assert!(
+        summary_text.len() >= 30
+            && !summary_text.contains('\n')
+            && summary_text
+                .chars()
+                .last()
+                .is_some_and(|character| matches!(character, '.' | '!' | '?')),
+        "{} Design Summary must be one complete sentence, got {summary_text:?}",
+        path.display()
+    );
+}
+
+fn assert_feature_content(path: &Path, stages: &[&Value], issue: u32) {
+    let contract = ISSUE_CONTENT_CONTRACTS
+        .iter()
+        .find(|contract| contract.issue == issue)
+        .unwrap_or_else(|| panic!("Issue #{issue} is missing an issue-specific content contract"));
+    let stage_text = normalize_whitespace(
+        &stages
+            .iter()
+            .map(|stage| collect_text(stage))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    let mut stage_names = Vec::new();
+    for stage in stages {
+        collect_names(stage, &mut stage_names);
+    }
+
+    for required in contract.required_node_names {
+        assert!(
+            stage_names.iter().any(|name| name.contains(required)),
+            "{} feature stage is missing concrete node {required:?}",
+            path.display()
+        );
+    }
+    for required in contract.required_visible_text {
+        let required = normalize_whitespace(required);
+        assert!(
+            stage_text.contains(&required),
+            "{} feature stage is missing visible contract value {required:?}",
+            path.display()
+        );
+    }
+
+    let stage_text_lower = stage_text.to_ascii_lowercase();
+    assert!(
+        [
+            "active",
+            "enabled",
+            "selected",
+            "disabled",
+            "dirty",
+            "valid",
+            "ready",
+            "before send",
+        ]
+        .iter()
+        .any(|state| {
+            stage_text_lower.contains(state)
+                || stage_names
+                    .iter()
+                    .any(|name| name.to_ascii_lowercase().contains(state))
+        }),
+        "{} feature content must visibly identify the current input state",
+        path.display()
+    );
+    if !matches!(issue, 70 | 74) {
+        let outgoing = stages.iter().find_map(|stage| {
+            find_descendant(stage, &|node| {
+                node_name(node).is_some_and(|name| {
+                    let name = name.to_ascii_lowercase();
+                    name.contains("effective")
+                        || name.contains("outgoing")
+                        || name.contains("request preview")
+                        || name.contains("network step")
+                        || name.contains("request state step")
+                        || name.contains("generated header")
+                        || name.contains("authorization ready")
+                        || name.contains("send projection")
+                })
+            })
+        });
+        let outgoing = outgoing.unwrap_or_else(|| {
+            panic!(
+                "{} feature content must show the final outgoing request representation",
+                path.display()
+            )
+        });
+        assert!(
+            !collect_text(outgoing).trim().is_empty(),
+            "{} outgoing request representation must contain visible values",
+            path.display()
+        );
+    }
+
+    if issue != 70 {
+        assert_response_evidence(path, &stage_text_lower, &stage_names);
+    }
+
+    let mut responses = Vec::new();
+    for stage in stages {
+        collect_descendants(stage, &mut responses, &|node| {
+            node_name(node).is_some_and(|name| {
+                name.contains("Response Card") || name.contains("Response Panel")
+            })
+        });
+    }
+    responses.retain(|response| response_status_node(response).is_some());
+    assert!(
+        !responses.is_empty(),
+        "{} feature content must contain a concrete Response Panel",
+        path.display()
+    );
+    for response in responses {
+        assert_response_content(path, response);
+    }
+
+    let mut application_states = 0;
+    let mut state_cards = 0;
+    for stage in stages {
+        let name = string_field(stage, "name", path);
+        if let Some(suffix) = name.strip_prefix("Application State") {
+            application_states += 1;
+            let feature_name = suffix.trim_matches(|character: char| {
+                character.is_whitespace() || matches!(character, '·' | '-' | '–' | '—')
+            });
+            assert!(
+                !feature_name.is_empty()
+                    && !feature_name.eq_ignore_ascii_case("feature")
+                    && !feature_name.contains('<'),
+                "{} must replace the Application State feature placeholder, got {name:?}",
+                path.display()
+            );
+            assert_full_application_content(path, stage);
+        } else if name.starts_with("State Row") {
+            for card in child_nodes(stage, path) {
+                state_cards += 1;
+                assert_state_card_content(path, card);
+            }
+        }
+    }
+    assert!(
+        application_states > 0 || state_cards >= 2,
+        "{} must contain a full Application State or a multi-state matrix",
+        path.display()
+    );
+}
+
+fn assert_full_application_content(path: &Path, app: &Value) {
+    let app_children = child_nodes(app, path);
+    let body = app_children
+        .iter()
+        .copied()
+        .find(|node| node_name(node).is_some_and(|name| name.contains("Body")))
+        .unwrap_or_else(|| panic!("{} application must contain a body", path.display()));
+    let body_children = child_nodes(body, path);
+    let history = named_child(&body_children, "History Panel")
+        .unwrap_or_else(|| panic!("{} application must contain History Panel", path.display()));
+    let workspace = named_child(&body_children, "Request Workspace").unwrap_or_else(|| {
+        panic!(
+            "{} application must contain Request Workspace",
+            path.display()
+        )
+    });
+
+    let history_result = find_descendant(history, &|node| {
+        node_name(node).is_some_and(|name| {
+            let name = name.to_ascii_lowercase();
+            name.contains("history result")
+                || name.contains("history item")
+                || name.starts_with("history ·")
+                || name.starts_with("history -")
+        })
+    })
+    .unwrap_or_else(|| panic!("{} must show a relevant History result", path.display()));
+    assert!(
+        !collect_text(history_result).trim().is_empty(),
+        "{} History result must contain observable values",
+        path.display()
+    );
+
+    assert!(
+        find_descendant(workspace, &|node| {
+            node_name(node).is_some_and(|name| name.to_ascii_lowercase().contains("request tab"))
+        })
+        .is_some(),
+        "{} Request Workspace is missing request tab",
+        path.display()
+    );
+    assert!(
+        find_descendant(workspace, &|node| {
+            node_name(node).is_some_and(|name| {
+                let name = name.to_ascii_lowercase();
+                name.contains("request builder")
+                    || name.contains("request bar")
+                    || name.contains("request head")
+            })
+        })
+        .is_some(),
+        "{} Request Workspace is missing request builder",
+        path.display()
+    );
+
+    assert!(
+        find_descendant(workspace, &|node| {
+            node_name(node).is_some_and(|name| {
+                let name = name.to_ascii_lowercase();
+                name.contains("editor") || name.contains("request panel")
+            })
+        })
+        .is_some(),
+        "{} Request Workspace is missing a concrete feature editor",
+        path.display()
+    );
+
+    let response = find_descendant(workspace, &|node| {
+        node_name(node).is_some_and(|name| {
+            (name.contains("Response Panel") || name.contains("Response Card"))
+                && response_status_node(node).is_some()
+        })
+    })
+    .unwrap_or_else(|| {
+        panic!(
+            "{} Request Workspace is missing Response Panel",
+            path.display()
+        )
+    });
+    assert_response_content(path, response);
+}
+
+fn assert_state_card_content(path: &Path, card: &Value) {
+    let name = string_field(card, "name", path);
+    assert!(
+        name.starts_with("State "),
+        "{} state-matrix card needs a numbered State name, got {name:?}",
+        path.display()
+    );
+    for required in ["State Title", "State Note"] {
+        let node = find_descendant(card, &|node| node_name(node) == Some(required))
+            .unwrap_or_else(|| panic!("{} {name} is missing {required}", path.display()));
+        assert!(
+            !collect_text(node).trim().is_empty(),
+            "{} {name} {required} must contain visible text",
+            path.display()
+        );
+    }
+    assert!(
+        find_descendant(card, &|node| {
+            node_name(node).is_some_and(|node_name| {
+                node_name.contains("App Preview") || node_name.contains("App Header")
+            })
+        })
+        .is_some(),
+        "{} {name} must show its owning application context",
+        path.display()
+    );
+}
+
+fn assert_response_content(path: &Path, response: &Value) {
+    let status = response_status_node(response)
+        .unwrap_or_else(|| panic!("{} Response Panel is missing status", path.display()));
+    let status_text = collect_text(status);
+    let copy_action = find_descendant(response, &|node| {
+        node_name(node).is_some_and(|name| name.contains("Copy Response"))
+    });
+
+    if status_text.to_ascii_uppercase().contains("NOT SENT") {
+        assert!(
+            copy_action.is_none(),
+            "{} Not sent response must not expose Copy",
+            path.display()
+        );
+    } else {
+        assert!(
+            contains_http_status(&status_text),
+            "{} populated Response Panel must show an HTTP status, got {status_text:?}",
+            path.display()
+        );
+        assert!(
+            copy_action.is_some(),
+            "{} populated Response Panel must expose Copy",
+            path.display()
+        );
+
+        let copy_text = collect_text(copy_action.expect("Copy existence was asserted"));
+        assert!(
+            copy_text.split_whitespace().any(|word| word == "Copy"),
+            "{} Copy action must visibly identify its behavior",
+            path.display()
+        );
+    }
+
+    let response_text = collect_text(response);
+    assert!(
+        response_text.len() >= 20,
+        "{} Response Panel must show concrete result evidence",
+        path.display()
+    );
+}
+
+fn response_status_node(response: &Value) -> Option<&Value> {
+    find_descendant(response, &|node| {
+        node_name(node).is_some_and(|name| name.to_ascii_lowercase().contains("status")) && {
+            let text = collect_text(node);
+            contains_http_status(&text) || text.to_ascii_uppercase().contains("NOT SENT")
+        }
+    })
+}
+
+fn assert_response_evidence(path: &Path, stage_text_lower: &str, stage_names: &[&str]) {
+    assert!(
+        ["stable", "echo", "assertion", "verification"]
+            .iter()
+            .any(|marker| {
+                stage_text_lower.contains(marker)
+                    || stage_names
+                        .iter()
+                        .any(|name| name.to_ascii_lowercase().contains(marker))
+            }),
+        "{} feature content must label the stable response assertion subset",
+        path.display()
+    );
+    // The issue-specific visible-value contract above supplies the positive and, where
+    // applicable, negative response evidence. This shared check verifies that those values are
+    // explicitly framed as the stable assertion subset rather than as decorative sample data.
+    let lifecycle_markers = [
+        "responsestate",
+        "response state",
+        "response_state",
+        "view",
+        "history",
+    ]
+    .iter()
+    .filter(|marker| stage_text_lower.contains(**marker))
+    .count();
+    let structural_lifecycle = ["lifecycle", "response", "history"].iter().all(|marker| {
+        stage_names
+            .iter()
+            .any(|name| name.to_ascii_lowercase().contains(marker))
+    });
+    assert!(
+        lifecycle_markers >= 2 || structural_lifecycle,
+        "{} feature content must visibly connect ResponseState, View, and History",
+        path.display()
+    );
+}
+
+fn assert_e2e_contract(path: &Path, contract: &Value, issue: u32, file_name: &str) {
+    let contract_text = collect_text(contract);
+    let contract_text_lower = contract_text.to_ascii_lowercase();
+    let mut contract_names = Vec::new();
+    collect_names(contract, &mut contract_names);
+
+    assert!(
+        contract_text.contains(&format!("#{issue}")),
+        "{} E2E Contract must identify Issue #{issue}",
+        path.display()
+    );
+    assert!(
+        contract_text.contains(file_name),
+        "{} E2E Contract must contain its owning design path",
+        path.display()
+    );
+    assert!(
+        ["parent", "roadmap", "child of"]
+            .iter()
+            .any(|marker| contract_text_lower.contains(marker)),
+        "{} E2E Contract must identify its parent or roadmap issue",
+        path.display()
+    );
+    assert!(
+        contract_names.iter().any(|name| {
+            let name = name.to_ascii_lowercase();
+            name.contains("scenario") || name.contains("interaction contract")
+        }),
+        "{} E2E Contract must contain ordered real-UI scenario steps",
+        path.display()
+    );
+    assert!(
+        contract_names.iter().any(|name| {
+            let name = name.to_ascii_lowercase();
+            name.contains("assertion") || name.contains("verification contract")
+        }),
+        "{} E2E Contract must contain observable assertions",
+        path.display()
+    );
+    assert!(
+        contract_text_lower.contains("included") || contract_text_lower.contains("in scope"),
+        "{} E2E Contract must state included scope",
+        path.display()
+    );
+    assert!(
+        ["excluded", "out of scope", "not in this slice", "non-goal"]
+            .iter()
+            .any(|marker| contract_text_lower.contains(marker)),
+        "{} E2E Contract must state explicit non-goals",
+        path.display()
+    );
+    let one_to_one = find_descendant(contract, &|node| {
+        node_name(node).is_some_and(|name| name == "One-to-One Rule")
+    })
+    .unwrap_or_else(|| panic!("{} E2E Contract is missing One-to-One Rule", path.display()));
+    let one_to_one_text = collect_text(one_to_one);
+    assert!(
+        one_to_one_text.to_ascii_uppercase().contains("ONE") && one_to_one_text.contains(file_name),
+        "{} One-to-One Rule must bind one issue to {file_name}",
+        path.display()
+    );
+
+    let test_paths = extract_test_paths(&contract_text);
+    assert!(
+        !test_paths.is_empty(),
+        "{} E2E Contract must contain a scenario or test path",
+        path.display()
+    );
+    assert!(
+        test_paths
+            .iter()
+            .any(|test_path| test_path.ends_with(".rs") || test_path.ends_with(".json")),
+        "{} E2E Contract must reference an executable Rust test or JSON scenario",
+        path.display()
+    );
+    for test_path in test_paths {
+        assert!(
+            !test_path
+                .chars()
+                .any(|character| matches!(character, '*' | '?' | '{' | '[')),
+            "{} E2E Contract path must be concrete, got {test_path:?}",
+            path.display()
+        );
+        assert!(
+            manifest_dir().join(&test_path).is_file(),
+            "{} E2E Contract references missing file {test_path:?}",
+            path.display()
+        );
+    }
+}
+
+fn assert_tokenized_colors(path: &Path, root: &Value) {
+    inspect_color_values(path, root, false);
+}
+
+fn inspect_color_values(path: &Path, value: &Value, inside_effect: bool) {
+    match value {
+        Value::Object(object) => {
+            if !inside_effect {
+                for field in ["fill", "stroke", "color"] {
+                    if let Some(color) = object.get(field).and_then(Value::as_str) {
+                        assert!(
+                            !color.starts_with('#'),
+                            "{} node {:?} uses one-off {field} color {color}; use a shared token",
+                            path.display(),
+                            object
+                                .get("name")
+                                .and_then(Value::as_str)
+                                .unwrap_or("<unnamed>")
+                        );
+                    }
+                }
+            }
+            for (field, child) in object {
+                inspect_color_values(path, child, inside_effect || field == "effect");
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                inspect_color_values(path, child, inside_effect);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn extract_test_paths(text: &str) -> HashSet<String> {
+    text.split_whitespace()
+        .filter_map(|word| {
+            let start = word.find("tests/")?;
+            let mut path = word[start..]
+                .trim_matches(|character: char| {
+                    matches!(character, '`' | '"' | '\'' | '(' | '[' | '{')
+                })
+                .to_string();
+            while path.chars().last().is_some_and(|character| {
+                matches!(character, '.' | ',' | ';' | ':' | ')' | ']' | '}')
+            }) {
+                path.pop();
+            }
+            (!path.is_empty()).then_some(path)
+        })
+        .collect()
+}
+
+fn contains_http_status(text: &str) -> bool {
+    text.as_bytes().windows(3).any(|window| {
+        matches!(window[0], b'1'..=b'5') && window[1].is_ascii_digit() && window[2].is_ascii_digit()
+    })
+}
+
+fn normalize_whitespace(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn node_name(node: &Value) -> Option<&str> {
+    node.get("name").and_then(Value::as_str)
+}
+
+fn find_descendant<'a>(value: &'a Value, predicate: &impl Fn(&Value) -> bool) -> Option<&'a Value> {
+    if predicate(value) {
+        return Some(value);
+    }
+    match value {
+        Value::Object(object) => object
+            .values()
+            .find_map(|child| find_descendant(child, predicate)),
+        Value::Array(array) => array
+            .iter()
+            .find_map(|child| find_descendant(child, predicate)),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
+    }
+}
+
+fn collect_descendants<'a>(
+    value: &'a Value,
+    matches: &mut Vec<&'a Value>,
+    predicate: &impl Fn(&Value) -> bool,
+) {
+    if predicate(value) {
+        matches.push(value);
+    }
+    match value {
+        Value::Object(object) => {
+            for child in object.values() {
+                collect_descendants(child, matches, predicate);
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                collect_descendants(child, matches, predicate);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn collect_names<'a>(value: &'a Value, names: &mut Vec<&'a str>) {
+    match value {
+        Value::Object(object) => {
+            if let Some(name) = object.get("name").and_then(Value::as_str) {
+                names.push(name);
+            }
+            for child in object.values() {
+                collect_names(child, names);
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                collect_names(child, names);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
 }
 
 fn assert_httpbingo_endpoint(path: &Path, all_text: &str) {
