@@ -5,8 +5,9 @@ mod common;
 mod ui;
 
 use common::scenario::{
-    assert_requests_equivalent, assert_response_state, expected_request, load_suites, DraftSpec,
-    KeyValueSpec, RequestScenario, ResponseSpec, ScenarioTarget,
+    assert_requests_equivalent, assert_response_state, expected_request, load_suites,
+    validate_body_row_contract, DraftSpec, KeyValueSpec, RequestScenario, ResponseSpec,
+    ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::app::{
@@ -16,6 +17,7 @@ use std::path::{Path, PathBuf};
 use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
+const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
     "param-row-toggle-1",
@@ -258,6 +260,60 @@ const BODY_FORM_VALUE_SELECTORS: [&str; 16] = [
     "body-form-value-14",
     "body-form-value-15",
 ];
+const BODY_FORM_ROW_SELECTORS: [&str; 16] = [
+    "body-form-row-0",
+    "body-form-row-1",
+    "body-form-row-2",
+    "body-form-row-3",
+    "body-form-row-4",
+    "body-form-row-5",
+    "body-form-row-6",
+    "body-form-row-7",
+    "body-form-row-8",
+    "body-form-row-9",
+    "body-form-row-10",
+    "body-form-row-11",
+    "body-form-row-12",
+    "body-form-row-13",
+    "body-form-row-14",
+    "body-form-row-15",
+];
+const BODY_FORM_TOGGLE_SELECTORS: [&str; 16] = [
+    "body-form-toggle-0",
+    "body-form-toggle-1",
+    "body-form-toggle-2",
+    "body-form-toggle-3",
+    "body-form-toggle-4",
+    "body-form-toggle-5",
+    "body-form-toggle-6",
+    "body-form-toggle-7",
+    "body-form-toggle-8",
+    "body-form-toggle-9",
+    "body-form-toggle-10",
+    "body-form-toggle-11",
+    "body-form-toggle-12",
+    "body-form-toggle-13",
+    "body-form-toggle-14",
+    "body-form-toggle-15",
+];
+const BODY_FORM_DELETE_SELECTORS: [&str; 16] = [
+    "body-form-delete-0",
+    "body-form-delete-1",
+    "body-form-delete-2",
+    "body-form-delete-3",
+    "body-form-delete-4",
+    "body-form-delete-5",
+    "body-form-delete-6",
+    "body-form-delete-7",
+    "body-form-delete-8",
+    "body-form-delete-9",
+    "body-form-delete-10",
+    "body-form-delete-11",
+    "body-form-delete-12",
+    "body-form-delete-13",
+    "body-form-delete-14",
+    "body-form-delete-15",
+];
 
 #[derive(Clone, Copy)]
 enum RowEditor {
@@ -488,6 +544,7 @@ fn run_application_scenario(
     let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&response, &scenario.expect.response)?;
     assert_disabled_headers_absent_from_echo(&response, &scenario.draft.headers)?;
+    assert_disabled_url_encoded_rows_absent_from_echo(&response, &scenario.draft)?;
     assert_response_quick_copy(cx, &workspace, &response)?;
 
     if cx.debug_bounds("response-container").is_none() {
@@ -686,9 +743,12 @@ fn assert_url_encoded_body_editor_contract(
         "body-kind-selector",
         "body-kind-url-encoded",
         "body-url-encoded-live-saved",
+        "body-url-encoded-row-count",
         "body-url-encoded-editor",
         "body-form-table-header",
+        "body-form-scroll",
         "body-form-add-row",
+        "body-form-add-row-hint",
         "body-url-encoded-effective-request",
         "body-url-encoded-effective-body",
         "body-url-encoded-effective-headers",
@@ -702,17 +762,24 @@ fn assert_url_encoded_body_editor_contract(
         }
     }
 
-    let row_count = form_urlencoded::parse(expected_body.as_bytes()).count();
+    let row_count = if scenario.draft.precreate_body_rows > 0 {
+        scenario.draft.precreate_body_rows
+    } else if !scenario.draft.body_rows.is_empty() {
+        scenario.draft.body_rows.len()
+    } else {
+        form_urlencoded::parse(expected_body.as_bytes()).count()
+    };
     if row_count > BODY_FORM_KEY_SELECTORS.len() {
         return Err("the URL-encoded UI contract supports at most 16 fields".to_string());
     }
-    for (key_selector, value_selector) in BODY_FORM_KEY_SELECTORS
-        .iter()
-        .copied()
-        .zip(BODY_FORM_VALUE_SELECTORS.iter().copied())
-        .take(row_count)
-    {
-        for selector in [key_selector, value_selector] {
+    for index in 0..row_count {
+        for selector in [
+            BODY_FORM_ROW_SELECTORS[index],
+            BODY_FORM_TOGGLE_SELECTORS[index],
+            BODY_FORM_KEY_SELECTORS[index],
+            BODY_FORM_VALUE_SELECTORS[index],
+            BODY_FORM_DELETE_SELECTORS[index],
+        ] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
                     "URL-encoded Body row contract element `{selector}` is not rendered"
@@ -720,14 +787,42 @@ fn assert_url_encoded_body_editor_contract(
             }
         }
     }
+    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
+        for selector in ["body-form-scrollbar", "body-form-scrollbar-thumb"] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "overflowing URL-encoded Body rows are missing `{selector}`"
+                ));
+            }
+        }
+    }
+
+    let rows_viewport = cx
+        .debug_bounds("body-form-scroll")
+        .ok_or_else(|| "URL-encoded row viewport is not rendered".to_string())?;
+    let add_action = cx
+        .debug_bounds("body-form-add-row")
+        .ok_or_else(|| "URL-encoded Add form field action is not rendered".to_string())?;
+    let effective_preview = cx
+        .debug_bounds("body-url-encoded-effective-request")
+        .ok_or_else(|| "URL-encoded effective request preview is not rendered".to_string())?;
+    if add_action.origin.y < rows_viewport.bottom()
+        || effective_preview.origin.y < add_action.bottom()
+    {
+        return Err(
+            "URL-encoded Add and effective preview must remain fixed below the row viewport"
+                .to_string(),
+        );
+    }
 
     for (name, value) in &scenario.expect.request.headers {
-        if !effective_headers
+        let matching_header_count = effective_headers
             .iter()
-            .any(|header| header.name.eq_ignore_ascii_case(name) && header.value == *value)
-        {
+            .filter(|header| header.name.eq_ignore_ascii_case(name) && header.value == *value)
+            .count();
+        if matching_header_count != 1 {
             return Err(format!(
-                "effective URL-encoded header preview is missing `{name}: {value}`"
+                "effective URL-encoded header preview must contain exactly one `{name}: {value}`, found {matching_header_count}"
             ));
         }
         let selector = body_effective_header_selector(name)?;
@@ -829,6 +924,51 @@ fn assert_disabled_headers_absent_from_echo(
         }
     }
 
+    Ok(())
+}
+
+fn assert_disabled_url_encoded_rows_absent_from_echo(
+    response: &ResponseState,
+    draft: &DraftSpec,
+) -> Result<(), String> {
+    if !draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("url_encoded"))
+    {
+        return Ok(());
+    }
+    let disabled_keys = draft
+        .body_rows
+        .iter()
+        .filter(|row| !row.enabled && !row.key.trim().is_empty())
+        .map(|row| row.key.as_str())
+        .collect::<Vec<_>>();
+    if disabled_keys.is_empty() {
+        return Ok(());
+    }
+
+    let ResponseState::Success { body, .. } = response else {
+        return Err(
+            "cannot verify disabled URL-encoded rows because the request did not succeed"
+                .to_string(),
+        );
+    };
+    let payload: serde_json::Value = serde_json::from_str(body).map_err(|error| {
+        format!("cannot verify disabled URL-encoded rows in HTTPBingo JSON: {error}")
+    })?;
+    let echoed_form = payload
+        .get("form")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "HTTPBingo response does not contain a `form` object".to_string())?;
+
+    for disabled_key in disabled_keys {
+        if echoed_form.contains_key(disabled_key) {
+            return Err(format!(
+                "disabled URL-encoded field `{disabled_key}` was unexpectedly echoed"
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -1176,9 +1316,22 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
             cx.simulate_keystrokes("cmd-a");
             cx.simulate_input(body);
         }
-        "url_encoded" | "multipart" => {
+        "url_encoded" => {
             // POST starts with a sample JSON body. Clear it through the same body-kind controls a
             // user sees, then select the key/value editor.
+            click(cx, "body-kind-none")?;
+            click(cx, body_kind_selector(kind)?)?;
+            if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+                let body = draft
+                    .body
+                    .as_deref()
+                    .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
+                type_form_rows(cx, body)?;
+            } else {
+                type_url_encoded_rows(cx, draft)?;
+            }
+        }
+        "multipart" => {
             click(cx, "body-kind-none")?;
             click(cx, body_kind_selector(kind)?)?;
             let body = draft
@@ -1207,5 +1360,99 @@ fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), Strin
         type_into(cx, key_selector, key)?;
         type_into(cx, value_selector, value)?;
     }
+    Ok(())
+}
+
+fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), String> {
+    validate_body_row_contract(draft)?;
+    let row_count = if draft.precreate_body_rows == 0 {
+        draft.body_rows.len().max(1)
+    } else {
+        draft.precreate_body_rows
+    };
+    if row_count > BODY_FORM_ROW_SELECTORS.len() {
+        return Err(format!(
+            "the UI body driver supports at most {} URL-encoded rows",
+            BODY_FORM_ROW_SELECTORS.len()
+        ));
+    }
+
+    for (index, row_selector) in BODY_FORM_ROW_SELECTORS
+        .iter()
+        .copied()
+        .enumerate()
+        .take(row_count)
+        .skip(1)
+    {
+        if cx.debug_bounds(row_selector).is_some() {
+            return Err(format!(
+                "URL-encoded row {index} existed before its Add form field click"
+            ));
+        }
+        click(cx, "body-form-add-row")?;
+        cx.run_until_parked();
+        if cx.debug_bounds(row_selector).is_none() {
+            return Err(format!(
+                "Add form field did not append URL-encoded row {index}"
+            ));
+        }
+    }
+    if row_count < BODY_FORM_ROW_SELECTORS.len()
+        && cx
+            .debug_bounds(BODY_FORM_ROW_SELECTORS[row_count])
+            .is_some()
+    {
+        return Err(format!(
+            "URL-encoded Add created more than the requested {row_count} rows"
+        ));
+    }
+
+    for index in 0..row_count {
+        for selector in [
+            BODY_FORM_ROW_SELECTORS[index],
+            BODY_FORM_TOGGLE_SELECTORS[index],
+            BODY_FORM_KEY_SELECTORS[index],
+            BODY_FORM_VALUE_SELECTORS[index],
+            BODY_FORM_DELETE_SELECTORS[index],
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "URL-encoded row {index} created by Add is missing `{selector}`"
+                ));
+            }
+        }
+    }
+
+    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
+        for selector in [
+            "body-form-scrollbar",
+            "body-form-scrollbar-thumb",
+            "body-form-add-row",
+            "body-form-add-row-hint",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "overflowing URL-encoded rows do not render `{selector}`"
+                ));
+            }
+        }
+    }
+
+    scroll_up(cx, "body-form-scroll", 1000.0)?;
+    for (index, row) in draft.body_rows.iter().enumerate() {
+        if index > 0 {
+            scroll_down(cx, "body-form-scroll", 52.0)?;
+        }
+        if !row.key.is_empty() {
+            type_into(cx, BODY_FORM_KEY_SELECTORS[index], &row.key)?;
+        }
+        if !row.value.is_empty() {
+            type_into(cx, BODY_FORM_VALUE_SELECTORS[index], &row.value)?;
+        }
+        if !row.enabled {
+            click(cx, BODY_FORM_TOGGLE_SELECTORS[index])?;
+        }
+    }
+
     Ok(())
 }

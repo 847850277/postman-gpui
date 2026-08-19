@@ -61,6 +61,10 @@ pub struct DraftSpec {
     pub precreate_header_rows: usize,
     pub body: Option<String>,
     pub body_kind: Option<String>,
+    #[serde(default)]
+    pub body_rows: Vec<KeyValueSpec>,
+    #[serde(default)]
+    pub precreate_body_rows: usize,
     pub bearer_token: Option<String>,
     pub basic_auth: Option<BasicAuthSpec>,
 }
@@ -136,6 +140,32 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
         ));
     }
     Ok(suite)
+}
+
+pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
+    if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+        return Ok(());
+    }
+    if !draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("url_encoded"))
+    {
+        return Err(
+            "`body_rows` and `precreate_body_rows` require `body_kind: url_encoded`".to_string(),
+        );
+    }
+    if draft.body.is_none() {
+        return Err("a URL-encoded row scenario must declare its effective `body`".to_string());
+    }
+    if draft.precreate_body_rows > 0 && draft.body_rows.len() > draft.precreate_body_rows {
+        return Err(format!(
+            "scenario defines {} URL-encoded rows but precreates only {}",
+            draft.body_rows.len(),
+            draft.precreate_body_rows
+        ));
+    }
+    Ok(())
 }
 
 pub fn load_suites(root: &Path) -> Result<Vec<ScenarioFile>, String> {
@@ -301,6 +331,7 @@ fn apply_draft(
     draft: &DraftSpec,
     server_url: Option<&str>,
 ) -> Result<(), String> {
+    validate_body_row_contract(draft)?;
     if draft.bearer_token.is_some() && draft.basic_auth.is_some() {
         return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
     }

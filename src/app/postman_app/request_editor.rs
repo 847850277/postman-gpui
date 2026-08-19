@@ -5,6 +5,7 @@ const PARAM_ROWS_AT_BASE_HEIGHT: usize = 2;
 const PARAM_ROW_PITCH: f32 = 46.0;
 const PARAM_PANEL_MAX_VISIBLE_ROWS: usize = 6;
 const HEADER_PANEL_MAX_VISIBLE_ROWS: usize = 4;
+const URL_ENCODED_PANEL_MAX_VISIBLE_ROWS: usize = 6;
 const REQUEST_EDITOR_RESERVED_HEIGHT: f32 = 400.0;
 
 #[derive(Clone, Debug)]
@@ -414,7 +415,7 @@ impl RequestEditor {
                         let mut serializer = form_urlencoded::Serializer::new(String::new());
                         for entry in entries
                             .iter()
-                            .filter(|entry| entry.enabled && !entry.key.is_empty())
+                            .filter(|entry| entry.enabled && !entry.key.trim().is_empty())
                         {
                             serializer.append_pair(&entry.key, &entry.value);
                         }
@@ -845,10 +846,13 @@ impl RequestEditor {
         let visible_rows = match request_pane {
             RequestPane::Params => self.view_model.read(cx).visible_param_row_count(),
             RequestPane::Headers => self.view_model.read(cx).visible_header_row_count(),
+            RequestPane::Body if self.view_model.read(cx).body_kind() == BodyKind::UrlEncoded => {
+                self.body_input.read(cx).form_data_entry_count()
+            }
             RequestPane::Authorization
-            | RequestPane::Body
             | RequestPane::Scripts
-            | RequestPane::Tests => 0,
+            | RequestPane::Tests
+            | RequestPane::Body => 0,
         };
         let panel_height = adaptive_request_panel_height(
             request_pane,
@@ -2376,6 +2380,7 @@ impl RequestEditor {
         let is_json = kind == BodyKind::Json;
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let body_len = body.chars().count();
+        let form_row_count = self.body_input.read(cx).form_data_entry_count();
 
         div()
             .flex_1()
@@ -2446,6 +2451,21 @@ impl RequestEditor {
                                 .text_size(px(9.0))
                                 .text_color(rgb(OK))
                                 .child("LIVE · SAVED"),
+                        )
+                        .child(
+                            div()
+                                .debug_selector(|| "body-url-encoded-row-count".into())
+                                .h(px(24.0))
+                                .px_2()
+                                .flex()
+                                .items_center()
+                                .rounded_lg()
+                                .bg(rgb(PANEL_ALT))
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(9.0))
+                                .text_color(rgb(SUBTEXT))
+                                .child(format!("{form_row_count} rows")),
                         )
                     }),
             )
@@ -3035,17 +3055,20 @@ fn adaptive_request_panel_height(
     visible_param_rows: usize,
     viewport_height: f32,
 ) -> f32 {
-    if !matches!(pane, RequestPane::Params | RequestPane::Headers) {
+    if !matches!(
+        pane,
+        RequestPane::Params | RequestPane::Headers | RequestPane::Body
+    ) {
         return REQUEST_PANEL_BASE_HEIGHT;
     }
 
     let max_visible_rows = match pane {
         RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Authorization
-        | RequestPane::Body
-        | RequestPane::Scripts
-        | RequestPane::Tests => unreachable!("non-row panes returned above"),
+        RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Authorization | RequestPane::Scripts | RequestPane::Tests => {
+            unreachable!("non-row panes returned above")
+        }
     };
     let expandable_rows = max_visible_rows - PARAM_ROWS_AT_BASE_HEIGHT;
     let added_rows = visible_param_rows
@@ -3063,10 +3086,8 @@ fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usize {
     let max_visible_rows = match pane {
         RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Authorization
-        | RequestPane::Body
-        | RequestPane::Scripts
-        | RequestPane::Tests => return 0,
+        RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
+        RequestPane::Authorization | RequestPane::Scripts | RequestPane::Tests => return 0,
     };
     let additional_rows = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH)
         .max(0.0)
@@ -3149,11 +3170,20 @@ mod tests {
             adaptive_request_panel_height(RequestPane::Headers, 30, 980.0),
             452.0
         );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Body, 5, 980.0),
+            498.0
+        );
+        assert_eq!(
+            adaptive_request_panel_height(RequestPane::Body, 20, 980.0),
+            544.0
+        );
 
         assert_eq!(visible_row_capacity(RequestPane::Params, 360.0), 2);
         assert_eq!(visible_row_capacity(RequestPane::Params, 406.0), 3);
         assert_eq!(visible_row_capacity(RequestPane::Params, 544.0), 6);
         assert_eq!(visible_row_capacity(RequestPane::Headers, 452.0), 4);
+        assert_eq!(visible_row_capacity(RequestPane::Body, 544.0), 6);
         assert_eq!(row_scrollbar_geometry(6, 6, 0.0, 0.0), None);
         assert_eq!(
             row_scrollbar_geometry(12, 6, -100.0, 200.0),

@@ -1,9 +1,13 @@
 //! Visual-contract checks derived from the issue-linked Pencil artifacts in `design/`.
 
+#[path = "common/ui.rs"]
+mod ui;
+
 use gpui::{px, AppContext, Modifiers, TestAppContext};
 use postman_gpui::app::{AuthorizationKind, BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::http::executor::RequestResult;
 use postman_gpui::models::HttpMethod;
+use ui::{click, scroll_down};
 
 #[gpui::test]
 fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
@@ -403,6 +407,103 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
     assert!(ready.bottom() <= panel.bottom());
     assert!(content_type.origin.x >= effective.origin.x);
     assert!(accept.right() <= effective.right());
+}
+
+#[gpui::test]
+fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_body_kind(BodyKind::UrlEncoded);
+        workspace.set_body("");
+        workspace.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let initial_panel = cx
+        .debug_bounds("request-panel")
+        .expect("URL-encoded request panel should render");
+    let initial_rows = cx
+        .debug_bounds("body-form-scroll")
+        .expect("URL-encoded row viewport should render");
+    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(cx.debug_bounds("body-form-scrollbar").is_none());
+
+    for _ in 0..4 {
+        click(cx, "body-form-add-row").unwrap();
+    }
+    cx.run_until_parked();
+
+    let grown_panel = cx
+        .debug_bounds("request-panel")
+        .expect("URL-encoded request panel should grow with rows");
+    let grown_rows = cx
+        .debug_bounds("body-form-scroll")
+        .expect("URL-encoded row viewport should grow with rows");
+    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_rows.size.height - initial_rows.size.height,
+        grown_panel.size.height - initial_panel.size.height
+    );
+    assert!(cx.debug_bounds("body-form-scrollbar").is_none());
+
+    for _ in 0..4 {
+        click(cx, "body-form-add-row").unwrap();
+    }
+    cx.run_until_parked();
+
+    let capped_panel = cx
+        .debug_bounds("request-panel")
+        .expect("URL-encoded request panel should remain visible");
+    let response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should retain space");
+    let rows_viewport = cx
+        .debug_bounds("body-form-scroll")
+        .expect("overflowing URL-encoded rows should remain scrollable");
+    let scrollbar = cx
+        .debug_bounds("body-form-scrollbar")
+        .expect("overflowing URL-encoded rows should expose a scrollbar");
+    let thumb = cx
+        .debug_bounds("body-form-scrollbar-thumb")
+        .expect("the URL-encoded scrollbar should expose its thumb");
+    let add_action = cx
+        .debug_bounds("body-form-add-row")
+        .expect("Add form field should remain outside the row viewport");
+    let effective = cx
+        .debug_bounds("body-url-encoded-effective-request")
+        .expect("effective request preview should remain fixed");
+    let ready = cx
+        .debug_bounds("body-url-encoded-ready-indicator")
+        .expect("ready state should remain fixed");
+
+    assert_eq!(capped_panel.size.height, px(544.0));
+    assert!(response.size.height > px(0.0));
+    assert!(thumb.origin.y >= scrollbar.origin.y);
+    assert!(thumb.bottom() <= scrollbar.bottom());
+    assert!(thumb.size.height < scrollbar.size.height);
+    assert!(add_action.origin.y >= rows_viewport.bottom());
+    assert!(effective.origin.y >= add_action.bottom());
+    assert!(ready.origin.y >= effective.bottom());
+    assert!(cx.debug_bounds("body-form-add-row-hint").is_some());
+    assert!(cx.debug_bounds("body-url-encoded-row-count").is_some());
+
+    scroll_down(cx, "body-form-scroll", 90.0).unwrap();
+    let add_after_scroll = cx
+        .debug_bounds("body-form-add-row")
+        .expect("Add form field should remain visible after scrolling");
+    let effective_after_scroll = cx
+        .debug_bounds("body-url-encoded-effective-request")
+        .expect("effective preview should remain visible after scrolling");
+    let ready_after_scroll = cx
+        .debug_bounds("body-url-encoded-ready-indicator")
+        .expect("ready state should remain visible after scrolling");
+    assert_eq!(add_after_scroll.origin.y, add_action.origin.y);
+    assert_eq!(effective_after_scroll.origin.y, effective.origin.y);
+    assert_eq!(ready_after_scroll.origin.y, ready.origin.y);
 }
 
 #[gpui::test]

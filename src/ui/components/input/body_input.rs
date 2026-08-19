@@ -18,6 +18,11 @@ use crate::ui::theme::{
     ACCENT_SOFT, CODE_BG, CODE_TEXT, INFO, INFO_SOFT, LINE, PANEL, PANEL_ALT, SUBTEXT, TEXT,
 };
 
+const FORM_DATA_ROW_HEIGHT: f32 = 38.0;
+const FORM_DATA_ROW_GAP: f32 = 8.0;
+const FORM_DATA_ROWS_PADDING: f32 = 16.0;
+const FORM_DATA_MAX_VISIBLE_ROWS: usize = 6;
+
 actions!(
     body_input,
     [
@@ -410,12 +415,15 @@ impl BodyInput {
         self.form_data_entries
             .push(FormDataEntry::text("", "", true));
         self.form_data_scroll.scroll_to_bottom();
+        self.emit_form_data_changed(cx);
         cx.notify();
     }
 
     pub fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         if index < self.form_data_entries.len() {
             self.form_data_entries.remove(index);
+            self.editing_key_index = adjusted_editing_index(self.editing_key_index, index);
+            self.editing_value_index = adjusted_editing_index(self.editing_value_index, index);
             if self.form_data_entries.is_empty() {
                 self.form_data_entries
                     .push(FormDataEntry::text("", "", true));
@@ -437,12 +445,16 @@ impl BodyInput {
         let encoder = form_urlencoded::Serializer::new(String::new());
         self.form_data_entries
             .iter()
-            .filter(|entry| entry.enabled && !entry.key.is_empty() && entry.file.is_none())
+            .filter(|entry| entry.enabled && !entry.key.trim().is_empty() && entry.file.is_none())
             .fold(encoder, |mut enc, entry| {
                 enc.append_pair(&entry.key, &entry.value);
                 enc
             })
             .finish()
+    }
+
+    pub fn form_data_entry_count(&self) -> usize {
+        self.form_data_entries.len()
     }
 
     fn emit_form_data_changed(&self, cx: &mut Context<Self>) {
@@ -913,8 +925,10 @@ impl BodyInput {
 
         // 处理普通字符输入
         if let Some(key_char) = &event.keystroke.key_char {
-            // 过滤掉特殊键和控制字符
-            if key_char.len() == 1 && !key_char.chars().any(|c| c.is_control()) {
+            // GPUI may deliver a Unicode character (or an IME commit) as multiple UTF-8 bytes.
+            // Accept the complete text payload rather than treating byte length as character
+            // length; special keys are still excluded because they have no printable key_char.
+            if !key_char.is_empty() && !key_char.chars().any(char::is_control) {
                 self.replace_form_selection(key_char, cx);
             }
         }
@@ -2065,12 +2079,60 @@ impl Element for FormTextElement {
     }
 }
 
+fn adjusted_editing_index(editing_index: Option<usize>, removed_index: usize) -> Option<usize> {
+    match editing_index {
+        Some(index) if index == removed_index => None,
+        Some(index) if index > removed_index => Some(index - 1),
+        other => other,
+    }
+}
+
+#[derive(Clone, Copy)]
+struct FormDataScrollbarGeometry {
+    thumb_top: f32,
+    thumb_height: f32,
+}
+
+fn form_data_scrollbar_geometry(
+    row_count: usize,
+    offset_y: f32,
+    max_offset_y: f32,
+) -> Option<FormDataScrollbarGeometry> {
+    if row_count <= FORM_DATA_MAX_VISIBLE_ROWS && max_offset_y <= 0.0 {
+        return None;
+    }
+
+    let content_height = FORM_DATA_ROWS_PADDING
+        + FORM_DATA_ROW_HEIGHT * row_count as f32
+        + FORM_DATA_ROW_GAP * row_count.saturating_sub(1) as f32;
+    let thumb_height = if max_offset_y > 0.0 && content_height > 0.0 {
+        ((content_height - max_offset_y) / content_height).clamp(0.18, 0.9)
+    } else {
+        (FORM_DATA_MAX_VISIBLE_ROWS as f32 / row_count as f32).clamp(0.18, 0.9)
+    };
+    let progress = if max_offset_y > 0.0 {
+        (-offset_y / max_offset_y).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+
+    Some(FormDataScrollbarGeometry {
+        thumb_top: progress * (1.0 - thumb_height),
+        thumb_height,
+    })
+}
+
 impl Render for BodyInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type;
         let form_data_entries = self.form_data_entries.clone();
         let form_data_allows_files = self.form_data_allows_files;
         let context_menu_position = self.context_menu_position;
+        let form_data_scrollbar = form_data_scrollbar_geometry(
+            form_data_entries.len(),
+            self.form_data_scroll.offset().y.as_f32(),
+            self.form_data_scroll.max_offset().y.as_f32(),
+        );
 
         div()
             .flex()
@@ -2224,12 +2286,9 @@ impl Render for BodyInput {
                     )
                     .into_any_element(),
                 BodyType::FormData => div()
-                    .id("body-form-scroll")
-                    .debug_selector(|| "body-form-scroll".into())
+                    .debug_selector(|| "body-form-editor".into())
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
-                    .track_scroll(&self.form_data_scroll)
                     .flex()
                     .flex_col()
                     .gap_0()
@@ -2313,14 +2372,34 @@ impl Render for BodyInput {
                                     .child("ACTION"),
                             ),
                     )
-                    .child(div().flex().flex_col().gap_2().p_2().children(
-                        form_data_entries.iter().enumerate().map(|(index, entry)| {
-                            let entry_key = entry.key.clone();
-                            let entry_value = entry.display_value();
-                            let entry_is_file = entry.file.is_some();
-                            let entry_enabled = entry.enabled;
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .relative()
+                            .child(
+                                div()
+                                    .id("body-form-scroll")
+                                    .debug_selector(|| "body-form-scroll".into())
+                                    .flex_1()
+                                    .min_h_0()
+                                    .flex()
+                                    .flex_col()
+                                    .gap_2()
+                                    .p_2()
+                                    .when(form_data_scrollbar.is_some(), |rows| rows.pr(px(20.0)))
+                                    .overflow_y_scroll()
+                                    .track_scroll(&self.form_data_scroll)
+                                    .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                                    .children(form_data_entries.iter().enumerate().map(
+                                        |(index, entry)| {
+                                            let entry_key = entry.key.clone();
+                                            let entry_value = entry.display_value();
+                                            let entry_is_file = entry.file.is_some();
+                                            let entry_enabled = entry.enabled;
 
-                            div()
+                                            div()
                                 .debug_selector(move || format!("body-form-row-{index}"))
                                 .h(px(38.0))
                                 .flex_none()
@@ -2578,18 +2657,48 @@ impl Render for BodyInput {
                                             }),
                                         ),
                                 )
-                        }),
-                    ))
+                                        },
+                                    )),
+                            )
+                            .when_some(form_data_scrollbar, |viewport, scrollbar| {
+                                viewport.child(
+                                    div()
+                                        .debug_selector(|| "body-form-scrollbar".into())
+                                        .absolute()
+                                        .top(px(8.0))
+                                        .right(px(5.0))
+                                        .bottom(px(8.0))
+                                        .w(px(8.0))
+                                        .rounded_full()
+                                        .bg(rgb(PANEL_ALT))
+                                        .border_1()
+                                        .border_color(rgb(LINE))
+                                        .child(
+                                            div()
+                                                .debug_selector(|| {
+                                                    "body-form-scrollbar-thumb".into()
+                                                })
+                                                .absolute()
+                                                .top(relative(scrollbar.thumb_top))
+                                                .w_full()
+                                                .h(relative(scrollbar.thumb_height))
+                                                .rounded_full()
+                                                .bg(rgb(INFO)),
+                                        ),
+                                )
+                            }),
+                    )
                     .child(
                         div()
                             .debug_selector(|| "body-form-add-row".into())
-                            .h(px(32.0))
+                            .h(px(34.0))
                             .mx_2()
                             .mb_2()
                             .px_3()
                             .flex_none()
                             .flex()
                             .items_center()
+                            .justify_between()
                             .bg(rgb(INFO_SOFT))
                             .text_color(rgb(INFO))
                             .border_1()
@@ -2597,7 +2706,13 @@ impl Render for BodyInput {
                             .rounded_md()
                             .cursor_pointer()
                             .hover(|style| style.bg(rgb(PANEL_ALT)))
-                            .child("+ Add row")
+                            .child("+ Add form field")
+                            .child(
+                                div()
+                                    .debug_selector(|| "body-form-add-row-hint".into())
+                                    .text_color(rgb(SUBTEXT))
+                                    .child("one click = one row · no limit"),
+                            )
                             .font_family("Helvetica Neue")
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .text_size(px(11.0))
