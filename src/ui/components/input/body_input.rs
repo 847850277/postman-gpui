@@ -14,7 +14,9 @@ use unicode_segmentation::*;
 use crate::ui::components::common::edit_context_menu::{
     edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
 };
-use crate::ui::theme::{CODE_BG, CODE_TEXT, INFO, LINE, TEXT};
+use crate::ui::theme::{
+    ACCENT_SOFT, CODE_BG, CODE_TEXT, INFO, INFO_SOFT, LINE, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+};
 
 actions!(
     body_input,
@@ -2077,7 +2079,11 @@ impl Render for BodyInput {
             .w_full()
             .h_full()
             .min_h_0()
-            .bg(rgb(CODE_BG))
+            .bg(rgb(if current_type == BodyType::FormData {
+                PANEL
+            } else {
+                CODE_BG
+            }))
             // Tab headers
             .when(self.show_type_tabs, |root| {
                 root.child(
@@ -2226,7 +2232,8 @@ impl Render for BodyInput {
                     .track_scroll(&self.form_data_scroll)
                     .flex()
                     .flex_col()
-                    .gap_2()
+                    .gap_0()
+                    .bg(rgb(PANEL))
                     .track_focus(&self.focus_handle(cx))
                     .on_action(cx.listener(Self::backspace))
                     .on_action(cx.listener(Self::delete))
@@ -2247,53 +2254,66 @@ impl Render for BodyInput {
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(
                         div()
+                            .debug_selector(|| "body-form-table-header".into())
+                            .h(px(30.0))
                             .flex_none()
                             .flex()
                             .gap_2()
                             .items_center()
-                            .p_2()
-                            .bg(rgb(0x00f8_f9fa))
-                            .border_1()
-                            .border_color(rgb(0x00de_e2e6))
+                            .px_3()
+                            .bg(rgb(PANEL_ALT))
+                            .border_b_1()
+                            .border_color(rgb(LINE))
                             .child(
                                 div()
-                                    .w_4()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(0x006c_757d))
+                                    .w(px(18.0))
+                                    .font_family("Helvetica Neue")
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(SUBTEXT))
                                     .child("✓"),
                             )
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(0x006c_757d))
-                                    .child("Key"),
+                                    .font_family("Helvetica Neue")
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(SUBTEXT))
+                                    .child("KEY"),
                             )
                             .when(form_data_allows_files, |header| {
                                 header.child(
                                     div()
                                         .w(px(64.0))
-                                        .text_size(px(12.0))
-                                        .text_color(rgb(0x006c_757d))
-                                        .child("Type"),
+                                        .font_family("Helvetica Neue")
+                                        .font_weight(gpui::FontWeight::BOLD)
+                                        .text_size(px(9.0))
+                                        .text_color(rgb(SUBTEXT))
+                                        .child("TYPE"),
                                 )
                             })
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(0x006c_757d))
-                                    .child("Value"),
+                                    .font_family("Helvetica Neue")
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(SUBTEXT))
+                                    .child("VALUE"),
                             )
                             .child(
                                 div()
-                                    .w_16()
-                                    .text_size(px(12.0))
-                                    .text_color(rgb(0x006c_757d))
-                                    .child("Action"),
+                                    .w(px(44.0))
+                                    .font_family("Helvetica Neue")
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(SUBTEXT))
+                                    .text_align(gpui::TextAlign::Center)
+                                    .child("ACTION"),
                             ),
                     )
-                    .child(div().flex().flex_col().gap_2().children(
+                    .child(div().flex().flex_col().gap_2().p_2().children(
                         form_data_entries.iter().enumerate().map(|(index, entry)| {
                             let entry_key = entry.key.clone();
                             let entry_value = entry.display_value();
@@ -2301,23 +2321,30 @@ impl Render for BodyInput {
                             let entry_enabled = entry.enabled;
 
                             div()
+                                .debug_selector(move || format!("body-form-row-{index}"))
+                                .h(px(38.0))
+                                .flex_none()
                                 .flex()
                                 .gap_2()
                                 .items_center()
                                 .child(
                                     // Checkbox
                                     div()
-                                        .w_4()
-                                        .h_4()
+                                        .debug_selector(move || format!("body-form-toggle-{index}"))
+                                        .size(px(18.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
                                         .border_1()
-                                        .border_color(rgb(0x00cc_cccc))
+                                        .border_color(rgb(if entry_enabled { INFO } else { LINE }))
                                         .rounded_sm()
+                                        .bg(rgb(if entry_enabled { INFO } else { PANEL }))
+                                        .text_color(rgb(PANEL))
+                                        .font_family("Helvetica Neue")
+                                        .font_weight(gpui::FontWeight::BOLD)
+                                        .text_size(px(10.0))
                                         .cursor_pointer()
-                                        .when(entry_enabled, |style| {
-                                            style.bg(rgb(INFO)).child(
-                                                div().w_2().h_2().bg(rgb(0x00ff_ffff)).m_auto(),
-                                            )
-                                        })
+                                        .child(if entry_enabled { "✓" } else { "" })
                                         .on_mouse_up(
                                             gpui::MouseButton::Left,
                                             cx.listener(move |this, _event, _window, cx| {
@@ -2330,17 +2357,18 @@ impl Render for BodyInput {
                                     div()
                                         .debug_selector(move || format!("body-form-key-{index}"))
                                         .flex_1()
-                                        .px_3()
-                                        .py_2()
-                                        .bg(rgb(0x00ff_ffff))
+                                        .px_2()
+                                        .py_1()
+                                        .bg(rgb(PANEL))
                                         .border_1()
                                         .border_color(if self.editing_key_index == Some(index) {
                                             rgb(INFO)
                                         } else {
-                                            rgb(0x00cc_cccc)
+                                            rgb(LINE)
                                         })
                                         .rounded_md()
-                                        .text_size(px(14.0))
+                                        .font_family("Menlo")
+                                        .text_size(px(12.0))
                                         .cursor(CursorStyle::IBeam)
                                         .when(self.editing_key_index == Some(index), |div| {
                                             div.child(FormTextElement {
@@ -2365,12 +2393,10 @@ impl Render for BodyInput {
                                         })
                                         .when(self.editing_key_index != Some(index), |div| {
                                             div.when(entry_key.is_empty(), |div| {
-                                                div.text_color(rgb(0x006c_757d))
-                                                    .child("Enter key...")
+                                                div.text_color(rgb(SUBTEXT)).child("Key")
                                             })
                                             .when(!entry_key.is_empty(), |div| {
-                                                div.text_color(rgb(0x0021_2529))
-                                                    .child(entry_key.clone())
+                                                div.text_color(rgb(TEXT)).child(entry_key.clone())
                                             })
                                             .on_mouse_up(
                                                 gpui::MouseButton::Left,
@@ -2408,7 +2434,7 @@ impl Render for BodyInput {
                                                 0x00f8_f9fa
                                             }))
                                             .border_1()
-                                            .border_color(rgb(0x00cc_cccc))
+                                            .border_color(rgb(LINE))
                                             .rounded_md()
                                             .text_size(px(12.0))
                                             .font_weight(gpui::FontWeight::SEMIBOLD)
@@ -2432,17 +2458,18 @@ impl Render for BodyInput {
                                     div()
                                         .debug_selector(move || format!("body-form-value-{index}"))
                                         .flex_1()
-                                        .px_3()
-                                        .py_2()
-                                        .bg(rgb(0x00ff_ffff))
+                                        .px_2()
+                                        .py_1()
+                                        .bg(rgb(PANEL))
                                         .border_1()
                                         .border_color(if self.editing_value_index == Some(index) {
                                             rgb(INFO)
                                         } else {
-                                            rgb(0x00cc_cccc)
+                                            rgb(LINE)
                                         })
                                         .rounded_md()
-                                        .text_size(px(14.0))
+                                        .font_family("Menlo")
+                                        .text_size(px(12.0))
                                         .cursor(if entry_is_file {
                                             CursorStyle::PointingHand
                                         } else {
@@ -2478,11 +2505,10 @@ impl Render for BodyInput {
                                                 && self.editing_value_index != Some(index),
                                             |div| {
                                                 div.when(entry_value.is_empty(), |div| {
-                                                    div.text_color(rgb(0x006c_757d))
-                                                        .child("Enter value...")
+                                                    div.text_color(rgb(SUBTEXT)).child("Value")
                                                 })
                                                 .when(!entry_value.is_empty(), |div| {
-                                                    div.text_color(rgb(0x0021_2529))
+                                                    div.text_color(rgb(TEXT))
                                                         .child(entry_value.clone())
                                                 })
                                                 .on_mouse_up(
@@ -2529,15 +2555,22 @@ impl Render for BodyInput {
                                 .child(
                                     // Delete button
                                     div()
-                                        .px_3()
-                                        .py_2()
-                                        .bg(rgb(0x00dc_3545))
-                                        .text_color(rgb(0x00ff_ffff))
+                                        .debug_selector(move || format!("body-form-delete-{index}"))
+                                        .w(px(44.0))
+                                        .h(px(30.0))
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .bg(rgb(PANEL))
+                                        .text_color(rgb(SUBTEXT))
+                                        .border_1()
+                                        .border_color(rgb(LINE))
                                         .rounded_md()
                                         .cursor_pointer()
-                                        .hover(|style| style.bg(rgb(0x00c8_2333)))
-                                        .child("Delete")
-                                        .text_size(px(12.0))
+                                        .hover(|style| style.bg(rgb(ACCENT_SOFT)))
+                                        .child("×")
+                                        .text_size(px(15.0))
                                         .on_mouse_up(
                                             gpui::MouseButton::Left,
                                             cx.listener(move |this, _event, _window, cx| {
@@ -2550,15 +2583,24 @@ impl Render for BodyInput {
                     .child(
                         div()
                             .debug_selector(|| "body-form-add-row".into())
+                            .h(px(32.0))
+                            .mx_2()
+                            .mb_2()
                             .px_3()
-                            .py_2()
-                            .bg(rgb(0x0028_a745))
-                            .text_color(rgb(0x00ff_ffff))
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .bg(rgb(INFO_SOFT))
+                            .text_color(rgb(INFO))
+                            .border_1()
+                            .border_color(rgb(LINE))
                             .rounded_md()
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x0021_8838)))
-                            .child("Add Row")
-                            .text_size(px(14.0))
+                            .hover(|style| style.bg(rgb(PANEL_ALT)))
+                            .child("+ Add row")
+                            .font_family("Helvetica Neue")
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(11.0))
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _event, _window, cx| {
