@@ -13,6 +13,7 @@ use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext}
 use postman_gpui::app::{
     AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
 };
+use postman_gpui::models::RequestBody;
 use std::path::{Path, PathBuf};
 use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
@@ -818,6 +819,7 @@ fn run_application_scenario(
     apply_body(cx, &scenario.draft)?;
     assert_json_body_editor_contract(cx, &workspace, scenario)?;
     assert_url_encoded_body_editor_contract(cx, &workspace, scenario)?;
+    assert_multipart_body_editor_contract(cx, &workspace, scenario)?;
 
     let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
     if assembled_url != expected.url {
@@ -834,6 +836,7 @@ fn run_application_scenario(
     assert_response_state(&response, &scenario.expect.response)?;
     assert_disabled_headers_absent_from_echo(&response, &scenario.draft.headers)?;
     assert_disabled_url_encoded_rows_absent_from_echo(&response, &scenario.draft)?;
+    assert_multipart_transport_echo(&response, &scenario.draft)?;
     assert_response_quick_copy(cx, &workspace, &response)?;
 
     if cx.debug_bounds("response-container").is_none() {
@@ -1125,6 +1128,126 @@ fn assert_url_encoded_body_editor_contract(
     Ok(())
 }
 
+fn assert_multipart_body_editor_contract(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    if !scenario
+        .draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("multipart"))
+    {
+        return Ok(());
+    }
+
+    let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let RequestBody::Multipart(expected_parts) = &expected.body else {
+        return Err("a multipart scenario must expect typed multipart parts".to_string());
+    };
+    let (kind, active_body, effective_headers) = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.body_kind(),
+            workspace.request_body(),
+            workspace.effective_headers(),
+        )
+    });
+    if kind != BodyKind::Multipart || active_body != expected.body {
+        return Err(format!(
+            "active multipart rows were not saved directly to the ViewModel\n  expected: {:?}\n  actual:   {active_body:?}",
+            expected.body
+        ));
+    }
+    if effective_headers
+        .iter()
+        .any(|header| header.name.eq_ignore_ascii_case("content-type"))
+    {
+        return Err(
+            "multipart boundary generation leaked into the ViewModel header projection".to_string(),
+        );
+    }
+    for (name, value) in &expected.headers {
+        if !effective_headers
+            .iter()
+            .any(|header| header.name.eq_ignore_ascii_case(name) && header.value == *value)
+        {
+            return Err(format!(
+                "multipart effective headers are missing `{name}: {value}`"
+            ));
+        }
+    }
+
+    for selector in [
+        "body-kind-selector",
+        "body-kind-form-data",
+        "body-multipart-live-saved",
+        "body-multipart-row-count",
+        "body-multipart-editor",
+        "body-form-table-header",
+        "body-form-scroll",
+        "body-form-add-row",
+        "body-form-add-row-hint",
+        "body-multipart-effective-request",
+        "body-multipart-effective-parts",
+        "body-multipart-part-count",
+        "body-multipart-boundary",
+        "body-multipart-ready-indicator",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "multipart Body design contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    let row_count = if scenario.draft.precreate_body_rows > 0 {
+        scenario.draft.precreate_body_rows
+    } else if !scenario.draft.body_rows.is_empty() {
+        scenario.draft.body_rows.len()
+    } else {
+        expected_parts.len().max(1)
+    };
+    if row_count > BODY_FORM_ROW_SELECTORS.len() {
+        return Err("the multipart UI contract supports at most 16 fields".to_string());
+    }
+    for index in 0..row_count {
+        for selector in [
+            BODY_FORM_ROW_SELECTORS[index],
+            BODY_FORM_TOGGLE_SELECTORS[index],
+            BODY_FORM_KEY_SELECTORS[index],
+            BODY_FORM_VALUE_SELECTORS[index],
+            BODY_FORM_DELETE_SELECTORS[index],
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "multipart Body row contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+    }
+
+    let rows_viewport = cx
+        .debug_bounds("body-form-scroll")
+        .ok_or_else(|| "multipart row viewport is not rendered".to_string())?;
+    let add_action = cx
+        .debug_bounds("body-form-add-row")
+        .ok_or_else(|| "multipart Add form field action is not rendered".to_string())?;
+    let effective_preview = cx
+        .debug_bounds("body-multipart-effective-request")
+        .ok_or_else(|| "multipart effective request preview is not rendered".to_string())?;
+    if add_action.origin.y < rows_viewport.bottom()
+        || effective_preview.origin.y < add_action.bottom()
+    {
+        return Err(
+            "multipart Add and effective preview must remain fixed below the row viewport"
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
 fn body_effective_header_selector(name: &str) -> Result<&'static str, String> {
     match name.to_ascii_lowercase().as_str() {
         "content-type" => Ok("body-effective-header-content-type"),
@@ -1257,6 +1380,46 @@ fn assert_disabled_url_encoded_rows_absent_from_echo(
                 "disabled URL-encoded field `{disabled_key}` was unexpectedly echoed"
             ));
         }
+    }
+    Ok(())
+}
+
+fn assert_multipart_transport_echo(
+    response: &ResponseState,
+    draft: &DraftSpec,
+) -> Result<(), String> {
+    if !draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("multipart"))
+    {
+        return Ok(());
+    }
+    let ResponseState::Success { body, .. } = response else {
+        return Err("cannot verify multipart transport because Send did not succeed".to_string());
+    };
+    let payload: serde_json::Value = serde_json::from_str(body)
+        .map_err(|error| format!("multipart HTTPBingo response is not valid JSON: {error}"))?;
+    let headers = payload
+        .get("headers")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "HTTPBingo multipart response has no `headers` object".to_string())?;
+    let content_type = headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+        .and_then(|(_, values)| values.as_array())
+        .and_then(|values| values.first())
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "HTTPBingo did not echo the multipart Content-Type".to_string())?;
+    let boundary_prefix = "multipart/form-data; boundary=";
+    if !content_type
+        .to_ascii_lowercase()
+        .starts_with(boundary_prefix)
+        || content_type.len() <= boundary_prefix.len()
+    {
+        return Err(format!(
+            "HTTPBingo echoed an invalid multipart Content-Type: {content_type:?}"
+        ));
     }
     Ok(())
 }
@@ -1617,17 +1780,21 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
                     .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
                 type_form_rows(cx, body)?;
             } else {
-                type_url_encoded_rows(cx, draft)?;
+                type_form_body_rows(cx, draft)?;
             }
         }
         "multipart" => {
             click(cx, "body-kind-none")?;
             click(cx, body_kind_selector(kind)?)?;
-            let body = draft
-                .body
-                .as_deref()
-                .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
-            type_form_rows(cx, body)?;
+            if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+                let body = draft
+                    .body
+                    .as_deref()
+                    .ok_or_else(|| format!("`{kind}` body scenario is missing `body`"))?;
+                type_form_rows(cx, body)?;
+            } else {
+                type_form_body_rows(cx, draft)?;
+            }
         }
         _ => return Err(format!("invalid body kind `{kind}`")),
     }
@@ -1652,7 +1819,7 @@ fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), Strin
     Ok(())
 }
 
-fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), String> {
+fn type_form_body_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), String> {
     validate_body_row_contract(draft)?;
     let row_count = if draft.precreate_body_rows == 0 {
         draft.body_rows.len().max(1)
@@ -1661,7 +1828,7 @@ fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Resul
     };
     if row_count > BODY_FORM_ROW_SELECTORS.len() {
         return Err(format!(
-            "the UI body driver supports at most {} URL-encoded rows",
+            "the UI body driver supports at most {} form rows",
             BODY_FORM_ROW_SELECTORS.len()
         ));
     }
@@ -1675,15 +1842,13 @@ fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Resul
     {
         if cx.debug_bounds(row_selector).is_some() {
             return Err(format!(
-                "URL-encoded row {index} existed before its Add form field click"
+                "form row {index} existed before its Add form field click"
             ));
         }
         click(cx, "body-form-add-row")?;
         cx.run_until_parked();
         if cx.debug_bounds(row_selector).is_none() {
-            return Err(format!(
-                "Add form field did not append URL-encoded row {index}"
-            ));
+            return Err(format!("Add form field did not append form row {index}"));
         }
     }
     if row_count < BODY_FORM_ROW_SELECTORS.len()
@@ -1692,7 +1857,7 @@ fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Resul
             .is_some()
     {
         return Err(format!(
-            "URL-encoded Add created more than the requested {row_count} rows"
+            "form Add created more than the requested {row_count} rows"
         ));
     }
 
@@ -1706,7 +1871,7 @@ fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Resul
         ] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
-                    "URL-encoded row {index} created by Add is missing `{selector}`"
+                    "form row {index} created by Add is missing `{selector}`"
                 ));
             }
         }
@@ -1720,9 +1885,7 @@ fn type_url_encoded_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Resul
             "body-form-add-row-hint",
         ] {
             if cx.debug_bounds(selector).is_none() {
-                return Err(format!(
-                    "overflowing URL-encoded rows do not render `{selector}`"
-                ));
+                return Err(format!("overflowing form rows do not render `{selector}`"));
             }
         }
     }

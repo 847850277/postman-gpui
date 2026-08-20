@@ -3,6 +3,7 @@ use crate::{
         BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
         MultipartDraftValue, RequestBodyDraft, WorkspaceViewModel,
     },
+    models::{MultipartPart, MultipartValue, RequestBody},
     ui::{
         components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
         theme::{
@@ -196,16 +197,18 @@ impl BodyPane {
     }
 
     fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let (kind, body, effective_headers) = {
+        let (kind, body, request_body, effective_headers) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model.body_kind(),
                 view_model.body().to_string(),
+                view_model.request_body(),
                 view_model.effective_headers(),
             )
         };
         let is_json = kind == BodyKind::Json;
         let is_url_encoded = kind == BodyKind::UrlEncoded;
+        let is_multipart = kind == BodyKind::Multipart;
         let body_len = body.chars().count();
         let form_row_count = self.body_input.read(cx).form_data_entry_count();
 
@@ -294,10 +297,44 @@ impl BodyPane {
                                 .text_color(rgb(SUBTEXT))
                                 .child(format!("{form_row_count} rows")),
                         )
+                    })
+                    .when(is_multipart, |row| {
+                        row.child(
+                            div()
+                                .debug_selector(|| "body-multipart-live-saved".into())
+                                .h(px(24.0))
+                                .px_2()
+                                .flex()
+                                .items_center()
+                                .rounded_lg()
+                                .bg(rgb(OK_SOFT))
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(9.0))
+                                .text_color(rgb(OK))
+                                .child("LIVE · SAVED"),
+                        )
+                        .child(
+                            div()
+                                .debug_selector(|| "body-multipart-row-count".into())
+                                .h(px(24.0))
+                                .px_2()
+                                .flex()
+                                .items_center()
+                                .rounded_lg()
+                                .bg(rgb(PANEL_ALT))
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(9.0))
+                                .text_color(rgb(SUBTEXT))
+                                .child(format!("{form_row_count} rows")),
+                        )
                     }),
             )
             .child(if is_url_encoded {
                 self.render_url_encoded_body(body, effective_headers)
+            } else if is_multipart {
+                self.render_multipart_body(request_body)
             } else {
                 self.render_text_body(body_len, is_json, effective_headers, cx)
             })
@@ -571,6 +608,113 @@ impl BodyPane {
             .into_any_element()
     }
 
+    fn render_multipart_body(&self, request_body: RequestBody) -> gpui::AnyElement {
+        let parts = match request_body {
+            RequestBody::Multipart(parts) => parts,
+            _ => Vec::new(),
+        };
+        let part_count = parts.len();
+        let parts_preview = multipart_parts_preview(&parts);
+
+        div()
+            .debug_selector(|| "body-multipart-editor".into())
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .bg(rgb(PANEL))
+            .child(
+                div()
+                    .debug_selector(|| "body-input".into())
+                    .flex_1()
+                    .min_h_0()
+                    .child(self.body_input.clone()),
+            )
+            .child(
+                div()
+                    .debug_selector(|| "body-multipart-effective-request".into())
+                    .h(px(72.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .px_3()
+                    .bg(rgb(INFO_SOFT))
+                    .border_t_1()
+                    .border_color(rgb(LINE))
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .font_family(FONT_UI)
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(INFO))
+                                    .child("↗ EFFECTIVE MULTIPART PARTS")
+                                    .child(
+                                        div()
+                                            .debug_selector(|| "body-multipart-part-count".into())
+                                            .px_2()
+                                            .py_1()
+                                            .rounded_lg()
+                                            .bg(rgb(PANEL))
+                                            .text_color(rgb(SUBTEXT))
+                                            .child(format!("{part_count} parts")),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .debug_selector(|| "body-multipart-effective-parts".into())
+                                    .min_w_0()
+                                    .overflow_hidden()
+                                    .font_family(FONT_MONO)
+                                    .text_size(px(10.0))
+                                    .text_color(rgb(TEXT))
+                                    .child(parts_preview),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .debug_selector(|| "body-multipart-boundary".into())
+                            .flex_none()
+                            .px_2()
+                            .py_1()
+                            .rounded_lg()
+                            .bg(rgb(PANEL))
+                            .font_family(FONT_MONO)
+                            .text_size(px(9.0))
+                            .text_color(rgb(SUBTEXT))
+                            .child("multipart/form-data; boundary=<generated>"),
+                    ),
+            )
+            .child(
+                div()
+                    .debug_selector(|| "body-multipart-ready-indicator".into())
+                    .h(px(28.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .border_t_1()
+                    .border_color(rgb(LINE))
+                    .font_family(FONT_UI)
+                    .text_size(px(9.0))
+                    .text_color(rgb(OK))
+                    .child("✓")
+                    .child("Ready to send — boundary generation remains transport-owned"),
+            )
+            .into_any_element()
+    }
+
     fn render_effective_headers(&self, headers: Vec<EffectiveHeader>) -> gpui::AnyElement {
         let count = headers.len();
         div()
@@ -734,6 +878,29 @@ fn body_type_from_kind(kind: BodyKind) -> BodyType {
     }
 }
 
+fn multipart_parts_preview(parts: &[MultipartPart]) -> String {
+    if parts.is_empty() {
+        return "(no complete parts)".to_string();
+    }
+    parts
+        .iter()
+        .map(|part| match &part.value {
+            MultipartValue::Text(value) => format!("Text({} = {value})", part.name),
+            MultipartValue::File {
+                path, file_name, ..
+            } => format!(
+                "File({} = {})",
+                part.name,
+                file_name
+                    .as_deref()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| path.display().to_string())
+            ),
+        })
+        .collect::<Vec<_>>()
+        .join("  ·  ")
+}
+
 fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
     let selector = body_effective_header_selector(&header.name);
     let generated = header.source == EffectiveHeaderSource::Generated;
@@ -855,4 +1022,21 @@ fn body_effective_header_selector(name: &str) -> String {
         })
         .collect();
     format!("body-effective-header-{slug}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::multipart_parts_preview;
+    use crate::models::MultipartPart;
+
+    #[test]
+    fn multipart_preview_preserves_typed_text_part_order() {
+        assert_eq!(
+            multipart_parts_preview(&[
+                MultipartPart::text("note", "hello multipart"),
+                MultipartPart::text("category", "gpui"),
+            ]),
+            "Text(note = hello multipart)  ·  Text(category = gpui)"
+        );
+    }
 }
