@@ -136,6 +136,12 @@ assigned origin. Every `target: "httpbingo"` case starts with a fresh
 and `expect.request.path` are host-relative in both modes, for example
 `/users/42?active=true`.
 
+Issue #59 also links its independently runnable GET `/forms/post` and POST
+`/post` cases in one additional application-level workflow. That workflow
+creates a second request through the rendered New Request action, keeps both
+tab responses and shared History entries, and submits the final active form
+cell without an intermediate commit action. No other scenario shares state.
+
 Cases that fail before network delivery, such as an empty URL, omit `mock`. They
 must expect an error response and no history entry.
 

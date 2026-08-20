@@ -7,7 +7,7 @@ mod ui;
 use common::scenario::{
     assert_requests_equivalent, assert_response_state, expected_request, load_suites,
     validate_body_row_contract, DraftSpec, KeyValueSpec, RequestScenario, ResponseSpec,
-    ScenarioTarget,
+    ScenarioFile, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::app::{
@@ -17,6 +17,10 @@ use std::path::{Path, PathBuf};
 use ui::{choose_method, click, scroll_down, scroll_up, type_into};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
+const HTML_FORM_DISCOVERY_SCENARIO: &str =
+    "HTTPBingo serves the HTML form that submits to POST /post";
+const HTML_FORM_SUBMISSION_SCENARIO: &str =
+    "HTTPBingo receives the HTML form submission at POST /post";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
@@ -321,6 +325,11 @@ enum RowEditor {
     Headers,
 }
 
+struct HtmlFormWorkflow<'a> {
+    discovery: &'a RequestScenario,
+    submission: &'a RequestScenario,
+}
+
 fn scenario_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases")
 }
@@ -343,6 +352,148 @@ fn query_rows_from_path(path: &str) -> Vec<KeyValueRow> {
     form_urlencoded::parse(query.as_bytes())
         .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
         .collect()
+}
+
+fn find_httpbingo_scenario<'a>(
+    files: &'a [ScenarioFile],
+    name: &str,
+) -> Result<&'a RequestScenario, String> {
+    let mut matches = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .filter(|scenario| scenario.name == name);
+    let scenario = matches
+        .next()
+        .ok_or_else(|| format!("HTTPBingo workflow scenario `{name}` is missing"))?;
+    if matches.next().is_some() {
+        return Err(format!(
+            "HTTPBingo workflow scenario `{name}` is defined more than once"
+        ));
+    }
+    Ok(scenario)
+}
+
+fn html_form_workflow(files: &[ScenarioFile]) -> Result<HtmlFormWorkflow<'_>, String> {
+    let workflow = HtmlFormWorkflow {
+        discovery: find_httpbingo_scenario(files, HTML_FORM_DISCOVERY_SCENARIO)?,
+        submission: find_httpbingo_scenario(files, HTML_FORM_SUBMISSION_SCENARIO)?,
+    };
+    validate_html_form_workflow_contract(&workflow)?;
+    Ok(workflow)
+}
+
+fn validate_html_form_workflow_contract(workflow: &HtmlFormWorkflow<'_>) -> Result<(), String> {
+    let discovery = workflow.discovery;
+    if !discovery.draft.method.eq_ignore_ascii_case("GET")
+        || discovery.draft.path != "/forms/post"
+        || discovery.expect.request.path != "/forms/post"
+    {
+        return Err("HTML form discovery must GET `/forms/post`".to_string());
+    }
+    let ResponseSpec::Success {
+        status,
+        body_contains,
+        ..
+    } = &discovery.expect.response
+    else {
+        return Err("HTML form discovery must expect a successful response".to_string());
+    };
+    if *status != 200 || body_contains.as_deref() != Some("<form method=\"post\" action=\"/post\">")
+    {
+        return Err("HTML form discovery must assert the POST form action".to_string());
+    }
+
+    let submission = workflow.submission;
+    if !submission.draft.method.eq_ignore_ascii_case("POST")
+        || submission.draft.path != "/post"
+        || submission.expect.request.path != "/post"
+        || !submission
+            .draft
+            .body_kind
+            .as_deref()
+            .is_some_and(|kind| kind.eq_ignore_ascii_case("url_encoded"))
+    {
+        return Err("HTML form submission must URL-encode a POST to `/post`".to_string());
+    }
+    let encoded_body = submission
+        .draft
+        .body
+        .as_deref()
+        .ok_or_else(|| "HTML form submission is missing its encoded body".to_string())?;
+    if submission.expect.request.body.as_deref() != Some(encoded_body) {
+        return Err("HTML form draft and expected request body differ".to_string());
+    }
+    let actual_fields = form_urlencoded::parse(encoded_body.as_bytes())
+        .map(|(key, value)| (key.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    let expected_fields = [
+        ("custname", "Ada Lovelace"),
+        ("custtel", "+86 123456"),
+        ("custemail", "ada@example.com"),
+        ("size", "large"),
+        ("topping", "bacon"),
+        ("topping", "cheese"),
+        ("delivery", "18:30"),
+        ("comments", "Ring the bell"),
+    ];
+    if actual_fields
+        != expected_fields
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect::<Vec<_>>()
+    {
+        return Err(format!(
+            "HTML form submission fields are incomplete or out of order: {actual_fields:#?}"
+        ));
+    }
+    if !submission
+        .expect
+        .request
+        .headers
+        .iter()
+        .any(|(name, value)| {
+            name.eq_ignore_ascii_case("content-type")
+                && value == "application/x-www-form-urlencoded"
+        })
+    {
+        return Err("HTML form submission is missing its URL-encoded Content-Type".to_string());
+    }
+    let ResponseSpec::Success {
+        status,
+        body_json_contains: Some(expected_echo),
+        ..
+    } = &submission.expect.response
+    else {
+        return Err("HTML form submission must expect HTTPBingo's JSON echo".to_string());
+    };
+    if *status != 200
+        || expected_echo
+            .get("form")
+            .and_then(serde_json::Value::as_object)
+            .is_none_or(|form| {
+                [
+                    "custname",
+                    "custtel",
+                    "custemail",
+                    "size",
+                    "topping",
+                    "delivery",
+                    "comments",
+                ]
+                .into_iter()
+                .any(|field| !form.contains_key(field))
+            })
+    {
+        return Err("HTML form submission must assert every echoed form field".to_string());
+    }
+    Ok(())
+}
+
+#[test]
+fn html_form_workflow_contract_links_discovery_to_complete_submission() {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    html_form_workflow(&files).expect("Issue #59 workflow contract should be complete");
 }
 
 #[gpui::test]
@@ -374,6 +525,144 @@ fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext
         "HTTPBingo application scenario failures:\n\n{}",
         failures.join("\n\n")
     );
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let workflow = html_form_workflow(&files).expect("Issue #59 workflow should be valid");
+    run_html_form_workflow(test_cx, &workflow)
+        .unwrap_or_else(|failure| panic!("Issue #59 HTML form workflow failed:\n{failure}"));
+}
+
+fn run_html_form_workflow(
+    test_cx: &mut TestAppContext,
+    workflow: &HtmlFormWorkflow<'_>,
+) -> Result<(), String> {
+    let discovery_request =
+        expected_request(&workflow.discovery.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let submission_request = expected_request(
+        &workflow.submission.expect.request,
+        Some(HTTPBINGO_BASE_URL),
+    )?;
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, &workflow.discovery.draft.method)?;
+    type_into(
+        cx,
+        "url-input",
+        &format!("{HTTPBINGO_BASE_URL}{}", workflow.discovery.draft.path),
+    )?;
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let discovery_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&discovery_response, &workflow.discovery.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &discovery_response)?;
+    let (discovery_history_request, discovery_history_status) = workspace
+        .read_with(cx, |workspace, _| {
+            workspace
+                .history()
+                .first()
+                .map(|entry| (entry.request.clone(), entry.status))
+        })
+        .ok_or_else(|| "GET /forms/post is missing from History".to_string())?;
+    assert_requests_equivalent(&discovery_history_request, &discovery_request)
+        .map_err(|error| format!("HTML form discovery History mismatch: {error}"))?;
+    if discovery_history_status != Some(200) {
+        return Err(format!(
+            "HTML form discovery History status mismatch: {discovery_history_status:?}"
+        ));
+    }
+
+    // Continue in the same PostmanApp, creating the POST request through the visible left-rail
+    // action so the GET response and both History entries remain part of one user lifecycle.
+    click(cx, "rail-new-request")?;
+    let (tab_count, active_tab, response) = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.tab_count(),
+            workspace.active_tab_index(),
+            workspace.response().clone(),
+        )
+    });
+    if tab_count != 2 || active_tab != 1 || !matches!(response, ResponseState::NotSent) {
+        return Err(format!(
+            "New Request did not create a clean second tab: tabs={tab_count}, active={active_tab}, response={response:?}"
+        ));
+    }
+
+    choose_method(cx, &workflow.submission.draft.method)?;
+    type_into(
+        cx,
+        "url-input",
+        &format!("{HTTPBINGO_BASE_URL}{}", workflow.submission.draft.path),
+    )?;
+    apply_body(cx, &workflow.submission.draft)?;
+    assert_url_encoded_body_editor_contract(cx, &workspace, workflow.submission)?;
+    let active_body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
+    if active_body != submission_request.body {
+        return Err(format!(
+            "active comments edit was not saved before Send\n  expected: {:?}\n  actual:   {active_body:?}",
+            submission_request.body
+        ));
+    }
+
+    // `apply_body` leaves the final comments value active. Sending immediately proves that the
+    // visible value reaches the shared ViewModel without Enter, Tab, blur, or an extra Add action.
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let submission_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&submission_response, &workflow.submission.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &submission_response)?;
+    let history = workspace.read_with(cx, |workspace, _| {
+        workspace
+            .history()
+            .iter()
+            .map(|entry| (entry.request.clone(), entry.status))
+            .collect::<Vec<_>>()
+    });
+    if history.len() != 2 {
+        return Err(format!(
+            "HTML form lifecycle should create two History entries, found {}",
+            history.len()
+        ));
+    }
+    assert_requests_equivalent(&history[0].0, &submission_request)
+        .map_err(|error| format!("HTML form submission History mismatch: {error}"))?;
+    assert_requests_equivalent(&history[1].0, &discovery_request)
+        .map_err(|error| format!("HTML form discovery History changed: {error}"))?;
+    if history[0].1 != Some(200) || history[1].1 != Some(200) {
+        return Err(format!(
+            "HTML form lifecycle History statuses are incomplete: {:?}",
+            history
+                .iter()
+                .map(|(_, status)| *status)
+                .collect::<Vec<_>>()
+        ));
+    }
+    for selector in ["history-method-0", "history-method-1"] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "HTML form lifecycle History entry `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    click(cx, "request-tab-0")?;
+    let restored_discovery = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&restored_discovery, &workflow.discovery.expect.response)?;
+    click(cx, "request-tab-1")?;
+    let restored_submission = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&restored_submission, &workflow.submission.expect.response)?;
+
+    Ok(())
 }
 
 fn run_application_scenario(
