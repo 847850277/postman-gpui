@@ -1,6 +1,6 @@
 use crate::app::WorkspaceViewModel;
 use crate::models::{HistoryEntry, Request};
-use crate::ui::components::header_input::{HeaderInput, HeaderInputEvent};
+use crate::ui::components::input::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
     method_color, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT,
 };

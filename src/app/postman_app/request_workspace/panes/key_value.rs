@@ -5,7 +5,7 @@ use super::super::layout::{
 use crate::{
     app::{KeyValueRow, RequestPane, WorkspaceViewModel},
     ui::{
-        components::header_input::{HeaderInput, HeaderInputEvent},
+        components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
             ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK,
             OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
