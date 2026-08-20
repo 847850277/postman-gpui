@@ -6,8 +6,8 @@ mod ui;
 
 use common::scenario::{
     assert_requests_equivalent, assert_response_state, expected_request, load_suites,
-    validate_body_row_contract, DraftSpec, KeyValueSpec, RequestScenario, ResponseSpec,
-    ScenarioFile, ScenarioTarget,
+    resolve_scenario_fixture_path, validate_body_row_contract, DraftSpec, KeyValueSpec,
+    MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::app::{
@@ -318,6 +318,78 @@ const BODY_FORM_DELETE_SELECTORS: [&str; 16] = [
     "body-form-delete-13",
     "body-form-delete-14",
     "body-form-delete-15",
+];
+const BODY_FORM_TYPE_SELECTORS: [&str; 16] = [
+    "body-form-type-0",
+    "body-form-type-1",
+    "body-form-type-2",
+    "body-form-type-3",
+    "body-form-type-4",
+    "body-form-type-5",
+    "body-form-type-6",
+    "body-form-type-7",
+    "body-form-type-8",
+    "body-form-type-9",
+    "body-form-type-10",
+    "body-form-type-11",
+    "body-form-type-12",
+    "body-form-type-13",
+    "body-form-type-14",
+    "body-form-type-15",
+];
+const BODY_FORM_FILE_SELECTORS: [&str; 16] = [
+    "body-form-file-0",
+    "body-form-file-1",
+    "body-form-file-2",
+    "body-form-file-3",
+    "body-form-file-4",
+    "body-form-file-5",
+    "body-form-file-6",
+    "body-form-file-7",
+    "body-form-file-8",
+    "body-form-file-9",
+    "body-form-file-10",
+    "body-form-file-11",
+    "body-form-file-12",
+    "body-form-file-13",
+    "body-form-file-14",
+    "body-form-file-15",
+];
+const BODY_FORM_FILE_NAME_SELECTORS: [&str; 16] = [
+    "body-form-file-name-0",
+    "body-form-file-name-1",
+    "body-form-file-name-2",
+    "body-form-file-name-3",
+    "body-form-file-name-4",
+    "body-form-file-name-5",
+    "body-form-file-name-6",
+    "body-form-file-name-7",
+    "body-form-file-name-8",
+    "body-form-file-name-9",
+    "body-form-file-name-10",
+    "body-form-file-name-11",
+    "body-form-file-name-12",
+    "body-form-file-name-13",
+    "body-form-file-name-14",
+    "body-form-file-name-15",
+];
+const BODY_FORM_FILE_METADATA_SELECTORS: [&str; 16] = [
+    "body-form-file-metadata-0",
+    "body-form-file-metadata-1",
+    "body-form-file-metadata-2",
+    "body-form-file-metadata-3",
+    "body-form-file-metadata-4",
+    "body-form-file-metadata-5",
+    "body-form-file-metadata-6",
+    "body-form-file-metadata-7",
+    "body-form-file-metadata-8",
+    "body-form-file-metadata-9",
+    "body-form-file-metadata-10",
+    "body-form-file-metadata-11",
+    "body-form-file-metadata-12",
+    "body-form-file-metadata-13",
+    "body-form-file-metadata-14",
+    "body-form-file-metadata-15",
 ];
 
 #[derive(Clone, Copy)]
@@ -882,6 +954,8 @@ fn run_application_scenario(
         (false, None) => {}
     }
 
+    assert_multipart_file_selection_retained(cx, &workspace, scenario)?;
+
     Ok(())
 }
 
@@ -1203,6 +1277,8 @@ fn assert_multipart_body_editor_contract(
 
     let row_count = if scenario.draft.precreate_body_rows > 0 {
         scenario.draft.precreate_body_rows
+    } else if !scenario.draft.multipart_parts.is_empty() {
+        scenario.draft.multipart_parts.len()
     } else if !scenario.draft.body_rows.is_empty() {
         scenario.draft.body_rows.len()
     } else {
@@ -1212,17 +1288,42 @@ fn assert_multipart_body_editor_contract(
         return Err("the multipart UI contract supports at most 16 fields".to_string());
     }
     for index in 0..row_count {
+        let value_selector = if scenario
+            .draft
+            .multipart_parts
+            .get(index)
+            .is_some_and(|part| matches!(part, MultipartPartSpec::File { .. }))
+        {
+            BODY_FORM_FILE_SELECTORS[index]
+        } else {
+            BODY_FORM_VALUE_SELECTORS[index]
+        };
         for selector in [
             BODY_FORM_ROW_SELECTORS[index],
             BODY_FORM_TOGGLE_SELECTORS[index],
             BODY_FORM_KEY_SELECTORS[index],
-            BODY_FORM_VALUE_SELECTORS[index],
+            BODY_FORM_TYPE_SELECTORS[index],
+            value_selector,
             BODY_FORM_DELETE_SELECTORS[index],
         ] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
                     "multipart Body row contract element `{selector}` is not rendered"
                 ));
+            }
+        }
+    }
+    for (index, part) in scenario.draft.multipart_parts.iter().enumerate() {
+        if matches!(part, MultipartPartSpec::File { .. }) {
+            for selector in [
+                BODY_FORM_FILE_NAME_SELECTORS[index],
+                BODY_FORM_FILE_METADATA_SELECTORS[index],
+            ] {
+                if cx.debug_bounds(selector).is_none() {
+                    return Err(format!(
+                        "multipart File row {index} does not render `{selector}`"
+                    ));
+                }
             }
         }
     }
@@ -1245,6 +1346,47 @@ fn assert_multipart_body_editor_contract(
         );
     }
 
+    Ok(())
+}
+
+fn assert_multipart_file_selection_retained(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    if !scenario
+        .draft
+        .multipart_parts
+        .iter()
+        .any(|part| matches!(part, MultipartPartSpec::File { .. }))
+    {
+        return Ok(());
+    }
+
+    let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let active_body = workspace.read_with(cx, |workspace, _| workspace.request_body());
+    if active_body != expected.body {
+        return Err(format!(
+            "selected multipart file was not retained after Send\n  expected: {:?}\n  actual:   {active_body:?}",
+            expected.body
+        ));
+    }
+
+    for (index, part) in scenario.draft.multipart_parts.iter().enumerate() {
+        if matches!(part, MultipartPartSpec::File { .. }) {
+            for selector in [
+                BODY_FORM_FILE_SELECTORS[index],
+                BODY_FORM_FILE_NAME_SELECTORS[index],
+                BODY_FORM_FILE_METADATA_SELECTORS[index],
+            ] {
+                if cx.debug_bounds(selector).is_none() {
+                    return Err(format!(
+                        "multipart File row {index} lost `{selector}` after Send"
+                    ));
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1773,7 +1915,10 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
             // user sees, then select the key/value editor.
             click(cx, "body-kind-none")?;
             click(cx, body_kind_selector(kind)?)?;
-            if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+            if draft.body_rows.is_empty()
+                && draft.multipart_parts.is_empty()
+                && draft.precreate_body_rows == 0
+            {
                 let body = draft
                     .body
                     .as_deref()
@@ -1786,7 +1931,10 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
         "multipart" => {
             click(cx, "body-kind-none")?;
             click(cx, body_kind_selector(kind)?)?;
-            if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+            if draft.body_rows.is_empty()
+                && draft.multipart_parts.is_empty()
+                && draft.precreate_body_rows == 0
+            {
                 let body = draft
                     .body
                     .as_deref()
@@ -1822,7 +1970,11 @@ fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), Strin
 fn type_form_body_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), String> {
     validate_body_row_contract(draft)?;
     let row_count = if draft.precreate_body_rows == 0 {
-        draft.body_rows.len().max(1)
+        draft
+            .body_rows
+            .len()
+            .max(draft.multipart_parts.len())
+            .max(1)
     } else {
         draft.precreate_body_rows
     };
@@ -1891,6 +2043,58 @@ fn type_form_body_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<
     }
 
     scroll_up(cx, "body-form-scroll", 1000.0)?;
+    if !draft.multipart_parts.is_empty() {
+        for (index, part) in draft.multipart_parts.iter().enumerate() {
+            if index > 0 {
+                scroll_down(cx, "body-form-scroll", 52.0)?;
+            }
+            type_into(cx, BODY_FORM_KEY_SELECTORS[index], part.name())?;
+            match part {
+                MultipartPartSpec::Text { value, .. } => {
+                    if !value.is_empty() {
+                        type_into(cx, BODY_FORM_VALUE_SELECTORS[index], value)?;
+                    }
+                }
+                MultipartPartSpec::File { path, .. } => {
+                    click(cx, BODY_FORM_TYPE_SELECTORS[index])?;
+                    if cx.debug_bounds(BODY_FORM_FILE_SELECTORS[index]).is_none() {
+                        return Err(format!(
+                            "multipart row {index} did not change from Text to File"
+                        ));
+                    }
+                    click(cx, BODY_FORM_FILE_SELECTORS[index])?;
+                    if !cx.did_prompt_for_paths() {
+                        return Err(format!(
+                            "multipart File row {index} did not activate the rendered file picker"
+                        ));
+                    }
+                    let selected = resolve_scenario_fixture_path(path)?;
+                    cx.simulate_path_prompt_response(move |options| {
+                        assert!(options.files);
+                        assert!(!options.directories);
+                        assert!(!options.multiple);
+                        Some(vec![selected])
+                    });
+                    cx.run_until_parked();
+                    for selector in [
+                        BODY_FORM_FILE_NAME_SELECTORS[index],
+                        BODY_FORM_FILE_METADATA_SELECTORS[index],
+                    ] {
+                        if cx.debug_bounds(selector).is_none() {
+                            return Err(format!(
+                                "multipart File row {index} did not render selected metadata `{selector}`"
+                            ));
+                        }
+                    }
+                }
+            }
+            if !part.enabled() {
+                click(cx, BODY_FORM_TOGGLE_SELECTORS[index])?;
+            }
+        }
+        return Ok(());
+    }
+
     for (index, row) in draft.body_rows.iter().enumerate() {
         if index > 0 {
             scroll_down(cx, "body-form-scroll", 52.0)?;

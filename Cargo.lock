@@ -4198,6 +4198,7 @@ dependencies = [
  "form_urlencoded",
  "gpui",
  "gpui_platform",
+ "mime_guess",
  "mockito",
  "reqwest",
  "serde",

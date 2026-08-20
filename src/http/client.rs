@@ -154,6 +154,8 @@ mod tests {
                     "(?s)name=\"note\".*hello multipart.*name=\"category\".*gpui.*name=\"attachment\""
                         .to_string(),
                 ),
+                Matcher::Regex("filename=\"fixture.txt\"".to_string()),
+                Matcher::Regex("(?i)content-type: text/plain".to_string()),
                 Matcher::Regex("file payload".to_string()),
             ]))
             .with_status(200)

@@ -100,13 +100,6 @@ impl FormDataEntry {
             enabled,
         }
     }
-
-    fn display_value(&self) -> String {
-        self.file
-            .as_ref()
-            .map(|file| file.path.display().to_string())
-            .unwrap_or_else(|| self.value.clone())
-    }
 }
 
 /// Thin compatibility surface for callers that switch between JSON/raw and form body modes.

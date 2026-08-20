@@ -1348,6 +1348,17 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/httpbingo-upload.txt");
     assert!(fixture_path.is_file(), "upload fixture should exist");
+    let expected_body = RequestBody::Multipart(vec![
+        MultipartPart::text("note", "hello multipart"),
+        MultipartPart {
+            name: "upload".to_string(),
+            value: MultipartValue::File {
+                path: fixture_path.clone(),
+                file_name: Some("httpbingo-upload.txt".to_string()),
+                content_type: Some("text/plain".to_string()),
+            },
+        },
+    ]);
     let mut server = mockito::Server::new();
     let upload = server
         .mock("POST", "/upload")
@@ -1356,7 +1367,11 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
             Matcher::Regex("^multipart/form-data; boundary=".to_string()),
         )
         .match_body(Matcher::AllOf(vec![
-            Matcher::Regex("name=\\\"upload\\\"".to_string()),
+            Matcher::Regex(
+                "(?s)name=\\\"note\\\".*hello multipart.*name=\\\"upload\\\"; filename=\\\"httpbingo-upload.txt\\\""
+                    .to_string(),
+            ),
+            Matcher::Regex("(?i)content-type: text/plain".to_string()),
             Matcher::Regex("hello from postman-gpui fixture".to_string()),
         ]))
         .with_status(201)
@@ -1370,10 +1385,14 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-form-data").unwrap();
-    type_into(cx, "body-form-key-0", "upload").unwrap();
-    cx.simulate_keystrokes("enter");
-    click(cx, "body-form-type-0").unwrap();
-    click(cx, "body-form-file-0").unwrap();
+    type_into(cx, "body-form-key-0", "note").unwrap();
+    type_into(cx, "body-form-value-0", "hello multipart").unwrap();
+    click(cx, "body-form-add-row").unwrap();
+    assert!(cx.debug_bounds("body-form-row-1").is_some());
+    assert!(cx.debug_bounds("body-form-row-2").is_none());
+    type_into(cx, "body-form-key-1", "upload").unwrap();
+    click(cx, "body-form-type-1").unwrap();
+    click(cx, "body-form-file-1").unwrap();
     assert!(cx.did_prompt_for_paths());
 
     let selected = fixture_path.clone();
@@ -1388,16 +1407,31 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     });
     cx.run_until_parked();
 
+    for selector in [
+        "body-form-file-1",
+        "body-form-file-name-1",
+        "body-form-file-metadata-1",
+        "body-multipart-effective-parts",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "selected File row should render `{selector}`"
+        );
+    }
     let body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
-    let RequestBody::Multipart(parts) = body else {
-        panic!("form-data editor should produce a typed multipart body");
-    };
-    assert_eq!(parts.len(), 1);
-    assert_eq!(parts[0].name, "upload");
-    assert!(matches!(
-        &parts[0].value,
-        MultipartValue::File { path, .. } if path == &fixture_path
-    ));
+    assert_eq!(body, expected_body);
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+            panic!("form-data editor should retain a typed multipart draft");
+        };
+        assert!(matches!(
+            &parts[1].value,
+            MultipartDraftValue::File { path, file_name, content_type }
+                if path == &fixture_path
+                    && file_name.as_deref() == Some("httpbingo-upload.txt")
+                    && content_type.as_deref() == Some("text/plain")
+        ));
+    });
 
     type_into(cx, "url-input", &format!("{}/upload", server.url())).unwrap();
     click(cx, "send-button").unwrap();
@@ -1407,10 +1441,19 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
         workspace.read_with(cx, |workspace, _| workspace.response().clone()),
         ResponseState::Success { status: 201, .. }
     ));
-    assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.history_len()),
-        1
-    );
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(workspace.history()[0].request.body, expected_body);
+        assert!(workspace.history()[0]
+            .request
+            .headers
+            .iter()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("content-type")));
+    });
+    assert!(cx.debug_bounds("response-container").is_some());
+    assert!(cx.debug_bounds("response-content").is_some());
+    assert!(cx.debug_bounds("body-form-file-name-1").is_some());
+    assert!(cx.debug_bounds("body-form-file-metadata-1").is_some());
     upload.assert();
 }
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "target": "httpbingo",
   "cases": [
     {
@@ -32,6 +32,68 @@
             "form": {
               "note": ["hello multipart"],
               "category": ["gpui"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo uploads a repository file through the rendered multipart picker",
+      "draft": {
+        "method": "POST",
+        "path": "/post",
+        "body": null,
+        "body_kind": "multipart",
+        "precreate_body_rows": 2,
+        "multipart_parts": [
+          {
+            "kind": "text",
+            "name": "note",
+            "value": "hello multipart"
+          },
+          {
+            "kind": "file",
+            "name": "upload",
+            "path": "tests/fixtures/httpbingo-upload.txt",
+            "file_name": "httpbingo-upload.txt",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/post",
+          "headers": [["Accept", "application/json"]],
+          "body": null,
+          "body_kind": "multipart",
+          "multipart_parts": [
+            {
+              "kind": "text",
+              "name": "note",
+              "value": "hello multipart"
+            },
+            {
+              "kind": "file",
+              "name": "upload",
+              "path": "tests/fixtures/httpbingo-upload.txt",
+              "file_name": "httpbingo-upload.txt",
+              "content_type": "text/plain"
+            }
+          ]
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "url": "https://httpbingo.org/post",
+            "form": {
+              "note": ["hello multipart"]
+            },
+            "files": {
+              "upload": ["hello from postman-gpui fixture\n"]
             }
           }
         },

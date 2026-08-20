@@ -5,17 +5,17 @@ use postman_gpui::{
         WorkspaceViewModel,
     },
     http::executor::RequestExecutor,
-    models::{HttpMethod, MultipartPart, Request, RequestBody},
+    models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody},
 };
 use serde::Deserialize;
 use serde_json::Value;
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     str::FromStr,
 };
 
-const SCENARIO_SCHEMA_VERSION: u32 = 4;
+const SCENARIO_SCHEMA_VERSION: u32 = 5;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -67,6 +67,8 @@ pub struct DraftSpec {
     #[serde(default)]
     pub body_rows: Vec<KeyValueSpec>,
     #[serde(default)]
+    pub multipart_parts: Vec<MultipartPartSpec>,
+    #[serde(default)]
     pub precreate_body_rows: usize,
     pub bearer_token: Option<String>,
     pub basic_auth: Option<BasicAuthSpec>,
@@ -86,6 +88,84 @@ pub struct KeyValueSpec {
     pub value: String,
     #[serde(default = "enabled_by_default")]
     pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum MultipartPartSpec {
+    Text {
+        name: String,
+        value: String,
+        #[serde(default = "enabled_by_default")]
+        enabled: bool,
+    },
+    File {
+        name: String,
+        path: PathBuf,
+        #[serde(default)]
+        file_name: Option<String>,
+        #[serde(default)]
+        content_type: Option<String>,
+        #[serde(default = "enabled_by_default")]
+        enabled: bool,
+    },
+}
+
+impl MultipartPartSpec {
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Text { name, .. } | Self::File { name, .. } => name,
+        }
+    }
+
+    pub fn enabled(&self) -> bool {
+        match self {
+            Self::Text { enabled, .. } | Self::File { enabled, .. } => *enabled,
+        }
+    }
+
+    fn to_draft_part(&self) -> Result<MultipartDraftPart, String> {
+        Ok(match self {
+            Self::Text {
+                name,
+                value,
+                enabled,
+            } => MultipartDraftPart::text(name, value, *enabled),
+            Self::File {
+                name,
+                path,
+                file_name,
+                content_type,
+                enabled,
+            } => MultipartDraftPart::file(
+                name,
+                resolve_scenario_fixture_path(path)?,
+                file_name.clone(),
+                content_type.clone(),
+                *enabled,
+            ),
+        })
+    }
+
+    fn to_request_part(&self) -> Result<MultipartPart, String> {
+        Ok(match self {
+            Self::Text { name, value, .. } => MultipartPart::text(name, value),
+            Self::File {
+                name,
+                path,
+                file_name,
+                content_type,
+                ..
+            } => MultipartPart {
+                name: name.clone(),
+                value: MultipartValue::File {
+                    path: resolve_scenario_fixture_path(path)?,
+                    file_name: file_name.clone(),
+                    content_type: content_type.clone(),
+                },
+            },
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +196,8 @@ pub struct RequestSpec {
     pub body: Option<String>,
     #[serde(default)]
     pub body_kind: Option<String>,
+    #[serde(default)]
+    pub multipart_parts: Vec<MultipartPartSpec>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -148,7 +230,10 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
 }
 
 pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
-    if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
+    if draft.body_rows.is_empty()
+        && draft.multipart_parts.is_empty()
+        && draft.precreate_body_rows == 0
+    {
         return Ok(());
     }
     let body_kind = draft.body_kind.as_deref().unwrap_or_default();
@@ -157,12 +242,45 @@ pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
     {
         return Err("`body_rows` and `precreate_body_rows` require a form body kind".to_string());
     }
+    if !draft.multipart_parts.is_empty() {
+        if !body_kind.eq_ignore_ascii_case("multipart") {
+            return Err("`multipart_parts` requires `body_kind: multipart`".to_string());
+        }
+        if !draft.body_rows.is_empty() {
+            return Err(
+                "a multipart scenario cannot mix `body_rows` and `multipart_parts`".to_string(),
+            );
+        }
+        if draft.body.is_some() {
+            return Err(
+                "a typed `multipart_parts` scenario must not duplicate its payload in `body`"
+                    .to_string(),
+            );
+        }
+        if draft.precreate_body_rows > 0 && draft.multipart_parts.len() > draft.precreate_body_rows
+        {
+            return Err(format!(
+                "scenario defines {} multipart parts but precreates only {} rows",
+                draft.multipart_parts.len(),
+                draft.precreate_body_rows
+            ));
+        }
+        for part in &draft.multipart_parts {
+            if part.name().trim().is_empty() {
+                return Err("a typed multipart part must declare a nonblank `name`".to_string());
+            }
+            if let MultipartPartSpec::File { path, .. } = part {
+                resolve_scenario_fixture_path(path)?;
+            }
+        }
+        return Ok(());
+    }
     if draft.body.is_none() {
         return Err("a form-row scenario must declare its effective `body`".to_string());
     }
     if draft.precreate_body_rows > 0 && draft.body_rows.len() > draft.precreate_body_rows {
         return Err(format!(
-            "scenario defines {} URL-encoded rows but precreates only {}",
+            "scenario defines {} form rows but precreates only {}",
             draft.body_rows.len(),
             draft.precreate_body_rows
         ));
@@ -184,6 +302,49 @@ pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+pub fn resolve_scenario_fixture_path(path: &Path) -> Result<PathBuf, String> {
+    if path.as_os_str().is_empty() || path.is_absolute() {
+        return Err(format!(
+            "scenario fixture path must be a nonempty repository-relative path: {}",
+            path.display()
+        ));
+    }
+    if path.components().any(|component| {
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    }) {
+        return Err(format!(
+            "scenario fixture path traversal is not allowed: {}",
+            path.display()
+        ));
+    }
+
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .canonicalize()
+        .map_err(|error| format!("failed to resolve repository root: {error}"))?;
+    let resolved = repository.join(path).canonicalize().map_err(|error| {
+        format!(
+            "failed to resolve scenario fixture {}: {error}",
+            path.display()
+        )
+    })?;
+    if !resolved.starts_with(&repository) {
+        return Err(format!(
+            "scenario fixture resolves outside the repository: {}",
+            path.display()
+        ));
+    }
+    if !resolved.is_file() {
+        return Err(format!(
+            "scenario fixture is not a file: {}",
+            path.display()
+        ));
+    }
+    Ok(resolved)
 }
 
 pub fn load_suites(root: &Path) -> Result<Vec<ScenarioFile>, String> {
@@ -409,8 +570,15 @@ fn apply_draft(
     if let Some(body_kind) = &draft.body_kind {
         workspace.set_body_kind(parse_body_kind(body_kind)?);
     }
-    if !draft.body_rows.is_empty() || draft.precreate_body_rows > 0 {
-        let row_count = draft.precreate_body_rows.max(draft.body_rows.len()).max(1);
+    if !draft.body_rows.is_empty()
+        || !draft.multipart_parts.is_empty()
+        || draft.precreate_body_rows > 0
+    {
+        let row_count = draft
+            .precreate_body_rows
+            .max(draft.body_rows.len())
+            .max(draft.multipart_parts.len())
+            .max(1);
         match draft
             .body_kind
             .as_deref()
@@ -433,11 +601,19 @@ fn apply_draft(
                 workspace.set_url_encoded_rows(rows);
             }
             Some(BodyKind::Multipart) => {
-                let mut parts = draft
-                    .body_rows
-                    .iter()
-                    .map(|row| MultipartDraftPart::text(&row.key, &row.value, row.enabled))
-                    .collect::<Vec<_>>();
+                let mut parts = if draft.multipart_parts.is_empty() {
+                    draft
+                        .body_rows
+                        .iter()
+                        .map(|row| MultipartDraftPart::text(&row.key, &row.value, row.enabled))
+                        .collect::<Vec<_>>()
+                } else {
+                    draft
+                        .multipart_parts
+                        .iter()
+                        .map(MultipartPartSpec::to_draft_part)
+                        .collect::<Result<Vec<_>, _>>()?
+                };
                 parts.resize_with(row_count, || MultipartDraftPart::text("", "", true));
                 workspace.set_multipart_draft_parts(parts);
             }
@@ -507,6 +683,28 @@ pub fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<
 }
 
 fn expected_body(spec: &RequestSpec) -> Result<RequestBody, String> {
+    if !spec.multipart_parts.is_empty() {
+        if !spec
+            .body_kind
+            .as_deref()
+            .is_some_and(|kind| kind.eq_ignore_ascii_case("multipart"))
+        {
+            return Err("expected `multipart_parts` requires `body_kind: multipart`".to_string());
+        }
+        if spec.body.is_some() {
+            return Err(
+                "expected typed `multipart_parts` must not duplicate its payload in `body`"
+                    .to_string(),
+            );
+        }
+        return Ok(RequestBody::Multipart(
+            spec.multipart_parts
+                .iter()
+                .filter(|part| part.enabled() && !part.name().trim().is_empty())
+                .map(MultipartPartSpec::to_request_part)
+                .collect::<Result<Vec<_>, _>>()?,
+        ));
+    }
     if let Some(body_kind) = spec.body_kind.as_deref() {
         let body_kind = parse_body_kind(body_kind)?;
         let body = spec.body.as_deref().unwrap_or_default();
