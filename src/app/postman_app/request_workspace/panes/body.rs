@@ -4,7 +4,7 @@ use crate::{
         MultipartDraftValue, RequestBodyDraft, WorkspaceViewModel,
     },
     ui::{
-        components::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
+        components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
         theme::{
             ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
             LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,

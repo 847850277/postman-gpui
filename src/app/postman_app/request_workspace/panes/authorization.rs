@@ -1,7 +1,7 @@
 use crate::{
     app::{AuthorizationKind, WorkspaceViewModel},
     ui::{
-        components::header_input::{HeaderInput, HeaderInputEvent},
+        components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
             ACCENT, ACCENT_DARK, ACCENT_SOFT, CODE_PANEL, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
             LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,

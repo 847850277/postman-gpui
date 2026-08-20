@@ -8,7 +8,7 @@ use super::{
 use crate::{
     app::{BodyKind, PendingRequest, RequestPane, SendId, WorkspaceViewModel},
     ui::{
-        components::{
+        components::input::{
             body_input::setup_body_input_key_bindings,
             header_input::setup_header_input_key_bindings,
             method_selector::{MethodSelector, MethodSelectorEvent},

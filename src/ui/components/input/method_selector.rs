@@ -39,7 +39,7 @@ impl MethodSelector {
         }
     }
 
-    /// Projects the ViewModel method into the dropdown without emitting a user event.
+    /// Projects a method into the dropdown without emitting a user event.
     pub fn project_method(&mut self, method: HttpMethod, cx: &mut Context<Self>) {
         self.dropdown.update(cx, |dropdown, cx| {
             dropdown.project_selected(method.to_string(), cx);

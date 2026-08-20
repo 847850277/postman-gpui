@@ -1611,7 +1611,7 @@ impl Render for FormBodyInput {
 #[cfg(test)]
 mod tests {
     use super::FormBodyInput;
-    use crate::ui::components::body_input::FormDataEntry;
+    use crate::ui::components::input::body_input::FormDataEntry;
     use gpui::{AppContext, TestAppContext};
     use std::path::PathBuf;
 

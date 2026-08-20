@@ -1,7 +1,7 @@
 use crate::{
     app::WorkspaceViewModel,
     ui::{
-        components::body_input::{BodyInput, BodyInputEvent, BodyType},
+        components::input::body_input::{BodyInput, BodyInputEvent, BodyType},
         theme::{CODE_BG, CODE_TEXT, FONT_UI, MUTED},
     },
 };
