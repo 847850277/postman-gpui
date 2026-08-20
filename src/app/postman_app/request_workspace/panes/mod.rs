@@ -1,0 +1,11 @@
+mod authorization;
+mod body;
+mod key_value;
+mod script;
+
+pub(in crate::app::postman_app::request_workspace) use authorization::AuthorizationPane;
+pub(in crate::app::postman_app::request_workspace) use body::BodyPane;
+pub(in crate::app::postman_app::request_workspace) use key_value::{
+    KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
+};
+pub(in crate::app::postman_app::request_workspace) use script::{ScriptPane, ScriptPaneKind};
