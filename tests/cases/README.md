@@ -151,7 +151,7 @@ Every JSON document contains a schema version and a list of cases:
 
 ```json
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "target": "local",
   "cases": []
 }
@@ -176,7 +176,12 @@ Each case has four responsibilities:
 - `body`: request body text or `null`;
 - `body_kind`: `none`, `json`, `raw`, `url_encoded`, `multipart`, or `null`;
 - `body_rows`: ordered text-form rows with `key`, `value`, and optional
-  `enabled`; supported by URL-encoded and multipart drafts;
+  `enabled`; supported by URL-encoded and text-only multipart drafts;
+- `multipart_parts`: ordered, explicitly typed multipart rows. A Text part uses
+  `{"kind":"text","name":"...","value":"..."}`; a File part uses
+  `{"kind":"file","name":"...","path":"tests/fixtures/...","file_name":"...","content_type":"..."}`.
+  File paths are repository-relative, must resolve to a file inside the
+  repository, and reject `..`, absolute paths, and symlink escapes;
 - `precreate_body_rows`: total rendered form rows to create before typing,
   including intentionally blank draft rows;
 - `bearer_token`: token text, with or without the `Bearer` prefix;
@@ -204,6 +209,9 @@ comparison uses the completed request recorded by the running application's
 shared history, in addition to assertions against HTTPBingo's echoed response.
 `expect.request.body_kind` is optional; use `multipart` when its URL-encoded
 `body` notation represents ordered typed text parts rather than raw wire bytes.
+Multipart requests containing files instead declare `multipart_parts` in both
+`draft` and `expect.request`, leaving `body` as `null`; this keeps file paths and
+metadata typed instead of encoding them as an `@path` text convention.
 The multipart boundary remains transport-generated and is never stored in the
 scenario's logical Request or History expectation.
 

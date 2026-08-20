@@ -887,15 +887,18 @@ fn multipart_parts_preview(parts: &[MultipartPart]) -> String {
         .map(|part| match &part.value {
             MultipartValue::Text(value) => format!("Text({} = {value})", part.name),
             MultipartValue::File {
-                path, file_name, ..
-            } => format!(
-                "File({} = {})",
-                part.name,
-                file_name
-                    .as_deref()
-                    .map(str::to_string)
-                    .unwrap_or_else(|| path.display().to_string())
-            ),
+                path,
+                file_name,
+                content_type,
+            } => {
+                let display_name = file_name.clone().unwrap_or_else(|| {
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| "selected file".to_string())
+                });
+                let content_type = content_type.as_deref().unwrap_or("content type: automatic");
+                format!("File({} = {display_name}; {content_type})", part.name)
+            }
         })
         .collect::<Vec<_>>()
         .join("  ·  ")
@@ -1027,7 +1030,8 @@ fn body_effective_header_selector(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::multipart_parts_preview;
-    use crate::models::MultipartPart;
+    use crate::models::{MultipartPart, MultipartValue};
+    use std::path::PathBuf;
 
     #[test]
     fn multipart_preview_preserves_typed_text_part_order() {
@@ -1037,6 +1041,24 @@ mod tests {
                 MultipartPart::text("category", "gpui"),
             ]),
             "Text(note = hello multipart)  ·  Text(category = gpui)"
+        );
+    }
+
+    #[test]
+    fn multipart_preview_renders_file_name_and_content_type_without_an_absolute_path() {
+        assert_eq!(
+            multipart_parts_preview(&[
+                MultipartPart::text("note", "hello multipart"),
+                MultipartPart {
+                    name: "upload".to_string(),
+                    value: MultipartValue::File {
+                        path: PathBuf::from("/private/repository/tests/fixtures/upload.txt"),
+                        file_name: Some("httpbingo-upload.txt".to_string()),
+                        content_type: Some("text/plain".to_string()),
+                    },
+                },
+            ]),
+            "Text(note = hello multipart)  ·  File(upload = httpbingo-upload.txt; text/plain)"
         );
     }
 }

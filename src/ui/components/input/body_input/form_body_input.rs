@@ -221,12 +221,13 @@ impl FormBodyInput {
             };
             let _ = this.update(cx, |this, cx| {
                 if let Some(entry) = this.form_data_entries.get_mut(index) {
+                    let content_type = mime_guess::from_path(&path).first_raw().map(str::to_string);
                     entry.file = Some(FormDataFile {
                         file_name: path
                             .file_name()
                             .map(|name| name.to_string_lossy().into_owned()),
                         path,
-                        content_type: None,
+                        content_type,
                     });
                     this.emit_form_data_changed(cx);
                     cx.notify();
@@ -1210,8 +1211,27 @@ impl Render for FormBodyInput {
                             .children(form_data_entries.iter().enumerate().map(
                                 |(index, entry)| {
                                     let entry_key = entry.key.clone();
-                                    let entry_value = entry.display_value();
+                                    let entry_value = entry.value.clone();
                                     let entry_is_file = entry.file.is_some();
+                                    let entry_file_name = entry.file.as_ref().and_then(|file| {
+                                        if file.path.as_os_str().is_empty() {
+                                            None
+                                        } else {
+                                            file.file_name.clone().or_else(|| {
+                                                file.path.file_name().map(|name| {
+                                                    name.to_string_lossy().into_owned()
+                                                })
+                                            })
+                                        }
+                                    });
+                                    let entry_file_content_type =
+                                        entry.file.as_ref().and_then(|file| {
+                                            (!file.path.as_os_str().is_empty()).then(|| {
+                                                file.content_type.clone().unwrap_or_else(|| {
+                                                    "content type: automatic".to_string()
+                                                })
+                                            })
+                                        });
                                     let entry_enabled = entry.enabled;
 
                                     div()
@@ -1465,20 +1485,49 @@ impl Render for FormBodyInput {
                                                         )
                                                     },
                                                 )
-                                                .when(entry_is_file, |div| {
-                                                    div.debug_selector(move || {
+                                                .when(entry_is_file, |file_cell| {
+                                                    file_cell
+                                                    .debug_selector(move || {
                                                         format!("body-form-file-{index}")
                                                     })
-                                                    .text_color(rgb(if entry_value.is_empty() {
+                                                    .flex()
+                                                    .flex_col()
+                                                    .justify_center()
+                                                    .text_color(rgb(if entry_file_name.is_none() {
                                                         0x006c_757d
                                                     } else {
                                                         0x0021_2529
                                                     }))
-                                                    .child(if entry_value.is_empty() {
-                                                        "Choose file…".to_string()
-                                                    } else {
-                                                        entry_value.clone()
-                                                    })
+                                                    .child(
+                                                        div()
+                                                            .debug_selector(move || {
+                                                                format!(
+                                                                    "body-form-file-name-{index}"
+                                                                )
+                                                            })
+                                                            .child(
+                                                                entry_file_name.clone().unwrap_or_else(
+                                                                    || "Choose file…".to_string(),
+                                                                ),
+                                                            ),
+                                                    )
+                                                    .when_some(
+                                                        entry_file_content_type.clone(),
+                                                        |file, content_type| {
+                                                            file.child(
+                                                                div()
+                                                                    .debug_selector(move || {
+                                                                        format!(
+                                                                            "body-form-file-metadata-{index}"
+                                                                        )
+                                                                    })
+                                                                    .font_family("Helvetica Neue")
+                                                                    .text_size(px(8.0))
+                                                                    .text_color(rgb(SUBTEXT))
+                                                                    .child(content_type),
+                                                            )
+                                                        },
+                                                    )
                                                     .on_mouse_up(
                                                         gpui::MouseButton::Left,
                                                         cx.listener(move |this, _, window, cx| {

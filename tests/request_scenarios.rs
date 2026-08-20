@@ -3,10 +3,10 @@
 mod common;
 
 use common::scenario::{
-    expected_request, load_suite, load_suites, run_scenario, validate_body_row_contract,
-    ScenarioFile, ScenarioTarget,
+    expected_request, load_suite, load_suites, resolve_scenario_fixture_path, run_scenario,
+    validate_body_row_contract, ScenarioFile, ScenarioTarget,
 };
-use postman_gpui::models::{MultipartPart, RequestBody};
+use postman_gpui::models::{MultipartPart, MultipartValue, RequestBody};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -48,7 +48,7 @@ fn request_scenarios_are_valid_and_unique() {
 fn request_scenarios_reject_unknown_contract_fields() {
     let invalid = r#"
     {
-      "schema_version": 4,
+      "schema_version": 5,
       "target": "local",
       "cases": [{
         "name": "a typo must not weaken the contract",
@@ -102,6 +102,51 @@ fn multipart_text_scenario_builds_a_typed_request_contract() {
         .headers
         .iter()
         .all(|(name, _)| !name.eq_ignore_ascii_case("content-type")));
+}
+
+#[test]
+fn multipart_file_scenario_builds_typed_metadata_and_rejects_path_traversal() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| {
+            scenario.name
+                == "HTTPBingo uploads a repository file through the rendered multipart picker"
+        })
+        .expect("Issue #92 multipart file scenario should exist");
+
+    validate_body_row_contract(&scenario.draft)
+        .expect("Issue #92 typed multipart parts should be valid");
+    assert_eq!(scenario.draft.precreate_body_rows, 2);
+    assert_eq!(scenario.draft.multipart_parts.len(), 2);
+    let fixture = resolve_scenario_fixture_path(Path::new("tests/fixtures/httpbingo-upload.txt"))
+        .expect("Issue #92 fixture should resolve inside the repository");
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #92 expected request should be valid");
+    assert_eq!(
+        expected.body,
+        RequestBody::Multipart(vec![
+            MultipartPart::text("note", "hello multipart"),
+            MultipartPart {
+                name: "upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture,
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+        ])
+    );
+    assert!(expected
+        .headers
+        .iter()
+        .all(|(name, _)| !name.eq_ignore_ascii_case("content-type")));
+
+    let traversal = resolve_scenario_fixture_path(Path::new("../Cargo.toml"))
+        .expect_err("scenario fixture paths must reject parent-directory traversal");
+    assert!(traversal.contains("path traversal"));
 }
 
 #[test]
