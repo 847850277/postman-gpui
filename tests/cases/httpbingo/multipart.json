@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives ordered multipart text rows from the active editor",
+      "draft": {
+        "method": "POST",
+        "path": "/post",
+        "body": "note=hello+multipart&category=gpui",
+        "body_kind": "multipart",
+        "precreate_body_rows": 3,
+        "body_rows": [
+          { "key": "note", "value": "hello multipart" },
+          { "key": "category", "value": "gpui" }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/post",
+          "headers": [["Accept", "application/json"]],
+          "body": "note=hello+multipart&category=gpui",
+          "body_kind": "multipart"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "url": "https://httpbingo.org/post",
+            "form": {
+              "note": ["hello multipart"],
+              "category": ["gpui"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

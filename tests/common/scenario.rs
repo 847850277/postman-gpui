@@ -1,8 +1,11 @@
 use mockito::{Matcher, Mock, Server};
 use postman_gpui::{
-    app::{AuthorizationKind, BodyKind, RequestPane, ResponseState, WorkspaceViewModel},
+    app::{
+        AuthorizationKind, BodyKind, MultipartDraftPart, RequestPane, ResponseState,
+        WorkspaceViewModel,
+    },
     http::executor::RequestExecutor,
-    models::{HttpMethod, Request, RequestBody},
+    models::{HttpMethod, MultipartPart, Request, RequestBody},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -12,7 +15,7 @@ use std::{
     str::FromStr,
 };
 
-const SCENARIO_SCHEMA_VERSION: u32 = 3;
+const SCENARIO_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -111,6 +114,8 @@ pub struct RequestSpec {
     #[serde(default)]
     pub headers: Vec<(String, String)>,
     pub body: Option<String>,
+    #[serde(default)]
+    pub body_kind: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -146,23 +151,36 @@ pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
     if draft.body_rows.is_empty() && draft.precreate_body_rows == 0 {
         return Ok(());
     }
-    if !draft
-        .body_kind
-        .as_deref()
-        .is_some_and(|kind| kind.eq_ignore_ascii_case("url_encoded"))
+    let body_kind = draft.body_kind.as_deref().unwrap_or_default();
+    if !body_kind.eq_ignore_ascii_case("url_encoded")
+        && !body_kind.eq_ignore_ascii_case("multipart")
     {
-        return Err(
-            "`body_rows` and `precreate_body_rows` require `body_kind: url_encoded`".to_string(),
-        );
+        return Err("`body_rows` and `precreate_body_rows` require a form body kind".to_string());
     }
     if draft.body.is_none() {
-        return Err("a URL-encoded row scenario must declare its effective `body`".to_string());
+        return Err("a form-row scenario must declare its effective `body`".to_string());
     }
     if draft.precreate_body_rows > 0 && draft.body_rows.len() > draft.precreate_body_rows {
         return Err(format!(
             "scenario defines {} URL-encoded rows but precreates only {}",
             draft.body_rows.len(),
             draft.precreate_body_rows
+        ));
+    }
+
+    let mut serializer = form_urlencoded::Serializer::new(String::new());
+    for row in draft
+        .body_rows
+        .iter()
+        .filter(|row| row.enabled && !row.key.trim().is_empty())
+    {
+        serializer.append_pair(&row.key, &row.value);
+    }
+    let effective_body = serializer.finish();
+    if draft.body.as_deref() != Some(effective_body.as_str()) {
+        return Err(format!(
+            "form rows do not match the declared effective body\n  expected: {effective_body:?}\n  actual:   {:?}",
+            draft.body
         ));
     }
     Ok(())
@@ -391,6 +409,41 @@ fn apply_draft(
     if let Some(body_kind) = &draft.body_kind {
         workspace.set_body_kind(parse_body_kind(body_kind)?);
     }
+    if !draft.body_rows.is_empty() || draft.precreate_body_rows > 0 {
+        let row_count = draft.precreate_body_rows.max(draft.body_rows.len()).max(1);
+        match draft
+            .body_kind
+            .as_deref()
+            .map(parse_body_kind)
+            .transpose()?
+        {
+            Some(BodyKind::UrlEncoded) => {
+                let mut rows = draft
+                    .body_rows
+                    .iter()
+                    .map(|row| postman_gpui::app::KeyValueRow {
+                        enabled: row.enabled,
+                        key: row.key.clone(),
+                        value: row.value.clone(),
+                    })
+                    .collect::<Vec<_>>();
+                rows.resize_with(row_count, || {
+                    postman_gpui::app::KeyValueRow::enabled("", "")
+                });
+                workspace.set_url_encoded_rows(rows);
+            }
+            Some(BodyKind::Multipart) => {
+                let mut parts = draft
+                    .body_rows
+                    .iter()
+                    .map(|row| MultipartDraftPart::text(&row.key, &row.value, row.enabled))
+                    .collect::<Vec<_>>();
+                parts.resize_with(row_count, || MultipartDraftPart::text("", "", true));
+                workspace.set_multipart_draft_parts(parts);
+            }
+            _ => unreachable!("form row contract validates the body kind"),
+        }
+    }
     if let Some(token) = &draft.bearer_token {
         workspace.set_authorization_kind(AuthorizationKind::Bearer);
         workspace.set_bearer_token(token);
@@ -449,26 +502,47 @@ pub fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<
         method: parse_method(&spec.method)?,
         url: absolute_url(server_url, &spec.path)?,
         headers: spec.headers.clone(),
-        body: expected_body(spec),
+        body: expected_body(spec)?,
     })
 }
 
-fn expected_body(spec: &RequestSpec) -> RequestBody {
+fn expected_body(spec: &RequestSpec) -> Result<RequestBody, String> {
+    if let Some(body_kind) = spec.body_kind.as_deref() {
+        let body_kind = parse_body_kind(body_kind)?;
+        let body = spec.body.as_deref().unwrap_or_default();
+        return Ok(match body_kind {
+            BodyKind::None => {
+                if !body.is_empty() {
+                    return Err("a `none` expected body cannot contain a payload".to_string());
+                }
+                RequestBody::None
+            }
+            BodyKind::Json => RequestBody::Json(body.to_string()),
+            BodyKind::Raw => RequestBody::Raw(body.to_string()),
+            BodyKind::UrlEncoded => RequestBody::UrlEncoded(body.to_string()),
+            BodyKind::Multipart => RequestBody::Multipart(
+                form_urlencoded::parse(body.as_bytes())
+                    .map(|(name, value)| MultipartPart::text(name.into_owned(), value.into_owned()))
+                    .collect(),
+            ),
+        });
+    }
+
     let Some(body) = &spec.body else {
-        return RequestBody::None;
+        return Ok(RequestBody::None);
     };
     let content_type = spec
         .headers
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("content-type"))
         .map(|(_, value)| value.as_str());
-    match content_type {
+    Ok(match content_type {
         Some(value) if value.starts_with("application/json") => RequestBody::Json(body.clone()),
         Some(value) if value.starts_with("application/x-www-form-urlencoded") => {
             RequestBody::UrlEncoded(body.clone())
         }
         _ => RequestBody::Raw(body.clone()),
-    }
+    })
 }
 
 fn absolute_url(server_url: Option<&str>, path: &str) -> Result<String, String> {

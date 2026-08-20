@@ -9,8 +9,11 @@ mod ui;
 use gpui::{AppContext, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
-    app::{BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel},
-    models::{HttpMethod, MultipartValue, RequestBody},
+    app::{
+        BodyKind, KeyValueRow, MultipartDraftValue, PostmanApp, RequestBodyDraft, ResponseState,
+        WorkspaceViewModel,
+    },
+    models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
 };
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
@@ -1234,20 +1237,24 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
 }
 
 #[gpui::test]
-fn multipart_text_value_is_saved_before_the_active_cell_loses_focus(cx: &mut TestAppContext) {
+fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cell(
+    cx: &mut TestAppContext,
+) {
     let mut server = mockito::Server::new();
     let submitted = server
-        .mock("POST", "/form")
+        .mock("POST", "/post")
         .match_header(
             "content-type",
             Matcher::Regex("^multipart/form-data; boundary=".to_string()),
         )
         .match_body(Matcher::AllOf(vec![
-            Matcher::Regex("name=\\\"comments\\\"".to_string()),
-            Matcher::Regex("1234".to_string()),
+            Matcher::Regex("name=\\\"note\\\"".to_string()),
+            Matcher::Regex("hello multipart".to_string()),
+            Matcher::Regex("name=\\\"category\\\"".to_string()),
+            Matcher::Regex("gpui".to_string()),
         ]))
         .with_status(200)
-        .with_body(r#"{"saved":true}"#)
+        .with_body(r#"{"form":{"note":["hello multipart"],"category":["gpui"]}}"#)
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -1255,25 +1262,68 @@ fn multipart_text_value_is_saved_before_the_active_cell_loses_focus(cx: &mut Tes
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     choose_method(cx, "POST").unwrap();
-    type_into(cx, "url-input", &format!("{}/form", server.url())).unwrap();
+    type_into(cx, "url-input", &format!("{}/post", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-form-data").unwrap();
-    type_into(cx, "body-form-key-0", "comments").unwrap();
-    type_into(cx, "body-form-value-0", "1234").unwrap();
+    for expected_rows in [2, 3] {
+        click(cx, "body-form-add-row").unwrap();
+        let actual_rows = workspace.read_with(cx, |workspace, _| match workspace.body_draft() {
+            RequestBodyDraft::Multipart(parts) => parts.len(),
+            other => panic!("form-data must retain a multipart draft, got {other:?}"),
+        });
+        assert_eq!(
+            actual_rows, expected_rows,
+            "each Add form field click must append exactly one row"
+        );
+    }
+    type_into(cx, "body-form-key-0", "note").unwrap();
+    type_into(cx, "body-form-value-0", "hello multipart").unwrap();
+    type_into(cx, "body-form-key-1", "category").unwrap();
+    type_into(cx, "body-form-value-1", "gpui").unwrap();
+
+    for selector in [
+        "body-multipart-live-saved",
+        "body-multipart-row-count",
+        "body-multipart-editor",
+        "body-multipart-effective-request",
+        "body-multipart-effective-parts",
+        "body-multipart-part-count",
+        "body-multipart-boundary",
+        "body-multipart-ready-indicator",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "multipart contract element `{selector}` should be rendered"
+        );
+    }
 
     let body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
-    assert!(matches!(
-        body,
-        RequestBody::Multipart(parts)
-            if matches!(
-                parts.as_slice(),
-                [part]
-                    if part.name == "comments"
-                        && matches!(&part.value, MultipartValue::Text(value) if value == "1234")
-            )
-    ));
+    let expected_body = RequestBody::Multipart(vec![
+        MultipartPart::text("note", "hello multipart"),
+        MultipartPart::text("category", "gpui"),
+    ]);
+    assert_eq!(body, expected_body);
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+            panic!("form-data must retain a multipart draft");
+        };
+        assert_eq!(parts.len(), 3, "the extra blank draft row must be retained");
+        assert!(matches!(
+            &parts[1].value,
+            MultipartDraftValue::Text(value) if value == "gpui"
+        ));
+        assert!(parts[2].name.is_empty());
+        assert!(matches!(
+            &parts[2].value,
+            MultipartDraftValue::Text(value) if value.is_empty()
+        ));
+        assert!(workspace
+            .effective_headers()
+            .iter()
+            .all(|header| !header.name.eq_ignore_ascii_case("content-type")));
+    });
 
-    // This is the regression path: Send is clicked while the value cell is still active.
+    // `gpui` remains the active value. Send must not perform a last-minute control backfill.
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
@@ -1281,6 +1331,15 @@ fn multipart_text_value_is_saved_before_the_active_cell_loses_focus(cx: &mut Tes
         workspace.read_with(cx, |workspace, _| workspace.response().clone()),
         ResponseState::Success { status: 200, .. }
     ));
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let completed = &workspace.history()[0].request;
+        assert_eq!(completed.body, expected_body);
+        assert!(completed
+            .headers
+            .iter()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("content-type")));
+    });
     submitted.assert();
 }
 

@@ -2,7 +2,11 @@
 
 mod common;
 
-use common::scenario::{load_suite, load_suites, run_scenario, ScenarioFile, ScenarioTarget};
+use common::scenario::{
+    expected_request, load_suite, load_suites, run_scenario, validate_body_row_contract,
+    ScenarioFile, ScenarioTarget,
+};
+use postman_gpui::models::{MultipartPart, RequestBody};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -44,7 +48,7 @@ fn request_scenarios_are_valid_and_unique() {
 fn request_scenarios_reject_unknown_contract_fields() {
     let invalid = r#"
     {
-      "schema_version": 3,
+      "schema_version": 4,
       "target": "local",
       "cases": [{
         "name": "a typo must not weaken the contract",
@@ -67,6 +71,37 @@ fn request_scenarios_reject_unknown_contract_fields() {
         error.contains("body_contians"),
         "error should identify the unknown field, got: {error}"
     );
+}
+
+#[test]
+fn multipart_text_scenario_builds_a_typed_request_contract() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| {
+            scenario.name == "HTTPBingo receives ordered multipart text rows from the active editor"
+        })
+        .expect("Issue #91 multipart scenario should exist");
+
+    validate_body_row_contract(&scenario.draft)
+        .expect("Issue #91 form rows should match their effective body");
+    assert_eq!(scenario.draft.precreate_body_rows, 3);
+    assert_eq!(scenario.draft.body_rows.len(), 2);
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #91 expected request should be valid");
+    assert_eq!(
+        expected.body,
+        RequestBody::Multipart(vec![
+            MultipartPart::text("note", "hello multipart"),
+            MultipartPart::text("category", "gpui"),
+        ])
+    );
+    assert!(expected
+        .headers
+        .iter()
+        .all(|(name, _)| !name.eq_ignore_ascii_case("content-type")));
 }
 
 #[test]

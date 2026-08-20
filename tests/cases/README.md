@@ -151,7 +151,7 @@ Every JSON document contains a schema version and a list of cases:
 
 ```json
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "target": "local",
   "cases": []
 }
@@ -175,6 +175,10 @@ Each case has four responsibilities:
 - `headers`: request-header rows with `key`, `value`, and optional `enabled`;
 - `body`: request body text or `null`;
 - `body_kind`: `none`, `json`, `raw`, `url_encoded`, `multipart`, or `null`;
+- `body_rows`: ordered text-form rows with `key`, `value`, and optional
+  `enabled`; supported by URL-encoded and multipart drafts;
+- `precreate_body_rows`: total rendered form rows to create before typing,
+  including intentionally blank draft rows;
 - `bearer_token`: token text, with or without the `Bearer` prefix;
 - `basic_auth`: object containing `username` and `password` for HTTP Basic Auth.
 
@@ -198,6 +202,10 @@ logical `Request` and what the HTTP client actually delivers over the wire.
 method, URL path, header list, header ordering, and body. In HTTPBingo mode the
 comparison uses the completed request recorded by the running application's
 shared history, in addition to assertions against HTTPBingo's echoed response.
+`expect.request.body_kind` is optional; use `multipart` when its URL-encoded
+`body` notation represents ordered typed text parts rather than raw wire bytes.
+The multipart boundary remains transport-generated and is never stored in the
+scenario's logical Request or History expectation.
 
 A successful response supports:
 

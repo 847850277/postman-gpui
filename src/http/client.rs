@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn multipart_body_sends_text_and_file_parts() {
+    async fn multipart_body_sends_ordered_text_and_file_parts() {
         let mut server = Server::new_async().await;
         let fixture_path = std::env::temp_dir().join(format!(
             "postman-gpui-multipart-{}-{}.txt",
@@ -150,9 +150,10 @@ mod tests {
                 Matcher::Regex("^multipart/form-data; boundary=".to_string()),
             )
             .match_body(Matcher::AllOf(vec![
-                Matcher::Regex("name=\"note\"".to_string()),
-                Matcher::Regex("hello multipart".to_string()),
-                Matcher::Regex("name=\"attachment\"".to_string()),
+                Matcher::Regex(
+                    "(?s)name=\"note\".*hello multipart.*name=\"category\".*gpui.*name=\"attachment\""
+                        .to_string(),
+                ),
                 Matcher::Regex("file payload".to_string()),
             ]))
             .with_status(200)
@@ -163,6 +164,7 @@ mod tests {
         let mut request = Request::new(HttpMethod::POST, format!("{}/upload", server.url()));
         request.body = RequestBody::Multipart(vec![
             MultipartPart::text("note", "hello multipart"),
+            MultipartPart::text("category", "gpui"),
             MultipartPart {
                 name: "attachment".to_string(),
                 value: MultipartValue::File {

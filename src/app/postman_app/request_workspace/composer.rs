@@ -232,7 +232,12 @@ impl RequestComposer {
         let visible_rows = match request_pane {
             RequestPane::Params => self.view_model.read(cx).visible_param_row_count(),
             RequestPane::Headers => self.view_model.read(cx).visible_header_row_count(),
-            RequestPane::Body if self.view_model.read(cx).body_kind() == BodyKind::UrlEncoded => {
+            RequestPane::Body
+                if matches!(
+                    self.view_model.read(cx).body_kind(),
+                    BodyKind::UrlEncoded | BodyKind::Multipart
+                ) =>
+            {
                 let body_input = self.body_pane.read(cx).input_entity();
                 body_input.read(cx).form_data_entry_count()
             }
