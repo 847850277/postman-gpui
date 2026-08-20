@@ -1,4 +1,9 @@
-use crate::app::{KeyValueRow, RequestPane};
+use crate::{
+    app::{KeyValueRow, RequestPane},
+    ui::components::common::scrollbar::scrollbar_geometry,
+};
+
+pub(super) use crate::ui::components::common::scrollbar::ScrollbarGeometry as RowScrollbarGeometry;
 
 const REQUEST_PANEL_BASE_HEIGHT: f32 = 360.0;
 const PARAM_ROWS_AT_BASE_HEIGHT: usize = 2;
@@ -57,12 +62,6 @@ pub(super) fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usiz
     (PARAM_ROWS_AT_BASE_HEIGHT + additional_rows).min(max_visible_rows)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct RowScrollbarGeometry {
-    pub(super) thumb_top: f32,
-    pub(super) thumb_height: f32,
-}
-
 pub(super) fn row_scrollbar_geometry(
     visible_rows: usize,
     visible_capacity: usize,
@@ -73,17 +72,11 @@ pub(super) fn row_scrollbar_geometry(
         return None;
     }
 
-    let thumb_height = (visible_capacity as f32 / visible_rows as f32).clamp(0.18, 0.9);
-    let progress = if max_offset_y > 0.0 {
-        (-offset_y / max_offset_y).clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
-
-    Some(RowScrollbarGeometry {
-        thumb_top: progress * (1.0 - thumb_height),
-        thumb_height,
-    })
+    Some(scrollbar_geometry(
+        visible_capacity as f32 / visible_rows as f32,
+        offset_y,
+        max_offset_y,
+    ))
 }
 
 #[cfg(test)]
