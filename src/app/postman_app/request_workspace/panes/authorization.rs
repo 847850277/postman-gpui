@@ -1,8 +1,7 @@
-use super::super::RequestEditor;
 use crate::{
-    app::AuthorizationKind,
+    app::{AuthorizationKind, WorkspaceViewModel},
     ui::{
-        components::header_input::HeaderInput,
+        components::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
             ACCENT, ACCENT_DARK, ACCENT_SOFT, CODE_PANEL, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
             LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -10,15 +9,127 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
-    Styled,
+    div, px, rgb, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 
-impl RequestEditor {
-    pub(in crate::app::postman_app::request_editor) fn render_authorization_editor(
+/// Authorization controls own cursor, masking, and subscription state; credentials remain in the
+/// shared WorkspaceViewModel.
+pub(in crate::app::postman_app::request_workspace) struct AuthorizationPane {
+    view_model: Entity<WorkspaceViewModel>,
+    authorization_input: Entity<HeaderInput>,
+    basic_username_input: Entity<HeaderInput>,
+    basic_password_input: Entity<HeaderInput>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl AuthorizationPane {
+    pub(in crate::app::postman_app::request_workspace) fn new(
+        view_model: Entity<WorkspaceViewModel>,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let authorization_input =
+            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Token or Bearer token"));
+        let basic_username_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Username")
+                .with_embedded_chrome(true)
+        });
+        let basic_password_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Password")
+                .with_masked(true)
+                .with_embedded_chrome(true)
+        });
+        let subscriptions = vec![
+            cx.subscribe(&authorization_input, Self::on_authorization_event),
+            cx.subscribe(&basic_username_input, Self::on_basic_username_event),
+            cx.subscribe(&basic_password_input, Self::on_basic_password_event),
+        ];
+        let mut pane = Self {
+            view_model,
+            authorization_input,
+            basic_username_input,
+            basic_password_input,
+            _subscriptions: subscriptions,
+        };
+        pane.project_active_request(cx);
+        pane
+    }
+
+    fn update_view_model<R>(
         &self,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
+    ) -> R {
+        let result = self.view_model.update(cx, |view_model, cx| {
+            let result = update(view_model);
+            cx.notify();
+            result
+        });
+        cx.notify();
+        result
+    }
+
+    fn on_authorization_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(token) = event {
+            self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
+        }
+    }
+
+    fn on_basic_username_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(username) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_username(username));
+        }
+    }
+
+    fn on_basic_password_event(
+        &mut self,
+        _input: Entity<HeaderInput>,
+        event: &HeaderInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if let HeaderInputEvent::ValueChanged(password) = event {
+            self.update_view_model(cx, |view_model| view_model.set_basic_password(password));
+        }
+    }
+
+    fn set_authorization_kind(&mut self, kind: AuthorizationKind, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.set_authorization_kind(kind));
+    }
+
+    pub(in crate::app::postman_app::request_workspace) fn project_active_request(
+        &mut self,
+        cx: &mut Context<Self>,
+    ) {
+        let (bearer_token, basic_username, basic_password) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model.bearer_token().to_string(),
+                view_model.basic_username().to_string(),
+                view_model.basic_password().to_string(),
+            )
+        };
+        self.authorization_input
+            .update(cx, |input, cx| input.project_content(bearer_token, cx));
+        self.basic_username_input
+            .update(cx, |input, cx| input.project_content(basic_username, cx));
+        self.basic_password_input
+            .update(cx, |input, cx| input.project_content(basic_password, cx));
+        cx.notify();
+    }
+
+    fn render_authorization_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
         let (
             authorization_kind,
             normalized_token,
@@ -461,7 +572,7 @@ impl RequestEditor {
             .into_any_element()
     }
 
-    pub(in crate::app::postman_app::request_editor) fn render_authorization_kind_button(
+    fn render_authorization_kind_button(
         &self,
         kind: AuthorizationKind,
         label: &'static str,
@@ -492,7 +603,7 @@ impl RequestEditor {
             )
     }
 
-    pub(in crate::app::postman_app::request_editor) fn render_basic_auth_field(
+    fn render_basic_auth_field(
         &self,
         label: &'static str,
         field_selector: &'static str,
@@ -553,5 +664,11 @@ impl RequestEditor {
                             .child(if saved { "SAVED" } else { "EMPTY" }),
                     ),
             )
+    }
+}
+
+impl Render for AuthorizationPane {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_authorization_editor(cx)
     }
 }

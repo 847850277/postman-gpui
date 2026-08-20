@@ -5,11 +5,11 @@ mod ui;
 
 use gpui::{AppContext, TestAppContext};
 use postman_gpui::app::{
-    AuthorizationKind, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PostmanApp,
+    AuthorizationKind, BodyKind, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PostmanApp,
     RequestBodyDraft, RequestPane, ResponseState, WorkspaceViewModel,
 };
-use postman_gpui::models::{MultipartPart, MultipartValue, RequestBody};
-use ui::{click, replace_text, scroll_down, scroll_up, type_into};
+use postman_gpui::models::{HttpMethod, MultipartPart, MultipartValue, RequestBody};
+use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
 #[gpui::test]
 fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext) {
@@ -53,6 +53,189 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
         "https://second.example/orders"
     );
+}
+
+#[gpui::test]
+fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", "https://first.example/items").unwrap();
+    type_into(cx, "row-key-input", "first-param").unwrap();
+    type_into(cx, "row-value-input", "one").unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-First").unwrap();
+    type_into(cx, "row-value-input", "header-one").unwrap();
+    click(cx, "request-pane-authorization").unwrap();
+    type_into(cx, "authorization-input", "first-token").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", r#"{"tab":1}"#).unwrap();
+    click(cx, "request-pane-scripts").unwrap();
+    type_into(cx, "script-editor", "prepare-first()").unwrap();
+    click(cx, "request-pane-tests").unwrap();
+    type_into(cx, "tests-editor", "assert-first()").unwrap();
+
+    click(cx, "new-tab-button").unwrap();
+    choose_method(cx, "PATCH").unwrap();
+    type_into(cx, "url-input", "https://second.example/items").unwrap();
+    type_into(cx, "row-key-input", "second-param").unwrap();
+    type_into(cx, "row-value-input", "two").unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Second").unwrap();
+    type_into(cx, "row-value-input", "header-two").unwrap();
+    click(cx, "request-pane-authorization").unwrap();
+    click(cx, "auth-kind-basic").unwrap();
+    type_into(cx, "basic-auth-username-input", "second-user").unwrap();
+    type_into(cx, "basic-auth-password-input", "second-pass").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-raw").unwrap();
+    replace_text(cx, "body-input", "second-body").unwrap();
+    click(cx, "request-pane-scripts").unwrap();
+    type_into(cx, "script-editor", "prepare-second()").unwrap();
+    click(cx, "request-pane-tests").unwrap();
+    type_into(cx, "tests-editor", "assert-second()").unwrap();
+    click(cx, "request-pane-body").unwrap();
+
+    click(cx, "request-tab-0").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::POST);
+        assert_eq!(
+            workspace.url(),
+            "https://first.example/items?first-param=one"
+        );
+        assert_eq!(
+            workspace.row_draft(RequestPane::Params),
+            Some(("first-param", "one"))
+        );
+        assert_eq!(
+            workspace.row_draft(RequestPane::Headers),
+            Some(("X-First", "header-one"))
+        );
+        assert_eq!(workspace.authorization_kind(), AuthorizationKind::Bearer);
+        assert_eq!(workspace.bearer_token(), "first-token");
+        assert_eq!(workspace.body_kind(), BodyKind::Json);
+        assert_eq!(workspace.body(), r#"{"tab":1}"#);
+        assert_eq!(workspace.pre_request_script(), "prepare-first()");
+        assert_eq!(workspace.tests_script(), "assert-first()");
+        assert_eq!(workspace.request_pane(), RequestPane::Tests);
+    });
+
+    // Continue typing into each restored control. This checks the explicit pane projection path,
+    // not only the values already retained by WorkspaceViewModel.
+    click(cx, "tests-editor").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+    click(cx, "request-pane-scripts").unwrap();
+    click(cx, "script-editor").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-input").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input(" ");
+    click(cx, "request-pane-authorization").unwrap();
+    click(cx, "authorization-input").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+    click(cx, "request-pane-headers").unwrap();
+    click(cx, "row-value-input").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+    click(cx, "request-pane-params").unwrap();
+    click(cx, "row-value-input").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("-restored");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .row_draft(RequestPane::Params)
+            .map(|(key, value)| (key.to_string(), value.to_string()))),
+        Some(("first-param".to_string(), "one-restored".to_string()))
+    );
+    click(cx, "url-input").unwrap();
+    cx.simulate_keystrokes("end");
+    cx.simulate_input("#restored");
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(
+            workspace.url(),
+            "https://first.example/items?first-param=one-restored#restored"
+        );
+        assert_eq!(
+            workspace.row_draft(RequestPane::Headers),
+            Some(("X-First", "header-one-restored"))
+        );
+        assert_eq!(workspace.bearer_token(), "first-token-restored");
+        assert_eq!(workspace.body(), r#"{"tab":1} "#);
+        assert_eq!(workspace.pre_request_script(), "prepare-first()-restored");
+        assert_eq!(workspace.tests_script(), "assert-first()-restored");
+    });
+
+    click(cx, "request-tab-1").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::PATCH);
+        assert_eq!(
+            workspace.url(),
+            "https://second.example/items?second-param=two"
+        );
+        assert_eq!(
+            workspace.row_draft(RequestPane::Params),
+            Some(("second-param", "two"))
+        );
+        assert_eq!(
+            workspace.row_draft(RequestPane::Headers),
+            Some(("X-Second", "header-two"))
+        );
+        assert_eq!(workspace.authorization_kind(), AuthorizationKind::Basic);
+        assert_eq!(workspace.basic_username(), "second-user");
+        assert_eq!(workspace.basic_password(), "second-pass");
+        assert_eq!(workspace.body_kind(), BodyKind::Raw);
+        assert_eq!(workspace.body(), "second-body");
+        assert_eq!(workspace.pre_request_script(), "prepare-second()");
+        assert_eq!(workspace.tests_script(), "assert-second()");
+        assert_eq!(workspace.request_pane(), RequestPane::Body);
+    });
+}
+
+#[gpui::test]
+fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let completed = server
+        .mock("GET", "/workspace-flow")
+        .with_status(200)
+        .with_body("workspace-flow-ok")
+        .create();
+    let request_url = format!("{}/workspace-flow", server.url());
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &request_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        1
+    );
+    assert!(cx.debug_bounds("response-content").is_some());
+    assert!(cx.debug_bounds("history-item-0").is_some());
+
+    replace_text(cx, "url-input", "https://draft.example/changed").unwrap();
+    click(cx, "history-item-0").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        request_url
+    );
+    completed.assert();
 }
 
 #[gpui::test]

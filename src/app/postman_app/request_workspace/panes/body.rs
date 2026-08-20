@@ -1,21 +1,201 @@
-use super::super::RequestEditor;
 use crate::{
-    app::{BodyKind, EffectiveHeader, EffectiveHeaderSource},
-    ui::theme::{
-        ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE,
-        MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+    app::{
+        BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
+        MultipartDraftValue, RequestBodyDraft, WorkspaceViewModel,
+    },
+    ui::{
+        components::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
+        theme::{
+            ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
+            LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        },
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, StatefulInteractiveElement, Styled,
+    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FontWeight,
+    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
+    Subscription, Window,
 };
 
-impl RequestEditor {
-    pub(in crate::app::postman_app::request_editor) fn render_body_editor(
+/// BodyPane owns BodyInput's text/form editing state. Complete body drafts remain authoritative in
+/// the shared WorkspaceViewModel and are projected only on request or pane changes.
+pub(in crate::app::postman_app::request_workspace) struct BodyPane {
+    view_model: Entity<WorkspaceViewModel>,
+    body_input: Entity<BodyInput>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl BodyPane {
+    pub(in crate::app::postman_app::request_workspace) fn new(
+        view_model: Entity<WorkspaceViewModel>,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let body_input = cx.new(|cx| {
+            BodyInput::new(cx)
+                .with_placeholder("Enter request body (JSON, form data, etc.)")
+                .with_type_tabs(false)
+        });
+        let subscriptions = vec![cx.subscribe(&body_input, Self::on_body_event)];
+        let mut pane = Self {
+            view_model,
+            body_input,
+            _subscriptions: subscriptions,
+        };
+        pane.project_active_request(cx);
+        pane
+    }
+
+    fn update_view_model<R>(
         &self,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
+    ) -> R {
+        let result = self.view_model.update(cx, |view_model, cx| {
+            let result = update(view_model);
+            cx.notify();
+            result
+        });
+        cx.notify();
+        result
+    }
+
+    fn on_body_event(
+        &mut self,
+        _input: Entity<BodyInput>,
+        event: &BodyInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            BodyInputEvent::ValueChanged(value) => {
+                self.update_view_model(cx, |view_model| view_model.set_body(value));
+            }
+            BodyInputEvent::FormDataChanged(entries) => {
+                let entries = entries.clone();
+                self.update_view_model(cx, |view_model| match view_model.body_kind() {
+                    BodyKind::UrlEncoded => view_model.set_url_encoded_rows(
+                        entries
+                            .into_iter()
+                            .map(|entry| KeyValueRow {
+                                enabled: entry.enabled,
+                                key: entry.key,
+                                value: entry.value,
+                            })
+                            .collect(),
+                    ),
+                    BodyKind::Multipart => {
+                        let parts = entries
+                            .into_iter()
+                            .map(|entry| {
+                                let value = match entry.file {
+                                    Some(file) => MultipartDraftValue::File {
+                                        path: file.path,
+                                        file_name: file.file_name,
+                                        content_type: file.content_type,
+                                    },
+                                    None => MultipartDraftValue::Text(entry.value),
+                                };
+                                MultipartDraftPart {
+                                    enabled: entry.enabled,
+                                    name: entry.key,
+                                    value,
+                                }
+                            })
+                            .collect();
+                        view_model.set_multipart_draft_parts(parts);
+                    }
+                    BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
+                });
+            }
+        }
+    }
+
+    fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| {
+            let current = view_model.body_kind();
+            let current_is_form = matches!(current, BodyKind::UrlEncoded | BodyKind::Multipart);
+            let next_is_form = matches!(kind, BodyKind::UrlEncoded | BodyKind::Multipart);
+            if current != kind && current_is_form != next_is_form {
+                view_model.clear_body();
+            }
+            view_model.set_body_kind(kind);
+        });
+        self.project_active_request(cx);
+    }
+
+    fn use_sample_json(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| {
+            view_model.set_body_kind(BodyKind::Json);
+            view_model.set_body(
+                r#"{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "active": true
+}"#,
+            );
+        });
+        self.project_active_request(cx);
+    }
+
+    fn clear_body(&mut self, cx: &mut Context<Self>) {
+        self.update_view_model(cx, |view_model| view_model.clear_body());
+        self.project_active_request(cx);
+    }
+
+    pub(in crate::app::postman_app::request_workspace) fn input_entity(&self) -> Entity<BodyInput> {
+        self.body_input.clone()
+    }
+
+    pub(in crate::app::postman_app::request_workspace) fn project_active_request(
+        &mut self,
+        cx: &mut Context<Self>,
+    ) {
+        let (body_draft, body_kind) = {
+            let view_model = self.view_model.read(cx);
+            (view_model.body_draft().clone(), view_model.body_kind())
+        };
+        self.body_input.update(cx, |input, cx| {
+            input.set_type_silent(body_type_from_kind(body_kind), cx);
+            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
+            match body_draft {
+                RequestBodyDraft::None => input.project_content("", cx),
+                RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
+                    input.project_content(body, cx)
+                }
+                RequestBodyDraft::UrlEncoded(rows) => {
+                    let entries = rows
+                        .into_iter()
+                        .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
+                        .collect();
+                    input.project_form_data_entries(entries, cx);
+                }
+                RequestBodyDraft::Multipart(parts) => {
+                    let entries = parts
+                        .into_iter()
+                        .map(|part| match part.value {
+                            MultipartDraftValue::Text(value) => {
+                                FormDataEntry::text(part.name, value, part.enabled)
+                            }
+                            MultipartDraftValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } => FormDataEntry::file(
+                                part.name,
+                                path,
+                                file_name,
+                                content_type,
+                                part.enabled,
+                            ),
+                        })
+                        .collect();
+                    input.project_form_data_entries(entries, cx);
+                }
+            }
+        });
+        cx.notify();
+    }
+
+    fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
         let (kind, body, effective_headers) = {
             let view_model = self.view_model.read(cx);
             (
@@ -493,7 +673,7 @@ impl RequestEditor {
             .into_any_element()
     }
 
-    pub(in crate::app::postman_app::request_editor) fn body_kind_option(
+    fn body_kind_option(
         &self,
         label: &'static str,
         option: BodyKind,
@@ -537,6 +717,20 @@ impl RequestEditor {
             gpui::MouseButton::Left,
             cx.listener(move |this, _, _, cx| this.set_body_kind(option, cx)),
         )
+    }
+}
+
+impl Render for BodyPane {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_body_editor(cx)
+    }
+}
+
+fn body_type_from_kind(kind: BodyKind) -> BodyType {
+    match kind {
+        BodyKind::Json => BodyType::Json,
+        BodyKind::UrlEncoded | BodyKind::Multipart => BodyType::FormData,
+        BodyKind::None | BodyKind::Raw => BodyType::Raw,
     }
 }
 
