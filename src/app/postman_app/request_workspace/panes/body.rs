@@ -1,7 +1,7 @@
 use crate::{
     app::{
         BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
-        MultipartDraftValue, RequestBodyDraft, WorkspaceViewModel,
+        MultipartDraftValue, RequestBodyDraft, ResponseState, WorkspaceViewModel,
     },
     models::{MultipartPart, MultipartValue, RequestBody},
     ui::{
@@ -197,13 +197,29 @@ impl BodyPane {
     }
 
     fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let (kind, body, request_body, effective_headers) = {
+        let (kind, body, request_body, effective_headers, multipart_omitted, multipart_error) = {
             let view_model = self.view_model.read(cx);
+            let multipart_omitted = match view_model.body_draft() {
+                RequestBodyDraft::Multipart(parts) => {
+                    parts.iter().filter(|part| !part.enabled).count()
+                }
+                _ => 0,
+            };
+            let multipart_error = match view_model.response() {
+                ResponseState::Error { message }
+                    if message.contains("failed to read multipart file") =>
+                {
+                    Some(message.clone())
+                }
+                _ => None,
+            };
             (
                 view_model.body_kind(),
                 view_model.body().to_string(),
                 view_model.request_body(),
                 view_model.effective_headers(),
+                multipart_omitted,
+                multipart_error,
             )
         };
         let is_json = kind == BodyKind::Json;
@@ -334,7 +350,7 @@ impl BodyPane {
             .child(if is_url_encoded {
                 self.render_url_encoded_body(body, effective_headers)
             } else if is_multipart {
-                self.render_multipart_body(request_body)
+                self.render_multipart_body(request_body, multipart_omitted, multipart_error)
             } else {
                 self.render_text_body(body_len, is_json, effective_headers, cx)
             })
@@ -608,13 +624,19 @@ impl BodyPane {
             .into_any_element()
     }
 
-    fn render_multipart_body(&self, request_body: RequestBody) -> gpui::AnyElement {
+    fn render_multipart_body(
+        &self,
+        request_body: RequestBody,
+        omitted_count: usize,
+        file_error: Option<String>,
+    ) -> gpui::AnyElement {
         let parts = match request_body {
             RequestBody::Multipart(parts) => parts,
             _ => Vec::new(),
         };
         let part_count = parts.len();
         let parts_preview = multipart_parts_preview(&parts);
+        let has_file_error = file_error.is_some();
 
         div()
             .debug_selector(|| "body-multipart-editor".into())
@@ -630,6 +652,32 @@ impl BodyPane {
                     .min_h_0()
                     .child(self.body_input.clone()),
             )
+            .when_some(file_error, |editor, message| {
+                editor.child(
+                    div()
+                        .debug_selector(|| "body-multipart-file-error".into())
+                        .h(px(38.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .px_3()
+                        .bg(rgb(ACCENT_SOFT))
+                        .border_t_1()
+                        .border_color(rgb(ACCENT))
+                        .font_family(FONT_UI)
+                        .text_size(px(9.0))
+                        .text_color(rgb(ACCENT_INK))
+                        .child("!")
+                        .child(
+                            div()
+                                .debug_selector(|| "body-multipart-file-error-message".into())
+                                .min_w_0()
+                                .overflow_hidden()
+                                .child(message),
+                        ),
+                )
+            })
             .child(
                 div()
                     .debug_selector(|| "body-multipart-effective-request".into())
@@ -668,6 +716,22 @@ impl BodyPane {
                                             .bg(rgb(PANEL))
                                             .text_color(rgb(SUBTEXT))
                                             .child(format!("{part_count} parts")),
+                                    )
+                                    .child(
+                                        div()
+                                            .debug_selector(|| {
+                                                "body-multipart-omitted-count".into()
+                                            })
+                                            .px_2()
+                                            .py_1()
+                                            .rounded_lg()
+                                            .bg(rgb(PANEL))
+                                            .text_color(rgb(if omitted_count > 0 {
+                                                ACCENT
+                                            } else {
+                                                SUBTEXT
+                                            }))
+                                            .child(format!("{omitted_count} disabled omitted")),
                                     ),
                             )
                             .child(
@@ -708,9 +772,13 @@ impl BodyPane {
                     .border_color(rgb(LINE))
                     .font_family(FONT_UI)
                     .text_size(px(9.0))
-                    .text_color(rgb(OK))
-                    .child("✓")
-                    .child("Ready to send — boundary generation remains transport-owned"),
+                    .text_color(rgb(if has_file_error { ACCENT } else { OK }))
+                    .child(if has_file_error { "!" } else { "✓" })
+                    .child(if has_file_error {
+                        "Selected file needs correction — no successful History entry was added"
+                    } else {
+                        "Ready to send — boundary generation remains transport-owned"
+                    }),
             )
             .into_any_element()
     }

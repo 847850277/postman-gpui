@@ -180,6 +180,8 @@ Each case has four responsibilities:
 - `multipart_parts`: ordered, explicitly typed multipart rows. A Text part uses
   `{"kind":"text","name":"...","value":"..."}`; a File part uses
   `{"kind":"file","name":"...","path":"tests/fixtures/...","file_name":"...","content_type":"..."}`.
+  Both variants accept optional `enabled`; disabled parts remain editor intent
+  but are omitted from the effective request and from `expect.request`.
   File paths are repository-relative, must resolve to a file inside the
   repository, and reject `..`, absolute paths, and symlink escapes;
 - `precreate_body_rows`: total rendered form rows to create before typing,

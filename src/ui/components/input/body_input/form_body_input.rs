@@ -7,7 +7,9 @@ use crate::ui::{
         edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
     },
     components::common::scrollbar::{scrollbar_geometry, ScrollbarGeometry},
-    theme::{ACCENT_SOFT, INFO, INFO_SOFT, LINE, PANEL, PANEL_ALT, SUBTEXT, TEXT},
+    theme::{
+        ACCENT_SOFT, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+    },
 };
 use gpui::{
     div, fill, point, prelude::FluentBuilder, px, relative, rgb, rgba, size, App, Bounds,
@@ -1179,6 +1181,16 @@ impl Render for FormBodyInput {
                     )
                     .child(
                         div()
+                            .w(px(58.0))
+                            .font_family("Helvetica Neue")
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .text_size(px(9.0))
+                            .text_color(rgb(SUBTEXT))
+                            .text_align(gpui::TextAlign::Center)
+                            .child("STATE"),
+                    )
+                    .child(
+                        div()
                             .w(px(44.0))
                             .font_family("Helvetica Neue")
                             .font_weight(gpui::FontWeight::BOLD)
@@ -1241,6 +1253,7 @@ impl Render for FormBodyInput {
                                         .flex()
                                         .gap_2()
                                         .items_center()
+                                        .bg(rgb(if entry_enabled { PANEL } else { PANEL_ALT }))
                                         .child(
                                             // Checkbox
                                             div()
@@ -1283,7 +1296,7 @@ impl Render for FormBodyInput {
                                                 .flex_1()
                                                 .px_2()
                                                 .py_1()
-                                                .bg(rgb(PANEL))
+                                                .bg(rgb(if entry_enabled { PANEL } else { PANEL_ALT }))
                                                 .border_1()
                                                 .border_color(
                                                     if self.editing_key_index == Some(index) {
@@ -1332,7 +1345,11 @@ impl Render for FormBodyInput {
                                                                 .child("Key")
                                                         })
                                                         .when(!entry_key.is_empty(), |div| {
-                                                            div.text_color(rgb(TEXT))
+                                                            div.text_color(rgb(if entry_enabled {
+                                                                TEXT
+                                                            } else {
+                                                                SUBTEXT
+                                                            }))
                                                                 .child(entry_key.clone())
                                                         })
                                                         .on_mouse_up(
@@ -1371,7 +1388,9 @@ impl Render for FormBodyInput {
                                                     .flex()
                                                     .items_center()
                                                     .justify_center()
-                                                    .bg(rgb(if entry_is_file {
+                                                    .bg(rgb(if !entry_enabled {
+                                                        PANEL_ALT
+                                                    } else if entry_is_file {
                                                         0x00df_eafe
                                                     } else {
                                                         0x00f8_f9fa
@@ -1381,7 +1400,9 @@ impl Render for FormBodyInput {
                                                     .rounded_md()
                                                     .text_size(px(12.0))
                                                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                                                    .text_color(rgb(if entry_is_file {
+                                                    .text_color(rgb(if !entry_enabled {
+                                                        MUTED
+                                                    } else if entry_is_file {
                                                         0x001d_4ed8
                                                     } else {
                                                         0x0047_5569
@@ -1411,7 +1432,7 @@ impl Render for FormBodyInput {
                                                 .flex_1()
                                                 .px_2()
                                                 .py_1()
-                                                .bg(rgb(PANEL))
+                                                .bg(rgb(if entry_enabled { PANEL } else { PANEL_ALT }))
                                                 .border_1()
                                                 .border_color(
                                                     if self.editing_value_index == Some(index) {
@@ -1468,7 +1489,11 @@ impl Render for FormBodyInput {
                                                                 .child("Value")
                                                         })
                                                         .when(!entry_value.is_empty(), |div| {
-                                                            div.text_color(rgb(TEXT))
+                                                            div.text_color(rgb(if entry_enabled {
+                                                                TEXT
+                                                            } else {
+                                                                SUBTEXT
+                                                            }))
                                                                 .child(entry_value.clone())
                                                         })
                                                         .on_mouse_up(
@@ -1493,7 +1518,9 @@ impl Render for FormBodyInput {
                                                     .flex()
                                                     .flex_col()
                                                     .justify_center()
-                                                    .text_color(rgb(if entry_file_name.is_none() {
+                                                    .text_color(rgb(if !entry_enabled {
+                                                        SUBTEXT
+                                                    } else if entry_file_name.is_none() {
                                                         0x006c_757d
                                                     } else {
                                                         0x0021_2529
@@ -1551,6 +1578,52 @@ impl Render for FormBodyInput {
                                                 }),
                                         )
                                         .child(
+                                            div()
+                                                .debug_selector(move || {
+                                                    format!("body-form-state-{index}")
+                                                })
+                                                .w(px(58.0))
+                                                .h(px(30.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .child(
+                                                    div()
+                                                        .debug_selector(move || {
+                                                            format!(
+                                                                "body-form-{}-{index}",
+                                                                if entry_enabled {
+                                                                    "ready"
+                                                                } else {
+                                                                    "omitted"
+                                                                }
+                                                            )
+                                                        })
+                                                        .px_2()
+                                                        .py_1()
+                                                        .rounded_lg()
+                                                        .bg(rgb(if entry_enabled {
+                                                            OK_SOFT
+                                                        } else {
+                                                            PANEL_ALT
+                                                        }))
+                                                        .font_family("Helvetica Neue")
+                                                        .font_weight(gpui::FontWeight::BOLD)
+                                                        .text_size(px(7.0))
+                                                        .text_color(rgb(if entry_enabled {
+                                                            OK
+                                                        } else {
+                                                            MUTED
+                                                        }))
+                                                        .child(if entry_enabled {
+                                                            "READY"
+                                                        } else {
+                                                            "OMITTED"
+                                                        }),
+                                                ),
+                                        )
+                                        .child(
                                             // Delete button
                                             div()
                                                 .debug_selector(move || {
@@ -1562,7 +1635,7 @@ impl Render for FormBodyInput {
                                                 .flex()
                                                 .items_center()
                                                 .justify_center()
-                                                .bg(rgb(PANEL))
+                                                .bg(rgb(if entry_enabled { PANEL } else { PANEL_ALT }))
                                                 .text_color(rgb(SUBTEXT))
                                                 .border_1()
                                                 .border_color(rgb(LINE))

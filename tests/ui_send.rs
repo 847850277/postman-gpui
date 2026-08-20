@@ -13,7 +13,10 @@ use postman_gpui::{
         BodyKind, KeyValueRow, MultipartDraftValue, PostmanApp, RequestBodyDraft, ResponseState,
         WorkspaceViewModel,
     },
-    models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
+    models::{
+        HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RequestBody,
+        RequestEditorIntent,
+    },
 };
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
@@ -1458,7 +1461,173 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn missing_multipart_file_reports_error_without_response_copy_or_history(cx: &mut TestAppContext) {
+fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
+    cx: &mut TestAppContext,
+) {
+    let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/httpbingo-upload.txt");
+    let expected_body = RequestBody::Multipart(vec![
+        MultipartPart::text("enabled_note", "sent"),
+        MultipartPart {
+            name: "enabled_upload".to_string(),
+            value: MultipartValue::File {
+                path: fixture_path.clone(),
+                file_name: Some("httpbingo-upload.txt".to_string()),
+                content_type: Some("text/plain".to_string()),
+            },
+        },
+    ]);
+    let expected_intent = RequestEditorIntent::Multipart(vec![
+        MultipartEditorPart {
+            enabled: true,
+            name: "enabled_note".to_string(),
+            value: MultipartValue::Text("sent".to_string()),
+        },
+        MultipartEditorPart {
+            enabled: true,
+            name: "enabled_upload".to_string(),
+            value: MultipartValue::File {
+                path: fixture_path.clone(),
+                file_name: Some("httpbingo-upload.txt".to_string()),
+                content_type: Some("text/plain".to_string()),
+            },
+        },
+        MultipartEditorPart {
+            enabled: false,
+            name: "disabled_upload".to_string(),
+            value: MultipartValue::File {
+                path: fixture_path.clone(),
+                file_name: Some("httpbingo-upload.txt".to_string()),
+                content_type: Some("text/plain".to_string()),
+            },
+        },
+        MultipartEditorPart {
+            enabled: false,
+            name: "disabled_note".to_string(),
+            value: MultipartValue::Text("omit-me".to_string()),
+        },
+    ]);
+    let mut server = mockito::Server::new();
+    let submitted = server
+        .mock("POST", "/disabled")
+        .match_header(
+            "content-type",
+            Matcher::Regex("^multipart/form-data; boundary=".to_string()),
+        )
+        .match_body(Matcher::AllOf(vec![
+            Matcher::Regex("(?s)name=\"enabled_note\".*sent.*name=\"enabled_upload\"".to_string()),
+            Matcher::Regex("hello from postman-gpui fixture".to_string()),
+        ]))
+        .with_status(200)
+        .with_body(r#"{"ok":true}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "POST").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-form-data").unwrap();
+    type_into(cx, "body-form-key-0", "enabled_note").unwrap();
+    type_into(cx, "body-form-value-0", "sent").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-1", "enabled_upload").unwrap();
+    click(cx, "body-form-type-1").unwrap();
+    click(cx, "body-form-file-1").unwrap();
+    let selected = fixture_path.clone();
+    cx.simulate_path_prompt_response(move |_| Some(vec![selected]));
+    cx.run_until_parked();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-2", "disabled_upload").unwrap();
+    click(cx, "body-form-type-2").unwrap();
+    click(cx, "body-form-file-2").unwrap();
+    let selected = fixture_path.clone();
+    cx.simulate_path_prompt_response(move |_| Some(vec![selected]));
+    cx.run_until_parked();
+    click(cx, "body-form-toggle-2").unwrap();
+
+    click(cx, "body-form-add-row").unwrap();
+    type_into(cx, "body-form-key-3", "disabled_note").unwrap();
+    type_into(cx, "body-form-value-3", "omit-me").unwrap();
+    click(cx, "body-form-toggle-3").unwrap();
+
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        expected_body
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.request_editor_intent()),
+        Some(expected_intent.clone())
+    );
+    for selector in [
+        "body-form-ready-0",
+        "body-form-ready-1",
+        "body-form-omitted-2",
+        "body-form-omitted-3",
+        "body-multipart-omitted-count",
+    ] {
+        assert!(cx.debug_bounds(selector).is_some(), "missing `{selector}`");
+    }
+
+    click(cx, "body-form-toggle-2").unwrap();
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        RequestBody::Multipart(parts)
+            if parts.iter().any(|part| part.name == "disabled_upload"
+                && matches!(&part.value, MultipartValue::File { path, .. } if path == &fixture_path))
+    ));
+    click(cx, "body-form-toggle-2").unwrap();
+    click(cx, "body-form-toggle-3").unwrap();
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        RequestBody::Multipart(parts)
+            if parts.iter().any(|part| part.name == "disabled_note"
+                && matches!(&part.value, MultipartValue::Text(value) if value == "omit-me"))
+    ));
+    click(cx, "body-form-toggle-3").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        expected_body
+    );
+
+    type_into(cx, "url-input", &format!("{}/disabled", server.url())).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    workspace.read_with(cx, |workspace, _| {
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success { status: 200, .. }
+        ));
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(workspace.history()[0].request.body, expected_body);
+        assert_eq!(
+            workspace.history()[0].editor_intent,
+            Some(expected_intent.clone())
+        );
+    });
+    submitted.assert();
+
+    click(cx, "body-kind-none").unwrap();
+    click(cx, "history-item-0").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.body_kind(), BodyKind::Multipart);
+        assert_eq!(workspace.request_body(), expected_body);
+        assert_eq!(
+            workspace.request_editor_intent(),
+            Some(expected_intent.clone())
+        );
+    });
+    assert!(cx.debug_bounds("body-form-omitted-2").is_some());
+    assert!(cx.debug_bounds("body-form-file-metadata-2").is_some());
+}
+
+#[gpui::test]
+fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_state(
+    cx: &mut TestAppContext,
+) {
     let fixture_path = std::env::temp_dir().join(format!(
         "postman-gpui-missing-upload-{}-{}.txt",
         std::process::id(),
@@ -1469,10 +1638,30 @@ fn missing_multipart_file_reports_error_without_response_copy_or_history(cx: &mu
     ));
     std::fs::write(&fixture_path, "removed before Send")
         .expect("temporary upload fixture should be writable");
+    let mut server = mockito::Server::new();
+    let previous = server
+        .mock("GET", "/previous")
+        .with_status(200)
+        .with_body(r#"{"previous":true}"#)
+        .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let previous_url = format!("{}/previous", server.url());
+    type_into(cx, "url-input", &previous_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    assert!(matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Success { status: 200, .. }
+    ));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        1
+    );
+    previous.assert();
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
@@ -1491,24 +1680,52 @@ fn missing_multipart_file_reports_error_without_response_copy_or_history(cx: &mu
         Some(vec![selected])
     });
     cx.run_until_parked();
+    assert!(cx.debug_bounds("body-form-file-name-0").is_some());
+    assert!(cx.debug_bounds("body-form-file-metadata-0").is_some());
     std::fs::remove_file(&fixture_path).expect("selected file should be removable before Send");
 
-    type_into(cx, "url-input", "http://127.0.0.1:9/upload").unwrap();
+    replace_text(cx, "url-input", &format!("{}/upload", server.url())).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
     match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
         ResponseState::Error { message } => {
             assert!(message.contains("failed to read multipart file"));
+            assert!(message.contains("field `upload`"));
             assert!(message.contains("postman-gpui-missing-upload"));
         }
         other => panic!("missing multipart file should fail before transport, got {other:?}"),
     }
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.history_len()),
-        0,
-        "a file-read failure must not create successful History"
+        1,
+        "a file-read failure must leave the previous successful History unchanged"
     );
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history()[0].request.url, previous_url);
+        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+            panic!("the correctable multipart File row must remain selected");
+        };
+        assert!(matches!(
+            &parts[0].value,
+            MultipartDraftValue::File { path, file_name, content_type }
+                if path == &fixture_path
+                    && file_name.as_deref().is_some_and(|name| name.starts_with("postman-gpui-missing-upload"))
+                    && content_type.as_deref() == Some("text/plain")
+        ));
+    });
+    for selector in [
+        "body-multipart-file-error",
+        "body-multipart-file-error-message",
+        "body-form-file-0",
+        "body-form-file-name-0",
+        "body-form-file-metadata-0",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "file-read failure should retain `{selector}`"
+        );
+    }
     assert!(
         cx.debug_bounds("response-copy-button").is_none(),
         "an error without a populated response body must not expose Copy"

@@ -1,4 +1,4 @@
-use super::request::Request;
+use super::request::{MultipartValue, Request};
 use chrono::{DateTime, Utc};
 
 #[cfg(test)]
@@ -7,10 +7,25 @@ use super::request::HttpMethod;
 /// Maximum number of history entries to keep
 const DEFAULT_MAX_HISTORY_ENTRIES: usize = 50;
 
+/// Editor-only state captured with a completed request. The effective `Request` remains the
+/// transport truth; this snapshot preserves disabled and incomplete multipart rows for replay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestEditorIntent {
+    Multipart(Vec<MultipartEditorPart>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MultipartEditorPart {
+    pub enabled: bool,
+    pub name: String,
+    pub value: MultipartValue,
+}
+
 /// Request history entry
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
     pub request: Request,
+    pub editor_intent: Option<RequestEditorIntent>,
     pub timestamp: DateTime<Utc>,
     pub name: String,
     pub status: Option<u16>,
@@ -22,6 +37,7 @@ impl HistoryEntry {
     pub fn new(request: Request, name: String) -> Self {
         Self {
             request,
+            editor_intent: None,
             timestamp: Utc::now(),
             name,
             status: None,
@@ -37,8 +53,20 @@ impl HistoryEntry {
         elapsed_ms: u128,
         response_size: usize,
     ) -> Self {
+        Self::completed_with_intent(request, name, status, elapsed_ms, response_size, None)
+    }
+
+    pub fn completed_with_intent(
+        request: Request,
+        name: String,
+        status: u16,
+        elapsed_ms: u128,
+        response_size: usize,
+        editor_intent: Option<RequestEditorIntent>,
+    ) -> Self {
         Self {
             request,
+            editor_intent,
             timestamp: Utc::now(),
             name,
             status: Some(status),
@@ -88,6 +116,26 @@ impl RequestHistory {
         response_size: usize,
     ) {
         let entry = HistoryEntry::completed(request, name, status, elapsed_ms, response_size);
+        self.add_entry(entry);
+    }
+
+    pub fn add_completed_with_intent(
+        &mut self,
+        request: Request,
+        name: String,
+        status: u16,
+        elapsed_ms: u128,
+        response_size: usize,
+        editor_intent: Option<RequestEditorIntent>,
+    ) {
+        let entry = HistoryEntry::completed_with_intent(
+            request,
+            name,
+            status,
+            elapsed_ms,
+            response_size,
+            editor_intent,
+        );
         self.add_entry(entry);
     }
 

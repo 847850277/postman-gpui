@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::http::response::HttpResponse;
-use crate::models::{HttpMethod, MultipartValue, Request, RequestBody};
+use crate::models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody};
 use reqwest::{multipart, Client, RequestBuilder};
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
@@ -50,8 +50,9 @@ impl HttpClient {
             RequestBody::Multipart(parts) => {
                 let mut form = multipart::Form::new();
                 for part in parts {
-                    form = match part.value {
-                        MultipartValue::Text(value) => form.text(part.name, value),
+                    let MultipartPart { name, value } = part;
+                    form = match value {
+                        MultipartValue::Text(value) => form.text(name, value),
                         MultipartValue::File {
                             path,
                             file_name,
@@ -59,7 +60,7 @@ impl HttpClient {
                         } => {
                             let bytes = tokio::fs::read(&path).await.map_err(|error| {
                                 AppError::ValidationError(format!(
-                                    "failed to read multipart file {}: {error}",
+                                    "failed to read multipart file for field `{name}` at {}: {error}",
                                     path.display()
                                 ))
                             })?;
@@ -72,7 +73,7 @@ impl HttpClient {
                             if let Some(content_type) = content_type {
                                 file_part = file_part.mime_str(&content_type)?;
                             }
-                            form.part(part.name, file_part)
+                            form.part(name, file_part)
                         }
                     };
                 }
@@ -184,5 +185,35 @@ mod tests {
         let _ = std::fs::remove_file(&fixture_path);
         assert_eq!(response.status(), 200);
         mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn missing_multipart_file_error_identifies_the_field_and_path_before_transport() {
+        let missing_path = std::env::temp_dir().join(format!(
+            "postman-gpui-missing-transport-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system clock should follow the Unix epoch")
+                .as_nanos()
+        ));
+        let mut request = Request::new(HttpMethod::POST, "http://127.0.0.1:9/upload");
+        request.body = RequestBody::Multipart(vec![MultipartPart {
+            name: "upload".to_string(),
+            value: MultipartValue::File {
+                path: missing_path.clone(),
+                file_name: Some("missing.txt".to_string()),
+                content_type: Some("text/plain".to_string()),
+            },
+        }]);
+
+        let error = match HttpClient::new().execute(request).await {
+            Ok(_) => panic!("a missing selected file must fail before transport"),
+            Err(error) => error,
+        };
+        let message = error.to_string();
+        assert!(message.contains("field `upload`"));
+        assert!(message.contains(missing_path.to_string_lossy().as_ref()));
+        assert!(!message.contains("file payload"));
     }
 }

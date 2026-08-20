@@ -76,9 +76,9 @@ impl PostmanApp {
         event: &HistoryListEvent,
         cx: &mut Context<Self>,
     ) {
-        let HistoryListEvent::RequestSelected(request) = event;
+        let HistoryListEvent::RequestSelected(entry) = event;
         self.request_workspace
-            .update(cx, |workspace, cx| workspace.load_request(request, cx));
+            .update(cx, |workspace, cx| workspace.load_history_entry(entry, cx));
     }
 
     fn new_request(&mut self, cx: &mut Context<Self>) {

@@ -5,7 +5,10 @@ use postman_gpui::{
         WorkspaceViewModel,
     },
     http::executor::RequestExecutor,
-    models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody},
+    models::{
+        HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request, RequestBody,
+        RequestEditorIntent,
+    },
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -166,6 +169,35 @@ impl MultipartPartSpec {
             },
         })
     }
+
+    fn to_editor_part(&self) -> Result<MultipartEditorPart, String> {
+        Ok(match self {
+            Self::Text {
+                name,
+                value,
+                enabled,
+            } => MultipartEditorPart {
+                enabled: *enabled,
+                name: name.clone(),
+                value: MultipartValue::Text(value.clone()),
+            },
+            Self::File {
+                name,
+                path,
+                file_name,
+                content_type,
+                enabled,
+            } => MultipartEditorPart {
+                enabled: *enabled,
+                name: name.clone(),
+                value: MultipartValue::File {
+                    path: resolve_scenario_fixture_path(path)?,
+                    file_name: file_name.clone(),
+                    content_type: content_type.clone(),
+                },
+            },
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -226,6 +258,16 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
             suite.schema_version
         ));
     }
+    for scenario in &suite.cases {
+        validate_body_row_contract(&scenario.draft)
+            .map_err(|error| format!("scenario `{}` draft is invalid: {error}", scenario.name))?;
+        expected_body(&scenario.expect.request).map_err(|error| {
+            format!(
+                "scenario `{}` expected request is invalid: {error}",
+                scenario.name
+            )
+        })?;
+    }
     Ok(suite)
 }
 
@@ -237,11 +279,6 @@ pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
         return Ok(());
     }
     let body_kind = draft.body_kind.as_deref().unwrap_or_default();
-    if !body_kind.eq_ignore_ascii_case("url_encoded")
-        && !body_kind.eq_ignore_ascii_case("multipart")
-    {
-        return Err("`body_rows` and `precreate_body_rows` require a form body kind".to_string());
-    }
     if !draft.multipart_parts.is_empty() {
         if !body_kind.eq_ignore_ascii_case("multipart") {
             return Err("`multipart_parts` requires `body_kind: multipart`".to_string());
@@ -274,6 +311,11 @@ pub fn validate_body_row_contract(draft: &DraftSpec) -> Result<(), String> {
             }
         }
         return Ok(());
+    }
+    if !body_kind.eq_ignore_ascii_case("url_encoded")
+        && !body_kind.eq_ignore_ascii_case("multipart")
+    {
+        return Err("`body_rows` and `precreate_body_rows` require a form body kind".to_string());
     }
     if draft.body.is_none() {
         return Err("a form-row scenario must declare its effective `body`".to_string());
@@ -345,6 +387,50 @@ pub fn resolve_scenario_fixture_path(path: &Path) -> Result<PathBuf, String> {
         ));
     }
     Ok(resolved)
+}
+
+pub fn expected_editor_intent(draft: &DraftSpec) -> Result<Option<RequestEditorIntent>, String> {
+    if !draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("multipart"))
+    {
+        return Ok(None);
+    }
+    validate_body_row_contract(draft)?;
+
+    let mut parts = if !draft.multipart_parts.is_empty() {
+        draft
+            .multipart_parts
+            .iter()
+            .map(MultipartPartSpec::to_editor_part)
+            .collect::<Result<Vec<_>, _>>()?
+    } else if !draft.body_rows.is_empty() {
+        draft
+            .body_rows
+            .iter()
+            .map(|row| MultipartEditorPart {
+                enabled: row.enabled,
+                name: row.key.clone(),
+                value: MultipartValue::Text(row.value.clone()),
+            })
+            .collect()
+    } else {
+        form_urlencoded::parse(draft.body.as_deref().unwrap_or_default().as_bytes())
+            .map(|(name, value)| MultipartEditorPart {
+                enabled: true,
+                name: name.into_owned(),
+                value: MultipartValue::Text(value.into_owned()),
+            })
+            .collect()
+    };
+    let row_count = draft.precreate_body_rows.max(parts.len()).max(1);
+    parts.resize_with(row_count, || MultipartEditorPart {
+        enabled: true,
+        name: String::new(),
+        value: MultipartValue::Text(String::new()),
+    });
+    Ok(Some(RequestEditorIntent::Multipart(parts)))
 }
 
 pub fn load_suites(root: &Path) -> Result<Vec<ScenarioFile>, String> {
