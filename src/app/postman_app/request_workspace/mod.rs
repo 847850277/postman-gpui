@@ -14,10 +14,7 @@
 use crate::{
     app::{PendingRequest, SendId, WorkspaceViewModel},
     models::Request,
-    ui::{
-        components::response_viewer::{setup_response_viewer_key_bindings, ResponseViewer},
-        theme::BG,
-    },
+    ui::theme::BG,
 };
 use gpui::{
     div, rgb, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
@@ -29,8 +26,10 @@ mod composer;
 mod composer_chrome;
 mod layout;
 mod panes;
+mod response_panel;
 
 use composer::{RequestComposer, RequestComposerEvent};
+use response_panel::{setup_response_viewer_key_bindings, ResponseViewer};
 
 #[derive(Clone, Debug)]
 pub(super) enum RequestWorkspaceEvent {

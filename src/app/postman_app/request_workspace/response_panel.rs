@@ -41,7 +41,7 @@ enum ResponsePane {
     Headers,
 }
 
-/// Response 查看器组件
+/// Response surface owned by the request workspace.
 pub struct ResponseViewer {
     view_model: Entity<WorkspaceViewModel>,
     pane: ResponsePane,
