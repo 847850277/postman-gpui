@@ -1,9 +1,6 @@
 use crate::{
     app::{request_runner::RequestRunner, WorkspaceViewModel},
-    ui::{
-        components::history_list::{HistoryList, HistoryListEvent},
-        theme::{BG, FONT_UI, TEXT},
-    },
+    ui::theme::{BG, FONT_UI, TEXT},
 };
 use gpui::{
     div, rgb, AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render,
@@ -11,8 +8,10 @@ use gpui::{
 };
 
 mod chrome;
+mod history_panel;
 mod request_workspace;
 
+use history_panel::{HistoryList, HistoryListEvent};
 use request_workspace::{RequestWorkspace, RequestWorkspaceEvent};
 
 /// Application composition root. Feature-specific controls and task lifetimes live in child

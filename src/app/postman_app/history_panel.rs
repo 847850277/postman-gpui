@@ -5,7 +5,7 @@ use crate::ui::theme::{
     method_color, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT,
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, App, AppContext, Context, Entity, EventEmitter,
+    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
     InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
     Subscription, Window,
 };
@@ -60,15 +60,6 @@ impl HistoryList {
             self.search_query = query.trim().to_lowercase();
             cx.notify();
         }
-    }
-
-    pub fn visible_entry_count(&self, cx: &App) -> usize {
-        self.view_model
-            .read(cx)
-            .history()
-            .iter()
-            .filter(|entry| self.matches_query(entry))
-            .count()
     }
 
     fn matches_query(&self, entry: &HistoryEntry) -> bool {
