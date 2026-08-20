@@ -5,9 +5,9 @@ mod common;
 mod ui;
 
 use common::scenario::{
-    assert_requests_equivalent, assert_response_state, expected_request, load_suites,
-    resolve_scenario_fixture_path, validate_body_row_contract, DraftSpec, KeyValueSpec,
-    MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
+    assert_requests_equivalent, assert_response_state, expected_editor_intent, expected_request,
+    load_suites, resolve_scenario_fixture_path, validate_body_row_contract, DraftSpec,
+    KeyValueSpec, MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::app::{
@@ -390,6 +390,60 @@ const BODY_FORM_FILE_METADATA_SELECTORS: [&str; 16] = [
     "body-form-file-metadata-13",
     "body-form-file-metadata-14",
     "body-form-file-metadata-15",
+];
+const BODY_FORM_STATE_SELECTORS: [&str; 16] = [
+    "body-form-state-0",
+    "body-form-state-1",
+    "body-form-state-2",
+    "body-form-state-3",
+    "body-form-state-4",
+    "body-form-state-5",
+    "body-form-state-6",
+    "body-form-state-7",
+    "body-form-state-8",
+    "body-form-state-9",
+    "body-form-state-10",
+    "body-form-state-11",
+    "body-form-state-12",
+    "body-form-state-13",
+    "body-form-state-14",
+    "body-form-state-15",
+];
+const BODY_FORM_READY_SELECTORS: [&str; 16] = [
+    "body-form-ready-0",
+    "body-form-ready-1",
+    "body-form-ready-2",
+    "body-form-ready-3",
+    "body-form-ready-4",
+    "body-form-ready-5",
+    "body-form-ready-6",
+    "body-form-ready-7",
+    "body-form-ready-8",
+    "body-form-ready-9",
+    "body-form-ready-10",
+    "body-form-ready-11",
+    "body-form-ready-12",
+    "body-form-ready-13",
+    "body-form-ready-14",
+    "body-form-ready-15",
+];
+const BODY_FORM_OMITTED_SELECTORS: [&str; 16] = [
+    "body-form-omitted-0",
+    "body-form-omitted-1",
+    "body-form-omitted-2",
+    "body-form-omitted-3",
+    "body-form-omitted-4",
+    "body-form-omitted-5",
+    "body-form-omitted-6",
+    "body-form-omitted-7",
+    "body-form-omitted-8",
+    "body-form-omitted-9",
+    "body-form-omitted-10",
+    "body-form-omitted-11",
+    "body-form-omitted-12",
+    "body-form-omitted-13",
+    "body-form-omitted-14",
+    "body-form-omitted-15",
 ];
 
 #[derive(Clone, Copy)]
@@ -908,6 +962,7 @@ fn run_application_scenario(
     assert_response_state(&response, &scenario.expect.response)?;
     assert_disabled_headers_absent_from_echo(&response, &scenario.draft.headers)?;
     assert_disabled_url_encoded_rows_absent_from_echo(&response, &scenario.draft)?;
+    assert_disabled_multipart_parts_absent_from_echo(&response, &scenario.draft)?;
     assert_multipart_transport_echo(&response, &scenario.draft)?;
     assert_response_quick_copy(cx, &workspace, &response)?;
 
@@ -933,25 +988,31 @@ fn run_application_scenario(
         return Err("completed request method is not rendered in History".to_string());
     }
 
-    let recorded_request = workspace.read_with(cx, |workspace, _| {
-        workspace
-            .history()
-            .first()
-            .map(|entry| entry.request.clone())
-    });
-    match (scenario.expect.history_len > 0, recorded_request) {
+    let recorded_entry =
+        workspace.read_with(cx, |workspace, _| workspace.history().first().cloned());
+    match (scenario.expect.history_len > 0, recorded_entry.as_ref()) {
         (true, Some(actual)) => {
-            assert_requests_equivalent(&actual, &expected).map_err(|error| {
+            assert_requests_equivalent(&actual.request, &expected).map_err(|error| {
                 format!("request recorded by the real application is incorrect: {error}")
             })?
         }
         (true, None) => return Err("request history is missing the completed request".to_string()),
         (false, Some(actual)) => {
             return Err(format!(
-                "request history unexpectedly contains a request: {actual:#?}"
+                "request history unexpectedly contains a request: {:#?}",
+                actual.request
             ));
         }
         (false, None) => {}
+    }
+    if let Some(entry) = recorded_entry {
+        let expected_intent = expected_editor_intent(&scenario.draft)?;
+        if entry.editor_intent != expected_intent {
+            return Err(format!(
+                "History did not retain the complete editor intent\n  expected: {expected_intent:#?}\n  actual:   {:#?}",
+                entry.editor_intent
+            ));
+        }
     }
 
     assert_multipart_file_selection_retained(cx, &workspace, scenario)?;
@@ -1233,6 +1294,13 @@ fn assert_multipart_body_editor_contract(
             expected.body
         ));
     }
+    let expected_intent = expected_editor_intent(&scenario.draft)?;
+    let active_intent = workspace.read_with(cx, |workspace, _| workspace.request_editor_intent());
+    if active_intent != expected_intent {
+        return Err(format!(
+            "multipart editor intent lost disabled rows or file metadata\n  expected: {expected_intent:#?}\n  actual:   {active_intent:#?}"
+        ));
+    }
     if effective_headers
         .iter()
         .any(|header| header.name.eq_ignore_ascii_case("content-type"))
@@ -1265,6 +1333,7 @@ fn assert_multipart_body_editor_contract(
         "body-multipart-effective-request",
         "body-multipart-effective-parts",
         "body-multipart-part-count",
+        "body-multipart-omitted-count",
         "body-multipart-boundary",
         "body-multipart-ready-indicator",
     ] {
@@ -1288,6 +1357,13 @@ fn assert_multipart_body_editor_contract(
         return Err("the multipart UI contract supports at most 16 fields".to_string());
     }
     for index in 0..row_count {
+        let enabled = scenario
+            .draft
+            .multipart_parts
+            .get(index)
+            .map(MultipartPartSpec::enabled)
+            .or_else(|| scenario.draft.body_rows.get(index).map(|row| row.enabled))
+            .unwrap_or(true);
         let value_selector = if scenario
             .draft
             .multipart_parts
@@ -1304,6 +1380,12 @@ fn assert_multipart_body_editor_contract(
             BODY_FORM_KEY_SELECTORS[index],
             BODY_FORM_TYPE_SELECTORS[index],
             value_selector,
+            BODY_FORM_STATE_SELECTORS[index],
+            if enabled {
+                BODY_FORM_READY_SELECTORS[index]
+            } else {
+                BODY_FORM_OMITTED_SELECTORS[index]
+            },
             BODY_FORM_DELETE_SELECTORS[index],
         ] {
             if cx.debug_bounds(selector).is_none() {
@@ -1520,6 +1602,52 @@ fn assert_disabled_url_encoded_rows_absent_from_echo(
         if echoed_form.contains_key(disabled_key) {
             return Err(format!(
                 "disabled URL-encoded field `{disabled_key}` was unexpectedly echoed"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn assert_disabled_multipart_parts_absent_from_echo(
+    response: &ResponseState,
+    draft: &DraftSpec,
+) -> Result<(), String> {
+    let disabled_parts = draft
+        .multipart_parts
+        .iter()
+        .filter(|part| !part.enabled())
+        .collect::<Vec<_>>();
+    if disabled_parts.is_empty() {
+        return Ok(());
+    }
+
+    let ResponseState::Success { body, .. } = response else {
+        return Err(
+            "cannot verify disabled multipart parts because the request did not succeed"
+                .to_string(),
+        );
+    };
+    let payload: serde_json::Value = serde_json::from_str(body).map_err(|error| {
+        format!("cannot verify disabled multipart parts in HTTPBingo JSON: {error}")
+    })?;
+    let echoed_form = payload
+        .get("form")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "HTTPBingo response does not contain a `form` object".to_string())?;
+    let echoed_files = payload
+        .get("files")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "HTTPBingo response does not contain a `files` object".to_string())?;
+
+    for part in disabled_parts {
+        let echoed = match part {
+            MultipartPartSpec::Text { .. } => echoed_form.contains_key(part.name()),
+            MultipartPartSpec::File { .. } => echoed_files.contains_key(part.name()),
+        };
+        if echoed {
+            return Err(format!(
+                "disabled multipart part `{}` was unexpectedly echoed",
+                part.name()
             ));
         }
     }

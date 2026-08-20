@@ -15,7 +15,7 @@ const HISTORY_SELECTED_BORDER: u32 = 0x00f2_b89f;
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
 pub enum HistoryListEvent {
-    RequestSelected(Request),
+    RequestSelected(HistoryEntry),
 }
 
 /// History list component for displaying request history
@@ -90,28 +90,23 @@ impl HistoryList {
         self.selected_index = Some(index);
         cx.notify();
 
-        let request = self
-            .view_model
-            .read(cx)
-            .history()
-            .get(index)
-            .map(|entry| entry.request.clone());
+        let entry = self.view_model.read(cx).history().get(index).cloned();
 
-        if let Some(request) = request {
+        if let Some(entry) = entry {
             tracing::debug!(
                 index,
-                method = %request.method,
-                url = %crate::utils::log::display_url_for_log(&request.url),
+                method = %entry.request.method,
+                url = %crate::utils::log::display_url_for_log(&entry.request.url),
                 "history item selected"
             );
-            HistoryListEvent::RequestSelected(request)
+            HistoryListEvent::RequestSelected(entry)
         } else {
             tracing::warn!(
                 index,
                 entries = self.view_model.read(cx).history_len(),
                 "history item index is out of range"
             );
-            HistoryListEvent::RequestSelected(Request::default())
+            HistoryListEvent::RequestSelected(HistoryEntry::new(Request::default(), String::new()))
         }
     }
 

@@ -99,6 +99,82 @@
         },
         "history_len": 1
       }
+    },
+    {
+      "name": "HTTPBingo omits disabled multipart Text and File rows without losing editor intent",
+      "draft": {
+        "method": "POST",
+        "path": "/post",
+        "body": null,
+        "body_kind": "multipart",
+        "precreate_body_rows": 4,
+        "multipart_parts": [
+          {
+            "kind": "text",
+            "name": "enabled_note",
+            "value": "sent"
+          },
+          {
+            "kind": "file",
+            "name": "enabled_upload",
+            "path": "tests/fixtures/httpbingo-upload.txt",
+            "file_name": "httpbingo-upload.txt",
+            "content_type": "text/plain"
+          },
+          {
+            "kind": "file",
+            "name": "disabled_upload",
+            "path": "tests/fixtures/httpbingo-upload.txt",
+            "file_name": "httpbingo-upload.txt",
+            "content_type": "text/plain",
+            "enabled": false
+          },
+          {
+            "kind": "text",
+            "name": "disabled_note",
+            "value": "omit-me",
+            "enabled": false
+          }
+        ]
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/post",
+          "headers": [["Accept", "application/json"]],
+          "body": null,
+          "body_kind": "multipart",
+          "multipart_parts": [
+            {
+              "kind": "text",
+              "name": "enabled_note",
+              "value": "sent"
+            },
+            {
+              "kind": "file",
+              "name": "enabled_upload",
+              "path": "tests/fixtures/httpbingo-upload.txt",
+              "file_name": "httpbingo-upload.txt",
+              "content_type": "text/plain"
+            }
+          ]
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "POST",
+            "url": "https://httpbingo.org/post",
+            "form": {
+              "enabled_note": ["sent"]
+            },
+            "files": {
+              "enabled_upload": ["hello from postman-gpui fixture\n"]
+            }
+          }
+        },
+        "history_len": 1
+      }
     }
   ]
 }

@@ -3,8 +3,8 @@ use crate::{
     errors::AppError,
     http::executor::RequestResult,
     models::{
-        HistoryEntry, HttpMethod, MultipartPart, MultipartValue, Request, RequestBody,
-        RequestHistory,
+        HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request,
+        RequestBody, RequestEditorIntent, RequestHistory,
     },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -238,6 +238,59 @@ impl RequestBodyDraft {
         }
     }
 
+    fn editor_intent(&self) -> Option<RequestEditorIntent> {
+        match self {
+            Self::Multipart(parts) => Some(RequestEditorIntent::Multipart(
+                parts
+                    .iter()
+                    .map(|part| MultipartEditorPart {
+                        enabled: part.enabled,
+                        name: part.name.clone(),
+                        value: match &part.value {
+                            MultipartDraftValue::Text(value) => MultipartValue::Text(value.clone()),
+                            MultipartDraftValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } => MultipartValue::File {
+                                path: path.clone(),
+                                file_name: file_name.clone(),
+                                content_type: content_type.clone(),
+                            },
+                        },
+                    })
+                    .collect(),
+            )),
+            Self::None | Self::Json(_) | Self::Raw(_) | Self::UrlEncoded(_) => None,
+        }
+    }
+
+    fn from_editor_intent(intent: &RequestEditorIntent) -> Self {
+        match intent {
+            RequestEditorIntent::Multipart(parts) => Self::Multipart(nonempty_multipart_parts(
+                parts
+                    .iter()
+                    .map(|part| MultipartDraftPart {
+                        enabled: part.enabled,
+                        name: part.name.clone(),
+                        value: match &part.value {
+                            MultipartValue::Text(value) => MultipartDraftValue::Text(value.clone()),
+                            MultipartValue::File {
+                                path,
+                                file_name,
+                                content_type,
+                            } => MultipartDraftValue::File {
+                                path: path.clone(),
+                                file_name: file_name.clone(),
+                                content_type: content_type.clone(),
+                            },
+                        },
+                    })
+                    .collect(),
+            )),
+        }
+    }
+
     fn editor_text(&self) -> String {
         match self {
             Self::Json(value) | Self::Raw(value) => value.clone(),
@@ -341,6 +394,7 @@ pub struct PendingRequest {
     tab_id: RequestTabId,
     send_id: SendId,
     request: Request,
+    editor_intent: Option<RequestEditorIntent>,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -355,6 +409,10 @@ impl PendingRequest {
 
     pub fn request(&self) -> &Request {
         &self.request
+    }
+
+    pub fn editor_intent(&self) -> Option<&RequestEditorIntent> {
+        self.editor_intent.as_ref()
     }
 
     fn was_cancelled(&self) -> bool {
@@ -1081,6 +1139,15 @@ impl RequestViewModel {
         self.dirty = false;
     }
 
+    fn load_history_entry(&mut self, entry: &HistoryEntry) {
+        self.load_request(&entry.request);
+        if let Some(intent) = &entry.editor_intent {
+            self.body_draft = RequestBodyDraft::from_editor_intent(intent);
+            self.request_pane = RequestPane::Body;
+            self.dirty = false;
+        }
+    }
+
     fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> Request {
         if self.authorization_kind == AuthorizationKind::Bearer {
             self.bearer_token = normalize_bearer_token(&self.bearer_token);
@@ -1413,11 +1480,13 @@ impl WorkspaceViewModel {
         self.next_send_id += 1;
         let cancelled = Arc::new(AtomicBool::new(false));
         let tab = &mut self.tabs[self.active_tab];
+        let editor_intent = tab.body_draft.editor_intent();
         let request = tab.begin_send(send_id, cancelled.clone());
         let pending = PendingRequest {
             tab_id: tab.tab_id,
             send_id,
             request,
+            editor_intent,
             cancelled,
         };
         tracing::info!(
@@ -1497,12 +1566,13 @@ impl WorkspaceViewModel {
         if let Some((status, elapsed_ms, response_size)) =
             completed_response.filter(|_| !was_cancelled)
         {
-            self.history.add_completed(
+            self.history.add_completed_with_intent(
                 pending.request.clone(),
                 history_label(&pending.request.url),
                 status,
                 elapsed_ms,
                 response_size,
+                pending.editor_intent.clone(),
             );
         }
         applied
@@ -1510,6 +1580,14 @@ impl WorkspaceViewModel {
 
     pub fn load_request(&mut self, request: &Request) {
         self.tabs[self.active_tab].load_request(request);
+    }
+
+    pub fn load_history_entry(&mut self, entry: &HistoryEntry) {
+        self.tabs[self.active_tab].load_history_entry(entry);
+    }
+
+    pub fn request_editor_intent(&self) -> Option<RequestEditorIntent> {
+        self.tabs[self.active_tab].body_draft.editor_intent()
     }
 
     pub fn history(&self) -> &[HistoryEntry] {
@@ -2334,6 +2412,91 @@ mod tests {
         workspace.set_url("https://example.test/upload");
         let pending = workspace.begin_send();
         assert_eq!(pending.request().body, expected_body);
+    }
+
+    #[test]
+    fn multipart_history_keeps_disabled_editor_intent_separate_from_the_sent_request() {
+        let selected = std::path::PathBuf::from("tests/fixtures/httpbingo-upload.txt");
+        let disabled_missing = std::path::PathBuf::from("tests/fixtures/missing-upload.txt");
+        let parts = vec![
+            MultipartDraftPart::text("enabled_note", "sent", true),
+            MultipartDraftPart::text("disabled_note", "omit-me", false),
+            MultipartDraftPart::file(
+                "disabled_upload",
+                disabled_missing.clone(),
+                Some("missing-upload.txt".to_string()),
+                Some("text/plain".to_string()),
+                false,
+            ),
+            MultipartDraftPart::file(
+                "enabled_upload",
+                selected.clone(),
+                Some("httpbingo-upload.txt".to_string()),
+                Some("text/plain".to_string()),
+                true,
+            ),
+        ];
+        let expected_request_body = RequestBody::Multipart(vec![
+            MultipartPart::text("enabled_note", "sent"),
+            MultipartPart {
+                name: "enabled_upload".to_string(),
+                value: MultipartValue::File {
+                    path: selected.clone(),
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+        ]);
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://example.test/post");
+        workspace.set_body_kind(BodyKind::Multipart);
+        workspace.set_multipart_draft_parts(parts.clone());
+
+        let pending = workspace.begin_send();
+        assert_eq!(pending.request().body, expected_request_body);
+        assert!(workspace.complete_send(pending, Ok(RequestResult::success("ok".to_string()))));
+
+        let entry = workspace.history()[0].clone();
+        assert_eq!(entry.request.body, expected_request_body);
+        assert_eq!(
+            entry.editor_intent,
+            Some(RequestEditorIntent::Multipart(vec![
+                MultipartEditorPart {
+                    enabled: true,
+                    name: "enabled_note".to_string(),
+                    value: MultipartValue::Text("sent".to_string()),
+                },
+                MultipartEditorPart {
+                    enabled: false,
+                    name: "disabled_note".to_string(),
+                    value: MultipartValue::Text("omit-me".to_string()),
+                },
+                MultipartEditorPart {
+                    enabled: false,
+                    name: "disabled_upload".to_string(),
+                    value: MultipartValue::File {
+                        path: disabled_missing,
+                        file_name: Some("missing-upload.txt".to_string()),
+                        content_type: Some("text/plain".to_string()),
+                    },
+                },
+                MultipartEditorPart {
+                    enabled: true,
+                    name: "enabled_upload".to_string(),
+                    value: MultipartValue::File {
+                        path: selected,
+                        file_name: Some("httpbingo-upload.txt".to_string()),
+                        content_type: Some("text/plain".to_string()),
+                    },
+                },
+            ]))
+        );
+
+        workspace.new_request();
+        workspace.load_history_entry(&entry);
+        assert_eq!(workspace.body_draft(), &RequestBodyDraft::Multipart(parts));
+        assert_eq!(workspace.request_body(), expected_request_body);
     }
 
     #[test]

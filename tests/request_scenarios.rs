@@ -3,10 +3,13 @@
 mod common;
 
 use common::scenario::{
-    expected_request, load_suite, load_suites, resolve_scenario_fixture_path, run_scenario,
-    validate_body_row_contract, ScenarioFile, ScenarioTarget,
+    expected_editor_intent, expected_request, load_suite, load_suites,
+    resolve_scenario_fixture_path, run_scenario, validate_body_row_contract, ScenarioFile,
+    ScenarioTarget,
 };
-use postman_gpui::models::{MultipartPart, MultipartValue, RequestBody};
+use postman_gpui::models::{
+    MultipartEditorPart, MultipartPart, MultipartValue, RequestBody, RequestEditorIntent,
+};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -147,6 +150,130 @@ fn multipart_file_scenario_builds_typed_metadata_and_rejects_path_traversal() {
     let traversal = resolve_scenario_fixture_path(Path::new("../Cargo.toml"))
         .expect_err("scenario fixture paths must reject parent-directory traversal");
     assert!(traversal.contains("path traversal"));
+}
+
+#[test]
+fn disabled_multipart_scenario_separates_effective_request_from_editor_intent() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| {
+            scenario.name
+                == "HTTPBingo omits disabled multipart Text and File rows without losing editor intent"
+        })
+        .expect("Issue #93 disabled multipart scenario should exist");
+    validate_body_row_contract(&scenario.draft)
+        .expect("Issue #93 multipart scenario should pass strict validation");
+
+    let fixture = resolve_scenario_fixture_path(Path::new("tests/fixtures/httpbingo-upload.txt"))
+        .expect("Issue #93 fixture should resolve inside the repository");
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #93 effective request should be valid");
+    assert_eq!(
+        expected.body,
+        RequestBody::Multipart(vec![
+            MultipartPart::text("enabled_note", "sent"),
+            MultipartPart {
+                name: "enabled_upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture.clone(),
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+        ])
+    );
+    assert_eq!(
+        expected_editor_intent(&scenario.draft).expect("Issue #93 editor intent should be valid"),
+        Some(RequestEditorIntent::Multipart(vec![
+            MultipartEditorPart {
+                enabled: true,
+                name: "enabled_note".to_string(),
+                value: MultipartValue::Text("sent".to_string()),
+            },
+            MultipartEditorPart {
+                enabled: true,
+                name: "enabled_upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture.clone(),
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+            MultipartEditorPart {
+                enabled: false,
+                name: "disabled_upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture,
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+            MultipartEditorPart {
+                enabled: false,
+                name: "disabled_note".to_string(),
+                value: MultipartValue::Text("omit-me".to_string()),
+            },
+        ]))
+    );
+}
+
+#[test]
+fn multipart_schema_rejects_unknown_part_fields_and_non_multipart_usage() {
+    let unknown_field = r#"
+    {
+      "schema_version": 5,
+      "target": "httpbingo",
+      "cases": [{
+        "name": "unknown multipart field",
+        "draft": {
+          "method": "POST",
+          "body": null,
+          "body_kind": "multipart",
+          "multipart_parts": [{
+            "kind": "text",
+            "name": "note",
+            "value": "sent",
+            "enabeld": false
+          }]
+        },
+        "expect": {
+          "request": { "method": "POST", "path": "/post", "body": null },
+          "response": { "kind": "success", "status": 200 },
+          "history_len": 1
+        }
+      }]
+    }
+    "#;
+    let error = load_suite(unknown_field)
+        .expect_err("unknown multipart part fields must fail strict deserialization");
+    assert!(error.contains("enabeld"));
+
+    let wrong_kind = r#"
+    {
+      "schema_version": 5,
+      "target": "httpbingo",
+      "cases": [{
+        "name": "multipart parts on JSON",
+        "draft": {
+          "method": "POST",
+          "body": null,
+          "body_kind": "json",
+          "multipart_parts": [{ "kind": "text", "name": "note", "value": "sent" }]
+        },
+        "expect": {
+          "request": { "method": "POST", "path": "/post", "body": null },
+          "response": { "kind": "success", "status": 200 },
+          "history_len": 1
+        }
+      }]
+    }
+    "#;
+    let error = load_suite(wrong_kind)
+        .expect_err("typed multipart parts must be rejected outside multipart bodies");
+    assert!(error.contains("multipart_parts"));
 }
 
 #[test]

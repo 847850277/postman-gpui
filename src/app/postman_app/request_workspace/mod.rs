@@ -13,7 +13,7 @@
 
 use crate::{
     app::{PendingRequest, SendId, WorkspaceViewModel},
-    models::Request,
+    models::HistoryEntry,
     ui::theme::BG,
 };
 use gpui::{
@@ -127,11 +127,11 @@ impl RequestWorkspace {
         }
     }
 
-    pub(super) fn load_request(&mut self, request: &Request, cx: &mut Context<Self>) {
+    pub(super) fn load_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {
         if let Some(send_id) = self.view_model.read(cx).active_send_id() {
             self.cancel_send(send_id, cx);
         }
-        self.update_view_model(cx, |view_model| view_model.load_request(request));
+        self.update_view_model(cx, |view_model| view_model.load_history_entry(entry));
         self.project_active_request(cx);
     }
 }
