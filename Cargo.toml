@@ -9,7 +9,7 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7
 anyhow = "1.0.75" 
 base64 = "0.22"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["cookies", "json", "multipart"] }
+reqwest = { version = "0.12", features = ["brotli", "cookies", "deflate", "gzip", "json", "multipart"] }
 unicode-segmentation = "1.10"
 serde_json = "1.0"
 chrono = "0.4"
@@ -19,6 +19,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
+brotli = "8"
+flate2 = "1"
 gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["test-support"] }
 mockito = "1"
 serde = { version = "1", features = ["derive"] }

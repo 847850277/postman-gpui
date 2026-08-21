@@ -4,7 +4,7 @@ use crate::models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestB
 use reqwest::{
     cookie::{CookieStore, Jar},
     header::HeaderValue,
-    multipart, Client, RequestBuilder, Url,
+    multipart, Client, ClientBuilder, RequestBuilder, Url,
 };
 use std::{
     collections::BTreeMap,
@@ -21,23 +21,35 @@ tokio::task_local! {
 #[derive(Clone)]
 pub(super) struct HttpClient {
     client: Client,
+    range_client: Client,
     cookie_jar: Arc<ApplicationCookieJar>,
 }
 
 impl HttpClient {
     pub(super) fn new() -> Self {
         let cookie_jar = Arc::new(ApplicationCookieJar::default());
-        let client = Client::builder()
-            .user_agent(DEFAULT_USER_AGENT)
-            // Redirect following is part of the application's request contract. Keep the
-            // policy explicit so a dependency default cannot silently change that behavior.
-            .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
-            // A single HttpClient lives for the application session. The observable provider
-            // retains cookies from intermediate redirects and adds them to later requests.
-            .cookie_provider(cookie_jar.clone())
+        let client = base_client_builder(cookie_jar.clone())
+            // Keep response negotiation explicit. Reqwest adds one Accept-Encoding value only
+            // when the user did not supply one, then transparently decodes the response and
+            // removes the stale wire encoding/length headers.
+            .gzip(true)
+            .deflate(true)
+            .brotli(true)
             .build()
             .expect("the built-in HTTP client configuration should be valid");
-        HttpClient { client, cookie_jar }
+        // Reqwest 0.12 currently adds Accept-Encoding even when Range is present. Keep a second
+        // connection pool with the same cookie provider for that one negotiation-suppressed path.
+        let range_client = base_client_builder(cookie_jar.clone())
+            .no_gzip()
+            .no_deflate()
+            .no_brotli()
+            .build()
+            .expect("the range HTTP client configuration should be valid");
+        HttpClient {
+            client,
+            range_client,
+            cookie_jar,
+        }
     }
 
     pub(super) fn cookie_snapshot(&self) -> Vec<(String, String)> {
@@ -76,14 +88,25 @@ impl HttpClient {
             headers,
             body,
         } = request;
+        let has_accept_encoding = headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("accept-encoding"));
+        let has_range = headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("range"));
+        let client = if has_range && !has_accept_encoding {
+            &self.range_client
+        } else {
+            &self.client
+        };
         let mut request = match method {
-            HttpMethod::GET => self.client.get(&url),
-            HttpMethod::POST => self.client.post(&url),
-            HttpMethod::PUT => self.client.put(&url),
-            HttpMethod::DELETE => self.client.delete(&url),
-            HttpMethod::PATCH => self.client.patch(&url),
-            HttpMethod::HEAD => self.client.head(&url),
-            HttpMethod::OPTIONS => self.client.request(reqwest::Method::OPTIONS, &url),
+            HttpMethod::GET => client.get(&url),
+            HttpMethod::POST => client.post(&url),
+            HttpMethod::PUT => client.put(&url),
+            HttpMethod::DELETE => client.delete(&url),
+            HttpMethod::PATCH => client.patch(&url),
+            HttpMethod::HEAD => client.head(&url),
+            HttpMethod::OPTIONS => client.request(reqwest::Method::OPTIONS, &url),
         };
 
         for (key, value) in headers {
@@ -148,6 +171,17 @@ impl HttpClient {
         let body = response.text().await?;
         Ok(HttpResponse::new(status, headers, body))
     }
+}
+
+fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>) -> ClientBuilder {
+    Client::builder()
+        .user_agent(DEFAULT_USER_AGENT)
+        // Redirect following is part of the application's request contract. Keep the policy
+        // explicit so a dependency default cannot silently change that behavior.
+        .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+        // Both connection pools belong to one application session. The observable provider
+        // retains cookies from intermediate redirects and adds them to later requests.
+        .cookie_provider(cookie_jar)
 }
 
 /// Reqwest's built-in Jar deliberately hides its contents. This wrapper keeps the wire behavior
@@ -270,7 +304,45 @@ fn cookie_origin(url: &Url) -> String {
 mod tests {
     use super::*;
     use crate::models::{MultipartPart, MultipartValue};
+    use flate2::{
+        write::{GzEncoder, ZlibEncoder},
+        Compression,
+    };
     use mockito::{Matcher, Server};
+    use std::io::Write;
+
+    const DEFAULT_ACCEPT_ENCODING: &str = "gzip,deflate,br";
+
+    fn gzip(body: &str) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder
+            .write_all(body.as_bytes())
+            .expect("gzip test payload should be writable");
+        encoder
+            .finish()
+            .expect("gzip test payload should be encodable")
+    }
+
+    fn deflate(body: &str) -> Vec<u8> {
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder
+            .write_all(body.as_bytes())
+            .expect("deflate test payload should be writable");
+        encoder
+            .finish()
+            .expect("deflate test payload should be encodable")
+    }
+
+    fn brotli(body: &str) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        {
+            let mut encoder = brotli::CompressorWriter::new(&mut encoded, 4_096, 5, 22);
+            encoder
+                .write_all(body.as_bytes())
+                .expect("Brotli test payload should be writable");
+        }
+        encoded
+    }
 
     #[tokio::test]
     async fn default_client_sends_product_user_agent() {
@@ -293,6 +365,135 @@ mod tests {
 
         assert_eq!(response.status(), 200);
         mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn compression_negotiation_decodes_supported_formats_and_sanitizes_headers() {
+        let mut server = Server::new_async().await;
+        let cases = [
+            (
+                "/gzip",
+                "gzip",
+                r#"{"gzipped":true}"#,
+                gzip as fn(&str) -> Vec<u8>,
+            ),
+            (
+                "/deflate",
+                "deflate",
+                r#"{"deflated":true}"#,
+                deflate as fn(&str) -> Vec<u8>,
+            ),
+            (
+                "/brotli",
+                "br",
+                r#"{"brotli":true}"#,
+                brotli as fn(&str) -> Vec<u8>,
+            ),
+        ];
+        let client = HttpClient::new();
+
+        for (path, encoding, decoded, encode) in cases {
+            let response = encode(decoded);
+            let request = server
+                .mock("GET", path)
+                .match_header("accept-encoding", DEFAULT_ACCEPT_ENCODING)
+                .with_status(200)
+                .with_header("content-type", "application/json")
+                .with_header("content-encoding", encoding)
+                .with_body(response)
+                .create_async()
+                .await;
+
+            let response = client
+                .execute(Request::new(
+                    HttpMethod::GET,
+                    format!("{}{path}", server.url()),
+                ))
+                .await
+                .unwrap_or_else(|error| panic!("{encoding} response should decode: {error}"));
+
+            assert_eq!(response.status(), 200);
+            assert_eq!(response.body(), decoded);
+            assert!(response.headers().iter().any(|(name, value)| {
+                name.eq_ignore_ascii_case("content-type") && value == "application/json"
+            }));
+            assert!(response.headers().iter().all(|(name, _)| {
+                !name.eq_ignore_ascii_case("content-encoding")
+                    && !name.eq_ignore_ascii_case("content-length")
+            }));
+            request.assert_async().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn user_accept_encoding_wins_and_range_suppresses_automatic_negotiation() {
+        let mut server = Server::new_async().await;
+        let user_header = server
+            .mock("GET", "/user-encoding")
+            .match_header("accept-encoding", "identity")
+            .with_status(200)
+            .with_body("user header")
+            .create_async()
+            .await;
+        let range = server
+            .mock("GET", "/range")
+            .match_header("range", "bytes=0-3")
+            .match_header("accept-encoding", Matcher::Missing)
+            .with_status(206)
+            .with_body("part")
+            .create_async()
+            .await;
+        let client = HttpClient::new();
+
+        let mut explicit = Request::new(HttpMethod::GET, format!("{}/user-encoding", server.url()));
+        explicit.add_header("Accept-Encoding", "identity");
+        let explicit = client
+            .execute(explicit)
+            .await
+            .expect("the user Accept-Encoding request should succeed");
+        assert_eq!(explicit.body(), "user header");
+
+        let mut ranged = Request::new(HttpMethod::GET, format!("{}/range", server.url()));
+        ranged.add_header("Range", "bytes=0-3");
+        let ranged = client
+            .execute(ranged)
+            .await
+            .expect("the ranged request should succeed");
+        assert_eq!(ranged.status(), 206);
+        assert_eq!(ranged.body(), "part");
+
+        user_header.assert_async().await;
+        range.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn corrupt_compressed_body_returns_a_readable_decode_error() {
+        let mut server = Server::new_async().await;
+        let corrupt = server
+            .mock("GET", "/corrupt-gzip")
+            .match_header("accept-encoding", DEFAULT_ACCEPT_ENCODING)
+            .with_status(200)
+            .with_header("content-encoding", "gzip")
+            .with_body("not a gzip stream")
+            .create_async()
+            .await;
+
+        let result = HttpClient::new()
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/corrupt-gzip", server.url()),
+            ))
+            .await;
+        let error = match result {
+            Ok(_) => panic!("corrupt gzip bytes must not become a successful text response"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error.to_string().to_ascii_lowercase().contains("decod"),
+            "the decoder failure should be readable: {error}"
+        );
+        corrupt.assert_async().await;
     }
 
     #[tokio::test]
