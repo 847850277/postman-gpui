@@ -1,0 +1,3277 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "r600283",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #60 · Raw Request Body: PUT /anything/raw",
+      "clip": true,
+      "width": 1600,
+      "height": 1872,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "r600020",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600003",
+              "name": "Issue Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "layout": "vertical",
+              "gap": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600001",
+                  "name": "Issue Mark Number",
+                  "fill": "$accent",
+                  "content": "#60",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600002",
+                  "name": "Issue Mark Label",
+                  "fill": "$accent",
+                  "content": "RAW BODY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600012",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600009",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600005",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600004",
+                          "name": "Issue Badge Label",
+                          "fill": "$blue",
+                          "content": "ISSUE #60 · HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600007",
+                      "name": "Status Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600006",
+                          "name": "Status Badge Label",
+                          "fill": "$green",
+                          "content": "IMPLEMENTED BASELINE · DESIGN ADDED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600008",
+                      "name": "Issue URL",
+                      "fill": "$subtle",
+                      "content": "https://github.com/847850277/postman-gpui/issues/60",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r600010",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Raw Request Body · Exact Text, No Generated JSON Header",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 26,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600011",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Keep the active Raw editor and RequestViewModel as one source of truth, send the exact text bytes, and prove that no JSON Content-Type is synthesized.",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600019",
+              "name": "Scope Snapshot",
+              "width": 430,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 14,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600013",
+                  "name": "Scope Label",
+                  "fill": "$subtle",
+                  "content": "FEATURE SCOPE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "r600017",
+                  "name": "Endpoint Row",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600015",
+                      "name": "PUT Method Badge",
+                      "height": 24,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600014",
+                          "name": "PUT Method Badge Label",
+                          "fill": "$accent",
+                          "content": "PUT",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600016",
+                      "name": "Endpoint",
+                      "fill": "$text",
+                      "content": "https://httpbingo.org/anything/raw",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r600018",
+                  "name": "Scope Note",
+                  "fill": "$muted",
+                  "content": "Exact raw text · zero generated headers · octet-stream echo",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600171",
+          "name": "Application State · Raw Request Body",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600031",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "gap": 18,
+              "padding": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600024",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600022",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600021",
+                          "name": "Logo Letter",
+                          "fill": "$panel",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600023",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600027",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600025",
+                      "name": "Search Icon",
+                      "fill": "$muted",
+                      "content": "⌕",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600026",
+                      "name": "Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600030",
+                  "name": "Environment",
+                  "width": 190,
+                  "height": 36,
+                  "fill": "$panel",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "r600028",
+                      "name": "Environment Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600029",
+                      "name": "Environment Label",
+                      "fill": "$text",
+                      "content": "No Environment",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600170",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600040",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600033",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600032",
+                          "name": "New Request Glyph",
+                          "fill": "$muted",
+                          "content": "+",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600035",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600034",
+                          "name": "History Navigation Glyph",
+                          "fill": "$accent",
+                          "content": "◷",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600037",
+                      "name": "Workspace Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600036",
+                          "name": "Workspace Navigation Glyph",
+                          "fill": "$muted",
+                          "content": "◇",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600039",
+                      "name": "Keyboard Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600038",
+                          "name": "Keyboard Navigation Glyph",
+                          "fill": "$muted",
+                          "content": "⌘",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600059",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600041",
+                      "name": "History Title",
+                      "fill": "$text",
+                      "content": "History",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600042",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600045",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600043",
+                          "name": "History Search Icon",
+                          "fill": "$subtle",
+                          "content": "⌕",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600044",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600046",
+                      "name": "History Group Label",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600055",
+                      "name": "Raw PUT History Result Content Item",
+                      "width": "fill_container",
+                      "height": 118,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$accent",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600050",
+                          "name": "History Result Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600048",
+                              "name": "History PUT Badge",
+                              "height": 24,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 13,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "padding": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600047",
+                                  "name": "History PUT Badge Label",
+                                  "fill": "$accent",
+                                  "content": "PUT",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600049",
+                              "name": "History Status",
+                              "fill": "$green",
+                              "content": "200 · 487 ms",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600051",
+                          "name": "History URL",
+                          "fill": "$text",
+                          "content": "httpbingo.org/anything/raw",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600052",
+                          "name": "History Raw Body Kind",
+                          "fill": "$blue",
+                          "content": "Raw · no generated Content-Type",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600053",
+                          "name": "History Raw Payload",
+                          "fill": "$muted",
+                          "content": "plain text body",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600054",
+                          "name": "History Header Policy",
+                          "fill": "$muted",
+                          "content": "Content-Type: not generated",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600058",
+                      "name": "History Lifecycle Proof",
+                      "width": "fill_container",
+                      "height": 76,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600056",
+                          "name": "History Lifecycle Proof Kicker",
+                          "fill": "$subtle",
+                          "content": "ONE SOURCE OF TRUTH",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600057",
+                          "name": "History Lifecycle Proof Value",
+                          "fill": "$green",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "The active input value and completed History draft contain the same exact raw text.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600169",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600067",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": 14,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600061",
+                          "name": "Tab PUT Badge",
+                          "height": 24,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 13,
+                          "padding": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600060",
+                              "name": "Tab PUT Badge Label",
+                              "fill": "$accent",
+                              "content": "PUT",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600062",
+                          "name": "Request Tab Name",
+                          "fill": "$text",
+                          "content": "httpbingo.org/anything/raw",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "r600063",
+                          "name": "Dirty Indicator",
+                          "fill": "$accent",
+                          "width": 6,
+                          "height": 6
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600064",
+                          "name": "Close Tab",
+                          "fill": "$subtle",
+                          "content": "×",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600066",
+                          "name": "New Tab",
+                          "width": 32,
+                          "height": 32,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 9,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600065",
+                              "name": "New Tab Glyph",
+                              "fill": "$text",
+                              "content": "+",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 17,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600168",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": 806,
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600078",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600070",
+                              "name": "Method Selector",
+                              "width": 120,
+                              "height": 46,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 10,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "padding": 12,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600068",
+                                  "name": "Method Selector Label",
+                                  "fill": "$accent",
+                                  "content": "PUT",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600069",
+                                  "name": "Method Selector Chevron",
+                                  "fill": "$accent",
+                                  "content": "⌄",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600075",
+                              "name": "URL Input",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 8,
+                              "padding": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600071",
+                                  "name": "URL Lock",
+                                  "fill": "$muted",
+                                  "content": "♙",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600072",
+                                  "name": "URL Value",
+                                  "fill": "$text",
+                                  "content": "https://httpbingo.org/anything/raw",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600074",
+                                  "name": "URL Saved Badge",
+                                  "height": 24,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 13,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600073",
+                                      "name": "URL Saved Badge Label",
+                                      "fill": "$blue",
+                                      "content": "SAVED",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600077",
+                              "name": "Send Button",
+                              "width": 100,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600076",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600134",
+                          "name": "Request Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600087",
+                              "name": "Request Menu",
+                              "width": "fill_container",
+                              "height": 48,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 24,
+                              "padding": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600079",
+                                  "name": "Params Tab",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600080",
+                                  "name": "Authorization Tab",
+                                  "fill": "$muted",
+                                  "content": "Authorization (Bearer)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600081",
+                                  "name": "Headers Tab",
+                                  "fill": "$blue",
+                                  "content": "Headers (0)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600084",
+                                  "name": "Body Tab Active",
+                                  "height": 48,
+                                  "stroke": "$accent",
+                                  "strokeWidth": 2,
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600082",
+                                      "name": "Body Tab Label",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "ellipse",
+                                      "id": "r600083",
+                                      "name": "Body Dirty Dot",
+                                      "fill": "$accent",
+                                      "width": 5,
+                                      "height": 5
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600085",
+                                  "name": "Scripts Tab",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600086",
+                                  "name": "Tests Tab",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "i2vRp",
+                              "name": "Body Type Bar",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 16,
+                              "padding": [
+                                6,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "gbcMa",
+                                  "name": "Body Type Label",
+                                  "fill": "$subtle",
+                                  "content": "BODY TYPE",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "i5dsA",
+                                  "name": "Body Type none",
+                                  "fill": "$muted",
+                                  "content": "○ none",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "V5XNh",
+                                  "name": "Body Type form-data",
+                                  "fill": "$muted",
+                                  "content": "○ form-data",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aOZwS",
+                                  "name": "Body Type x-www-form-urlencoded",
+                                  "fill": "$muted",
+                                  "content": "○ x-www-form-urlencoded",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aQnB3",
+                                  "name": "Body Type JSON",
+                                  "fill": "$muted",
+                                  "content": "○ JSON",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "vaV1d",
+                                  "name": "Body Type raw",
+                                  "width": 69,
+                                  "height": 28,
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$accent",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "tof71",
+                                      "name": "Body Type raw Label",
+                                      "fill": "$accent",
+                                      "content": "● raw  ✓",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "ellipse",
+                                      "id": "TZkdy",
+                                      "x": 37,
+                                      "y": 21.5,
+                                      "name": "Body Dirty Dot",
+                                      "enabled": false,
+                                      "fill": "$accent",
+                                      "width": 5,
+                                      "height": 5
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "spxfN",
+                                  "name": "Live Saved Badge",
+                                  "height": 28,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 13,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "B8Yuw",
+                                      "name": "Live Saved Badge Label",
+                                      "fill": "$green",
+                                      "content": "LIVE · SAVED",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600133",
+                              "name": "Raw Body and Request Semantics",
+                              "width": "fill_container",
+                              "height": 262,
+                              "fill": "$panel",
+                              "gap": 14,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600103",
+                                  "name": "Raw Editor Column",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600099",
+                                      "name": "Raw Body Editor Active",
+                                      "width": "fill_container",
+                                      "height": 168,
+                                      "fill": "$code",
+                                      "cornerRadius": 10,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 2,
+                                      "layout": "vertical",
+                                      "gap": 9,
+                                      "padding": 14,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600096",
+                                          "name": "Raw Editor Header",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600094",
+                                              "name": "Raw Editor Label",
+                                              "fill": "$blue",
+                                              "content": "RAW · ACTIVE INPUT",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "r600095",
+                                              "name": "Raw Editor Character Count",
+                                              "fill": "$subtle",
+                                              "content": "15 chars",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600097",
+                                          "name": "Raw Editor Value",
+                                          "fill": "$codeText",
+                                          "content": "plain text body│",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 15,
+                                          "fontWeight": "500"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600098",
+                                          "name": "Active Input Note",
+                                          "fill": "$muted",
+                                          "content": "Click Send now — the raw value is already in RequestViewModel.",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600102",
+                                      "name": "ViewModel Raw Body Content Item",
+                                      "width": "fill_container",
+                                      "height": 60,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600100",
+                                          "name": "ViewModel Raw Body Content Item Kicker",
+                                          "fill": "$subtle",
+                                          "content": "SINGLE SOURCE OF TRUTH",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600101",
+                                          "name": "ViewModel Raw Body Content Item Value",
+                                          "fill": "$green",
+                                          "content": "RequestBody::Raw(\"plain text body\") · no submit-time backfill",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600132",
+                                  "name": "Raw Request Semantics Column",
+                                  "width": 470,
+                                  "height": "fill_container",
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600109",
+                                      "name": "Raw Request Semantics Header",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600106",
+                                          "name": "Raw Request Semantics Title Block",
+                                          "layout": "vertical",
+                                          "gap": 2,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600104",
+                                              "name": "Raw Request Semantics Title",
+                                              "fill": "$text",
+                                              "content": "Effective raw request",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 13,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "r600105",
+                                              "name": "Raw Request Semantics Hint",
+                                              "fill": "$subtle",
+                                              "content": "The Raw body kind synthesizes no request header.",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600108",
+                                          "name": "Generated Header Count",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600107",
+                                              "name": "Generated Header Count Label",
+                                              "fill": "$blue",
+                                              "content": "0 GENERATED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600116",
+                                      "name": "No Generated Content-Type Content Item",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600111",
+                                          "name": "Content-Type Absent Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600110",
+                                              "name": "Content-Type Absent Mark Label",
+                                              "fill": "$green",
+                                              "content": "∅",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600112",
+                                          "name": "Content-Type Policy Key",
+                                          "fill": "$text",
+                                          "content": "Content-Type",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600113",
+                                          "name": "Content-Type Policy Value",
+                                          "fill": "$text",
+                                          "content": "not generated",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600115",
+                                          "name": "Content-Type Policy State",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600114",
+                                              "name": "Content-Type Policy State Label",
+                                              "fill": "$blue",
+                                              "content": "ABSENT",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600123",
+                                      "name": "Exact Body Bytes Content Item",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600118",
+                                          "name": "Exact Body Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600117",
+                                              "name": "Exact Body Mark Label",
+                                              "fill": "$green",
+                                              "content": "✓",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600119",
+                                          "name": "Exact Body Key",
+                                          "fill": "$text",
+                                          "content": "Body bytes",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600120",
+                                          "name": "Exact Body Value",
+                                          "fill": "$text",
+                                          "content": "plain text body",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600122",
+                                          "name": "Exact Body State",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600121",
+                                              "name": "Exact Body State Label",
+                                              "fill": "$blue",
+                                              "content": "EXACT",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600130",
+                                      "name": "Effective Raw Request Preview",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600125",
+                                          "name": "Effective Raw Request Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600124",
+                                              "name": "Effective Raw Request Mark Label",
+                                              "fill": "$green",
+                                              "content": "✓",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600126",
+                                          "name": "Effective Raw Request Key",
+                                          "fill": "$text",
+                                          "content": "PUT /anything/raw",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600127",
+                                          "name": "Effective Raw Request Value",
+                                          "fill": "$text",
+                                          "content": "15 UTF-8 bytes",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600129",
+                                          "name": "Effective Raw Request State",
+                                          "height": 24,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600128",
+                                              "name": "Effective Raw Request State Label",
+                                              "fill": "$accent",
+                                              "content": "READY",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600131",
+                                      "name": "Raw Request Note",
+                                      "fill": "$muted",
+                                      "content": "Content-Type: not generated · reqwest sends the exact bytes · HTTPBingo represents the echo as application/octet-stream.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600167",
+                          "name": "Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600146",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": 14,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600138",
+                                  "name": "Response Tabs",
+                                  "gap": 18,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600135",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 15,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600136",
+                                      "name": "Response Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600137",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$muted",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600145",
+                                  "name": "Response Header Actions",
+                                  "gap": 12,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600140",
+                                      "name": "Copy Response Button",
+                                      "height": 28,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600139",
+                                          "name": "Copy Response Button Label",
+                                          "fill": "$blue",
+                                          "content": "⧉  Copy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600142",
+                                      "name": "Response Status",
+                                      "height": 26,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600141",
+                                          "name": "Response Status Label",
+                                          "fill": "$green",
+                                          "content": "● 200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600143",
+                                      "name": "Response Time",
+                                      "fill": "$muted",
+                                      "content": "487 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600144",
+                                      "name": "Response Size",
+                                      "fill": "$muted",
+                                      "content": "1.1 KB",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600166",
+                              "name": "Response Content",
+                              "width": "fill_container",
+                              "height": 298,
+                              "gap": 14,
+                              "padding": 14,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600152",
+                                  "name": "Stable Response Subset",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 9,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600149",
+                                      "name": "Echo Header",
+                                      "width": "fill_container",
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "r600147",
+                                          "name": "Echo Dot",
+                                          "fill": "$green",
+                                          "width": 7,
+                                          "height": 7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600148",
+                                          "name": "Echo Label",
+                                          "fill": "$green",
+                                          "content": "HTTPBingo echo · stable subset",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600150",
+                                      "name": "Echo Raw",
+                                      "fill": "$codeText",
+                                      "content": "{\n  \"method\": \"PUT\",\n  \"data\": \"data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5\"\n}",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600151",
+                                      "name": "Copy Contract",
+                                      "fill": "$subtle",
+                                      "content": "Copy reads the complete raw body from ResponseState; this is the stable assertion subset.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600165",
+                                  "name": "Response Verification",
+                                  "width": 332,
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600155",
+                                      "name": "Exact Data Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600153",
+                                          "name": "Exact Data Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "✓ OCTET-STREAM DATA URI",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600154",
+                                          "name": "Exact Data Verification Value",
+                                          "fill": "$green",
+                                          "content": "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600158",
+                                      "name": "Decoded Body Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600156",
+                                          "name": "Decoded Body Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "✓ DECODED RAW BODY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600157",
+                                          "name": "Decoded Body Verification Value",
+                                          "fill": "$green",
+                                          "content": "plain text body",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600161",
+                                      "name": "Absent Header Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600159",
+                                          "name": "Absent Header Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "✓ OUTGOING HEADER POLICY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600160",
+                                          "name": "Absent Header Verification Value",
+                                          "fill": "$green",
+                                          "content": "Content-Type: not generated",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600164",
+                                      "name": "Lifecycle Verification",
+                                      "width": "fill_container",
+                                      "height": 64,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600162",
+                                          "name": "Lifecycle Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "RESPONSESTATE = VIEW = HISTORY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600163",
+                                          "name": "Lifecycle Verification Value",
+                                          "fill": "$text",
+                                          "content": "200 response and full PUT raw draft describe one lifecycle.",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600191",
+          "name": "Feature Flow",
+          "width": "fill_container",
+          "height": 140,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 14,
+          "padding": 20,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600175",
+              "name": "Flow Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600172",
+                  "name": "Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "RAW BODY PIPELINE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600173",
+                  "name": "Flow Title",
+                  "fill": "$text",
+                  "content": "One exact text value",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600174",
+                  "name": "Flow Subtitle",
+                  "fill": "$muted",
+                  "content": "Zero generated headers",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600178",
+              "name": "Rendered Control Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600176",
+                  "name": "Rendered Control Step Kicker",
+                  "fill": "$blue",
+                  "content": "01 · ACTIVE RAW",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600177",
+                  "name": "Rendered Control Step Detail",
+                  "fill": "$text",
+                  "content": "Exact input already saved",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600179",
+              "name": "Flow Arrow One",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600182",
+              "name": "ViewModel Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600180",
+                  "name": "ViewModel Step Kicker",
+                  "fill": "$blue",
+                  "content": "02 · VIEWMODEL",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600181",
+                  "name": "ViewModel Step Detail",
+                  "fill": "$text",
+                  "content": "RequestBody::Raw(\"plain text body\")",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600183",
+              "name": "Flow Arrow Two",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600186",
+              "name": "Request Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600184",
+                  "name": "Request Step Kicker",
+                  "fill": "$blue",
+                  "content": "03 · EXACT REQUEST",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600185",
+                  "name": "Request Step Detail",
+                  "fill": "$text",
+                  "content": "PUT + 15 bytes + no Content-Type",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600187",
+              "name": "Flow Arrow Three",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600190",
+              "name": "Response Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600188",
+                  "name": "Response Step Kicker",
+                  "fill": "$blue",
+                  "content": "04 · ECHO / HISTORY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600189",
+                  "name": "Response Step Detail",
+                  "fill": "$text",
+                  "content": "octet-stream data URI + one History entry",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600282",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600199",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$panelAlt",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600194",
+                  "name": "Contract Title Block",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600192",
+                      "name": "Contract Title",
+                      "fill": "$text",
+                      "content": "Issue #60 · Raw Request Body: PUT /anything/raw",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600193",
+                      "name": "Contract Paths",
+                      "fill": "$muted",
+                      "content": "tests/httpbingo_scenarios.rs · tests/cases/httpbingo/bodies.json · design/issue-0060-raw-request-body.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600198",
+                  "name": "Contract Links",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600196",
+                      "name": "Contract Status",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600195",
+                          "name": "Contract Status Label",
+                          "fill": "$green",
+                          "content": "IMPLEMENTED · DESIGN TRACKED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600197",
+                      "name": "GitHub Issue URL",
+                      "fill": "$blue",
+                      "content": "https://github.com/847850277/postman-gpui/issues/60",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600275",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 18,
+              "padding": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600231",
+                  "name": "Scenario Column",
+                  "width": 470,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600200",
+                      "name": "Scenario Column Title",
+                      "fill": "$accent",
+                      "content": "REAL UI SCENARIO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600206",
+                      "name": "Select PUT Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600202",
+                          "name": "Select PUT Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600201",
+                              "name": "Select PUT Step Mark Label",
+                              "fill": "$accent",
+                              "content": "1",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600205",
+                          "name": "Select PUT Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600203",
+                              "name": "Select PUT Step Title",
+                              "fill": "$text",
+                              "content": "Select PUT and enter the endpoint",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600204",
+                              "name": "Select PUT Step Detail",
+                              "fill": "$subtle",
+                              "content": "Use https://httpbingo.org/anything/raw.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600212",
+                      "name": "Select Raw Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600208",
+                          "name": "Select Raw Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600207",
+                              "name": "Select Raw Step Mark Label",
+                              "fill": "$accent",
+                              "content": "2",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600211",
+                          "name": "Select Raw Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600209",
+                              "name": "Select Raw Step Title",
+                              "fill": "$text",
+                              "content": "Open Body and select raw",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600210",
+                              "name": "Select Raw Step Detail",
+                              "fill": "$subtle",
+                              "content": "Raw becomes selected without generating a JSON Content-Type.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600218",
+                      "name": "Type Raw Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600214",
+                          "name": "Type Raw Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600213",
+                              "name": "Type Raw Step Mark Label",
+                              "fill": "$accent",
+                              "content": "3",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600217",
+                          "name": "Type Raw Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600215",
+                              "name": "Type Raw Step Title",
+                              "fill": "$text",
+                              "content": "Type plain text body",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600216",
+                              "name": "Type Raw Step Detail",
+                              "fill": "$subtle",
+                              "content": "The editor stores the exact value as RequestBody::Raw.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600224",
+                      "name": "Active Raw Input Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600220",
+                          "name": "Active Raw Input Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600219",
+                              "name": "Active Raw Input Step Mark Label",
+                              "fill": "$accent",
+                              "content": "4",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600223",
+                          "name": "Active Raw Input Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600221",
+                              "name": "Active Raw Input Step Title",
+                              "fill": "$text",
+                              "content": "Keep the Raw editor active",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600222",
+                              "name": "Active Raw Input Step Detail",
+                              "fill": "$subtle",
+                              "content": "The latest value is already in the current tab's ViewModel.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600230",
+                      "name": "Direct Send Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600226",
+                          "name": "Direct Send Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600225",
+                              "name": "Direct Send Step Mark Label",
+                              "fill": "$accent",
+                              "content": "5",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600229",
+                          "name": "Direct Send Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600227",
+                              "name": "Direct Send Step Title",
+                              "fill": "$text",
+                              "content": "Click Send without leaving the editor",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600228",
+                              "name": "Direct Send Step Detail",
+                              "fill": "$subtle",
+                              "content": "No Enter, Tab, blur, Add, or finish_editing prerequisite.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600263",
+                  "name": "Assertions Column",
+                  "width": 500,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600232",
+                      "name": "Assertions Column Title",
+                      "fill": "$green",
+                      "content": "OBSERVABLE ASSERTIONS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600238",
+                      "name": "Exact Body Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600234",
+                          "name": "Exact Body Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600233",
+                              "name": "Exact Body Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600237",
+                          "name": "Exact Body Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600235",
+                              "name": "Exact Body Assertion Title",
+                              "fill": "$text",
+                              "content": "The real request contains the exact raw body",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600236",
+                              "name": "Exact Body Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "Outgoing bytes decode exactly to plain text body.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600244",
+                      "name": "No Generated Content-Type Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600240",
+                          "name": "No Generated Content-Type Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600239",
+                              "name": "No Generated Content-Type Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600243",
+                          "name": "No Generated Content-Type Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600241",
+                              "name": "No Generated Content-Type Assertion Title",
+                              "fill": "$text",
+                              "content": "No JSON Content-Type is synthesized",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600242",
+                              "name": "No Generated Content-Type Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "The typed Request has no generated Content-Type header.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600250",
+                      "name": "Octet-Stream Echo Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600246",
+                          "name": "Octet-Stream Echo Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600245",
+                              "name": "Octet-Stream Echo Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600249",
+                          "name": "Octet-Stream Echo Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600247",
+                              "name": "Octet-Stream Echo Assertion Title",
+                              "fill": "$text",
+                              "content": "HTTPBingo returns the stable octet-stream data URI",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600248",
+                              "name": "Octet-Stream Echo Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "The base64 payload is cGxhaW4gdGV4dCBib2R5.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600256",
+                      "name": "Decoded Raw Body Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600252",
+                          "name": "Decoded Raw Body Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600251",
+                              "name": "Decoded Raw Body Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600255",
+                          "name": "Decoded Raw Body Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600253",
+                              "name": "Decoded Raw Body Assertion Title",
+                              "fill": "$text",
+                              "content": "The echoed payload decodes to the original text",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600254",
+                              "name": "Decoded Raw Body Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "Decoded response data equals plain text body.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600262",
+                      "name": "Single Truth Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600258",
+                          "name": "Single Truth Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600257",
+                              "name": "Single Truth Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600261",
+                          "name": "Single Truth Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600259",
+                              "name": "Single Truth Assertion Title",
+                              "fill": "$text",
+                              "content": "Input, ViewModel, response, and History agree",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600260",
+                              "name": "Single Truth Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "No duplicate business string or submit-time backfill exists.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600274",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600264",
+                      "name": "Boundary Column Title",
+                      "fill": "$blue",
+                      "content": "SLICE BOUNDARIES",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600267",
+                      "name": "Included Scope",
+                      "width": "fill_container",
+                      "height": 98,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600265",
+                          "name": "Included Scope Kicker",
+                          "fill": "$subtle",
+                          "content": "INCLUDED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600266",
+                          "name": "Included Scope Value",
+                          "fill": "$green",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "PUT Raw editing · active-value persistence · exact UTF-8 bytes · no generated JSON Content-Type · octet-stream echo · ResponseState/View/History.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600270",
+                      "name": "Excluded Scope",
+                      "width": "fill_container",
+                      "height": 88,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600268",
+                          "name": "Excluded Scope Kicker",
+                          "fill": "$subtle",
+                          "content": "NOT IN THIS SLICE",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600269",
+                          "name": "Excluded Scope Value",
+                          "fill": "$accent",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "JSON #57 · URL-encoded #58 · HTML form #59 · multipart #64. Media-type selection, file streaming, and environment interpolation remain out of scope.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600273",
+                      "name": "Tracking Relationship",
+                      "width": "fill_container",
+                      "height": 70,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600271",
+                          "name": "Tracking Relationship Kicker",
+                          "fill": "$subtle",
+                          "content": "TRACEABILITY",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600272",
+                          "name": "Tracking Relationship Value",
+                          "fill": "$blue",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Parent roadmap #50 → #60 Raw body; siblings #57 JSON, #58 URL-encoded, #59 HTML form, and #64 multipart.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600281",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentSoft",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600278",
+                  "name": "Traceability Copy",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600276",
+                      "name": "One-to-One Label",
+                      "fill": "$accent",
+                      "content": "ONE ISSUE · ONE E2E SLICE · ONE .PEN FILE",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600277",
+                      "name": "One-to-One Detail",
+                      "fill": "$muted",
+                      "content": "#60 ↔ issue-0060-raw-request-body.pen ↔ bodies.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600280",
+                  "name": "Acceptance Badge",
+                  "height": 26,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 13,
+                  "padding": 8,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600279",
+                      "name": "Acceptance Badge Label",
+                      "fill": "$green",
+                      "content": "✓ EXACT RAW TEXT · NO JSON HEADER · ECHO · HISTORY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "context": "GitHub Issue #60 · PUT /anything/raw · one E2E issue maps to this Pencil design"
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "60000000-6000-4600-8600-000000000060"
+}

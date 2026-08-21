@@ -179,6 +179,22 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
         ],
     },
     IssueContentContract {
+        issue: 60,
+        required_node_names: &[
+            "Raw Body Editor Active",
+            "ViewModel Raw Body Content Item",
+            "No Generated Content-Type Content Item",
+            "Effective Raw Request Preview",
+        ],
+        required_visible_text: &[
+            "plain text body",
+            "RequestBody::Raw(\"plain text body\")",
+            "Content-Type: not generated",
+            "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
         issue: 70,
         required_node_names: &[
             "Global Search Idle",

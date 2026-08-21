@@ -39,6 +39,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#57 JSON Body and Automatic Content-Type](https://github.com/847850277/postman-gpui/issues/57) | [`issue-0057-json-body-content-type.pen`](issue-0057-json-body-content-type.pen) |
 | [#58 URL-Encoded Form](https://github.com/847850277/postman-gpui/issues/58) | [`issue-0058-url-encoded-form.pen`](issue-0058-url-encoded-form.pen) |
 | [#59 HTML Form Page and Submission](https://github.com/847850277/postman-gpui/issues/59) | [`issue-0059-html-form-submission.pen`](issue-0059-html-form-submission.pen) |
+| [#60 Raw Request Body](https://github.com/847850277/postman-gpui/issues/60) | [`issue-0060-raw-request-body.pen`](issue-0060-raw-request-body.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
