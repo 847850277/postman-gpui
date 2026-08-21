@@ -1,0 +1,3278 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "r600283",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #61 · Non-2xx Response: GET /status/418",
+      "clip": true,
+      "width": 1600,
+      "height": 1872,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "r600020",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600003",
+              "name": "Issue Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "layout": "vertical",
+              "gap": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600001",
+                  "name": "Issue Mark Number",
+                  "fill": "$accent",
+                  "content": "#61",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600002",
+                  "name": "Issue Mark Label",
+                  "fill": "$accent",
+                  "content": "NON-2XX",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600012",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600009",
+                  "name": "Eyebrow",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600005",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600004",
+                          "name": "Issue Badge Label",
+                          "fill": "$blue",
+                          "content": "ISSUE #61 · HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600007",
+                      "name": "Status Badge",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600006",
+                          "name": "Status Badge Label",
+                          "fill": "$green",
+                          "content": "IMPLEMENTED BASELINE · DESIGN ADDED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600008",
+                      "name": "Issue URL",
+                      "fill": "$subtle",
+                      "content": "https://github.com/847850277/postman-gpui/issues/61",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r600010",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Non-2xx Response · Completed HTTP 418, Not Transport Failure",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 26,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600011",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Send GET /status/418 from the active URL input, preserve HTTP 418 as a completed response, and keep ResponseState, the rendered view, and History consistent.",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600019",
+              "name": "Scope Snapshot",
+              "width": 430,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 14,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600013",
+                  "name": "Scope Label",
+                  "fill": "$subtle",
+                  "content": "FEATURE SCOPE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "r600017",
+                  "name": "Endpoint Row",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600015",
+                      "name": "GET Method Badge",
+                      "height": 24,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600014",
+                          "name": "GET Method Badge Label",
+                          "fill": "$accent",
+                          "content": "GET",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600016",
+                      "name": "Endpoint",
+                      "fill": "$text",
+                      "content": "https://httpbingo.org/status/418",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "r600018",
+                  "name": "Scope Note",
+                  "fill": "$muted",
+                  "content": "Exact 418 status · completed response · one History entry",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600171",
+          "name": "Application State · Non-2xx Completed Response",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600031",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "gap": 18,
+              "padding": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600024",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600022",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600021",
+                          "name": "Logo Letter",
+                          "fill": "$panel",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600023",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600027",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600025",
+                      "name": "Search Icon",
+                      "fill": "$muted",
+                      "content": "⌕",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600026",
+                      "name": "Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600030",
+                  "name": "Environment",
+                  "width": 190,
+                  "height": 36,
+                  "fill": "$panel",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "r600028",
+                      "name": "Environment Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600029",
+                      "name": "Environment Label",
+                      "fill": "$text",
+                      "content": "No Environment",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600170",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600040",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600033",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600032",
+                          "name": "New Request Glyph",
+                          "fill": "$muted",
+                          "content": "+",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600035",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600034",
+                          "name": "History Navigation Glyph",
+                          "fill": "$accent",
+                          "content": "◷",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600037",
+                      "name": "Workspace Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600036",
+                          "name": "Workspace Navigation Glyph",
+                          "fill": "$muted",
+                          "content": "◇",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600039",
+                      "name": "Keyboard Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600038",
+                          "name": "Keyboard Navigation Glyph",
+                          "fill": "$muted",
+                          "content": "⌘",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600059",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600041",
+                      "name": "History Title",
+                      "fill": "$text",
+                      "content": "History",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600042",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Requests in this workspace",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600045",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600043",
+                          "name": "History Search Icon",
+                          "fill": "$subtle",
+                          "content": "⌕",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600044",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600046",
+                      "name": "History Group Label",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600055",
+                      "name": "Completed 418 History Result Content Item",
+                      "width": "fill_container",
+                      "height": 118,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$accent",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600050",
+                          "name": "History Result Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600048",
+                              "name": "History GET Badge",
+                              "height": 24,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 13,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "padding": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600047",
+                                  "name": "History GET Badge Label",
+                                  "fill": "$accent",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600049",
+                              "name": "History Status",
+                              "fill": "$green",
+                              "content": "418 · 312 ms",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600051",
+                          "name": "History URL",
+                          "fill": "$text",
+                          "content": "httpbingo.org/status/418",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600052",
+                          "name": "History Completion Kind",
+                          "fill": "$blue",
+                          "content": "Completed HTTP response · non-2xx",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600053",
+                          "name": "History Exact Status",
+                          "fill": "$muted",
+                          "content": "Status 418 · body 13 B",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600054",
+                          "name": "History Entry Policy",
+                          "fill": "$muted",
+                          "content": "Recorded once · status Some(418)",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600058",
+                      "name": "History Lifecycle Proof",
+                      "width": "fill_container",
+                      "height": 76,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600056",
+                          "name": "History Lifecycle Proof Kicker",
+                          "fill": "$subtle",
+                          "content": "COMPLETED, NOT FAILED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600057",
+                          "name": "History Lifecycle Proof Value",
+                          "fill": "$green",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "HTTP 418 completed, rendered, and produced one History entry.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600169",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600067",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 10,
+                      "padding": 14,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600061",
+                          "name": "Tab GET Badge",
+                          "height": 24,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 13,
+                          "padding": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600060",
+                              "name": "Tab GET Badge Label",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600062",
+                          "name": "Request Tab Name",
+                          "fill": "$text",
+                          "content": "httpbingo.org/status/418",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "r600063",
+                          "name": "Dirty Indicator",
+                          "fill": "$accent",
+                          "width": 6,
+                          "height": 6
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600064",
+                          "name": "Close Tab",
+                          "fill": "$subtle",
+                          "content": "×",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600066",
+                          "name": "New Tab",
+                          "width": 32,
+                          "height": 32,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 9,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600065",
+                              "name": "New Tab Glyph",
+                              "fill": "$text",
+                              "content": "+",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 17,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600168",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": 806,
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600078",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600070",
+                              "name": "Method Selector",
+                              "width": 120,
+                              "height": 46,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 10,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "padding": 12,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600068",
+                                  "name": "Method Selector Label",
+                                  "fill": "$accent",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600069",
+                                  "name": "Method Selector Chevron",
+                                  "fill": "$accent",
+                                  "content": "⌄",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600075",
+                              "name": "URL Input",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 8,
+                              "padding": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600071",
+                                  "name": "URL Lock",
+                                  "fill": "$muted",
+                                  "content": "♙",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600072",
+                                  "name": "URL Value",
+                                  "fill": "$text",
+                                  "content": "https://httpbingo.org/status/418",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600074",
+                                  "name": "URL Saved Badge",
+                                  "height": 24,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 13,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600073",
+                                      "name": "URL Saved Badge Label",
+                                      "fill": "$blue",
+                                      "content": "SAVED",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600077",
+                              "name": "Send Button",
+                              "width": 100,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600076",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600134",
+                          "name": "Request Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600087",
+                              "name": "Request Menu",
+                              "width": "fill_container",
+                              "height": 48,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 24,
+                              "padding": 14,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r600079",
+                                  "name": "Params Tab",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600080",
+                                  "name": "Authorization Tab",
+                                  "fill": "$muted",
+                                  "content": "Authorization (Bearer)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600081",
+                                  "name": "Headers Tab",
+                                  "fill": "$blue",
+                                  "content": "Headers (0)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600084",
+                                  "name": "Body Tab Active",
+                                  "height": 48,
+                                  "stroke": "$accent",
+                                  "strokeWidth": 2,
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600082",
+                                      "name": "Body Tab Label",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "ellipse",
+                                      "id": "r600083",
+                                      "name": "Body Clean State Dot",
+                                      "fill": "$accent",
+                                      "width": 5,
+                                      "height": 5,
+                                      "enabled": false
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600085",
+                                  "name": "Scripts Tab",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r600086",
+                                  "name": "Tests Tab",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "i2vRp",
+                              "name": "Body Type Bar",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 16,
+                              "padding": [
+                                6,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "gbcMa",
+                                  "name": "Body Type Label",
+                                  "fill": "$subtle",
+                                  "content": "BODY TYPE",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "i5dsA",
+                                  "name": "Body Type raw",
+                                  "fill": "$muted",
+                                  "content": "○ raw",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "V5XNh",
+                                  "name": "Body Type form-data",
+                                  "fill": "$muted",
+                                  "content": "○ form-data",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aOZwS",
+                                  "name": "Body Type x-www-form-urlencoded",
+                                  "fill": "$muted",
+                                  "content": "○ x-www-form-urlencoded",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aQnB3",
+                                  "name": "Body Type JSON",
+                                  "fill": "$muted",
+                                  "content": "○ JSON",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "vaV1d",
+                                  "name": "Body Type none selected",
+                                  "width": 69,
+                                  "height": 28,
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$accent",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "tof71",
+                                      "name": "Body Type none selected Label",
+                                      "fill": "$accent",
+                                      "content": "● none  ✓",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "ellipse",
+                                      "id": "TZkdy",
+                                      "x": 37,
+                                      "y": 21.5,
+                                      "name": "Body Dirty Dot",
+                                      "enabled": false,
+                                      "fill": "$accent",
+                                      "width": 5,
+                                      "height": 5
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "spxfN",
+                                  "name": "GET Body None Badge",
+                                  "height": 28,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 13,
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "B8Yuw",
+                                      "name": "GET Body None Badge Label",
+                                      "fill": "$green",
+                                      "content": "GET · BODY NONE",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600133",
+                              "name": "GET Request and Completion Semantics",
+                              "width": "fill_container",
+                              "height": 262,
+                              "fill": "$panel",
+                              "gap": 14,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600103",
+                                  "name": "Request Command Column",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600099",
+                                      "name": "Active GET URL Content Item",
+                                      "width": "fill_container",
+                                      "height": 168,
+                                      "fill": "$code",
+                                      "cornerRadius": 10,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 2,
+                                      "layout": "vertical",
+                                      "gap": 9,
+                                      "padding": 14,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600096",
+                                          "name": "Active GET URL Header",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600094",
+                                              "name": "Active GET URL Label",
+                                              "fill": "$blue",
+                                              "content": "GET · ACTIVE URL INPUT",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "r600095",
+                                              "name": "Active URL Character Count",
+                                              "fill": "$subtle",
+                                              "content": "32 chars",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600097",
+                                          "name": "Active GET URL Value",
+                                          "fill": "$codeText",
+                                          "content": "https://httpbingo.org/status/418│",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 15,
+                                          "fontWeight": "500"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600098",
+                                          "name": "Active Input Note",
+                                          "fill": "$muted",
+                                          "content": "Click Send now — the URL already lives in the current request ViewModel.",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600102",
+                                      "name": "ViewModel GET Request Content Item",
+                                      "width": "fill_container",
+                                      "height": 60,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600100",
+                                          "name": "ViewModel GET Request Kicker",
+                                          "fill": "$subtle",
+                                          "content": "SINGLE SOURCE OF TRUTH",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600101",
+                                          "name": "ViewModel GET Request Value",
+                                          "fill": "$green",
+                                          "content": "method=GET · url=/status/418 · body=RequestBody::None",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600132",
+                                  "name": "Completion Semantics Column",
+                                  "width": 470,
+                                  "height": "fill_container",
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600109",
+                                      "name": "Completion Semantics Header",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600106",
+                                          "name": "Completion Semantics Title Block",
+                                          "layout": "vertical",
+                                          "gap": 2,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600104",
+                                              "name": "Completion Semantics Title",
+                                              "fill": "$text",
+                                              "content": "Lifecycle classification",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 13,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "r600105",
+                                              "name": "Completion Semantics Hint",
+                                              "fill": "$subtle",
+                                              "content": "An HTTP status is distinct from a network or client failure.",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600108",
+                                          "name": "Expected History Count",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600107",
+                                              "name": "Expected History Count Label",
+                                              "fill": "$blue",
+                                              "content": "1 HISTORY ENTRY",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600116",
+                                      "name": "Completed Non-2xx Response Content Item",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600111",
+                                          "name": "HTTP 418 Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600110",
+                                              "name": "HTTP 418 Mark Label",
+                                              "fill": "$accent",
+                                              "content": "418",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 8,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600112",
+                                          "name": "Completed Response Key",
+                                          "fill": "$text",
+                                          "content": "HTTP response",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600113",
+                                          "name": "Completed Response Value",
+                                          "fill": "$text",
+                                          "content": "status = 418",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600115",
+                                          "name": "Completed Response State",
+                                          "height": 24,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600114",
+                                              "name": "Completed Response State Label",
+                                              "fill": "$accent",
+                                              "content": "COMPLETED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600123",
+                                      "name": "ResponseState Success Content Item",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600118",
+                                          "name": "ResponseState Success Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600117",
+                                              "name": "ResponseState Success Mark Label",
+                                              "fill": "$green",
+                                              "content": "✓",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600119",
+                                          "name": "ResponseState Success Key",
+                                          "fill": "$text",
+                                          "content": "ResponseState",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600120",
+                                          "name": "ResponseState Success Value",
+                                          "fill": "$text",
+                                          "content": "Success · status 418",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600122",
+                                          "name": "ResponseState Success State",
+                                          "height": 24,
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600121",
+                                              "name": "ResponseState Success State Label",
+                                              "fill": "$blue",
+                                              "content": "STORED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600130",
+                                      "name": "Effective GET Request Preview",
+                                      "width": "fill_container",
+                                      "height": 48,
+                                      "fill": "$panel",
+                                      "cornerRadius": 8,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 8,
+                                      "padding": 9,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "r600125",
+                                          "name": "Effective GET Request Mark",
+                                          "width": 20,
+                                          "height": 20,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 5,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600124",
+                                              "name": "Effective GET Request Mark Label",
+                                              "fill": "$green",
+                                              "content": "✓",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600126",
+                                          "name": "Effective GET Request Key",
+                                          "fill": "$text",
+                                          "content": "GET /status/418",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600127",
+                                          "name": "Effective GET Request Value",
+                                          "fill": "$text",
+                                          "content": "headers 0 · body None",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "r600129",
+                                          "name": "Effective GET Request State",
+                                          "height": 24,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 13,
+                                          "padding": 8,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "r600128",
+                                              "name": "Effective GET Request State Label",
+                                              "fill": "$accent",
+                                              "content": "READY",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600131",
+                                      "name": "Completion Classification Note",
+                                      "fill": "$muted",
+                                      "content": "HTTP 418 completes normally · transport failure state is not used · History records the request.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600167",
+                          "name": "HTTPBingo 418 Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 350,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r600146",
+                              "name": "Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": 14,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600138",
+                                  "name": "Response Tabs",
+                                  "gap": 18,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "r600135",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 15,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600136",
+                                      "name": "Response Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600137",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$muted",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600145",
+                                  "name": "Response Header Actions",
+                                  "gap": 12,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600140",
+                                      "name": "Copy Response Button",
+                                      "height": 28,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600139",
+                                          "name": "Copy Response Button Label",
+                                          "fill": "$blue",
+                                          "content": "⧉  Copy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600142",
+                                      "name": "Response Status",
+                                      "height": 26,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 13,
+                                      "padding": 8,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600141",
+                                          "name": "Response Status Label",
+                                          "fill": "$accent",
+                                          "content": "● 418 Response",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600143",
+                                      "name": "Response Time",
+                                      "fill": "$muted",
+                                      "content": "312 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600144",
+                                      "name": "Response Size",
+                                      "fill": "$muted",
+                                      "content": "13 B",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r600166",
+                              "name": "Response Content",
+                              "width": "fill_container",
+                              "height": 298,
+                              "gap": 14,
+                              "padding": 14,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "r600152",
+                                  "name": "Stable Response Subset",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 9,
+                                  "padding": 14,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600149",
+                                      "name": "Status Assertion Header",
+                                      "width": "fill_container",
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "r600147",
+                                          "name": "Status Assertion Dot",
+                                          "fill": "$accent",
+                                          "width": 7,
+                                          "height": 7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600148",
+                                          "name": "Status Assertion Label",
+                                          "fill": "$accent",
+                                          "content": "HTTPBingo status body · stable assertion",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600150",
+                                      "name": "HTTPBingo 418 Body",
+                                      "fill": "$codeText",
+                                      "content": "I'm a teapot!",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r600151",
+                                      "name": "Copy Contract",
+                                      "fill": "$subtle",
+                                      "content": "Copy reads the complete 13-byte body from ResponseState; the required stable assertion is status 418.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r600165",
+                                  "name": "Response Verification",
+                                  "width": 332,
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r600155",
+                                      "name": "Exact Status Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600153",
+                                          "name": "Exact Status Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "✓ EXACT HTTP STATUS",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600154",
+                                          "name": "Exact Status Verification Value",
+                                          "fill": "$accent",
+                                          "content": "418",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600158",
+                                      "name": "Response Body Verification",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600156",
+                                          "name": "Response Body Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "✓ RESPONSE BODY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600157",
+                                          "name": "Response Body Verification Value",
+                                          "fill": "$green",
+                                          "content": "I'm a teapot!",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600161",
+                                      "name": "Transport Failure Contrast Content Item",
+                                      "width": "fill_container",
+                                      "height": 54,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600159",
+                                          "name": "Transport Failure Contrast Kicker",
+                                          "fill": "$blue",
+                                          "content": "≠ TRANSPORT FAILURE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600160",
+                                          "name": "Transport Failure Contrast Value",
+                                          "fill": "$blue",
+                                          "content": "ResponseState::Error is not used",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "r600164",
+                                      "name": "Lifecycle Verification",
+                                      "width": "fill_container",
+                                      "height": 64,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r600162",
+                                          "name": "Lifecycle Verification Kicker",
+                                          "fill": "$subtle",
+                                          "content": "RESPONSESTATE = VIEW = HISTORY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "r600163",
+                                          "name": "Lifecycle Verification Value",
+                                          "fill": "$text",
+                                          "content": "ResponseState::Success { status: 418 } · View · one History entry",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600191",
+          "name": "Feature Flow",
+          "width": "fill_container",
+          "height": 140,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 14,
+          "padding": 20,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600175",
+              "name": "Flow Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600172",
+                  "name": "Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "NON-2XX LIFECYCLE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600173",
+                  "name": "Flow Title",
+                  "fill": "$text",
+                  "content": "One completed 418 response",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600174",
+                  "name": "Flow Subtitle",
+                  "fill": "$muted",
+                  "content": "Non-2xx ≠ network failure",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600178",
+              "name": "Active URL Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600176",
+                  "name": "Active URL Step Kicker",
+                  "fill": "$blue",
+                  "content": "01 · ACTIVE URL",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600177",
+                  "name": "Active URL Step Detail",
+                  "fill": "$text",
+                  "content": "Endpoint already saved",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600179",
+              "name": "Flow Arrow One",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600182",
+              "name": "GET Request Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600180",
+                  "name": "GET Request Step Kicker",
+                  "fill": "$blue",
+                  "content": "02 · EXACT REQUEST",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600181",
+                  "name": "GET Request Step Detail",
+                  "fill": "$text",
+                  "content": "GET /status/418 · body None",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600183",
+              "name": "Flow Arrow Two",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600186",
+              "name": "HTTP 418 Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600184",
+                  "name": "HTTP 418 Step Kicker",
+                  "fill": "$blue",
+                  "content": "03 · HTTP RESPONSE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600185",
+                  "name": "HTTP 418 Step Detail",
+                  "fill": "$text",
+                  "content": "418 + 13-byte response body",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "r600187",
+              "name": "Flow Arrow Three",
+              "fill": "$subtle",
+              "content": "→",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "r600190",
+              "name": "Lifecycle Projection Step",
+              "width": "fill_container",
+              "height": 76,
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r600188",
+                  "name": "Lifecycle Projection Step Kicker",
+                  "fill": "$blue",
+                  "content": "04 · VIEW / HISTORY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "r600189",
+                  "name": "Lifecycle Projection Step Detail",
+                  "fill": "$text",
+                  "content": "ResponseState::Success + one History entry",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r600282",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r600199",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$panelAlt",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600194",
+                  "name": "Contract Title Block",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600192",
+                      "name": "Contract Title",
+                      "fill": "$text",
+                      "content": "Issue #61 · Non-2xx Response: GET /status/418",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600193",
+                      "name": "Contract Paths",
+                      "fill": "$muted",
+                      "content": "tests/httpbingo_scenarios.rs · tests/cases/httpbingo/responses.json · design/issue-0061-non-2xx-response.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600198",
+                  "name": "Contract Links",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "r600196",
+                      "name": "Contract Status",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600195",
+                          "name": "Contract Status Label",
+                          "fill": "$green",
+                          "content": "IMPLEMENTED · DESIGN TRACKED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600197",
+                      "name": "GitHub Issue URL",
+                      "fill": "$blue",
+                      "content": "https://github.com/847850277/postman-gpui/issues/61",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600275",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 18,
+              "padding": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600231",
+                  "name": "Scenario Column",
+                  "width": 470,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600200",
+                      "name": "Scenario Column Title",
+                      "fill": "$accent",
+                      "content": "REAL UI SCENARIO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600206",
+                      "name": "Enter Endpoint Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600202",
+                          "name": "Enter Endpoint Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600201",
+                              "name": "Enter Endpoint Step Mark Label",
+                              "fill": "$accent",
+                              "content": "1",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600205",
+                          "name": "Enter Endpoint Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600203",
+                              "name": "Enter Endpoint Step Title",
+                              "fill": "$text",
+                              "content": "Keep GET and enter the endpoint",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600204",
+                              "name": "Enter Endpoint Step Detail",
+                              "fill": "$subtle",
+                              "content": "Use https://httpbingo.org/status/418.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600212",
+                      "name": "Keep URL Active Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600208",
+                          "name": "Keep URL Active Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600207",
+                              "name": "Keep URL Active Step Mark Label",
+                              "fill": "$accent",
+                              "content": "2",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600211",
+                          "name": "Keep URL Active Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600209",
+                              "name": "Keep URL Active Step Title",
+                              "fill": "$text",
+                              "content": "Keep the URL input active",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600210",
+                              "name": "Keep URL Active Step Detail",
+                              "fill": "$subtle",
+                              "content": "The endpoint is already stored in the current request ViewModel.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600218",
+                      "name": "Direct Send Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600214",
+                          "name": "Direct Send Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600213",
+                              "name": "Direct Send Step Mark Label",
+                              "fill": "$accent",
+                              "content": "3",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600217",
+                          "name": "Direct Send Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600215",
+                              "name": "Direct Send Step Title",
+                              "fill": "$text",
+                              "content": "Click Send directly",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600216",
+                              "name": "Direct Send Step Detail",
+                              "fill": "$subtle",
+                              "content": "No Enter, Tab, blur, Add, or submit-time backfill is required.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600224",
+                      "name": "Inspect Response Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600220",
+                          "name": "Inspect Response Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600219",
+                              "name": "Inspect Response Step Mark Label",
+                              "fill": "$accent",
+                              "content": "4",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600223",
+                          "name": "Inspect Response Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600221",
+                              "name": "Inspect Response Step Title",
+                              "fill": "$text",
+                              "content": "Inspect the completed response",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600222",
+                              "name": "Inspect Response Step Detail",
+                              "fill": "$subtle",
+                              "content": "The rendered status is exactly 418 and the body remains copyable.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600230",
+                      "name": "Inspect History Step",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600226",
+                          "name": "Inspect History Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600225",
+                              "name": "Inspect History Step Mark Label",
+                              "fill": "$accent",
+                              "content": "5",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600229",
+                          "name": "Inspect History Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600227",
+                              "name": "Inspect History Step Title",
+                              "fill": "$text",
+                              "content": "Inspect the new History entry",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600228",
+                              "name": "Inspect History Step Detail",
+                              "fill": "$subtle",
+                              "content": "GET /status/418 is recorded once with status Some(418).",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600263",
+                  "name": "Assertions Column",
+                  "width": 500,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600232",
+                      "name": "Assertions Column Title",
+                      "fill": "$green",
+                      "content": "OBSERVABLE ASSERTIONS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600238",
+                      "name": "Exact Request Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600234",
+                          "name": "Exact Request Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600233",
+                              "name": "Exact Request Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600237",
+                          "name": "Exact Request Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600235",
+                              "name": "Exact Request Assertion Title",
+                              "fill": "$text",
+                              "content": "The real request is GET /status/418",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600236",
+                              "name": "Exact Request Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "The outgoing request has zero app headers and RequestBody::None.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600244",
+                      "name": "Completed Response Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600240",
+                          "name": "Completed Response Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600239",
+                              "name": "Completed Response Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600243",
+                          "name": "Completed Response Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600241",
+                              "name": "Completed Response Assertion Title",
+                              "fill": "$text",
+                              "content": "HTTP 418 is a completed response",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600242",
+                              "name": "Completed Response Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "ResponseState::Success stores status 418 instead of producing a client error.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600250",
+                      "name": "Exact Status Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600246",
+                          "name": "Exact Status Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600245",
+                              "name": "Exact Status Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600249",
+                          "name": "Exact Status Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600247",
+                              "name": "Exact Status Assertion Title",
+                              "fill": "$text",
+                              "content": "ResponseState and View display exact status 418",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600248",
+                              "name": "Exact Status Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "The HTTPBingo body is I'm a teapot! and remains copyable.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600256",
+                      "name": "History Completion Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600252",
+                          "name": "History Completion Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600251",
+                              "name": "History Completion Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600255",
+                          "name": "History Completion Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600253",
+                              "name": "History Completion Assertion Title",
+                              "fill": "$text",
+                              "content": "History records the completed request",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600254",
+                              "name": "History Completion Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "One GET entry retains status Some(418).",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600262",
+                      "name": "Single Truth Assertion",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r600258",
+                          "name": "Single Truth Assertion Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600257",
+                              "name": "Single Truth Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "r600261",
+                          "name": "Single Truth Assertion Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r600259",
+                              "name": "Single Truth Assertion Title",
+                              "fill": "$text",
+                              "content": "Request, ResponseState, View, and History agree",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "r600260",
+                              "name": "Single Truth Assertion Detail",
+                              "fill": "$subtle",
+                              "content": "No transport-failure branch or duplicate lifecycle is created.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600274",
+                  "name": "Boundary Column",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600264",
+                      "name": "Boundary Column Title",
+                      "fill": "$blue",
+                      "content": "SLICE BOUNDARIES",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600267",
+                      "name": "Included Scope",
+                      "width": "fill_container",
+                      "height": 98,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600265",
+                          "name": "Included Scope Kicker",
+                          "fill": "$subtle",
+                          "content": "INCLUDED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600266",
+                          "name": "Included Scope Value",
+                          "fill": "$green",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "GET /status/418 · active URL persistence · completed non-2xx response · exact status · copyable body · ResponseState/View/History consistency.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600270",
+                      "name": "Excluded Scope",
+                      "width": "fill_container",
+                      "height": 88,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600268",
+                          "name": "Excluded Scope Kicker",
+                          "fill": "$subtle",
+                          "content": "NOT IN THIS SLICE",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600269",
+                          "name": "Excluded Scope Value",
+                          "fill": "$accent",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Redirect following, JSON parsing, timeout/cancellation, retry policy, and renaming the ResponseState enum remain out of scope.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r600273",
+                      "name": "Tracking Relationship",
+                      "width": "fill_container",
+                      "height": 70,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r600271",
+                          "name": "Tracking Relationship Kicker",
+                          "fill": "$subtle",
+                          "content": "TRACEABILITY",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "r600272",
+                          "name": "Tracking Relationship Value",
+                          "fill": "$blue",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Parent roadmap #50 → #61 non-2xx response; adjacent response scenarios remain independently tracked.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r600281",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentSoft",
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "padding": 18,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r600278",
+                  "name": "Traceability Copy",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600276",
+                      "name": "One-to-One Label",
+                      "fill": "$accent",
+                      "content": "ONE ISSUE · ONE E2E SLICE · ONE .PEN FILE",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r600277",
+                      "name": "One-to-One Detail",
+                      "fill": "$muted",
+                      "content": "#61 ↔ issue-0061-non-2xx-response.pen ↔ responses.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r600280",
+                  "name": "Acceptance Badge",
+                  "height": 26,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 13,
+                  "padding": 8,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "r600279",
+                      "name": "Acceptance Badge Label",
+                      "fill": "$green",
+                      "content": "✓ 418 COMPLETED · EXACT STATUS · VIEW · HISTORY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "context": "GitHub Issue #61 · GET /status/418 · one E2E issue maps to this Pencil design"
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "61000000-6100-4610-8610-000000000061"
+}
