@@ -1,0 +1,4087 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "NBWuI",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #68 · Redirect Policy and Redirect Chains",
+      "clip": true,
+      "width": 1600,
+      "height": 1836,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "bRvQ6",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": [
+            18,
+            24
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "KWtKm",
+              "name": "Design Header Copy",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ClkFr",
+                  "name": "Issue and Parent Roadmap",
+                  "fill": "$accent",
+                  "content": "HTTPBINGO E2E · ISSUE #68 · PARENT #50",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 12,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "cZ3v9",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Redirect Policy and Redirect Chains",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 32,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "a0OU9Z",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Expose per-request Follow / Do not follow and a maximum-hop guard while making every redirect status, URL, and Location observable without losing the original request URL.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "lUVf6",
+              "name": "Design Traceability",
+              "width": 410,
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "j93oJ",
+                  "name": "Design Status Badge",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 999,
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "S9tWmb",
+                      "name": "Design Status Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "iiOvS",
+                      "name": "Design Status",
+                      "fill": "$green",
+                      "content": "DESIGN READY · IMPLEMENTATION PLANNED",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "zJtYl",
+                  "name": "Issue URL",
+                  "fill": "$blue",
+                  "content": "github.com/847850277/postman-gpui/issues/68",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "E7tNK",
+                  "name": "Endpoint Coverage",
+                  "fill": "$subtle",
+                  "textGrowth": "fixed-width",
+                  "width": 410,
+                  "content": "/redirect/:n · /relative-redirect/:n\n/absolute-redirect/:n · /redirect-to",
+                  "lineHeight": 1.35,
+                  "textAlign": "right",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GuVN0",
+          "name": "Application State · Follow Relative Redirect",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "oyw2z",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 16,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "qV809",
+                  "name": "Postman GPUI Brand",
+                  "width": 272,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tXcTS",
+                      "name": "Brand Mark",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accent",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "D8sJt",
+                          "name": "Brand Send Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "send",
+                          "library": "lucide",
+                          "fill": "$panel"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "XeURo",
+                      "name": "Brand Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "evLjM",
+                  "name": "Workspace Breadcrumb",
+                  "fill": "$muted",
+                  "content": "HTTPBingo E2E  /  Redirect policy",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "pkNAk",
+                  "name": "Top Header Spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "KdGBF",
+                  "name": "Environment Badge",
+                  "fill": "$blueSoft",
+                  "cornerRadius": 999,
+                  "gap": 7,
+                  "padding": [
+                    7,
+                    11
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "anlqj",
+                      "name": "Environment Status Dot",
+                      "fill": "$blue",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "AIYVO",
+                      "name": "Environment Name",
+                      "fill": "$blue",
+                      "content": "httpbingo.org",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "u1Uc5",
+              "name": "App Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "X0qMUo",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    16,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "iNtyP",
+                      "name": "Rail Item · Requests",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "d5DCo",
+                          "name": "Rail Icon · Requests",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "panel-left",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PcLtE",
+                      "name": "Rail Item · History",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "OIx4a",
+                          "name": "Rail Icon · History",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "clock-3",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "U1cTFp",
+                      "name": "Rail Item · Collections",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "oIlLF",
+                          "name": "Rail Icon · Collections",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XuYS7",
+                      "name": "Rail Item · Settings",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "yxOAT",
+                          "name": "Rail Icon · Settings",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BO7yX",
+                      "name": "Rail Spacer",
+                      "width": 1,
+                      "height": "fill_container"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "luZoS",
+                      "name": "Rail Item · Help",
+                      "width": 40,
+                      "height": 40,
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "cViGN",
+                          "name": "Rail Icon · Help",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "info",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EaN6f",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "MAaIt",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "height": 34,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "aiXgp",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 15,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "fKpRF",
+                          "name": "History Header Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "oa8vX",
+                          "name": "History Count",
+                          "fill": "$panelAlt",
+                          "cornerRadius": 999,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "eCpV6",
+                              "name": "History Count Text",
+                              "fill": "$muted",
+                              "content": "2 HTTP",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "e66Cr",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "U4XRby",
+                          "name": "History Search Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QC3bm",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter requests",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FdOM6",
+                      "name": "Follow Redirect History Result Content Item",
+                      "width": "fill_container",
+                      "height": 112,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 10,
+                      "stroke": "$green",
+                      "strokeWidth": {
+                        "left": 3
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "SEBuB",
+                          "name": "Follow History Status Row",
+                          "width": "fill_container",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "m1MYP",
+                              "name": "Follow History Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "h26Va",
+                              "name": "Follow History Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ian25",
+                              "name": "Follow History Status",
+                              "fill": "$green",
+                              "content": "200",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "lnHzQ",
+                          "name": "Original Follow History URL",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "/relative-redirect/3",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "s2dfRj",
+                          "name": "Follow History Metadata",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "4 responses · final /get\noriginal request URL preserved",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "W7dYy",
+                      "name": "Do Not Follow History Result Content Item",
+                      "width": "fill_container",
+                      "height": 104,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "C8Byc8",
+                          "name": "No Follow History Status Row",
+                          "width": "fill_container",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "jKIds",
+                              "name": "No Follow History Method",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "eZeNv",
+                              "name": "No Follow History Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "text",
+                              "id": "eoSsk",
+                              "name": "No Follow History Status",
+                              "fill": "$accent",
+                              "content": "302",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "qEZlQ",
+                          "name": "Original No Follow History URL",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "/redirect-to?url=/anything/stop",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "S9Gu2s",
+                          "name": "No Follow History Metadata",
+                          "fill": "$muted",
+                          "content": "Do not follow · Location retained",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Hu5rs",
+                      "name": "Hop Limit History Exclusion Content Item",
+                      "width": "fill_container",
+                      "fill": "$panelAlt",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "G7xgi",
+                          "name": "Hop Limit History Exclusion Title",
+                          "fill": "$text",
+                          "content": "Limit failure · History +0",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "XAuNl",
+                          "name": "Hop Limit History Exclusion Rule",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ResponseState::Error never fabricates a successful History entry.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uVaaj",
+                      "name": "History Flexible Spacer",
+                      "width": 1,
+                      "height": "fill_container"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BJbDL",
+                      "name": "History Original URL Rule",
+                      "width": "fill_container",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "K0yC1R",
+                          "name": "History Rule Title",
+                          "fill": "$blue",
+                          "content": "HISTORY INVARIANT",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "bVfZ0",
+                          "name": "History Rule Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Completed HTTP responses keep the original request URL—not the terminal redirect URL.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HtdC1",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "PkMEB",
+                      "name": "Request Tab Bar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "eClX9",
+                          "name": "Active Request Tab",
+                          "height": 32,
+                          "fill": "$panel",
+                          "cornerRadius": [
+                            8,
+                            8,
+                            0,
+                            0
+                          ],
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "g2WZc",
+                              "name": "Request Draft Indicator",
+                              "fill": "$accent",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "W1nfXb",
+                              "name": "Active Request Tab Label",
+                              "fill": "$text",
+                              "content": "Redirect policy #68",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "FKjhT",
+                              "name": "Close Request Tab",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "j8pjAq",
+                          "name": "New Request Tab",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jhq9q",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 76,
+                      "fill": "$panel",
+                      "gap": 10,
+                      "padding": [
+                        12,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "J3vA7",
+                          "name": "Method Selector · GET",
+                          "width": 94,
+                          "height": 44,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 9,
+                          "gap": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "j9KRe",
+                              "name": "Selected Method · GET",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 13,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "bZm3P",
+                              "name": "Method Selector Chevron",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$green"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "VoryA",
+                          "name": "Active Redirect URL Content Item",
+                          "width": "fill_container",
+                          "height": 44,
+                          "fill": "$panel",
+                          "cornerRadius": 9,
+                          "stroke": "$accent",
+                          "strokeWidth": 1,
+                          "gap": 10,
+                          "padding": [
+                            0,
+                            13
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "qdLTa",
+                              "name": "Active URL Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "link-2",
+                              "library": "lucide",
+                              "fill": "$accent"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Q1LulF",
+                              "name": "Active URL Input Value",
+                              "fill": "$text",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "https://httpbingo.org/relative-redirect/3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "w3n1U",
+                              "name": "ViewModel Ready Badge",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 999,
+                              "padding": [
+                                5,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "OgiO4",
+                                  "name": "ViewModel Ready Text",
+                                  "fill": "$green",
+                                  "content": "IN VIEWMODEL",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Ci0BM",
+                          "name": "Send Button",
+                          "width": 104,
+                          "height": 44,
+                          "fill": "$accent",
+                          "cornerRadius": 9,
+                          "gap": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q0Hb0q",
+                              "name": "Send Button Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "send",
+                              "library": "lucide",
+                              "fill": "$panel"
+                            },
+                            {
+                              "type": "text",
+                              "id": "DDqtt",
+                              "name": "Send Button Label",
+                              "fill": "$panel",
+                              "content": "Send",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 13,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "O3oho",
+                      "name": "Redirect Options Request Pane",
+                      "width": "fill_container",
+                      "height": 360,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "top": 1,
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "D1znCo",
+                          "name": "Request Pane Tabs",
+                          "width": "fill_container",
+                          "height": 44,
+                          "fill": "$panel",
+                          "gap": 20,
+                          "padding": [
+                            0,
+                            18
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "QQX0u",
+                              "name": "Request Pane Tab · Params",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Y6oXcn",
+                                  "name": "Request Pane Tab Label · Params",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "PINEE",
+                              "name": "Request Pane Tab · Headers",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "cf7hh",
+                                  "name": "Request Pane Tab Label · Headers",
+                                  "fill": "$muted",
+                                  "content": "Headers",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "yIjKh",
+                              "name": "Request Pane Tab · Authorization",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "A4Ci4",
+                                  "name": "Request Pane Tab Label · Authorization",
+                                  "fill": "$muted",
+                                  "content": "Authorization",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "UDO3W",
+                              "name": "Request Pane Tab · Body",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "xx9li",
+                                  "name": "Request Pane Tab Label · Body",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "uI3YY",
+                              "name": "Active Request Pane Tab · Options",
+                              "height": 44,
+                              "stroke": "$accent",
+                              "strokeWidth": {
+                                "bottom": 2
+                              },
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "xyh00",
+                                  "name": "Request Pane Tab Label · Options",
+                                  "fill": "$accent",
+                                  "content": "Options",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "YfgjM",
+                              "name": "Request Pane Tab · Scripts",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "a2c5B",
+                                  "name": "Request Pane Tab Label · Scripts",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "AaehS",
+                              "name": "Request Pane Tab · Tests",
+                              "height": 44,
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "TryZe",
+                                  "name": "Request Pane Tab Label · Tests",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "aOnTa",
+                          "name": "Redirect Policy Options Editor",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panelAlt",
+                          "gap": 16,
+                          "padding": [
+                            14,
+                            18
+                          ],
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "R9kz9g",
+                              "name": "Redirect Policy Controls",
+                              "width": 430,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "sBBqR",
+                                  "name": "Redirect Controls Header",
+                                  "width": "fill_container",
+                                  "height": 28,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "t2LHXt",
+                                      "name": "Redirect Controls Title",
+                                      "fill": "$text",
+                                      "content": "Redirect behavior",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 14,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "A0vnbd",
+                                      "name": "Redirect Controls Header Spacer",
+                                      "width": "fill_container",
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "E9WtHN",
+                                      "name": "Per Request Badge",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 999,
+                                      "padding": [
+                                        5,
+                                        8
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "kzeCh",
+                                          "name": "Per Request Badge Text",
+                                          "fill": "$blue",
+                                          "content": "PER REQUEST",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ZKxsY",
+                                  "name": "Redirect Policy Segmented Control Content Item",
+                                  "width": "fill_container",
+                                  "height": 70,
+                                  "fill": "$panel",
+                                  "cornerRadius": 9,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 7,
+                                  "padding": [
+                                    9,
+                                    11
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "sqdCt",
+                                      "name": "Redirect Policy Label Row",
+                                      "width": "fill_container",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "OFJ9n",
+                                          "name": "Redirect Policy Label",
+                                          "fill": "$text",
+                                          "content": "Redirect policy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "lJ1vF",
+                                          "name": "Redirect Policy Label Spacer",
+                                          "width": "fill_container",
+                                          "height": 1
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "LiKAu",
+                                          "name": "Redirect Policy Hint",
+                                          "fill": "$subtle",
+                                          "content": "reqwest client policy",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "CgDT3",
+                                      "name": "Redirect Policy Segmented Control",
+                                      "width": "fill_container",
+                                      "height": 32,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "gap": 4,
+                                      "padding": 3,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "U3GoFB",
+                                          "name": "Selected Follow Redirect Segment",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "fill": "$panel",
+                                          "cornerRadius": 5,
+                                          "stroke": "$green",
+                                          "strokeWidth": 1,
+                                          "gap": 7,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "kyZne",
+                                              "name": "Follow Segment Icon",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "corner-down-right",
+                                              "library": "lucide",
+                                              "fill": "$green"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "tuTjF",
+                                              "name": "Follow Segment Label",
+                                              "fill": "$green",
+                                              "content": "Follow",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "R8NRQ1",
+                                          "name": "Do Not Follow Redirect Segment",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "cornerRadius": 5,
+                                          "gap": 7,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "Fcbf0",
+                                              "name": "Do Not Follow Segment Icon",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "octagon-pause",
+                                              "library": "lucide",
+                                              "fill": "$muted"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "lBZHk",
+                                              "name": "Do Not Follow Segment Label",
+                                              "fill": "$muted",
+                                              "content": "Do not follow",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "G7Pxa",
+                                  "name": "Maximum Redirects Content Item",
+                                  "width": "fill_container",
+                                  "height": 62,
+                                  "fill": "$panel",
+                                  "cornerRadius": 9,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "gap": 12,
+                                  "padding": [
+                                    9,
+                                    11
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "QwwTs",
+                                      "name": "Maximum Redirects Copy",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 3,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "y8EKO",
+                                          "name": "Maximum Redirects Label",
+                                          "fill": "$text",
+                                          "content": "Maximum redirects",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "RjPrh",
+                                          "name": "Maximum Redirects Help",
+                                          "fill": "$subtle",
+                                          "content": "Applied only when Follow is selected",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "H1NS35",
+                                      "name": "Maximum Redirects Stepper",
+                                      "height": 36,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "HWLB0",
+                                          "name": "Decrease Maximum Redirects",
+                                          "width": 34,
+                                          "height": "fill_container",
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "X0t8Vj",
+                                              "name": "Decrease Maximum Redirects Icon",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "minus",
+                                              "library": "lucide",
+                                              "fill": "$muted"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "XTgRL",
+                                          "name": "Maximum Redirects Active Input",
+                                          "width": 72,
+                                          "height": "fill_container",
+                                          "fill": "$panel",
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "rgcTN",
+                                              "name": "Maximum Redirects Active Value",
+                                              "fill": "$text",
+                                              "content": "5 hops",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "de6AS",
+                                          "name": "Increase Maximum Redirects",
+                                          "width": 34,
+                                          "height": "fill_container",
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "y6G1fG",
+                                              "name": "Increase Maximum Redirects Icon",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "plus",
+                                              "library": "lucide",
+                                              "fill": "$muted"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QnpqF",
+                                  "name": "Effective Redirect Request Preview",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 9,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 11,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Y5jKRb",
+                                      "name": "Effective Redirect Preview Header",
+                                      "width": "fill_container",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "jzlaP",
+                                          "name": "Effective Redirect Preview Label",
+                                          "fill": "$subtle",
+                                          "content": "EFFECTIVE REQUEST",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "HjGp4",
+                                          "name": "Effective Redirect Preview Spacer",
+                                          "width": "fill_container",
+                                          "height": 1
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "Kmfan",
+                                          "name": "Effective Redirect Ready State",
+                                          "fill": "$green",
+                                          "content": "READY",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "O4ogSR",
+                                      "name": "Effective Redirect Request Line",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "GET https://httpbingo.org/relative-redirect/3",
+                                      "lineHeight": 1.35,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "vh6IX",
+                                      "name": "Effective Redirect Policy Line",
+                                      "fill": "$accent",
+                                      "content": "Follow · max_hops=5",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "uPhtG",
+                                      "name": "Active Draft Commit Contract",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Ready to send — active values already live in ViewModel; no Enter, Tab, blur, Add, or submit-time backfill.",
+                                      "lineHeight": 1.25,
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "nseVV",
+                              "name": "Redirect Chain Viewer Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "gap": 7,
+                              "padding": [
+                                10,
+                                12
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "WVaAT",
+                                  "name": "Redirect Chain Header",
+                                  "width": "fill_container",
+                                  "height": 26,
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "mHOWN",
+                                      "name": "Redirect Chain Title",
+                                      "fill": "$text",
+                                      "content": "Redirect chain",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 13,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "qoSEw",
+                                      "name": "Redirect Chain Count Badge",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 999,
+                                      "padding": [
+                                        4,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "PfCSg",
+                                          "name": "Redirect Chain Count Text",
+                                          "fill": "$green",
+                                          "content": "3 REDIRECTS · FINAL 200",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "xCp2h",
+                                      "name": "Redirect Chain Header Spacer",
+                                      "width": "fill_container",
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "CamS9",
+                                      "name": "Redirect Chain Capture State",
+                                      "fill": "$blue",
+                                      "content": "CAPTURED",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "YO8dQ",
+                                  "name": "Redirect Location Coverage Tabs",
+                                  "width": "fill_container",
+                                  "height": 28,
+                                  "gap": 6,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "FYpX2",
+                                      "name": "Location Coverage · Relative",
+                                      "height": 28,
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 999,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 1,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "TGNdr",
+                                          "name": "Location Coverage Label · Relative",
+                                          "fill": "$blue",
+                                          "content": "Relative · LIVE",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "P1OqO",
+                                      "name": "Location Coverage · Absolute",
+                                      "height": 28,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 999,
+                                      "stroke": "$panelAlt",
+                                      "strokeWidth": 1,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "XIv62",
+                                          "name": "Location Coverage Label · Absolute",
+                                          "fill": "$muted",
+                                          "content": "Absolute · COVERED",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "R8I1SG",
+                                      "name": "Location Coverage · redirect-to",
+                                      "height": 28,
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 999,
+                                      "stroke": "$panelAlt",
+                                      "strokeWidth": 1,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "F413s",
+                                          "name": "Location Coverage Label · redirect-to",
+                                          "fill": "$muted",
+                                          "content": "redirect-to · COVERED",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "r17fp",
+                                  "name": "Redirect Hop 0 · 302",
+                                  "width": "fill_container",
+                                  "height": 43,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "gap": 10,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "K0CzwK",
+                                      "name": "Redirect Hop 0 Index",
+                                      "width": 28,
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "JKo7C",
+                                          "name": "Redirect Hop 0 Index Text",
+                                          "fill": "$muted",
+                                          "content": "0",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "V3nJio",
+                                      "name": "Redirect Hop 0 Status Badge",
+                                      "width": 42,
+                                      "height": 24,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 999,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "UakrE",
+                                          "name": "Redirect Hop 0 Status",
+                                          "fill": "$accent",
+                                          "content": "302",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "jCBVI",
+                                      "name": "Redirect Hop 0 Detail",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "J7Xwq",
+                                          "name": "Redirect Hop 0 URL",
+                                          "fill": "$text",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "https://httpbingo.org/relative-redirect/3",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "v5EQQ",
+                                          "name": "Redirect Hop 0 Location",
+                                          "fill": "$subtle",
+                                          "content": "Location: /relative-redirect/2",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ftH9K",
+                                  "name": "Redirect Hop 1 · 302",
+                                  "width": "fill_container",
+                                  "height": 43,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "gap": 10,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "g0flg",
+                                      "name": "Redirect Hop 1 Index",
+                                      "width": 28,
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "N8uOr",
+                                          "name": "Redirect Hop 1 Index Text",
+                                          "fill": "$muted",
+                                          "content": "1",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "XHHm5",
+                                      "name": "Redirect Hop 1 Status Badge",
+                                      "width": 42,
+                                      "height": 24,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 999,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "oE8cs",
+                                          "name": "Redirect Hop 1 Status",
+                                          "fill": "$accent",
+                                          "content": "302",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "M7X1b",
+                                      "name": "Redirect Hop 1 Detail",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "uHDN5",
+                                          "name": "Redirect Hop 1 URL",
+                                          "fill": "$text",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "https://httpbingo.org/relative-redirect/2",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hYaPJ",
+                                          "name": "Redirect Hop 1 Location",
+                                          "fill": "$subtle",
+                                          "content": "Location: /relative-redirect/1",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "oYLgE",
+                                  "name": "Redirect Hop 2 · 302",
+                                  "width": "fill_container",
+                                  "height": 43,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "gap": 10,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Wn1Gq",
+                                      "name": "Redirect Hop 2 Index",
+                                      "width": 28,
+                                      "height": 28,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "q1FDej",
+                                          "name": "Redirect Hop 2 Index Text",
+                                          "fill": "$muted",
+                                          "content": "2",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "dJBI8",
+                                      "name": "Redirect Hop 2 Status Badge",
+                                      "width": 42,
+                                      "height": 24,
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 999,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "JojNr",
+                                          "name": "Redirect Hop 2 Status",
+                                          "fill": "$accent",
+                                          "content": "302",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Kx8PX",
+                                      "name": "Redirect Hop 2 Detail",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "a9H4Wt",
+                                          "name": "Redirect Hop 2 URL",
+                                          "fill": "$text",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "https://httpbingo.org/relative-redirect/1",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "LKKib",
+                                          "name": "Redirect Hop 2 Location",
+                                          "fill": "$subtle",
+                                          "content": "Location: /get",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "td11O",
+                                  "name": "Redirect Hop 3 · Final 200",
+                                  "width": "fill_container",
+                                  "height": 43,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 7,
+                                  "gap": 10,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "nOsfx",
+                                      "name": "Redirect Hop 3 Index",
+                                      "width": 28,
+                                      "height": 28,
+                                      "fill": "$green",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "eKbTx",
+                                          "name": "Redirect Hop 3 Index Text",
+                                          "fill": "$panel",
+                                          "content": "3",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "SwXTt",
+                                      "name": "Redirect Hop 3 Status Badge",
+                                      "width": 42,
+                                      "height": 24,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 999,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "l51PQ",
+                                          "name": "Redirect Hop 3 Status",
+                                          "fill": "$green",
+                                          "content": "200",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "pzVoi",
+                                      "name": "Redirect Hop 3 Detail",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "N4mvA7",
+                                          "name": "Redirect Hop 3 URL",
+                                          "fill": "$text",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "https://httpbingo.org/get",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "B4RKEf",
+                                          "name": "Redirect Hop 3 Location",
+                                          "fill": "$green",
+                                          "content": "terminal response",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "eaSVP",
+                      "name": "HTTPBingo Redirect Policy Response Panel",
+                      "width": "fill_container",
+                      "height": 348,
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YsU4i",
+                          "name": "Response Header",
+                          "width": "fill_container",
+                          "height": 54,
+                          "fill": "$panel",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 10,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DKaTZ",
+                              "name": "Response Title",
+                              "fill": "$text",
+                              "content": "Response",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "p8gyUt",
+                              "name": "Final Response Status Badge",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 999,
+                              "gap": 6,
+                              "padding": [
+                                6,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "ellipse",
+                                  "id": "pKheH",
+                                  "name": "Final Response Status Dot",
+                                  "fill": "$green",
+                                  "width": 7,
+                                  "height": 7
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "PNxnX",
+                                  "name": "Final Response Status",
+                                  "fill": "$green",
+                                  "content": "200 OK",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "JTXHQ",
+                              "name": "Final Response Timing and Size",
+                              "fill": "$subtle",
+                              "content": "312 ms · 562 B · redirects 3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "m9v54J",
+                              "name": "Response Header Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "frame",
+                              "id": "qz9at",
+                              "name": "Show Redirect Chain Toggle",
+                              "fill": "$blueSoft",
+                              "cornerRadius": 8,
+                              "gap": 7,
+                              "padding": [
+                                7,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "j83TaS",
+                                  "name": "Show Redirect Chain Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "route",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Fe7cz",
+                                  "name": "Show Redirect Chain Label",
+                                  "fill": "$blue",
+                                  "content": "Chain · 4",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "z9kC9",
+                              "name": "Copy Response Button",
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 7,
+                              "padding": [
+                                8,
+                                11
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "yTHeJ",
+                                  "name": "Copy Response Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "copy",
+                                  "library": "lucide",
+                                  "fill": "$muted"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "jJ1W5",
+                                  "name": "Copy Response Label",
+                                  "fill": "$text",
+                                  "content": "Copy",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "c7Xmw",
+                          "name": "Response Content",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panelAlt",
+                          "gap": 14,
+                          "padding": 14,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "chLYd",
+                              "name": "Rendered Final Response Body",
+                              "width": 500,
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "gap": 9,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "FZhEQ",
+                                  "name": "Response Body Tabs",
+                                  "width": "fill_container",
+                                  "height": 28,
+                                  "gap": 16,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "n1RVR",
+                                      "name": "Active Response Body Tab",
+                                      "fill": "$accent",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r8mxi5",
+                                      "name": "Response Headers Tab",
+                                      "fill": "$muted",
+                                      "content": "Headers  ·  8",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "m9nHrv",
+                                      "name": "Response Body Tab Spacer",
+                                      "width": "fill_container",
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "NFPum",
+                                      "name": "Pretty JSON Badge",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 999,
+                                      "padding": [
+                                        4,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "ErSXo",
+                                          "name": "Pretty JSON Badge Text",
+                                          "fill": "$green",
+                                          "content": "PRETTY JSON",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "XkRAh",
+                                  "name": "Rendered Final JSON Stable Subset",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 8,
+                                  "layout": "vertical",
+                                  "gap": 5,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "bN4pa",
+                                      "name": "Final JSON Body Code",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "{\n  \"method\": \"GET\",\n  \"url\": \"https://httpbingo.org/get\"\n}",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "SIgxD",
+                                      "name": "Final Response Metadata",
+                                      "width": "fill_container",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "top": 1
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 3,
+                                      "padding": [
+                                        8,
+                                        0,
+                                        0,
+                                        0
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "bylNs",
+                                          "name": "Final URL Metadata",
+                                          "fill": "$blue",
+                                          "content": "final_url=https://httpbingo.org/get",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "urCiM",
+                                          "name": "Original URL Metadata",
+                                          "fill": "$muted",
+                                          "content": "original_url=https://httpbingo.org/relative-redirect/3",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "dm5ye",
+                                  "name": "Copy Completion Contract",
+                                  "fill": "$muted",
+                                  "content": "Copy reads the complete raw body from ResponseState · Copy → ✓ Copied",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "M2Txix",
+                              "name": "Redirect Policy Outcome Evidence",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "H8r6f5",
+                                  "name": "Redirect Policy Outcome Header",
+                                  "width": "fill_container",
+                                  "height": 28,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "p6w93",
+                                      "name": "Redirect Policy Outcome Title",
+                                      "fill": "$text",
+                                      "content": "Policy outcome evidence",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "gvPpN",
+                                      "name": "Redirect Policy Outcome Spacer",
+                                      "width": "fill_container",
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "i3Mxa",
+                                      "name": "Redirect Policy Outcome Hint",
+                                      "fill": "$subtle",
+                                      "content": "SAME SEND PIPELINE",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "cXMEx",
+                                  "name": "Follow Final Response Content Item",
+                                  "width": "fill_container",
+                                  "height": 72,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 9,
+                                  "stroke": "$green",
+                                  "strokeWidth": {
+                                    "left": 3
+                                  },
+                                  "gap": 12,
+                                  "padding": [
+                                    9,
+                                    11
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "cy8q0",
+                                      "name": "Follow Outcome Icon Container",
+                                      "width": 36,
+                                      "height": 36,
+                                      "fill": "$green",
+                                      "cornerRadius": 9,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "aUv7Y",
+                                          "name": "Follow Outcome Icon",
+                                          "width": 17,
+                                          "height": 17,
+                                          "icon": "check",
+                                          "library": "lucide",
+                                          "fill": "$panel"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "BGFw7",
+                                      "name": "Follow Outcome Copy",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "cRgy8",
+                                          "name": "Follow Outcome Title",
+                                          "fill": "$text",
+                                          "content": "Follow · max_hops=5 → terminal response",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "JwxxF",
+                                          "name": "Follow Outcome State",
+                                          "fill": "$green",
+                                          "content": "ResponseState::Success { status: 200 } · chain=4",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "fUZTG",
+                                          "name": "Follow Outcome History Rule",
+                                          "fill": "$muted",
+                                          "content": "History URL remains /relative-redirect/3; terminal URL is metadata.",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Awq5Z",
+                                  "name": "Redirect Policy Comparison",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Vuxc3",
+                                      "name": "Do Not Follow 302 Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "T7gvR",
+                                          "name": "Do Not Follow Outcome Header",
+                                          "width": "fill_container",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "CpUrl",
+                                              "name": "Do Not Follow Outcome Title",
+                                              "fill": "$accent",
+                                              "content": "DO NOT FOLLOW",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "W6OdO",
+                                              "name": "Do Not Follow Outcome Spacer",
+                                              "width": "fill_container",
+                                              "height": 1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "YzNHr",
+                                              "name": "Do Not Follow Outcome Status",
+                                              "fill": "$accent",
+                                              "content": "302 FOUND",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "j9v18m",
+                                          "name": "Do Not Follow Location Header",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Location: /anything/stop",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "PNXXh",
+                                          "name": "Do Not Follow Response State",
+                                          "fill": "$accent",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "ResponseState::Success { status: 302 }",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "i412c",
+                                          "name": "Do Not Follow Terminal Rule",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "One HTTP response; Location is preserved and no next request is issued.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "aJtwj",
+                                      "name": "Hop Limit Error Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$panel",
+                                      "cornerRadius": 9,
+                                      "stroke": "$accent",
+                                      "strokeWidth": {
+                                        "left": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "O6qsl",
+                                          "name": "Hop Limit Outcome Header",
+                                          "width": "fill_container",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "LYDNA",
+                                              "name": "Hop Limit Outcome Title",
+                                              "fill": "$accent",
+                                              "content": "FOLLOW · max_hops=2",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "bx2Zq",
+                                              "name": "Hop Limit Outcome Spacer",
+                                              "width": "fill_container",
+                                              "height": 1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "yGxbV",
+                                              "name": "Hop Limit Error Badge",
+                                              "fill": "$accent",
+                                              "content": "ERROR",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "ZMzM9",
+                                          "name": "Hop Limit Error Message",
+                                          "fill": "$text",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Redirect limit exceeded after 2 hops.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "FQ9zZ",
+                                          "name": "Hop Limit Response State",
+                                          "fill": "$accent",
+                                          "content": "ResponseState::Error · History +0",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "BLImv",
+                                          "name": "Hop Limit Partial Chain",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "302 /absolute-redirect/3\n302 /absolute-redirect/2 · partial chain retained",
+                                          "lineHeight": 1.3,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "A2eLY",
+          "name": "Interaction Flow · Redirect Decision Loop",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panel",
+          "cornerRadius": 14,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            14,
+            16
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "BwGXI",
+              "name": "Interaction Flow Header",
+              "width": "fill_container",
+              "height": 28,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "movFG",
+                  "name": "Interaction Flow Title",
+                  "fill": "$text",
+                  "content": "Redirect decision loop",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "Hcbld",
+                  "name": "Interaction Flow Header Spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "text",
+                  "id": "AWWhI",
+                  "name": "Completion Guard Summary",
+                  "fill": "$blue",
+                  "content": "REQUEST_ID + CANCELLATION GUARD ON EVERY TERMINAL PATH",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yq2Yq",
+              "name": "Redirect Flow Lane",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "boWfb",
+                  "name": "Flow Step 01 · Active draft",
+                  "width": 230,
+                  "height": 74,
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "wLoUc",
+                      "name": "Flow Step 01 Number",
+                      "width": 30,
+                      "height": 30,
+                      "fill": "$accent",
+                      "cornerRadius": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Ixx59",
+                          "name": "Flow Step 01 Number Text",
+                          "fill": "$panel",
+                          "content": "01",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lulWP",
+                      "name": "Flow Step 01 Copy",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VGAdB",
+                          "name": "Flow Step 01 Title",
+                          "fill": "$text",
+                          "content": "Active draft",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "dDluz",
+                          "name": "Flow Step 01 Detail",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "URL + policy + max hops already in ViewModel",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EyxSn",
+                  "name": "Flow Arrow 01",
+                  "width": 24,
+                  "height": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "g7uuz",
+                      "name": "Flow Arrow Icon 01",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "US9iT",
+                  "name": "Flow Step 02 · Policy projection",
+                  "width": 260,
+                  "height": 74,
+                  "fill": "$blueSoft",
+                  "cornerRadius": 10,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "KT7Mx",
+                      "name": "Flow Step 02 Number",
+                      "width": 30,
+                      "height": 30,
+                      "fill": "$blue",
+                      "cornerRadius": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "IxacV",
+                          "name": "Flow Step 02 Number Text",
+                          "fill": "$panel",
+                          "content": "02",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "maZ43",
+                      "name": "Flow Step 02 Copy",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "WiT5X",
+                          "name": "Flow Step 02 Title",
+                          "fill": "$text",
+                          "content": "Policy projection",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "D8RcfM",
+                          "name": "Flow Step 02 Detail",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Policy::none() or recording limited(max)",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "QQtM1",
+                  "name": "Flow Arrow 02",
+                  "width": 24,
+                  "height": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "I2snp",
+                      "name": "Flow Arrow Icon 02",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "GTVV5",
+                  "name": "Flow Step 03 · Attempt loop",
+                  "width": 280,
+                  "height": 74,
+                  "fill": "$blueSoft",
+                  "cornerRadius": 10,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "O2emOz",
+                      "name": "Flow Step 03 Number",
+                      "width": 30,
+                      "height": 30,
+                      "fill": "$blue",
+                      "cornerRadius": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "zE9KN",
+                          "name": "Flow Step 03 Number Text",
+                          "fill": "$panel",
+                          "content": "03",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "WWoyy",
+                      "name": "Flow Step 03 Copy",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fKDJU",
+                          "name": "Flow Step 03 Title",
+                          "fill": "$text",
+                          "content": "Attempt loop",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "SrpDW",
+                          "name": "Flow Step 03 Detail",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Capture status · URL · Location · next URL",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dnfJs",
+                  "name": "Flow Arrow 03",
+                  "width": 24,
+                  "height": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "HaODz",
+                      "name": "Flow Arrow Icon 03",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "a88O0r",
+                  "name": "Flow Step 04 · Terminal decision",
+                  "width": 285,
+                  "height": 74,
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "j415K",
+                      "name": "Flow Step 04 Number",
+                      "width": 30,
+                      "height": 30,
+                      "fill": "$accent",
+                      "cornerRadius": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "c7Zzu",
+                          "name": "Flow Step 04 Number Text",
+                          "fill": "$panel",
+                          "content": "04",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c3m8u",
+                      "name": "Flow Step 04 Copy",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "W9R95c",
+                          "name": "Flow Step 04 Title",
+                          "fill": "$text",
+                          "content": "Terminal decision",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "H2Bcvn",
+                          "name": "Flow Step 04 Detail",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "no-follow 3xx · final HTTP · hop-limit error",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zOujF",
+                  "name": "Flow Arrow 04",
+                  "width": 24,
+                  "height": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "i0EsZ",
+                      "name": "Flow Arrow Icon 04",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Tqzxe",
+                  "name": "Flow Step 05 · Commit once",
+                  "width": "fill_container",
+                  "height": 74,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 10,
+                  "gap": 10,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "R4dpty",
+                      "name": "Flow Step 05 Number",
+                      "width": 30,
+                      "height": 30,
+                      "fill": "$green",
+                      "cornerRadius": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "D2JBi",
+                          "name": "Flow Step 05 Number Text",
+                          "fill": "$panel",
+                          "content": "05",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KAz6K",
+                      "name": "Flow Step 05 Copy",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "WW4xF",
+                          "name": "Flow Step 05 Title",
+                          "fill": "$text",
+                          "content": "Commit once",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Z6VYNY",
+                          "name": "Flow Step 05 Detail",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ResponseState + chain; History keeps original URL",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "h8zWiN",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$panel",
+          "cornerRadius": 14,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 8,
+          "padding": 16,
+          "children": [
+            {
+              "type": "frame",
+              "id": "rh2EU",
+              "name": "E2E Contract Header",
+              "width": "fill_container",
+              "height": 34,
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "h2Fhn",
+                  "name": "E2E Contract Title",
+                  "fill": "$text",
+                  "content": "Real-UI acceptance contract",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 15,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "BRzSO",
+                  "name": "Scenario File Badge",
+                  "fill": "$code",
+                  "cornerRadius": 7,
+                  "padding": [
+                    6,
+                    9
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vAWIu",
+                      "name": "Scenario File Path",
+                      "fill": "$codeText",
+                      "content": "tests/cases/httpbingo/redirect_policy.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "do6XJ",
+                  "name": "E2E Contract Header Spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "G65bF7",
+                  "name": "Scenario Schema Badge",
+                  "fill": "$blueSoft",
+                  "cornerRadius": 999,
+                  "padding": [
+                    6,
+                    9
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "XGyu0",
+                      "name": "Scenario Schema Version",
+                      "fill": "$blue",
+                      "content": "SCHEMA v5 · PLANNED",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "vuUAK",
+              "name": "E2E Contract Columns",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "w6k7q",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": 548,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DSJ7Y",
+                      "name": "Ordered Scenario Steps Title",
+                      "fill": "$accent",
+                      "content": "ORDERED REAL-UI SCENARIO STEPS",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a16znH",
+                      "name": "Scenario Step 1",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "k5nowU",
+                          "name": "Scenario Step 1 Number",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$accent",
+                          "cornerRadius": 7,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "NA69l",
+                              "name": "Scenario Step 1 Number Text",
+                              "fill": "$panel",
+                              "content": "1",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "yoAtt",
+                          "name": "Scenario Step 1 Instruction",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Focus the URL input and type the full relative redirect URL https://httpbingo.org/relative-redirect/3 directly. Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Zx1JE",
+                      "name": "Scenario Step 2",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "nfes3",
+                          "name": "Scenario Step 2 Number",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$accent",
+                          "cornerRadius": 7,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WVVlw",
+                              "name": "Scenario Step 2 Number Text",
+                              "fill": "$panel",
+                              "content": "2",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "EMafM",
+                          "name": "Scenario Step 2 Instruction",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Select Follow, set maximum redirects to 5, click Send from the same active input, and wait for the final 200 plus four observable responses.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FGyco",
+                      "name": "Scenario Step 3",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ejYnY",
+                          "name": "Scenario Step 3 Number",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$accent",
+                          "cornerRadius": 7,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gijZ2",
+                              "name": "Scenario Step 3 Number Text",
+                              "fill": "$panel",
+                              "content": "3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "rmLMX",
+                          "name": "Scenario Step 3 Instruction",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Switch to Do not follow; type https://httpbingo.org/redirect-to?url=/anything/stop&status_code=302 and Send; retain 302 Location: /anything/stop.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iYXc1",
+                      "name": "Scenario Step 4",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "OGxrk",
+                          "name": "Scenario Step 4 Number",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$accent",
+                          "cornerRadius": 7,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VllUe",
+                              "name": "Scenario Step 4 Number Text",
+                              "fill": "$panel",
+                              "content": "4",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "s7PAV",
+                          "name": "Scenario Step 4 Instruction",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Select Follow, set maximum redirects to 2, type https://httpbingo.org/absolute-redirect/3, click Send, then assert the readable limit error and partial chain.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Z6Nsh",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": 570,
+                  "height": "fill_container",
+                  "fill": "$code",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "xBwbY",
+                      "name": "Observable Assertions Title",
+                      "fill": "$blue",
+                      "content": "OBSERVABLE ASSERTIONS · VERIFICATION CONTRACT",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "frame",
+                      "id": "C58YbI",
+                      "name": "Observable Assertion 1",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "jFoxL",
+                          "name": "Observable Assertion 1 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "t1TtPw",
+                          "name": "Observable Assertion 1 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Follow completes at 200; every hop exposes status, URL, and Location; the final URL is https://httpbingo.org/get while History preserves the original relative-redirect URL.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KI2qs",
+                      "name": "Observable Assertion 2",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "KW828",
+                          "name": "Observable Assertion 2 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "UCNae",
+                          "name": "Observable Assertion 2 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Do not follow commits ResponseState::Success { status: 302 }, preserves Location: /anything/stop, records one completed HTTP response, and issues no next request.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "qqMY4",
+                      "name": "Observable Assertion 3",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "C2jOuQ",
+                          "name": "Observable Assertion 3 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GL5uG",
+                          "name": "Observable Assertion 3 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "max_hops=2 commits ResponseState::Error with “Redirect limit exceeded after 2 hops.”, retains the partial absolute chain, and History never fabricates success.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LNmgO",
+                      "name": "Observable Assertion 4",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Zjjmh",
+                          "name": "Observable Assertion 4 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "p28Nis",
+                          "name": "Observable Assertion 4 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Relative Location values resolve against the current URL; absolute Location values remain absolute; /redirect/:n and /redirect-to stay covered by the same policy projection.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FvleK",
+                      "name": "Observable Assertion 5",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "BWaDb",
+                          "name": "Observable Assertion 5 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "FVU4J",
+                          "name": "Observable Assertion 5 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ResponseState, Response View, and History agree on terminal state; cancellation or a late completion from a stale request_id cannot overwrite the current request.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uTC2z",
+                      "name": "Observable Assertion 6",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "GB9sc",
+                          "name": "Observable Assertion 6 Check",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "a6aUvO",
+                          "name": "Observable Assertion 6 Text",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Assert stable status/URL/Location fields only; dates, timing, dynamic headers, and byte sizes are intentionally excluded.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "pXTc5",
+                  "name": "Scope and Non-Goals",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "NPk4e",
+                      "name": "Scope and Non-Goals Title",
+                      "fill": "$accent",
+                      "content": "SCOPE AND NON-GOALS",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T2hii2",
+                      "name": "In Scope Badge",
+                      "fill": "$greenSoft",
+                      "cornerRadius": 999,
+                      "padding": [
+                        5,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "caeA0",
+                          "name": "In Scope Badge Text",
+                          "fill": "$green",
+                          "content": "IN SCOPE",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Xw00y",
+                      "name": "In Scope Rules",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• Per-request Follow / Do not follow\n• Default Follow · 10 hops\n• Editable integer max_hops: 1–100\n• Relative + absolute chain capture\n• Original URL in History\n• Shared cancellation guard",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gzfMx",
+                      "name": "Non-Goals Badge",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 999,
+                      "padding": [
+                        5,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VoZRz",
+                          "name": "Non-Goals Badge Text",
+                          "fill": "$accent",
+                          "content": "NON-GOALS",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "psYFa",
+                      "name": "Non-Goals Rules",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• Non-GET rewrite semantics\n• Cross-origin credential forwarding\n• Manual hop replay or editing\n• Redirect caching\n• Provider timing guarantees",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Nytt2",
+              "name": "E2E Traceability Footer",
+              "width": "fill_container",
+              "height": 30,
+              "fill": "$panelAlt",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                0,
+                10
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LK3Qg",
+                  "name": "One-to-One Rule",
+                  "fill": "$accent",
+                  "content": "ONE ISSUE #68 ↔ ONE DESIGN issue-0068-redirect-policy-chains.pen · Parent roadmap #50 → #68.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "Qn9yX",
+                  "name": "E2E Traceability Spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "text",
+                  "id": "CaTM3",
+                  "name": "Public Workflow Traceability",
+                  "fill": "$muted",
+                  "content": "design/issue-0068-redirect-policy-chains.pen · .github/workflows/httpbingo-e2e.yml · tests/httpbingo_scenarios.rs",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}
