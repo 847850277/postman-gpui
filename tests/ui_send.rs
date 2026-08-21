@@ -622,6 +622,118 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
 }
 
 #[gpui::test]
+fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_methods(
+    cx: &mut TestAppContext,
+) {
+    const ALLOW_METHODS: &str = "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS";
+    let mut server = mockito::Server::new();
+    let head_request = server
+        .mock("HEAD", "/get")
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("content-type", "application/json; charset=utf-8")
+        .with_header("access-control-allow-origin", "*")
+        .with_body("a HEAD response body must never surface")
+        .create();
+    let options_request = server
+        .mock("OPTIONS", "/anything/options")
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("access-control-allow-methods", ALLOW_METHODS)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "HEAD").unwrap();
+    let head_url = format!("{}/get", server.url());
+    type_into(cx, "url-input", &head_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::HEAD);
+        assert_eq!(workspace.request_body(), RequestBody::None);
+        let ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } = workspace.response()
+        else {
+            panic!("HEAD should complete as an HTTP response");
+        };
+        assert_eq!(*status, 200);
+        assert!(body.is_empty(), "HEAD must not expose a response body");
+        assert!(headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("content-type") && value == "application/json; charset=utf-8"
+        }));
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(workspace.history()[0].request.method, HttpMethod::HEAD);
+        assert_eq!(workspace.history()[0].request.body, RequestBody::None);
+    });
+    assert!(cx.debug_bounds("response-pane-headers").is_some());
+    click(cx, "response-pane-headers").unwrap();
+    assert!(cx.debug_bounds("response-content").is_some());
+    assert!(cx.debug_bounds("response-copy-button").is_none());
+    head_request.assert();
+
+    click(cx, "new-tab-button").unwrap();
+    choose_method(cx, "OPTIONS").unwrap();
+    let options_url = format!("{}/anything/options", server.url());
+    type_into(cx, "url-input", &options_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::OPTIONS);
+        assert_eq!(workspace.request_body(), RequestBody::None);
+        let ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } = workspace.response()
+        else {
+            panic!("OPTIONS should complete as an HTTP response");
+        };
+        assert_eq!(*status, 200);
+        assert!(body.is_empty());
+        assert!(headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("access-control-allow-methods") && value == ALLOW_METHODS
+        }));
+        assert_eq!(workspace.history_len(), 2);
+        assert_eq!(workspace.history()[0].request.method, HttpMethod::OPTIONS);
+        assert_eq!(workspace.history()[0].request.body, RequestBody::None);
+        assert_eq!(workspace.history()[1].request.method, HttpMethod::HEAD);
+    });
+    assert!(cx.debug_bounds("response-copy-button").is_none());
+    for selector in ["history-method-0", "history-method-1"] {
+        assert!(cx.debug_bounds(selector).is_some());
+    }
+    options_request.assert();
+
+    click(cx, "history-item-1").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::HEAD);
+        assert_eq!(workspace.url(), head_url);
+        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert!(matches!(workspace.response(), ResponseState::NotSent));
+    });
+    assert!(cx.debug_bounds("method-dropdown-selected-value").is_some());
+    assert!(cx.debug_bounds("request-tab-method-1").is_some());
+
+    click(cx, "history-item-0").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::OPTIONS);
+        assert_eq!(workspace.url(), options_url);
+        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert!(matches!(workspace.response(), ResponseState::NotSent));
+    });
+}
+
+#[gpui::test]
 fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server

@@ -13,7 +13,7 @@ use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext}
 use postman_gpui::app::{
     AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
 };
-use postman_gpui::models::RequestBody;
+use postman_gpui::models::{HttpMethod, RequestBody};
 use std::path::{Path, PathBuf};
 use ui::{choose_method, click, click_without_wait, scroll_down, scroll_up, type_into};
 
@@ -28,6 +28,8 @@ const COOKIE_CLEARED_SCENARIO: &str =
 const DELAY_COMPLETED_SCENARIO: &str = "HTTPBingo completes a delayed request before any deadline";
 const DELAY_CANCELLED_SCENARIO: &str = "HTTPBingo delayed request is cancelled by the user";
 const DELAY_TIMEOUT_SCENARIO: &str = "HTTPBingo delayed request reaches its configured timeout";
+const HEAD_SCENARIO: &str = "HTTPBingo receives HEAD and returns headers without a response body";
+const OPTIONS_SCENARIO: &str = "HTTPBingo receives OPTIONS without rewriting it to GET";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
@@ -779,6 +781,139 @@ fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
         run_application_scenario(test_cx, scenario)
             .unwrap_or_else(|failure| panic!("Issue #66 scenario `{name}` failed:\n{failure}"));
     }
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_head_and_options_keep_exact_methods_empty_bodies_and_history_restore(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let scenarios = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .collect::<Vec<_>>();
+    let head = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| scenario.name == HEAD_SCENARIO)
+        .expect("Issue #78 HEAD scenario should exist");
+    let options = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| scenario.name == OPTIONS_SCENARIO)
+        .expect("Issue #78 OPTIONS scenario should exist");
+
+    run_head_options_workflow(test_cx, head, options)
+        .unwrap_or_else(|failure| panic!("Issue #78 HEAD/OPTIONS workflow failed:\n{failure}"));
+}
+
+fn run_head_options_workflow(
+    test_cx: &mut TestAppContext,
+    head: &RequestScenario,
+    options: &RequestScenario,
+) -> Result<(), String> {
+    let head_request = expected_request(&head.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let options_request = expected_request(&options.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, &head.draft.method)?;
+    type_into(cx, "url-input", &head_request.url)?;
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let head_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&head_response, &head.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &head_response)?;
+    if !matches!(&head_response, ResponseState::Success { body, .. } if body.is_empty()) {
+        return Err(format!(
+            "HEAD did not complete with an empty body: {head_response:?}"
+        ));
+    }
+    click(cx, "response-pane-headers")?;
+    if cx.debug_bounds("response-content").is_none() {
+        return Err("HEAD response headers are not inspectable".to_string());
+    }
+    let head_history = workspace
+        .read_with(cx, |workspace, _| workspace.history().first().cloned())
+        .ok_or_else(|| "HEAD did not enter History".to_string())?;
+    assert_requests_equivalent(&head_history.request, &head_request)
+        .map_err(|error| format!("HEAD History mismatch: {error}"))?;
+
+    click(cx, "new-tab-button")?;
+    choose_method(cx, &options.draft.method)?;
+    type_into(cx, "url-input", &options_request.url)?;
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let options_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&options_response, &options.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &options_response)?;
+    if !matches!(&options_response, ResponseState::Success { body, .. } if body.is_empty()) {
+        return Err(format!(
+            "OPTIONS did not complete with an empty body: {options_response:?}"
+        ));
+    }
+    click(cx, "response-pane-headers")?;
+    if cx.debug_bounds("response-content").is_none() {
+        return Err("OPTIONS response headers are not inspectable".to_string());
+    }
+
+    let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    if history.len() != 2 {
+        return Err(format!(
+            "HEAD/OPTIONS workflow should create two History rows, actual: {}",
+            history.len()
+        ));
+    }
+    assert_requests_equivalent(&history[0].request, &options_request)
+        .map_err(|error| format!("OPTIONS History mismatch: {error}"))?;
+    assert_requests_equivalent(&history[1].request, &head_request)
+        .map_err(|error| format!("HEAD History changed: {error}"))?;
+
+    click(cx, "history-item-1")?;
+    let restored_head = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.request_body(),
+        )
+    });
+    if restored_head
+        != (
+            HttpMethod::HEAD,
+            head_request.url.clone(),
+            RequestBody::None,
+        )
+    {
+        return Err(format!(
+            "HEAD History did not restore its exact request: {restored_head:?}"
+        ));
+    }
+
+    click(cx, "history-item-0")?;
+    let restored_options = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.request_body(),
+        )
+    });
+    if restored_options
+        != (
+            HttpMethod::OPTIONS,
+            options_request.url.clone(),
+            RequestBody::None,
+        )
+    {
+        return Err(format!(
+            "OPTIONS History did not restore its exact request: {restored_options:?}"
+        ));
+    }
+
+    Ok(())
 }
 
 fn run_html_form_workflow(
