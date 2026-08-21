@@ -1,0 +1,3202 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "SgDZm",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #66 · Delayed Requests, Cancellation, and Timeout",
+      "context": "GitHub Issue #66 · Parent roadmap #50 · HTTPBingo delayed request lifecycle",
+      "clip": true,
+      "width": 1600,
+      "height": 1836,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "AihXG",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "H23GEf",
+              "name": "Header Feature Identity",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "GqN1k",
+                  "name": "Issue Eyebrow",
+                  "fill": "$accent",
+                  "content": "HTTPBINGO E2E · ISSUE #66 · PLANNED FEATURE SLICE",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.7
+                },
+                {
+                  "type": "text",
+                  "id": "U5Xtc9",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Delayed Requests, Cancellation, and Timeout",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "K7C8Rq",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "One delayed request exposes a cancellable in-flight state, a distinct configured timeout, and cleanup that rejects every late callback.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "qnGE5",
+                  "name": "Issue URL",
+                  "fill": "$blue",
+                  "content": "github.com/847850277/postman-gpui/issues/66",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "EHRDL",
+              "name": "Header Delivery Metadata",
+              "width": 430,
+              "layout": "vertical",
+              "gap": 10,
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "e7DNF",
+                  "name": "Delivery Status",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "aCijo",
+                      "name": "Status Indicator",
+                      "fill": "$accent",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "enUIa",
+                      "name": "Status Label",
+                      "fill": "$accent",
+                      "content": "DESIGN READY · IMPLEMENTATION PLANNED",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "exBYQ",
+                  "name": "Endpoint Scope",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "x5qVY",
+                      "name": "Endpoint Label",
+                      "fill": "$subtle",
+                      "content": "PUBLIC ENDPOINT",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Z4TnMG",
+                      "name": "Endpoint Value",
+                      "fill": "$codeText",
+                      "content": "GET https://httpbingo.org/delay/:n",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "mlso2",
+          "name": "Application State · Delayed Request Cancellation",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "rreov",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$text",
+              "padding": [
+                0,
+                24
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "UbgTX",
+                  "name": "Product Brand",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "C0285",
+                      "name": "Product Mark",
+                      "width": 34,
+                      "height": 34,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YFz58",
+                          "name": "Product Mark Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "PbtMh",
+                      "name": "Product Name",
+                      "fill": "$panel",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 17,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SJvJ7",
+                  "name": "Environment and Send State",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "klZpz",
+                      "name": "Environment Badge",
+                      "cornerRadius": 8,
+                      "stroke": "$muted",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "gv7RZ",
+                          "name": "Environment Indicator",
+                          "fill": "$green",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "jXVdj",
+                          "name": "Environment Name",
+                          "fill": "$panel",
+                          "content": "HTTPBingo",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tgGV5",
+                      "name": "Global Send State Badge",
+                      "fill": "$accent",
+                      "cornerRadius": 8,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "O6FGs6",
+                          "name": "Sending Pulse",
+                          "fill": "$panel",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "f3dAmI",
+                          "name": "Sending State Label",
+                          "fill": "$panel",
+                          "content": "SENDING · req-66-02",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yDMKE",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "y7krw",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$text",
+                  "layout": "vertical",
+                  "gap": 18,
+                  "padding": [
+                    20,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "HBWbH",
+                      "name": "Rail Item · Requests",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accent",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "HgJiF",
+                          "name": "Rail Icon · Requests",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "send",
+                          "library": "lucide",
+                          "fill": "$panel"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TBzyU",
+                      "name": "Rail Item · Collections",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "C2jP3",
+                          "name": "Rail Icon · Collections",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "oVS0N",
+                      "name": "Rail Item · History",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "TvPfD",
+                          "name": "Rail Icon · History",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T5569u",
+                      "name": "Rail Item · Settings",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "pZ4Bl",
+                          "name": "Rail Icon · Settings",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "O3Ejb",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QItg3",
+                      "name": "History Heading",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "lffL8",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "H5nivi",
+                          "name": "History Count",
+                          "fill": "$subtle",
+                          "content": "1 completed",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RmGrJ",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "iMorp",
+                          "name": "History Search Icon",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "J6Vd31",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Search history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "twfyk",
+                      "name": "Today Label",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.8
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lcEBP",
+                      "name": "Completed Delay History Result Content Item",
+                      "width": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": [
+                        0,
+                        10,
+                        10,
+                        0
+                      ],
+                      "stroke": "$green",
+                      "strokeWidth": {
+                        "left": 3
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "RPtIu",
+                          "name": "History Result Status Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oilf3",
+                              "name": "History Result Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "oIqc9",
+                              "name": "History Result Status",
+                              "fill": "$green",
+                              "content": "200 OK · 1.02 s",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "y3b8lg",
+                          "name": "History Result URL",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "httpbingo.org/delay/1",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "jbRsG",
+                          "name": "History Result Evidence",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ResponseState::Success · real exchange",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KgOUZ",
+                      "name": "History Success-Only Rule Content Item",
+                      "width": "fill_container",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "gHsI5",
+                          "name": "History Rule Heading",
+                          "gap": 7,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "x3NEAy",
+                              "name": "History Rule Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "shield-check",
+                              "library": "lucide",
+                              "fill": "$blue"
+                            },
+                            {
+                              "type": "text",
+                              "id": "mKNo9",
+                              "name": "History Rule Title",
+                              "fill": "$blue",
+                              "content": "SUCCESS ONLY",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "mDH7N",
+                          "name": "History Rule Description",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Cancelled and timed-out attempts never appear as fabricated successful History entries.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "p9gDXH",
+                      "name": "History Empty Attempts Note",
+                      "fill": "$subtle",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Run B · Cancelled — omitted\nRun C · Timeout — omitted",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "u9zCTk",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "YfMZO",
+                      "name": "Request Tab Bar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "FK1a1",
+                          "name": "Active Request Tab",
+                          "height": 34,
+                          "fill": "$panel",
+                          "cornerRadius": [
+                            8,
+                            8,
+                            0,
+                            0
+                          ],
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "s2xSsK",
+                              "name": "Request Dirty Indicator",
+                              "fill": "$accentVivid",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "KLyKI",
+                              "name": "Request Tab Label",
+                              "fill": "$text",
+                              "content": "GET · /delay/3",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "RoLpQ",
+                              "name": "Close Request Tab",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "zjQj3",
+                          "name": "New Request Tab Button",
+                          "width": 28,
+                          "height": 28,
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "WRBcP",
+                              "name": "New Request Tab Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "G0HkWs",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 82,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "NLye8",
+                          "name": "Request Head",
+                          "width": "fill_container",
+                          "height": 46,
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "xG0g5",
+                              "name": "Method Selector",
+                              "width": 86,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "eSSAR",
+                                  "name": "Selected Method",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 13,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "VQMJK",
+                                  "name": "Method Dropdown Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "em3Xy",
+                              "name": "Active Delay URL Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 9,
+                              "stroke": "$blue",
+                              "strokeWidth": 2,
+                              "gap": 8,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "i8sHG",
+                                  "name": "Secure Endpoint Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "lock",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "TkueG",
+                                  "name": "Active URL Value",
+                                  "fill": "$codeText",
+                                  "content": "https://httpbingo.org/delay/3",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "P9Fgey",
+                                  "name": "Active URL Caret",
+                                  "fill": "$blue",
+                                  "width": 1,
+                                  "height": 18
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "wmRy5",
+                              "name": "Cancel Send Control",
+                              "width": 110,
+                              "height": "fill_container",
+                              "fill": "$accent",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "TMAa3",
+                                  "name": "Cancel Send Icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "square",
+                                  "library": "lucide",
+                                  "fill": "$panel"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "enk3T",
+                                  "name": "Cancel Send Label",
+                                  "fill": "$panel",
+                                  "content": "Cancel",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 14,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JYaT1",
+                          "name": "Active Draft and Effective Request Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lI04v",
+                              "name": "Active Draft Commit Contract",
+                              "fill": "$blue",
+                              "content": "ACTIVE · latest edit already in ViewModel · direct Send",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "MX6lh",
+                              "name": "Effective Delay Request Preview",
+                              "fill": "$muted",
+                              "content": "GET https://httpbingo.org/delay/3 · timeout_ms=1000",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FBD5E",
+                      "name": "Delayed Request Lifecycle Editor",
+                      "width": "fill_container",
+                      "height": 304,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "W7nXSg",
+                          "name": "Request Panel Tabs",
+                          "width": "fill_container",
+                          "height": 42,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 20,
+                          "padding": [
+                            0,
+                            18
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "SqvMd",
+                              "name": "Request Panel Tab · Params",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "c1PZqr",
+                                  "name": "Request Panel Tab Label · Params",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jOghX",
+                              "name": "Request Panel Tab · Headers",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "GTHWL",
+                                  "name": "Request Panel Tab Label · Headers",
+                                  "fill": "$muted",
+                                  "content": "Headers",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "X2pbu",
+                              "name": "Request Panel Tab · Authorization",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "lUcbF",
+                                  "name": "Request Panel Tab Label · Authorization",
+                                  "fill": "$muted",
+                                  "content": "Authorization",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "OxJwY",
+                              "name": "Request Panel Tab · Body",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "b3VUT",
+                                  "name": "Request Panel Tab Label · Body",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "RwDNb",
+                              "name": "Request Panel Tab · Scripts",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hEAt4",
+                                  "name": "Request Panel Tab Label · Scripts",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Qm5Ef",
+                              "name": "Request Panel Tab · Tests",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "k6CS5",
+                                  "name": "Request Panel Tab Label · Tests",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FTCx0",
+                              "name": "Request Panel Tab · Options",
+                              "height": "fill_container",
+                              "stroke": "$accentVivid",
+                              "strokeWidth": {
+                                "bottom": 3
+                              },
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "a1Z5R",
+                                  "name": "Request Panel Tab Label · Options",
+                                  "fill": "$text",
+                                  "content": "Options",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "U6BCc",
+                          "name": "Request Options Panel",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "gap": 14,
+                          "padding": 14,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "uQxyG",
+                              "name": "Delay Request Configuration",
+                              "width": 292,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "pp11S",
+                                  "name": "Timeout Configuration Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": [
+                                    0,
+                                    10,
+                                    10,
+                                    0
+                                  ],
+                                  "stroke": "$blue",
+                                  "strokeWidth": {
+                                    "left": 3
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 7,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "siOFe",
+                                      "name": "Timeout Configuration Heading",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "C7SEa",
+                                          "name": "Timeout Field Label",
+                                          "fill": "$text",
+                                          "content": "Timeout",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "asOxP",
+                                          "name": "Timeout Scope Badge",
+                                          "fill": "$blue",
+                                          "content": "PER REQUEST",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "P7bQ3B",
+                                      "name": "Timeout Input Active",
+                                      "width": "fill_container",
+                                      "height": 36,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 2,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "ypEgg",
+                                          "name": "Timeout Input Value",
+                                          "fill": "$codeText",
+                                          "content": "1000",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 13,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "vYSuw",
+                                          "name": "Timeout Input Unit",
+                                          "fill": "$subtle",
+                                          "content": "ms",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "bB0gL",
+                                      "name": "Timeout Field Contract",
+                                      "fill": "$blue",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "VALID · value is in ViewModel · 0 disables the deadline",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "UmNja",
+                                  "name": "In-Flight Request Content Item",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": [
+                                    0,
+                                    10,
+                                    10,
+                                    0
+                                  ],
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "left": 3
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 7,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Q0MIKR",
+                                      "name": "In-Flight Heading",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "a9tBH",
+                                          "name": "In-Flight Title",
+                                          "fill": "$accent",
+                                          "content": "IN FLIGHT",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "dmuY8",
+                                          "name": "In-Flight Elapsed",
+                                          "fill": "$accent",
+                                          "content": "842 ms",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "sMWhD",
+                                      "name": "In-Flight Response State",
+                                      "fill": "$codeText",
+                                      "content": "ResponseState::Loading",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "SAxHo",
+                                      "name": "In-Flight Request Identity",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "request_id=req-66-02 · in_flight=1\nCancel enabled · deadline=1,000 ms",
+                                      "lineHeight": 1.5,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "SZNBF",
+                              "name": "Terminal Outcome Comparison",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 9,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "gncOE",
+                                  "name": "Terminal Outcome Heading",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "jadxZ",
+                                      "name": "Terminal Outcome Title",
+                                      "fill": "$text",
+                                      "content": "One request · three observable terminal outcomes",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 13,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "L9len1",
+                                      "name": "Terminal Outcome Note",
+                                      "fill": "$subtle",
+                                      "content": "late callbacks never overwrite the chosen terminal state",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "D3Y2Nd",
+                                  "name": "Terminal State Row",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "QKkfv",
+                                      "name": "Completed Delay Response Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$green",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "sFoi8",
+                                          "name": "Completed State Heading",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "a5rhW",
+                                              "name": "Completed State Title",
+                                              "fill": "$green",
+                                              "content": "A · COMPLETED",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "sYtYe",
+                                              "name": "Completed HTTP Status",
+                                              "fill": "$green",
+                                              "content": "200 OK",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "S16s9",
+                                          "name": "Completed Response State",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "ResponseState::Success { status: 200 }",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "h8QEV",
+                                          "name": "Completed Stable Assertion",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "STABLE ASSERTION · server delay completes; real response is rendered and History +1.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "rCDEn",
+                                          "name": "Completed Copy Response Action",
+                                          "fill": "$panel",
+                                          "cornerRadius": 6,
+                                          "gap": 6,
+                                          "padding": [
+                                            5,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "FlbHe",
+                                              "name": "Completed Copy Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "copy",
+                                              "library": "lucide",
+                                              "fill": "$green"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "xJ11N",
+                                              "name": "Completed Copy Label",
+                                              "fill": "$green",
+                                              "content": "Copy → ✓ Copied",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "YdDHU",
+                                      "name": "User Cancellation Terminal State Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$accent",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "bd5sC",
+                                          "name": "Cancellation State Heading",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Uug8X",
+                                              "name": "Cancellation State Title",
+                                              "fill": "$accent",
+                                              "content": "B · USER CANCEL",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "idPiO",
+                                              "name": "Cancellation Terminal Badge",
+                                              "fill": "$accent",
+                                              "content": "CANCELLED",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "EHf2H",
+                                          "name": "Cancellation Error Message",
+                                          "fill": "$text",
+                                          "content": "Request cancelled by user",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "eadbZ",
+                                          "name": "Cancellation Response State",
+                                          "fill": "$codeText",
+                                          "content": "ResponseState::Cancelled",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "asSNX",
+                                          "name": "Cancellation Stable Assertion",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "STABLE ASSERTION · abort(req-66-02); late 200 ignored; History +0.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "oJT1I",
+                                          "name": "Retry Cancelled Request Action",
+                                          "fill": "$panel",
+                                          "cornerRadius": 6,
+                                          "gap": 6,
+                                          "padding": [
+                                            5,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "Q8vFW",
+                                              "name": "Retry Cancelled Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "rotate-cw",
+                                              "library": "lucide",
+                                              "fill": "$accent"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "q5aKeT",
+                                              "name": "Retry Cancelled Label",
+                                              "fill": "$accent",
+                                              "content": "Retry",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "cywU2",
+                                      "name": "Timeout Terminal State Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$blue",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "HT6V3",
+                                          "name": "Timeout State Heading",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "yufOh",
+                                              "name": "Timeout State Title",
+                                              "fill": "$blue",
+                                              "content": "C · TIMEOUT",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "P0OAjk",
+                                              "name": "Timeout Terminal Badge",
+                                              "fill": "$blue",
+                                              "content": "1,000 ms",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "xvXPB",
+                                          "name": "Timeout Error Message",
+                                          "fill": "$text",
+                                          "content": "Request timed out after 1,000 ms",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "IPHyK",
+                                          "name": "Timeout Response State",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "ResponseState::Error · timeout ≠ user cancellation",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "a5yWn5",
+                                          "name": "Timeout Stable Assertion",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "STABLE ASSERTION · deadline aborts transport; no fabricated 200; History +0.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "Y22aed",
+                                          "name": "Retry Timed-Out Request Action",
+                                          "fill": "$panel",
+                                          "cornerRadius": 6,
+                                          "gap": 6,
+                                          "padding": [
+                                            5,
+                                            8
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "yEg8J",
+                                              "name": "Retry Timeout Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "rotate-cw",
+                                              "library": "lucide",
+                                              "fill": "$blue"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "c9ttu",
+                                              "name": "Retry Timeout Label",
+                                              "fill": "$blue",
+                                              "content": "Retry",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "n4MRhy",
+                                  "name": "Lifecycle Cleanup Verification Content Item",
+                                  "width": "fill_container",
+                                  "height": 34,
+                                  "fill": "$code",
+                                  "cornerRadius": 7,
+                                  "gap": 8,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "K72Yb",
+                                      "name": "Cleanup Verification Icon",
+                                      "width": 14,
+                                      "height": 14,
+                                      "icon": "check-check",
+                                      "library": "lucide",
+                                      "fill": "$green"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "B2cF2E",
+                                      "name": "Cleanup Verification Value",
+                                      "fill": "$codeText",
+                                      "content": "TERMINAL CLEANUP · request_id=None · in_flight=0 · cancelled_sends={} · View + History stable",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PMP9b",
+                      "name": "HTTPBingo Delayed Request Response Panel",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "wEhyp",
+                          "name": "Response Panel Toolbar",
+                          "width": "fill_container",
+                          "height": 50,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "padding": [
+                            0,
+                            18
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "Rv98X",
+                              "name": "Response Tabs",
+                              "gap": 18,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "Q67Ugi",
+                                  "name": "Response Body Tab Selected",
+                                  "height": 50,
+                                  "stroke": "$accentVivid",
+                                  "strokeWidth": {
+                                    "bottom": 3
+                                  },
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "POL9L",
+                                      "name": "Response Body Tab Label",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "GZtyY",
+                                  "name": "Response Headers Tab",
+                                  "fill": "$muted",
+                                  "content": "Headers",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "PWW01",
+                              "name": "Response Metrics",
+                              "gap": 16,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "tDmBC",
+                                  "name": "Response Status",
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 7,
+                                  "gap": 6,
+                                  "padding": [
+                                    6,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "CltvI",
+                                      "name": "Response Loading Indicator",
+                                      "fill": "$accent",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "pV93B",
+                                      "name": "Response Status Value",
+                                      "fill": "$accent",
+                                      "content": "NOT SENT · SENDING",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "nkXot",
+                                  "name": "Response Elapsed Metric",
+                                  "fill": "$muted",
+                                  "content": "842 ms / 1,000 ms",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "t64x1",
+                                  "name": "Response Size Metric",
+                                  "fill": "$muted",
+                                  "content": "0 B",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "wDSvf",
+                          "name": "Response Loading View",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$code",
+                          "gap": 20,
+                          "padding": 22,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "X2nCZF",
+                              "name": "Live Delayed Response State",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 12,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "gap": 12,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "vhVs8",
+                                  "name": "Waiting Spinner Container",
+                                  "width": 44,
+                                  "height": 44,
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 22,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "ASFLx",
+                                      "name": "Waiting Spinner",
+                                      "width": 22,
+                                      "height": 22,
+                                      "icon": "loader-circle",
+                                      "library": "lucide",
+                                      "fill": "$accent"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "U22Sel",
+                                  "name": "Waiting Title",
+                                  "fill": "$text",
+                                  "content": "Waiting for HTTPBingo…",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 17,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "sMJIF",
+                                  "name": "Waiting Response State",
+                                  "fill": "$codeText",
+                                  "content": "ResponseState::Loading · request_id=req-66-02",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "r8Vj7",
+                                  "name": "Waiting Instruction",
+                                  "fill": "$muted",
+                                  "textGrowth": "fixed-width",
+                                  "width": 540,
+                                  "content": "Cancel aborts this transport immediately; otherwise the 1,000 ms deadline owns the terminal transition.",
+                                  "textAlign": "center",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Ky4xj",
+                              "name": "Request Lifecycle Trace",
+                              "width": 360,
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 12,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "gap": 12,
+                              "padding": 16,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "BIlRf",
+                                  "name": "Request Lifecycle Trace Title",
+                                  "fill": "$subtle",
+                                  "content": "LIVE REQUEST TRACE",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.7
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "g67h3p",
+                                  "name": "Lifecycle Trace · 01 · Draft committed",
+                                  "width": "fill_container",
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "v3eUj",
+                                      "name": "Lifecycle Trace Dot · 01 · Draft committed",
+                                      "fill": "$green",
+                                      "width": 8,
+                                      "height": 8
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hH3g8",
+                                      "name": "Lifecycle Trace Text · 01 · Draft committed",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "wmy9J",
+                                          "name": "Lifecycle Trace Label · 01 · Draft committed",
+                                          "fill": "$text",
+                                          "content": "01 · Draft committed",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "N4s4W",
+                                          "name": "Lifecycle Trace Value · 01 · Draft committed",
+                                          "fill": "$muted",
+                                          "content": "GET /delay/3",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "sc25O",
+                                  "name": "Lifecycle Trace · 02 · Transport active",
+                                  "width": "fill_container",
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "nGNJu",
+                                      "name": "Lifecycle Trace Dot · 02 · Transport active",
+                                      "fill": "$accent",
+                                      "width": 8,
+                                      "height": 8
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "yNB5q",
+                                      "name": "Lifecycle Trace Text · 02 · Transport active",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "Sy2CD",
+                                          "name": "Lifecycle Trace Label · 02 · Transport active",
+                                          "fill": "$text",
+                                          "content": "02 · Transport active",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "W33Vw",
+                                          "name": "Lifecycle Trace Value · 02 · Transport active",
+                                          "fill": "$muted",
+                                          "content": "in_flight=1",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "j37ZfG",
+                                  "name": "Lifecycle Trace · 03 · Terminal owner",
+                                  "width": "fill_container",
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "I4e4dG",
+                                      "name": "Lifecycle Trace Dot · 03 · Terminal owner",
+                                      "fill": "$blue",
+                                      "width": 8,
+                                      "height": 8
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "qHk57",
+                                      "name": "Lifecycle Trace Text · 03 · Terminal owner",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r5KL8",
+                                          "name": "Lifecycle Trace Label · 03 · Terminal owner",
+                                          "fill": "$text",
+                                          "content": "03 · Terminal owner",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "LFtmV",
+                                          "name": "Lifecycle Trace Value · 03 · Terminal owner",
+                                          "fill": "$muted",
+                                          "content": "Cancel or timeout",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QAnrd",
+          "name": "Feature Flow · Delay Request Lifecycle",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panel",
+          "cornerRadius": 14,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 18,
+          "padding": 18,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "bd093",
+              "name": "Lifecycle Flow Introduction",
+              "width": 220,
+              "layout": "vertical",
+              "gap": 7,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "jQNP2",
+                  "name": "Lifecycle Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "OWNERSHIP FLOW",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "WaLsY",
+                  "name": "Lifecycle Flow Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Exactly one terminal state wins.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 18,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "m99c7",
+                  "name": "Lifecycle Flow Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Cancellation and timeout converge only after their distinct UI evidence is committed.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "KBFc3",
+              "name": "Lifecycle Flow Steps",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ZmyOx",
+                  "name": "Lifecycle Step 01 · Active draft",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$blueSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dtQvK",
+                      "name": "Lifecycle Step Number · 01",
+                      "fill": "$blue",
+                      "content": "01",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "b68VNo",
+                      "name": "Lifecycle Step Title · Active draft",
+                      "fill": "$text",
+                      "content": "Active draft",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "aV9iC",
+                      "name": "Lifecycle Step Value · Active draft",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "GET /delay/3 · timeout=1000",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mAmxb",
+                  "name": "Lifecycle Arrow 01",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "wazbp",
+                      "name": "Lifecycle Arrow Icon 01",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xFw0H",
+                  "name": "Lifecycle Step 02 · Transport owns task",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DoAQ0",
+                      "name": "Lifecycle Step Number · 02",
+                      "fill": "$accent",
+                      "content": "02",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "YJjFG",
+                      "name": "Lifecycle Step Title · Transport owns task",
+                      "fill": "$text",
+                      "content": "Transport owns task",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "moFKI",
+                      "name": "Lifecycle Step Value · Transport owns task",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Loading · req-66-02 · Cancel",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ls5n3",
+                  "name": "Lifecycle Arrow 02",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "BBpUL",
+                      "name": "Lifecycle Arrow Icon 02",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ULmnr",
+                  "name": "Lifecycle Step 03 · Terminal branch",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dwKNd",
+                      "name": "Lifecycle Step Number · 03",
+                      "fill": "$green",
+                      "content": "03",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "DXiv8",
+                      "name": "Lifecycle Step Title · Terminal branch",
+                      "fill": "$text",
+                      "content": "Terminal branch",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "auXSy",
+                      "name": "Lifecycle Step Value · Terminal branch",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "200 OK | Cancelled | Timeout",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VTJhJ",
+                  "name": "Lifecycle Arrow 03",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "j2Zrk",
+                      "name": "Lifecycle Arrow Icon 03",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "cUd3t",
+                  "name": "Lifecycle Step 04 · Cleanup is observable",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$code",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mb6Uz",
+                      "name": "Lifecycle Step Number · 04",
+                      "fill": "$codeText",
+                      "content": "04",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "MHStJ",
+                      "name": "Lifecycle Step Title · Cleanup is observable",
+                      "fill": "$text",
+                      "content": "Cleanup is observable",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "cfdsx",
+                      "name": "Lifecycle Step Value · Cleanup is observable",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "IDs cleared · History success only",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "L9BJP",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$text",
+          "cornerRadius": 16,
+          "layout": "vertical",
+          "gap": 14,
+          "padding": 20,
+          "children": [
+            {
+              "type": "frame",
+              "id": "XiaJ3",
+              "name": "E2E Contract Heading",
+              "width": "fill_container",
+              "height": 40,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "VbE5i",
+                  "name": "E2E Contract Identity",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "JcHza",
+                      "name": "E2E Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #66 · Executable interaction contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "iJe9x",
+                      "name": "E2E Contract Parent",
+                      "fill": "$line",
+                      "content": "Parent roadmap #50 → #66.",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ioJIP",
+                  "name": "E2E Contract Paths",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "pKBmJ",
+                      "name": "Scenario Path",
+                      "fill": "$panel",
+                      "content": "tests/cases/httpbingo/delay_cancel_timeout.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AfFP8",
+                      "name": "Runner and Workflow Paths",
+                      "fill": "$line",
+                      "content": "tests/httpbingo_scenarios.rs · .github/workflows/httpbingo-e2e.yml",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "VTuSV",
+              "name": "Contract Detail Columns",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "v0GpJ",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": 565,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Lst3k",
+                      "name": "Scenario Steps Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "o32X5S",
+                          "name": "Scenario Steps Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "list-ordered",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "jxXSb",
+                          "name": "Scenario Steps Title",
+                          "fill": "$accent",
+                          "content": "ORDERED REAL-UI SCENARIO",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T5c83",
+                      "name": "Real-UI Step 1",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ONRa3",
+                          "name": "Step Number 1",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "OFTAq",
+                              "name": "Step Number Label 1",
+                              "fill": "$accent",
+                              "content": "1",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Oifba",
+                          "name": "Step Copy 1",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Focus the URL input and type the full delayed-request URL https://httpbingo.org/delay/1. Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "e73Cf",
+                      "name": "Real-UI Step 2",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "OIcZu",
+                          "name": "Step Number 2",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WiwkU",
+                              "name": "Step Number Label 2",
+                              "fill": "$accent",
+                              "content": "2",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "S2giC",
+                          "name": "Step Copy 2",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Click rendered Send and let Run A complete at 200 OK; verify the populated response and one real History entry.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c0p1gL",
+                      "name": "Real-UI Step 3",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KG2Y6",
+                          "name": "Step Number 3",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "CAUUw",
+                              "name": "Step Number Label 3",
+                              "fill": "$accent",
+                              "content": "3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "v28DM",
+                          "name": "Step Copy 3",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Type https://httpbingo.org/delay/5, click Send, observe Cancel plus request_id=req-66-02, then click Cancel.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uGd5G",
+                      "name": "Real-UI Step 4",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qYsWX",
+                          "name": "Step Number 4",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "zt4it",
+                              "name": "Step Number Label 4",
+                              "fill": "$accent",
+                              "content": "4",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "YGP6V",
+                          "name": "Step Copy 4",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Open Options, set Timeout to 1000 ms, type https://httpbingo.org/delay/3, click Send, and wait for the deadline.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rMCBK",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$code",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "asWz6",
+                      "name": "Verification Contract Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "La5X8",
+                          "name": "Verification Contract Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "badge-check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zUttw",
+                          "name": "Verification Contract Title",
+                          "fill": "$green",
+                          "content": "OBSERVABLE ASSERTIONS",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rv3DW",
+                      "name": "Observable Assertion 1",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "ynZ2h",
+                          "name": "Assertion Check 1",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "x7oOA",
+                          "name": "Assertion Copy 1",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Sending UI exposes Cancel and a stable request_id while in_flight=1.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OrtRu",
+                      "name": "Observable Assertion 2",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "O7x6CO",
+                          "name": "Assertion Check 2",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zSIuR",
+                          "name": "Assertion Copy 2",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "User cancellation commits ResponseState::Cancelled; a late 200 cannot overwrite it.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "X7RGd",
+                      "name": "Observable Assertion 3",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "oRTu5",
+                          "name": "Assertion Check 3",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "yRf8Z",
+                          "name": "Assertion Copy 3",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Configured timeout commits ResponseState::Error with “Request timed out after 1,000 ms”; timeout is not user cancellation.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Q1ubo",
+                      "name": "Observable Assertion 4",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "gBRCz",
+                          "name": "Assertion Check 4",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ULpZS",
+                          "name": "Assertion Copy 4",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "After every terminal state request_id=None, in_flight=0, and cancelled_sends={} eventually.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UdTV8",
+                      "name": "Observable Assertion 5",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "UvzXY",
+                          "name": "Assertion Check 5",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QXKIi",
+                          "name": "Assertion Copy 5",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "History contains only Run A’s real 200 response and never fabricates success for Run B or Run C.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I3NPz",
+                  "name": "Scope and Non-Goals",
+                  "width": 340,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "LN5jg",
+                      "name": "Scope Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "MAybj",
+                          "name": "Scope Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "scan",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "CqPQx",
+                          "name": "Scope Title",
+                          "fill": "$blue",
+                          "content": "SCOPE",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "bgQ65",
+                      "name": "Included Scope",
+                      "fill": "$codeText",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED\n• Per-request Timeout control\n• Live Cancel control\n• Complete / Cancelled / Timeout states\n• Late-callback rejection\n• Cleanup + History product rule\n• Rendered-control E2E path",
+                      "lineHeight": 1.55,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "TuH8H",
+                      "name": "Explicit Non-Goals",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NON-GOALS / EXCLUDED\nRetries, backoff, concurrent-send redesign, global timeout defaults, and ViewModel-only transport shortcuts.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MVPKh",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "$accent",
+              "cornerRadius": 9,
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "m2PZM3",
+                  "name": "One-to-One Rule Icon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "link",
+                  "library": "lucide",
+                  "fill": "$panel"
+                },
+                {
+                  "type": "text",
+                  "id": "fQ3p2",
+                  "name": "One-to-One Rule Text",
+                  "fill": "$panel",
+                  "content": "ONE issue #66 → ONE design/issue-0066-delay-cancel-timeout.pen · update in place; never create v2/final variants",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}

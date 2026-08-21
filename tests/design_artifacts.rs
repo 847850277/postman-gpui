@@ -95,6 +95,24 @@ const ISSUE_E2E_CONTRACTS: &[IssueE2EContract] = &[
             ".github/workflows/httpbingo-e2e.yml",
         ],
     },
+    IssueE2EContract {
+        issue: 66,
+        required_node_names: &[
+            "Ordered Real-UI Scenario Steps",
+            "Observable Assertions · Verification Contract",
+            "Scope and Non-Goals",
+        ],
+        required_visible_text: &[
+            "Focus the URL input and type the full delayed-request URL",
+            "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+            "User cancellation commits ResponseState::Cancelled; a late 200 cannot overwrite it.",
+            "Configured timeout commits ResponseState::Error",
+            "After every terminal state request_id=None, in_flight=0, and cancelled_sends={} eventually.",
+            "never fabricates success for Run B or Run C.",
+            "Parent roadmap #50 → #66.",
+            ".github/workflows/httpbingo-e2e.yml",
+        ],
+    },
 ];
 
 // Static design validation cannot infer product meaning from arbitrary canvas nodes. Requiring
@@ -342,6 +360,35 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
             "200 OK",
             "ResponseState::Success { status: 200 }",
             "Copy → ✓ Copied",
+        ],
+    },
+    IssueContentContract {
+        issue: 66,
+        required_node_names: &[
+            "Active Delay URL Content Item",
+            "Cancel Send Control",
+            "Timeout Configuration Content Item",
+            "In-Flight Request Content Item",
+            "Completed Delay Response Content Item",
+            "User Cancellation Terminal State Content Item",
+            "Timeout Terminal State Content Item",
+            "Lifecycle Cleanup Verification Content Item",
+            "History Success-Only Rule Content Item",
+            "HTTPBingo Delayed Request Response Panel",
+        ],
+        required_visible_text: &[
+            "https://httpbingo.org/delay/3",
+            "ACTIVE · latest edit already in ViewModel · direct Send",
+            "GET https://httpbingo.org/delay/3 · timeout_ms=1000",
+            "ResponseState::Loading",
+            "ResponseState::Success { status: 200 }",
+            "Request cancelled by user",
+            "ResponseState::Cancelled",
+            "Request timed out after 1,000 ms",
+            "timeout ≠ user cancellation",
+            "request_id=None · in_flight=0 · cancelled_sends={}",
+            "200 OK",
+            "NOT SENT · SENDING",
         ],
     },
     IssueContentContract {

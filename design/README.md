@@ -44,6 +44,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#62 Redirect Following](https://github.com/847850277/postman-gpui/issues/62) | [`issue-0062-redirect-following.pen`](issue-0062-redirect-following.pen) |
 | [#63 JSON Response](https://github.com/847850277/postman-gpui/issues/63) | [`issue-0063-json-response.pen`](issue-0063-json-response.pen) |
 | [#65 Cookie Storage, Sending, and Clearing](https://github.com/847850277/postman-gpui/issues/65) | [`issue-0065-cookie-storage-sending-clearing.pen`](issue-0065-cookie-storage-sending-clearing.pen) |
+| [#66 Delayed Requests, Cancellation, and Timeout](https://github.com/847850277/postman-gpui/issues/66) | [`issue-0066-delay-cancel-timeout.pen`](issue-0066-delay-cancel-timeout.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
