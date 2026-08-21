@@ -1,0 +1,3167 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "x2vxsD",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #67 · Gzip, Deflate, and Brotli Response Decoding",
+      "context": "GitHub Issue #67 · Parent roadmap #50 · HTTPBingo content-encoding negotiation and decoded response rendering",
+      "clip": true,
+      "width": 1600,
+      "height": 1836,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "MnBhm",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "wJ8NQ",
+              "name": "Header Feature Identity",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "civ1S",
+                  "name": "Issue Eyebrow",
+                  "fill": "$accent",
+                  "content": "HTTPBINGO E2E · ISSUE #67 · PLANNED FEATURE SLICE",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.7
+                },
+                {
+                  "type": "text",
+                  "id": "PjvI7",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Gzip / Deflate / Brotli Response Decoding",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "a1b9O",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Automatic negotiation produces readable decoded bodies and explicit decoded-length semantics without mislabeling HTTPBingo’s current Brotli 501 as a decoder failure.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "WufxR",
+                  "name": "Issue URL",
+                  "fill": "$blue",
+                  "content": "github.com/847850277/postman-gpui/issues/67",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "eMRHq",
+              "name": "Header Delivery Metadata",
+              "width": 450,
+              "layout": "vertical",
+              "gap": 10,
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XhXnp",
+                  "name": "Delivery Status",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "cUmLJ",
+                      "name": "Status Indicator",
+                      "fill": "$accent",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "dsrVM",
+                      "name": "Status Label",
+                      "fill": "$accent",
+                      "content": "DESIGN READY · BROTLI PROVIDER GAP",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Pxtym",
+                  "name": "Endpoint Scope",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tTT0G",
+                      "name": "Endpoint Label",
+                      "fill": "$subtle",
+                      "content": "PUBLIC ENDPOINTS",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "DJnlo",
+                      "name": "Endpoint Value",
+                      "fill": "$codeText",
+                      "content": "GET /gzip · GET /deflate · GET /brotli",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "U6dNy",
+          "name": "Application State · Compressed Response Decoding",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "OsshS",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$text",
+              "padding": [
+                0,
+                24
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "PyqYi",
+                  "name": "Product Brand",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Ij8OP",
+                      "name": "Product Mark",
+                      "width": 34,
+                      "height": 34,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "COq0F",
+                          "name": "Product Mark Letter",
+                          "fill": "$accentInk",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "K83kot",
+                      "name": "Product Name",
+                      "fill": "$panel",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 17,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dz1q0",
+                  "name": "Environment and Decode State",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Z68zZz",
+                      "name": "Environment Badge",
+                      "cornerRadius": 8,
+                      "stroke": "$muted",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "IuqsX",
+                          "name": "Environment Indicator",
+                          "fill": "$green",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "W4YyXx",
+                          "name": "Environment Name",
+                          "fill": "$panel",
+                          "content": "HTTPBingo",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dVlLJ",
+                      "name": "Global Decode State Badge",
+                      "fill": "$green",
+                      "cornerRadius": 8,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "BITl2",
+                          "name": "Decoded State Icon",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "package-open",
+                          "library": "lucide",
+                          "fill": "$panel"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zT7VO",
+                          "name": "Decoded State Label",
+                          "fill": "$panel",
+                          "content": "DECODED · GZIP",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PyMN5",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "NQW1r",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$text",
+                  "layout": "vertical",
+                  "gap": 18,
+                  "padding": [
+                    20,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "bfp7X",
+                      "name": "Rail Item · Requests",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accent",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "J8bcr",
+                          "name": "Rail Icon · Requests",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "send",
+                          "library": "lucide",
+                          "fill": "$panel"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "bYKSI",
+                      "name": "Rail Item · Collections",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "kDZLB",
+                          "name": "Rail Icon · Collections",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "e9XuxZ",
+                      "name": "Rail Item · History",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "d0DqF",
+                          "name": "Rail Icon · History",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "HZ1CM",
+                      "name": "Rail Item · Settings",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$text",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Qm3N1",
+                          "name": "Rail Icon · Settings",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$line"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VWsg3",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "uDldz",
+                      "name": "History Heading",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Y9AROc",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QkpGS",
+                          "name": "History Count",
+                          "fill": "$subtle",
+                          "content": "3 exchanges",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hyrfJ",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "VHJDZ",
+                          "name": "History Search Icon",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "W1GfOJ",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Search history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "PStqX",
+                      "name": "Today Label",
+                      "fill": "$subtle",
+                      "content": "TODAY · COMPRESSION",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "frame",
+                      "id": "k8pzr",
+                      "name": "Gzip Decoded History Result Content Item",
+                      "width": "fill_container",
+                      "fill": "$greenSoft",
+                      "cornerRadius": [
+                        0,
+                        9,
+                        9,
+                        0
+                      ],
+                      "stroke": "$green",
+                      "strokeWidth": {
+                        "left": 3
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "OWOIP",
+                          "name": "Gzip Decoded History Result Content Item Status Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "S7phwy",
+                              "name": "Gzip Decoded History Result Content Item Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "VMlmi",
+                              "name": "Gzip Decoded History Result Content Item Status",
+                              "fill": "$green",
+                              "content": "200 OK · 618 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "E0ThNZ",
+                          "name": "Gzip Decoded History Result Content Item URL",
+                          "fill": "$codeText",
+                          "content": "httpbingo.org/gzip",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "oml7J",
+                          "name": "Gzip Decoded History Result Content Item Evidence",
+                          "fill": "$muted",
+                          "content": "decoded · selected",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R189Hl",
+                      "name": "Deflate Decoded History Result Content Item",
+                      "width": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": [
+                        0,
+                        9,
+                        9,
+                        0
+                      ],
+                      "stroke": "$green",
+                      "strokeWidth": {
+                        "left": 3
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "cXnOZ",
+                          "name": "Deflate Decoded History Result Content Item Status Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "v7IUm",
+                              "name": "Deflate Decoded History Result Content Item Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "b3ANxO",
+                              "name": "Deflate Decoded History Result Content Item Status",
+                              "fill": "$green",
+                              "content": "200 OK · 621 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "AYUiK",
+                          "name": "Deflate Decoded History Result Content Item URL",
+                          "fill": "$codeText",
+                          "content": "httpbingo.org/deflate",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "LnhH3",
+                          "name": "Deflate Decoded History Result Content Item Evidence",
+                          "fill": "$muted",
+                          "content": "decoded · readable JSON",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iNy6p",
+                      "name": "Brotli Provider Gap History Result Content Item",
+                      "width": "fill_container",
+                      "fill": "$accentSoft",
+                      "cornerRadius": [
+                        0,
+                        9,
+                        9,
+                        0
+                      ],
+                      "stroke": "$accent",
+                      "strokeWidth": {
+                        "left": 3
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "XhL3D",
+                          "name": "Brotli Provider Gap History Result Content Item Status Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "fyKQe",
+                              "name": "Brotli Provider Gap History Result Content Item Method",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "zkM7M",
+                              "name": "Brotli Provider Gap History Result Content Item Status",
+                              "fill": "$accent",
+                              "content": "501 · 52 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Mf0Eg",
+                          "name": "Brotli Provider Gap History Result Content Item URL",
+                          "fill": "$codeText",
+                          "content": "httpbingo.org/brotli",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Ns9do",
+                          "name": "Brotli Provider Gap History Result Content Item Evidence",
+                          "fill": "$muted",
+                          "content": "provider gap · not decode error",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LWoPF",
+                      "name": "Decoded History Size Rule Content Item",
+                      "width": "fill_container",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "uUWjU",
+                          "name": "Decoded Size Rule Heading",
+                          "gap": 7,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q7P2Nd",
+                              "name": "Decoded Size Rule Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "ruler",
+                              "library": "lucide",
+                              "fill": "$blue"
+                            },
+                            {
+                              "type": "text",
+                              "id": "yMTLD",
+                              "name": "Decoded Size Rule Title",
+                              "fill": "$blue",
+                              "content": "SIZE SEMANTICS",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "yfTXA",
+                          "name": "Decoded Size Rule Description",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "History and Response metrics report decoded UTF-8 body.len(), never the removed wire Content-Length.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "DsJLJ",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "nW3C2",
+                      "name": "Request Tab Bar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YS4AC",
+                          "name": "Active Request Tab",
+                          "height": 34,
+                          "fill": "$panel",
+                          "cornerRadius": [
+                            8,
+                            8,
+                            0,
+                            0
+                          ],
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "m7VBOC",
+                              "name": "Request Dirty Indicator",
+                              "fill": "$accentVivid",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "IlUHR",
+                              "name": "Request Tab Label",
+                              "fill": "$text",
+                              "content": "GET · /gzip",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "v8hV0C",
+                              "name": "Close Request Tab",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "jucmx",
+                          "name": "New Request Tab Button",
+                          "width": 28,
+                          "height": 28,
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "SGWAV",
+                              "name": "New Request Tab Icon",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "M6slI7",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 82,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "u1sS9",
+                          "name": "Request Head",
+                          "width": "fill_container",
+                          "height": 46,
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "m314FS",
+                              "name": "Method Selector",
+                              "width": 86,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "c9CbWU",
+                                  "name": "Selected Method",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 13,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "o0hwe",
+                                  "name": "Method Dropdown Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "X7YAc0",
+                              "name": "Active Compression URL Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 9,
+                              "stroke": "$blue",
+                              "strokeWidth": 2,
+                              "gap": 8,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "UqsK5",
+                                  "name": "Secure Endpoint Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "lock",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "oZKMh",
+                                  "name": "Active URL Value",
+                                  "fill": "$codeText",
+                                  "content": "https://httpbingo.org/gzip",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "R5gyY",
+                                  "name": "Active URL Caret",
+                                  "fill": "$blue",
+                                  "width": 1,
+                                  "height": 18
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "dSBWE",
+                              "name": "Send Control",
+                              "width": 110,
+                              "height": "fill_container",
+                              "fill": "$accentVivid",
+                              "cornerRadius": 9,
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "Z8RWmB",
+                                  "name": "Send Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "send",
+                                  "library": "lucide",
+                                  "fill": "$accentInk"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ewNDw",
+                                  "name": "Send Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 14,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Un9Ty",
+                          "name": "Active Draft and Effective Request Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n80rC",
+                              "name": "Active Draft Commit Contract",
+                              "fill": "$blue",
+                              "content": "ACTIVE · latest edit already in ViewModel · direct Send",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "hwndN",
+                              "name": "Effective Compression Request Preview",
+                              "fill": "$muted",
+                              "content": "GET https://httpbingo.org/gzip · body=None",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Yfu2z",
+                      "name": "Compression Headers Editor",
+                      "width": "fill_container",
+                      "height": 292,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "UsamQ",
+                          "name": "Request Panel Tabs",
+                          "width": "fill_container",
+                          "height": 42,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 20,
+                          "padding": [
+                            0,
+                            18
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "CY4vo",
+                              "name": "Request Panel Tab · Params",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "qpRpp",
+                                  "name": "Request Panel Tab Label · Params",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "LAFM2",
+                              "name": "Request Panel Tab · Headers · 1 generated",
+                              "height": "fill_container",
+                              "stroke": "$accentVivid",
+                              "strokeWidth": {
+                                "bottom": 3
+                              },
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "IhsoE",
+                                  "name": "Request Panel Tab Label · Headers · 1 generated",
+                                  "fill": "$text",
+                                  "content": "Headers · 1 generated",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "hO6UH",
+                              "name": "Request Panel Tab · Authorization",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "AdklT",
+                                  "name": "Request Panel Tab Label · Authorization",
+                                  "fill": "$muted",
+                                  "content": "Authorization",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r6Q8Y",
+                              "name": "Request Panel Tab · Body",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "rSBO2",
+                                  "name": "Request Panel Tab Label · Body",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "uQdsc",
+                              "name": "Request Panel Tab · Scripts",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nVtiE",
+                                  "name": "Request Panel Tab Label · Scripts",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "WADSw",
+                              "name": "Request Panel Tab · Tests",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "JZW5I",
+                                  "name": "Request Panel Tab Label · Tests",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "lFlng",
+                          "name": "Compression Request Headers Panel",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "gap": 14,
+                          "padding": 14,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "l9ZnQZ",
+                              "name": "Negotiation Request Projection",
+                              "width": 430,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "T0IvZ",
+                                  "name": "Automatic Accept-Encoding Header Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": [
+                                    0,
+                                    10,
+                                    10,
+                                    0
+                                  ],
+                                  "stroke": "$blue",
+                                  "strokeWidth": {
+                                    "left": 3
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "OQYpL",
+                                      "name": "Automatic Header Heading",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "K6qWC",
+                                          "name": "Automatic Header Title",
+                                          "fill": "$blue",
+                                          "content": "TRANSPORT-GENERATED HEADER",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "U8yrAN",
+                                          "name": "Automatic Header State",
+                                          "fill": "$blue",
+                                          "content": "READ-ONLY",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "gGwoq",
+                                      "name": "Generated Accept-Encoding Row",
+                                      "width": "fill_container",
+                                      "height": 40,
+                                      "fill": "$panel",
+                                      "cornerRadius": 7,
+                                      "stroke": "$line",
+                                      "strokeWidth": 1,
+                                      "gap": 10,
+                                      "padding": [
+                                        0,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "G8MTef",
+                                          "name": "Generated Header Key",
+                                          "fill": "$codeText",
+                                          "content": "Accept-Encoding",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "800"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "VDfif",
+                                          "name": "Generated Header Separator",
+                                          "fill": "$subtle",
+                                          "content": ":",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "ThI6K",
+                                          "name": "Generated Header Value",
+                                          "fill": "$green",
+                                          "content": "gzip,deflate,br",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 11,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "F4GZd",
+                                      "name": "Generated Header Storage Contract",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Generated on Send · not persisted as a user row in ViewModel · request body stays uncompressed",
+                                      "lineHeight": 1.35,
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "CtHWu",
+                                  "name": "Negotiation Override Rule Content Item",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "layout": "vertical",
+                                  "gap": 7,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "qSZ6j",
+                                      "name": "Negotiation Override Heading",
+                                      "gap": 7,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "SlfSr",
+                                          "name": "Negotiation Override Icon",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "split",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "w44goE",
+                                          "name": "Negotiation Override Title",
+                                          "fill": "$green",
+                                          "content": "PREDICTABLE NEGOTIATION",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "800"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "t8eSai",
+                                      "name": "Negotiation Override Contract",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "• User Accept-Encoding wins; never add a duplicate.\n• Range suppresses the automatic header.\n• Enabled reqwest codecs decode the response only.",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "G2wBj",
+                              "name": "Compression Coverage Matrix",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 9,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "GmoSv",
+                                  "name": "Compression Coverage Heading",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "L95Om",
+                                      "name": "Compression Coverage Title",
+                                      "fill": "$text",
+                                      "content": "Live provider capability · stable response subset",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 13,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "siNXj",
+                                      "name": "Compression Coverage Note",
+                                      "fill": "$subtle",
+                                      "content": "HTTPBingo checked 2026-08-21",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "X8u92d",
+                                  "name": "Encoding State Row",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "nSc5S",
+                                      "name": "Gzip Live Decode Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$green",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "q5YHQT",
+                                          "name": "Gzip Decode Heading",
+                                          "width": "fill_container",
+                                          "height": 16,
+                                          "padding": [
+                                            0,
+                                            2
+                                          ],
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "LdarB",
+                                              "name": "Gzip Decode Title",
+                                              "fill": "$green",
+                                              "content": "GZIP",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "dc8VR",
+                                              "name": "Gzip Live Status",
+                                              "fill": "$green",
+                                              "content": "LIVE · 200",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "RO4Ay",
+                                          "name": "Gzip Decode Projection",
+                                          "fill": "$codeText",
+                                          "content": "wire: gzip → decoded JSON",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "EyWFl",
+                                          "name": "Gzip Stable Assertion",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "STABLE ASSERTION\n{\"gzipped\": true}\nmethod = GET",
+                                          "lineHeight": 1.4,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Z9ys8g",
+                                      "name": "Deflate Live Decode Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$blue",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "DCio5",
+                                          "name": "Deflate Decode Heading",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "XebvG",
+                                              "name": "Deflate Decode Title",
+                                              "fill": "$blue",
+                                              "content": "DEFLATE",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "H0NEl",
+                                              "name": "Deflate Live Status",
+                                              "fill": "$blue",
+                                              "content": "LIVE · 200",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "b4rl9",
+                                          "name": "Deflate Decode Projection",
+                                          "fill": "$codeText",
+                                          "content": "wire: deflate → decoded JSON",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "pFVLw",
+                                          "name": "Deflate Stable Assertion",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "STABLE ASSERTION\n{\"deflated\": true}\nmethod = GET",
+                                          "lineHeight": 1.4,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "aErOR",
+                                      "name": "Brotli Provider Capability Gate Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": [
+                                        0,
+                                        0,
+                                        10,
+                                        10
+                                      ],
+                                      "stroke": "$accent",
+                                      "strokeWidth": {
+                                        "top": 3
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "og0my",
+                                          "name": "Brotli Capability Heading",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Z9w4Hr",
+                                              "name": "Brotli Capability Title",
+                                              "fill": "$accent",
+                                              "content": "BROTLI",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "800"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "MYDdb",
+                                              "name": "Brotli Provider Status",
+                                              "fill": "$accent",
+                                              "content": "PROVIDER · 501",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "800"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "VG42y",
+                                          "name": "Brotli Provider Evidence",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "{\"status_code\":501,\n \"error\":\"Not Implemented\"}",
+                                          "lineHeight": 1.4,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "gPHdU",
+                                          "name": "Brotli Target Contract",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "TARGET · gate until live 200; then assert {\"brotli\":true}. Never count 501 as decode failure.",
+                                          "lineHeight": 1.35,
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "w0NznE",
+                                  "name": "Decoding Failure Contrast Content Item",
+                                  "width": "fill_container",
+                                  "height": 34,
+                                  "fill": "$code",
+                                  "cornerRadius": 7,
+                                  "gap": 8,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "B8grL",
+                                      "name": "Decoding Failure Icon",
+                                      "width": 14,
+                                      "height": 14,
+                                      "icon": "triangle-alert",
+                                      "library": "lucide",
+                                      "fill": "$accent"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "kZ1uU",
+                                      "name": "Decoding Failure Contract",
+                                      "fill": "$codeText",
+                                      "content": "CORRUPT ENCODED BYTES → ResponseState::Error · readable decode error · History +0 · distinct from HTTP 501",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "WxQe9",
+                      "name": "HTTPBingo Decoded Gzip Response Panel",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "AJeqc",
+                          "name": "Response Panel Toolbar",
+                          "width": "fill_container",
+                          "height": 50,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "padding": [
+                            0,
+                            18
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "wMh2W",
+                              "name": "Response Tabs",
+                              "gap": 18,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "xAyWy",
+                                  "name": "Response Body Tab Selected",
+                                  "height": 50,
+                                  "stroke": "$accentVivid",
+                                  "strokeWidth": {
+                                    "bottom": 3
+                                  },
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "HQRGh",
+                                      "name": "Response Body Tab Label",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "urqvg",
+                                  "name": "Response Headers Tab",
+                                  "fill": "$muted",
+                                  "content": "Headers · post-decode",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "fosTl",
+                              "name": "Response Actions and Metrics",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "qvX1V",
+                                  "name": "Copy Response Action",
+                                  "fill": "$panel",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": [
+                                    6,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "yx2QI",
+                                      "name": "Copy Response Icon",
+                                      "width": 13,
+                                      "height": 13,
+                                      "icon": "copy",
+                                      "library": "lucide",
+                                      "fill": "$green"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "GUwbL",
+                                      "name": "Copy Response Label",
+                                      "fill": "$green",
+                                      "content": "Copy → ✓ Copied",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "JvoC6",
+                                  "name": "Response Status",
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 7,
+                                  "gap": 6,
+                                  "padding": [
+                                    6,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "mdSoO",
+                                      "name": "Response Success Indicator",
+                                      "fill": "$green",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Z2JAK",
+                                      "name": "Response Status Value",
+                                      "fill": "$green",
+                                      "content": "200 OK",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "t4Ncg0",
+                                  "name": "Response Elapsed Metric",
+                                  "fill": "$muted",
+                                  "content": "183 ms",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "kkTI7",
+                                  "name": "Decoded Response Size Metric",
+                                  "fill": "$blue",
+                                  "content": "618 B decoded",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "GWhwZ",
+                          "name": "Decoded Response View",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$code",
+                          "gap": 16,
+                          "padding": 18,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "VWdY0",
+                              "name": "Rendered Decoded JSON Stable Subset",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 11,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "layout": "vertical",
+                              "gap": 10,
+                              "padding": 16,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "esbig",
+                                  "name": "Decoded Body Heading",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "vBOkI",
+                                      "name": "Decoded Body Title",
+                                      "fill": "$green",
+                                      "content": "READABLE JSON · DECODED BEFORE RENDER",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "f5QPO",
+                                      "name": "Decoded Body Assertion Scope",
+                                      "fill": "$subtle",
+                                      "content": "stable fields only",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "dB68g",
+                                  "name": "Decoded JSON Body",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "{\n  \"headers\": {\n    \"Accept-Encoding\": [\"gzip,deflate,br\"]\n  },\n  \"method\": \"GET\",\n  \"gzipped\": true\n}",
+                                  "lineHeight": 1.45,
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "PWFAR",
+                                  "name": "Decoded JSON Positive Evidence",
+                                  "fill": "$green",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "ASSERT · gzipped=true · method=GET · JSON parses · binary compression bytes never reach the text viewer",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "GCILc",
+                              "name": "Decoded Response Metadata",
+                              "width": 350,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "hQjK8",
+                                  "name": "Transparent Decode Metadata Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 9,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "iPvIU",
+                                      "name": "Transparent Decode Metadata Title",
+                                      "fill": "$green",
+                                      "content": "TRANSPARENT DECODING",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "B7lxpr",
+                                      "name": "Transparent Decode Metadata Value",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "encoding = gzip\nbody = 618 B decoded UTF-8",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "gwgyb",
+                                  "name": "Decoded Headers Projection Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 9,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "k15vb",
+                                      "name": "Decoded Headers Projection Title",
+                                      "fill": "$blue",
+                                      "content": "HEADERS · POST-DECODE",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "pc67t",
+                                      "name": "Decoded Headers Projection Value",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Content-Type: application/json\nContent-Encoding: removed\nContent-Length: removed",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Qq9wI",
+                                  "name": "ResponseState View History Consistency Content Item",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$panel",
+                                  "cornerRadius": 9,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "pNn8A",
+                                      "name": "Lifecycle Consistency Title",
+                                      "fill": "$subtle",
+                                      "content": "LIFECYCLE CONSISTENCY",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "y42q0",
+                                      "name": "Lifecycle Consistency Value",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "ResponseState::Success { status: 200 }\nView = readable decoded body\nHistory = 200 · 618 B decoded",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "eYRC8",
+          "name": "Feature Flow · Content-Encoding Pipeline",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panel",
+          "cornerRadius": 14,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 18,
+          "padding": 18,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "K0lAeF",
+              "name": "Compression Pipeline Introduction",
+              "width": 220,
+              "layout": "vertical",
+              "gap": 7,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "F23VC",
+                  "name": "Compression Pipeline Eyebrow",
+                  "fill": "$accent",
+                  "content": "DECODE PIPELINE",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "V8JMuA",
+                  "name": "Compression Pipeline Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Wire encoding stops at transport.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 18,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "tMWDZ",
+                  "name": "Compression Pipeline Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "The text viewer, Copy, and History consume one canonical decoded body.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "HC5At",
+              "name": "Compression Pipeline Steps",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "c1Vjt",
+                  "name": "Compression Step 01 · Rendered controls",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$blueSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "blfUm",
+                      "name": "Compression Step Number · 01",
+                      "fill": "$blue",
+                      "content": "01",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "WQdPF",
+                      "name": "Compression Step Title · Rendered controls",
+                      "fill": "$text",
+                      "content": "Rendered controls",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "D5zBpC",
+                      "name": "Compression Step Value · Rendered controls",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Active URL → direct Send",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "U8qh0R",
+                  "name": "Compression Arrow 01",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "WUJXH",
+                      "name": "Compression Arrow Icon 01",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZSgrw",
+                  "name": "Compression Step 02 · Automatic negotiation",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$code",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "z4EhP",
+                      "name": "Compression Step Number · 02",
+                      "fill": "$codeText",
+                      "content": "02",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JR6pn",
+                      "name": "Compression Step Title · Automatic negotiation",
+                      "fill": "$text",
+                      "content": "Automatic negotiation",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "p7206T",
+                      "name": "Compression Step Value · Automatic negotiation",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Accept-Encoding: gzip,deflate,br",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "juBUe",
+                  "name": "Compression Arrow 02",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "vySHa",
+                      "name": "Compression Arrow Icon 02",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jGEIU",
+                  "name": "Compression Step 03 · Transport decode",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "z4ELfS",
+                      "name": "Compression Step Number · 03",
+                      "fill": "$accent",
+                      "content": "03",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hRKY1",
+                      "name": "Compression Step Title · Transport decode",
+                      "fill": "$text",
+                      "content": "Transport decode",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "S2wTY",
+                      "name": "Compression Step Value · Transport decode",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "gzip / deflate live · br capability-gated",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "UCJut",
+                  "name": "Compression Arrow 03",
+                  "width": 20,
+                  "height": 106,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "nYmSb",
+                      "name": "Compression Arrow Icon 03",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "yJniB",
+                  "name": "Compression Step 04 · Canonical response",
+                  "width": "fill_container",
+                  "height": 106,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "thrEX",
+                      "name": "Compression Step Number · 04",
+                      "fill": "$green",
+                      "content": "04",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "l9qWwc",
+                      "name": "Compression Step Title · Canonical response",
+                      "fill": "$text",
+                      "content": "Canonical response",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "T1d9r",
+                      "name": "Compression Step Value · Canonical response",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Readable Body + post-decode Headers + History",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "R2AjY1",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$text",
+          "cornerRadius": 16,
+          "layout": "vertical",
+          "gap": 14,
+          "padding": 20,
+          "children": [
+            {
+              "type": "frame",
+              "id": "srPab",
+              "name": "E2E Contract Heading",
+              "width": "fill_container",
+              "height": 40,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "di63j",
+                  "name": "E2E Contract Identity",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jYjsS",
+                      "name": "E2E Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #67 · Executable interaction contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "rQNVv",
+                      "name": "E2E Contract Parent",
+                      "fill": "$line",
+                      "content": "Parent roadmap #50 → #67.",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "V8DOD",
+                  "name": "E2E Contract Paths",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "T4RQxW",
+                      "name": "Scenario Path",
+                      "fill": "$panel",
+                      "content": "tests/cases/httpbingo/compression.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hytka",
+                      "name": "Runner and Workflow Paths",
+                      "fill": "$line",
+                      "content": "tests/httpbingo_scenarios.rs · .github/workflows/httpbingo-e2e.yml",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ujsWs",
+              "name": "Contract Detail Columns",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r20Bm",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": 565,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "IMAWL",
+                      "name": "Scenario Steps Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Wyr3O",
+                          "name": "Scenario Steps Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "list-ordered",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        },
+                        {
+                          "type": "text",
+                          "id": "c6GwB",
+                          "name": "Scenario Steps Title",
+                          "fill": "$accent",
+                          "content": "ORDERED REAL-UI SCENARIO",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NsfBc",
+                      "name": "Real-UI Step 1",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "nwcSV",
+                          "name": "Step Number 1",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n2sO8w",
+                              "name": "Step Number Label 1",
+                              "fill": "$accent",
+                              "content": "1",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "JwK8S",
+                          "name": "Step Copy 1",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Focus the URL input and type the full gzip URL https://httpbingo.org/gzip. Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ljr4x",
+                      "name": "Real-UI Step 2",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "zxdcR",
+                          "name": "Step Number 2",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "duPuU",
+                              "name": "Step Number Label 2",
+                              "fill": "$accent",
+                              "content": "2",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "c9bPr",
+                          "name": "Step Copy 2",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Click rendered Send; inspect Body and post-decode Headers, then use Copy without changing ResponseState or History.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lzycI",
+                      "name": "Real-UI Step 3",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "vIzKU",
+                          "name": "Step Number 3",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "RG9rm",
+                              "name": "Step Number Label 3",
+                              "fill": "$accent",
+                              "content": "3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "W4MZu3",
+                          "name": "Step Copy 3",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Repeat the same rendered-control path for https://httpbingo.org/deflate and assert only stable decoded JSON fields.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NrRN9",
+                      "name": "Real-UI Step 4",
+                      "width": "fill_container",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "oXuZp",
+                          "name": "Step Number 4",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ADzqF",
+                              "name": "Step Number Label 4",
+                              "fill": "$accent",
+                              "content": "4",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "roqQh",
+                          "name": "Step Copy 4",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Request https://httpbingo.org/brotli behind a provider capability preflight; current 501 must not satisfy Brotli decoding or masquerade as a decoder error.",
+                          "lineHeight": 1.35,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kGpVV",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$code",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hr7oW",
+                      "name": "Verification Contract Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "y8Mm8",
+                          "name": "Verification Contract Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "badge-check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "pVVD9",
+                          "name": "Verification Contract Title",
+                          "fill": "$green",
+                          "content": "OBSERVABLE ASSERTIONS",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tnk7I",
+                      "name": "Observable Assertion 1",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Q7gTI",
+                          "name": "Assertion Check 1",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "y98gn",
+                          "name": "Assertion Copy 1",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Transport adds Accept-Encoding: gzip,deflate,br only when neither a user value nor Range is present.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "D8WYQ",
+                      "name": "Observable Assertion 2",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "FhNIM",
+                          "name": "Assertion Check 2",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "DQife",
+                          "name": "Assertion Copy 2",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "GET /gzip and GET /deflate complete at 200 with readable JSON: gzipped=true or deflated=true and method=GET.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "k3J7Xl",
+                      "name": "Observable Assertion 3",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "h0PZ32",
+                          "name": "Assertion Check 3",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zbppD",
+                          "name": "Assertion Copy 3",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Response and History sizes equal decoded body.len(); post-decode Headers omit Content-Encoding and Content-Length.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vHkV5",
+                      "name": "Observable Assertion 4",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "CbVYq",
+                          "name": "Assertion Check 4",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "VRHng",
+                          "name": "Assertion Copy 4",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Public GET /brotli currently returns 501 Not Implemented; this is an HTTP response, not decoder failure, and never asserts brotli=true.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xcUdR",
+                      "name": "Observable Assertion 5",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "SibIZ",
+                          "name": "Assertion Check 5",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "check",
+                          "library": "lucide",
+                          "fill": "$green"
+                        },
+                        {
+                          "type": "text",
+                          "id": "M61OqR",
+                          "name": "Assertion Copy 5",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Corrupt compressed bytes commit ResponseState::Error with a readable decode error and no fabricated successful History entry.",
+                          "lineHeight": 1.38,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "onspG",
+                  "name": "Scope and Non-Goals",
+                  "width": 340,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ZCBpi",
+                      "name": "Scope Heading",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "E7fH6g",
+                          "name": "Scope Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "scan",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Mf3yH",
+                          "name": "Scope Title",
+                          "fill": "$blue",
+                          "content": "SCOPE",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "NFrvn",
+                      "name": "Included Scope",
+                      "fill": "$codeText",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED\n• Automatic response negotiation\n• Gzip + deflate live decoding\n• Brotli capability gate + target\n• Body / Headers / Copy rendering\n• Decoded byte-length semantics\n• Decode-error lifecycle + History rule",
+                      "lineHeight": 1.55,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Y28Fsz",
+                      "name": "Explicit Non-Goals",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NON-GOALS / EXCLUDED\nRequest-body compression, zstd, compression-ratio UI, duplicate user headers, and fabricated public Brotli success.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "e3Hiw2",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 42,
+              "fill": "$accent",
+              "cornerRadius": 9,
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "p3own",
+                  "name": "One-to-One Rule Icon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "link",
+                  "library": "lucide",
+                  "fill": "$panel"
+                },
+                {
+                  "type": "text",
+                  "id": "c1lmDz",
+                  "name": "One-to-One Rule Text",
+                  "fill": "$panel",
+                  "content": "ONE issue #67 → ONE design/issue-0067-compressed-response-decoding.pen · update in place; never create v2/final variants",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}
