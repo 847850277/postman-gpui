@@ -2640,6 +2640,57 @@ mod tests {
     }
 
     #[test]
+    fn json_completion_preserves_the_complete_body_and_request_lifecycle() {
+        let url = "https://httpbingo.org/json";
+        let body = r#"{"slideshow":{"author":"Yours Truly","date":"date of publication","slides":[{"title":"Wake up to WonderWidgets!","type":"all"}],"title":"Sample Slide Show"}}"#;
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url(url);
+        let pending = workspace.begin_send();
+
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
+                status: 200,
+                headers: vec![("content-type".into(), "application/json".into())],
+                body: body.into(),
+                elapsed_ms: 13,
+            })
+        ));
+
+        let ResponseState::Success {
+            status,
+            headers,
+            body: actual_body,
+            elapsed_ms,
+        } = workspace.response()
+        else {
+            panic!("JSON request should complete as an HTTP response");
+        };
+        assert_eq!(*status, 200);
+        assert_eq!(*elapsed_ms, 13);
+        assert_eq!(
+            actual_body, body,
+            "ResponseState must retain the full raw body"
+        );
+        assert_eq!(
+            headers,
+            &[("content-type".to_string(), "application/json".to_string())]
+        );
+        let parsed: serde_json::Value =
+            serde_json::from_str(actual_body).expect("the completed body should be valid JSON");
+        assert_eq!(parsed["slideshow"]["title"], "Sample Slide Show");
+
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::GET);
+        assert_eq!(entry.request.url, url);
+        assert_eq!(entry.request.body, RequestBody::None);
+        assert_eq!(entry.status, Some(200));
+        assert_eq!(entry.elapsed_ms, Some(13));
+        assert_eq!(entry.response_size, Some(body.len()));
+    }
+
+    #[test]
     fn completion_targets_the_originating_tab_after_the_user_switches_tabs() {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://first.example/slow");
