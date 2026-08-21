@@ -1619,7 +1619,7 @@
                                       "id": "r600131",
                                       "name": "Raw Request Note",
                                       "fill": "$muted",
-                                      "content": "Content-Type: not generated · reqwest sends the exact bytes · HTTPBingo represents the echo as application/octet-stream.",
+                                      "content": "No Content-Type generated · exact bytes sent · HTTPBingo echoes octet-stream.",
                                       "fontFamily": "$fontBody",
                                       "fontSize": 9
                                     }
@@ -1878,7 +1878,7 @@
                                           "id": "r600154",
                                           "name": "Exact Data Verification Value",
                                           "fill": "$green",
-                                          "content": "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5",
+                                          "content": "base64 · cGxhaW4gdGV4dCBib2R5",
                                           "fontFamily": "$fontMono",
                                           "fontSize": 10,
                                           "fontWeight": "600"
