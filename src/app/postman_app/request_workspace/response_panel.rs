@@ -654,6 +654,11 @@ impl Render for ResponseViewer {
             matches!(&state, ResponseState::Success { body, .. } if !body.is_empty());
         let copied_feedback = has_copyable_body && self.copied_feedback;
         let copy_is_focused = self.copy_focus_handle.is_focused(window);
+        let completed_status = match &state {
+            ResponseState::Success { status, .. } => Some(*status),
+            _ => None,
+        };
+        let is_transport_failure = matches!(&state, ResponseState::Error { .. });
 
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
@@ -790,9 +795,23 @@ impl Render for ResponseViewer {
                             })
                             .child(
                                 div()
+                                    .debug_selector(|| "response-status".into())
                                     .text_color(rgb(status_color))
                                     .font_weight(FontWeight::BOLD)
-                                    .child(status),
+                                    .child(
+                                        div()
+                                            .when_some(completed_status, |label, status| {
+                                                label.debug_selector(move || {
+                                                    format!("response-status-{status}")
+                                                })
+                                            })
+                                            .when(is_transport_failure, |label| {
+                                                label.debug_selector(|| {
+                                                    "response-transport-error".into()
+                                                })
+                                            })
+                                            .child(status),
+                                    ),
                             )
                             .when(!elapsed.is_empty(), |row| {
                                 row.child(
@@ -953,5 +972,15 @@ fn format_bytes(bytes: usize) -> String {
         format!("{:.1} KB", bytes as f64 / 1024.0)
     } else {
         format!("{bytes} B")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::status_label;
+
+    #[test]
+    fn unknown_success_reason_keeps_the_exact_http_status_visible() {
+        assert_eq!(status_label(418), "418 Response");
     }
 }

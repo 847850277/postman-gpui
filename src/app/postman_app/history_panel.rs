@@ -308,6 +308,7 @@ impl Render for HistoryList {
                                 let method_color = rgb(method_color(entry.request.method));
                                 let request_name = Self::request_name(&entry);
                                 let response_detail = Self::response_detail(&entry);
+                                let response_status = entry.status;
 
                                 let bg_color = if is_selected {
                                     rgb(ACCENT_SOFT)
@@ -396,7 +397,20 @@ impl Render for HistoryList {
                                                     .overflow_hidden()
                                                     .text_size(px(10.0))
                                                     .text_color(rgb(SUBTEXT))
-                                                    .child(response_detail),
+                                                    .child(
+                                                        div()
+                                                            .when_some(
+                                                                response_status,
+                                                                move |detail, status| {
+                                                                    detail.debug_selector(move || {
+                                                                        format!(
+                                                                            "history-status-{status}-{index}"
+                                                                        )
+                                                                    })
+                                                                },
+                                                            )
+                                                            .child(response_detail),
+                                                    ),
                                             ),
                                     )
                             })

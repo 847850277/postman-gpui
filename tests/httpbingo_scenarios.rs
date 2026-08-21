@@ -977,6 +977,31 @@ fn run_application_scenario(
     {
         return Err("response content is not rendered in the application window".to_string());
     }
+    match &scenario.expect.response {
+        ResponseSpec::Success { status, .. } => {
+            if cx.debug_bounds("response-status").is_none() {
+                return Err(format!(
+                    "completed HTTP status {status} is not rendered in the response header"
+                ));
+            }
+            if *status == 418 && cx.debug_bounds("response-status-418").is_none() {
+                return Err(
+                    "Issue #61 exact status selector `response-status-418` is not rendered"
+                        .to_string(),
+                );
+            }
+            if cx.debug_bounds("response-transport-error").is_some() {
+                return Err(format!(
+                    "completed HTTP status {status} is rendered as a transport failure"
+                ));
+            }
+        }
+        ResponseSpec::Error { .. } => {
+            if cx.debug_bounds("response-transport-error").is_none() {
+                return Err("transport failure is not rendered as an error".to_string());
+            }
+        }
+    }
 
     let history_len = workspace.read_with(cx, |workspace, _| workspace.history_len());
     if history_len != scenario.expect.history_len {
@@ -1005,6 +1030,27 @@ fn run_application_scenario(
             ));
         }
         (false, None) => {}
+    }
+    if let (Some(entry), ResponseSpec::Success { status, .. }) =
+        (recorded_entry.as_ref(), &scenario.expect.response)
+    {
+        if entry.status != Some(*status) {
+            return Err(format!(
+                "History status mismatch: expected {status}, actual {:?}",
+                entry.status
+            ));
+        }
+        if cx.debug_bounds("history-response-detail-0").is_none() {
+            return Err(format!(
+                "completed HTTP status {status} is not rendered in History"
+            ));
+        }
+        if *status == 418 && cx.debug_bounds("history-status-418-0").is_none() {
+            return Err(
+                "Issue #61 exact History selector `history-status-418-0` is not rendered"
+                    .to_string(),
+            );
+        }
     }
     if let Some(entry) = recorded_entry {
         let expected_intent = expected_editor_intent(&scenario.draft)?;
