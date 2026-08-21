@@ -1,9 +1,11 @@
+mod raw;
+
 use crate::{
     app::{
         BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
         MultipartDraftValue, RequestBodyDraft, ResponseState, WorkspaceViewModel,
     },
-    models::{MultipartPart, MultipartValue, RequestBody},
+    models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
         components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
         theme::{
@@ -17,6 +19,7 @@ use gpui::{
     InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
     Subscription, Window,
 };
+use raw::render_raw_request_semantics;
 
 /// BodyPane owns BodyInput's text/form editing state. Complete body drafts remain authoritative in
 /// the shared WorkspaceViewModel and are projected only on request or pane changes.
@@ -197,7 +200,16 @@ impl BodyPane {
     }
 
     fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let (kind, body, request_body, effective_headers, multipart_omitted, multipart_error) = {
+        let (
+            kind,
+            body,
+            request_body,
+            method,
+            effective_url,
+            effective_headers,
+            multipart_omitted,
+            multipart_error,
+        ) = {
             let view_model = self.view_model.read(cx);
             let multipart_omitted = match view_model.body_draft() {
                 RequestBodyDraft::Multipart(parts) => {
@@ -217,15 +229,17 @@ impl BodyPane {
                 view_model.body_kind(),
                 view_model.body().to_string(),
                 view_model.request_body(),
+                view_model.method(),
+                view_model.effective_url(),
                 view_model.effective_headers(),
                 multipart_omitted,
                 multipart_error,
             )
         };
         let is_json = kind == BodyKind::Json;
+        let is_raw = kind == BodyKind::Raw;
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let is_multipart = kind == BodyKind::Multipart;
-        let body_len = body.chars().count();
         let form_row_count = self.body_input.read(cx).form_data_entry_count();
 
         div()
@@ -269,6 +283,23 @@ impl BodyPane {
                         row.child(
                             div()
                                 .debug_selector(|| "body-live-saved".into())
+                                .h(px(24.0))
+                                .px_2()
+                                .flex()
+                                .items_center()
+                                .rounded_lg()
+                                .bg(rgb(OK_SOFT))
+                                .font_family(FONT_UI)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_size(px(9.0))
+                                .text_color(rgb(OK))
+                                .child("LIVE · SAVED"),
+                        )
+                    })
+                    .when(is_raw, |row| {
+                        row.child(
+                            div()
+                                .debug_selector(|| "body-raw-live-saved".into())
                                 .h(px(24.0))
                                 .px_2()
                                 .flex()
@@ -352,18 +383,36 @@ impl BodyPane {
             } else if is_multipart {
                 self.render_multipart_body(request_body, multipart_omitted, multipart_error)
             } else {
-                self.render_text_body(body_len, is_json, effective_headers, cx)
+                self.render_text_body(body, kind, method, effective_url, effective_headers, cx)
             })
             .into_any_element()
     }
 
     fn render_text_body(
         &self,
-        body_len: usize,
-        is_json: bool,
+        body: String,
+        kind: BodyKind,
+        method: HttpMethod,
+        effective_url: String,
         effective_headers: Vec<EffectiveHeader>,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
+        let is_json = kind == BodyKind::Json;
+        let is_raw = kind == BodyKind::Raw;
+        let body_len = body.chars().count();
+        let side_panel = if is_json {
+            Some(self.render_effective_headers(effective_headers))
+        } else if is_raw {
+            Some(render_raw_request_semantics(
+                &body,
+                method,
+                &effective_url,
+                effective_headers,
+            ))
+        } else {
+            None
+        };
+
         div()
             .flex_1()
             .min_h_0()
@@ -389,7 +438,7 @@ impl BodyPane {
                             .overflow_hidden()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(if is_json { INFO } else { LINE }))
+                            .border_color(rgb(if is_json || is_raw { INFO } else { LINE }))
                             .bg(rgb(PANEL))
                             .child(
                                 div()
@@ -410,6 +459,8 @@ impl BodyPane {
                                             .text_color(rgb(INFO))
                                             .child(if is_json {
                                                 "JSON · ACTIVE INPUT"
+                                            } else if is_raw {
+                                                "RAW · ACTIVE INPUT"
                                             } else {
                                                 "BODY · ACTIVE INPUT"
                                             }),
@@ -422,23 +473,27 @@ impl BodyPane {
                                             .text_size(px(9.0))
                                             .text_color(rgb(MUTED))
                                             .child(format!("{body_len} chars"))
-                                            .child(
-                                                div()
-                                                    .debug_selector(|| "body-sample-json".into())
-                                                    .px_2()
-                                                    .py_1()
-                                                    .rounded_md()
-                                                    .bg(rgb(INFO_SOFT))
-                                                    .text_color(rgb(INFO))
-                                                    .cursor_pointer()
-                                                    .child("Sample JSON")
-                                                    .on_mouse_up(
-                                                        gpui::MouseButton::Left,
-                                                        cx.listener(|this, _, _, cx| {
-                                                            this.use_sample_json(cx)
-                                                        }),
-                                                    ),
-                                            )
+                                            .when(!is_raw, |actions| {
+                                                actions.child(
+                                                    div()
+                                                        .debug_selector(|| {
+                                                            "body-sample-json".into()
+                                                        })
+                                                        .px_2()
+                                                        .py_1()
+                                                        .rounded_md()
+                                                        .bg(rgb(INFO_SOFT))
+                                                        .text_color(rgb(INFO))
+                                                        .cursor_pointer()
+                                                        .child("Sample JSON")
+                                                        .on_mouse_up(
+                                                            gpui::MouseButton::Left,
+                                                            cx.listener(|this, _, _, cx| {
+                                                                this.use_sample_json(cx)
+                                                            }),
+                                                        ),
+                                                )
+                                            })
                                             .child(
                                                 div()
                                                     .debug_selector(|| "body-clear-button".into())
@@ -491,14 +546,16 @@ impl BodyPane {
                                     .font_family(FONT_MONO)
                                     .text_size(px(9.0))
                                     .text_color(rgb(TEXT))
-                                    .child(
-                                        "The active value already lives in the ViewModel draft; Send performs no backfill",
-                                    ),
+                                    .child(if is_raw {
+                                        "RequestBody::Raw(active text) · Send performs no submit-time backfill"
+                                    } else {
+                                        "The active value already lives in the ViewModel draft; Send performs no backfill"
+                                    }),
                             ),
                     ),
             )
-            .when(is_json, |content| {
-                content.child(self.render_effective_headers(effective_headers))
+            .when_some(side_panel, |content, side_panel| {
+                content.child(side_panel)
             })
             .into_any_element()
     }

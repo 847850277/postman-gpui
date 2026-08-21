@@ -8,7 +8,8 @@ use common::scenario::{
     ScenarioTarget,
 };
 use postman_gpui::models::{
-    MultipartEditorPart, MultipartPart, MultipartValue, RequestBody, RequestEditorIntent,
+    HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RequestBody,
+    RequestEditorIntent,
 };
 use std::{
     collections::HashMap,
@@ -74,6 +75,30 @@ fn request_scenarios_reject_unknown_contract_fields() {
         error.contains("body_contians"),
         "error should identify the unknown field, got: {error}"
     );
+}
+
+#[test]
+fn raw_put_scenario_requires_exact_body_without_generated_headers() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| {
+            scenario.name == "HTTPBingo receives a raw PUT body without generated content type"
+        })
+        .expect("Issue #60 raw PUT scenario should exist");
+
+    assert_eq!(scenario.draft.body_kind.as_deref(), Some("raw"));
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #60 expected request should be valid");
+    assert_eq!(expected.method, HttpMethod::PUT);
+    assert_eq!(expected.url, "https://httpbingo.org/anything/raw");
+    assert_eq!(
+        expected.body,
+        RequestBody::Raw("plain text body".to_string())
+    );
+    assert!(expected.headers.is_empty());
 }
 
 #[test]

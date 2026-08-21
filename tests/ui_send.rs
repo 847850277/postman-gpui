@@ -340,6 +340,96 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
 }
 
 #[gpui::test]
+fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_history(
+    cx: &mut TestAppContext,
+) {
+    let body = "plain text body";
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("PUT", "/anything/raw")
+        .match_header("content-type", Matcher::Missing)
+        .match_body(Matcher::Exact(body.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"method":"PUT","data":"data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5"}"#,
+        )
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "PUT").unwrap();
+    type_into(cx, "url-input", &format!("{}/anything/raw", server.url())).unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-raw").unwrap();
+    replace_text(cx, "body-input", body).unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::PUT);
+        assert_eq!(workspace.body_kind(), BodyKind::Raw);
+        assert_eq!(workspace.body(), body);
+        assert_eq!(workspace.request_body(), RequestBody::Raw(body.to_string()));
+        assert!(workspace.effective_headers().is_empty());
+    });
+    for selector in [
+        "body-raw-live-saved",
+        "body-editor-shell",
+        "body-input",
+        "body-raw-effective-request",
+        "body-raw-generated-header-count",
+        "body-raw-content-type-state",
+        "body-raw-exact-bytes",
+        "body-raw-effective-body",
+        "body-raw-request-target",
+        "body-raw-ready-indicator",
+        "body-source-of-truth",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #60 design contract element `{selector}` should be rendered"
+        );
+    }
+    assert!(
+        cx.debug_bounds("body-sample-json").is_none(),
+        "Raw must not expose the JSON sample action"
+    );
+
+    // Send while the Raw editor is still active: no Enter, Tab, blur, or submit-time backfill.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(status, 200, "unexpected response body: {body}");
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the mock should return a JSON echo");
+            assert_eq!(echo["method"], "PUT");
+            assert_eq!(
+                echo["data"],
+                "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5"
+            );
+        }
+        other => panic!("PUT Raw should complete as a response: {other:?}"),
+    }
+    assert!(cx.debug_bounds("response-container").is_some());
+    assert!(cx.debug_bounds("response-content").is_some());
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::PUT);
+        assert_eq!(entry.request.url, format!("{}/anything/raw", server.url()));
+        assert_eq!(entry.request.body, RequestBody::Raw(body.to_string()));
+        assert!(entry.request.headers.is_empty());
+        assert_eq!(entry.status, Some(200));
+    });
+    assert!(cx.debug_bounds("history-method-0").is_some());
+    request.assert();
+}
+
+#[gpui::test]
 fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut TestAppContext) {
     const ROW_SELECTORS: [&str; 10] = [
         "body-form-row-0",
