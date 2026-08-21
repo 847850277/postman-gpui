@@ -950,9 +950,32 @@ fn run_cookie_workflow(
     }
     assert_requests_equivalent(&set_history[0].request, &set_request)
         .map_err(|error| format!("cookie-setting History mismatch: {error}"))?;
-    if cx.debug_bounds("request-pane-cookies").is_none() {
-        return Err("the application cookie-jar trigger is not rendered".to_string());
+    if cx.debug_bounds("request-pane-cookies").is_some() {
+        return Err("the application Cookie Jar must not remain a request editor tab".to_string());
     }
+    if cx.debug_bounds("cookie-jar-trigger").is_none() {
+        return Err("the workspace-level Cookie Jar trigger is not rendered".to_string());
+    }
+    click(cx, "response-pane-cookies")?;
+    for selector in [
+        "response-cookies-panel",
+        "response-cookie-list",
+        "response-cookie-row-0",
+        "response-cookie-name-0",
+        "response-cookie-storage-0",
+        "response-open-cookie-jar",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "response-cookie contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+    click(cx, "response-open-cookie-jar")?;
+    if cx.debug_bounds("cookie-jar-workspace-overlay").is_none() {
+        return Err("Response Open Cookie Jar did not open the workspace surface".to_string());
+    }
+    click(cx, "cookie-jar-close")?;
 
     // Keep the same PostmanApp/RequestRunner session but author the verification request through a
     // rendered New Request and the focused URL field.
@@ -987,8 +1010,12 @@ fn run_cookie_workflow(
         );
     }
 
-    click(cx, "request-pane-cookies")?;
+    if cx.debug_bounds("response-cookies-empty").is_none() {
+        return Err("the later /cookies response must expose Cookies (0)".to_string());
+    }
+    click(cx, "cookie-jar-trigger")?;
     for selector in [
+        "cookie-jar-workspace-overlay",
         "cookie-jar-panel",
         "cookie-jar-scope",
         "cookie-jar-count",
@@ -1046,6 +1073,7 @@ fn run_cookie_workflow(
         return Err("a stored cookie row remains rendered after Clear all".to_string());
     }
 
+    click(cx, "cookie-jar-close")?;
     click(cx, "send-button")?;
     cx.run_until_parked();
     let cleared_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());

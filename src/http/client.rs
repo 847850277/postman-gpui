@@ -8,11 +8,15 @@ use reqwest::{
 };
 use std::{
     collections::BTreeMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 const DEFAULT_REDIRECT_LIMIT: usize = 10;
+
+tokio::task_local! {
+    static RESPONSE_COOKIE_CAPTURE: Arc<Mutex<Vec<(String, String)>>>;
+}
 
 #[derive(Clone)]
 pub(super) struct HttpClient {
@@ -46,6 +50,26 @@ impl HttpClient {
 
     /// Executes the complete request command without rebuilding or coercing its semantics.
     pub(super) async fn execute(&self, request: Request) -> Result<HttpResponse, AppError> {
+        let stored_cookies = Arc::new(Mutex::new(Vec::new()));
+        let response = RESPONSE_COOKIE_CAPTURE
+            .scope(
+                stored_cookies.clone(),
+                self.execute_with_cookie_capture(request),
+            )
+            .await?;
+        let mut stored_cookies = stored_cookies
+            .lock()
+            .expect("response cookie capture lock should not be poisoned")
+            .clone();
+        stored_cookies.sort();
+        stored_cookies.dedup();
+        Ok(response.with_stored_cookies(stored_cookies))
+    }
+
+    async fn execute_with_cookie_capture(
+        &self,
+        request: Request,
+    ) -> Result<HttpResponse, AppError> {
         let Request {
             method,
             url,
@@ -195,6 +219,19 @@ impl ApplicationCookieJar {
 impl CookieStore for ApplicationCookieJar {
     fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
         let headers = cookie_headers.cloned().collect::<Vec<_>>();
+        let origin = cookie_origin(url);
+        let captured = headers
+            .iter()
+            .filter_map(|header| header.to_str().ok())
+            .filter_map(set_cookie_name)
+            .map(|name| (origin.clone(), name))
+            .collect::<Vec<_>>();
+        let _ = RESPONSE_COOKIE_CAPTURE.try_with(|capture| {
+            capture
+                .lock()
+                .expect("response cookie capture lock should not be poisoned")
+                .extend(captured);
+        });
         let jar = self
             .jar
             .read()
@@ -209,6 +246,16 @@ impl CookieStore for ApplicationCookieJar {
             .expect("cookie jar lock should not be poisoned")
             .cookies(url)
     }
+}
+
+fn set_cookie_name(value: &str) -> Option<String> {
+    value
+        .split(';')
+        .next()?
+        .split_once('=')
+        .map(|(name, _)| name.trim())
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
 }
 
 fn cookie_origin(url: &Url) -> String {
@@ -333,6 +380,11 @@ mod tests {
             r#"{"cookies":{"session":"cookie-e2e-demo"}}"#
         );
         assert_eq!(
+            set_response.stored_cookies(),
+            &[(server.url(), "session".to_string())],
+            "the response keeps non-sensitive evidence from the intermediate Set-Cookie"
+        );
+        assert_eq!(
             client.cookie_snapshot(),
             vec![(server.url(), "session".to_string())],
             "application state exposes only origin and cookie name"
@@ -349,6 +401,7 @@ mod tests {
             echoed.body(),
             r#"{"cookies":{"session":"cookie-e2e-demo"}}"#
         );
+        assert!(echoed.stored_cookies().is_empty());
 
         assert_eq!(client.clear_cookies(), 1);
         assert!(client.cookie_snapshot().is_empty());
@@ -360,10 +413,55 @@ mod tests {
             .await
             .expect("the cleared client should remain usable");
         assert_eq!(cleared.body(), r#"{"cookies":{}}"#);
+        assert!(cleared.stored_cookies().is_empty());
 
         set_cookie.assert_async().await;
         echo_with_cookie.assert_async().await;
         echo_without_cookie.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn concurrent_responses_keep_cookie_capture_request_scoped() {
+        let mut server = Server::new_async().await;
+        let first = server
+            .mock("GET", "/cookies/first")
+            .with_status(200)
+            .with_header("set-cookie", "first=one; Path=/")
+            .with_body("first")
+            .create_async()
+            .await;
+        let second = server
+            .mock("GET", "/cookies/second")
+            .with_status(200)
+            .with_header("set-cookie", "second=two; Path=/")
+            .with_body("second")
+            .create_async()
+            .await;
+        let client = HttpClient::new();
+
+        let (first_response, second_response) = tokio::join!(
+            client.execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/cookies/first", server.url()),
+            )),
+            client.execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/cookies/second", server.url()),
+            )),
+        );
+        let first_response = first_response.expect("the first response should complete");
+        let second_response = second_response.expect("the second response should complete");
+
+        assert_eq!(
+            first_response.stored_cookies(),
+            &[(server.url(), "first".to_string())]
+        );
+        assert_eq!(
+            second_response.stored_cookies(),
+            &[(server.url(), "second".to_string())]
+        );
+        first.assert_async().await;
+        second.assert_async().await;
     }
 
     #[tokio::test]

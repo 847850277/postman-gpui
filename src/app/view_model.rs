@@ -26,7 +26,6 @@ pub enum RequestPane {
     Params,
     Authorization,
     Headers,
-    Cookies,
     Body,
     Scripts,
     Tests,
@@ -460,6 +459,7 @@ pub struct RequestViewModel {
     timeout_ms: u64,
     request_pane: RequestPane,
     response: ResponseState,
+    response_stored_cookies: Vec<CookieJarEntry>,
     pending_send_id: Option<SendId>,
     pending_cancellation: Option<Arc<AtomicBool>>,
     dirty: bool,
@@ -491,6 +491,7 @@ impl RequestViewModel {
             timeout_ms: 0,
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
+            response_stored_cookies: Vec::new(),
             pending_send_id: None,
             pending_cancellation: None,
             dirty: false,
@@ -602,7 +603,6 @@ impl RequestViewModel {
             RequestPane::Params => &self.param_draft,
             RequestPane::Headers => &self.header_draft,
             RequestPane::Authorization
-            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
@@ -679,6 +679,13 @@ impl RequestViewModel {
 
     pub fn response(&self) -> &ResponseState {
         &self.response
+    }
+
+    /// Non-sensitive cookies first stored while producing the active response. This includes
+    /// cookies captured on followed redirects, whose Set-Cookie header is absent from the final
+    /// response headers.
+    pub fn response_stored_cookies(&self) -> &[CookieJarEntry] {
+        &self.response_stored_cookies
     }
 
     pub fn is_sending(&self) -> bool {
@@ -854,7 +861,6 @@ impl RequestViewModel {
             RequestPane::Params
             | RequestPane::Headers
             | RequestPane::Authorization
-            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
@@ -882,7 +888,6 @@ impl RequestViewModel {
             RequestPane::Params
             | RequestPane::Headers
             | RequestPane::Authorization
-            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
@@ -933,7 +938,6 @@ impl RequestViewModel {
             RequestPane::Params => self.append_param_row(),
             RequestPane::Headers => self.append_header_row(),
             RequestPane::Authorization
-            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
@@ -1118,6 +1122,7 @@ impl RequestViewModel {
         self.timeout_ms = 0;
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
+        self.response_stored_cookies.clear();
         self.dirty = false;
     }
 
@@ -1175,6 +1180,7 @@ impl RequestViewModel {
             RequestPane::Body
         };
         self.response = ResponseState::NotSent;
+        self.response_stored_cookies.clear();
         self.dirty = false;
     }
 
@@ -1195,6 +1201,7 @@ impl RequestViewModel {
         self.pending_send_id = Some(send_id);
         self.pending_cancellation = Some(cancelled);
         self.response = ResponseState::Loading;
+        self.response_stored_cookies.clear();
         request
     }
 
@@ -1202,6 +1209,7 @@ impl RequestViewModel {
         &mut self,
         pending: &PendingRequest,
         result: Result<RequestResult, AppError>,
+        stored_cookies: Vec<CookieJarEntry>,
     ) -> bool {
         if self.pending_send_id != Some(pending.send_id) {
             return false;
@@ -1219,11 +1227,13 @@ impl RequestViewModel {
                     headers: result.headers,
                     elapsed_ms: result.elapsed_ms,
                 };
+                self.response_stored_cookies = stored_cookies;
                 if draft_is_unchanged {
                     self.dirty = false;
                 }
             }
             Err(error) => {
+                self.response_stored_cookies.clear();
                 self.response = ResponseState::Error {
                     message: error.to_string(),
                 };
@@ -1593,6 +1603,15 @@ impl WorkspaceViewModel {
         pending: PendingRequest,
         result: Result<RequestResult, AppError>,
     ) -> bool {
+        self.complete_send_with_stored_cookies(pending, result, Vec::new())
+    }
+
+    pub(crate) fn complete_send_with_stored_cookies(
+        &mut self,
+        pending: PendingRequest,
+        result: Result<RequestResult, AppError>,
+        stored_cookies: Vec<(String, String)>,
+    ) -> bool {
         let was_cancelled = pending.was_cancelled();
         let completed_response = result
             .as_ref()
@@ -1625,11 +1644,15 @@ impl WorkspaceViewModel {
                 );
             }
         }
+        let stored_cookies = stored_cookies
+            .into_iter()
+            .map(|(origin, name)| CookieJarEntry { origin, name })
+            .collect();
         let applied = self
             .tabs
             .iter_mut()
             .find(|tab| tab.tab_id == pending.tab_id)
-            .is_some_and(|tab| tab.complete_send(&pending, result));
+            .is_some_and(|tab| tab.complete_send(&pending, result, stored_cookies));
         if let Some((status, elapsed_ms, response_size)) =
             completed_response.filter(|_| !was_cancelled)
         {
@@ -2117,6 +2140,7 @@ mod tests {
                 headers: vec![("x-test".into(), "yes".into())],
                 body: r#"{"ok":true}"#.into(),
                 elapsed_ms: 7,
+                stored_cookies: Vec::new(),
             })
         ));
         assert!(matches!(
@@ -2659,6 +2683,7 @@ mod tests {
                 headers: Vec::new(),
                 body: String::new(),
                 elapsed_ms: 2,
+                stored_cookies: Vec::new(),
             })
         ));
 
@@ -2685,6 +2710,7 @@ mod tests {
                 headers: vec![("content-type".into(), "text/plain".into())],
                 body: "I'm a teapot!".into(),
                 elapsed_ms: 7,
+                stored_cookies: Vec::new(),
             })
         ));
 
@@ -2720,6 +2746,7 @@ mod tests {
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: final_body.into(),
                 elapsed_ms: 11,
+                stored_cookies: Vec::new(),
             })
         ));
 
@@ -2755,6 +2782,7 @@ mod tests {
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: body.into(),
                 elapsed_ms: 13,
+                stored_cookies: Vec::new(),
             })
         ));
 
@@ -2803,6 +2831,7 @@ mod tests {
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into(),
                 elapsed_ms: 8,
+                stored_cookies: Vec::new(),
             })
         ));
         let response_before_clear = workspace.response().clone();
@@ -2845,6 +2874,7 @@ mod tests {
                 headers: Vec::new(),
                 body: "first response".to_string(),
                 elapsed_ms: 10,
+                stored_cookies: Vec::new(),
             })
         ));
 

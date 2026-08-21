@@ -96,6 +96,7 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
                 headers: Vec::new(),
                 body: r#"{"ok":true}"#.to_string(),
                 elapsed_ms: 483,
+                stored_cookies: Vec::new(),
             }),
         );
         workspace

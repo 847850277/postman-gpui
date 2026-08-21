@@ -7,7 +7,7 @@ mod script;
 
 pub(in crate::app::postman_app::request_workspace) use authorization::AuthorizationPane;
 pub(in crate::app::postman_app::request_workspace) use body::BodyPane;
-pub(in crate::app::postman_app::request_workspace) use cookies::{CookiePane, CookiePaneEvent};
+pub(in crate::app::postman_app) use cookies::{CookiePane, CookiePaneEvent};
 pub(in crate::app::postman_app::request_workspace) use key_value::{
     KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
 };

@@ -2,6 +2,7 @@ pub struct HttpResponse {
     pub status_code: u16,
     pub headers: Vec<(String, String)>,
     pub body: String,
+    stored_cookies: Vec<(String, String)>,
 }
 
 impl HttpResponse {
@@ -10,7 +11,13 @@ impl HttpResponse {
             status_code,
             headers,
             body,
+            stored_cookies: Vec::new(),
         }
+    }
+
+    pub(crate) fn with_stored_cookies(mut self, stored_cookies: Vec<(String, String)>) -> Self {
+        self.stored_cookies = stored_cookies;
+        self
     }
 
     pub fn status(&self) -> u16 {
@@ -23,6 +30,10 @@ impl HttpResponse {
 
     pub fn body(&self) -> &str {
         &self.body
+    }
+
+    pub(crate) fn stored_cookies(&self) -> &[(String, String)] {
+        &self.stored_cookies
     }
 
     pub fn from_raw_response(raw_response: &str) -> Result<Self, &'static str> {

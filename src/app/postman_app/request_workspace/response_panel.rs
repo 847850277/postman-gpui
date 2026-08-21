@@ -1,21 +1,21 @@
 use gpui::{
     actions, div, fill, point, prelude::FluentBuilder, px, rgb, rgba, App, Bounds, ClipboardItem,
-    Context, CursorStyle, Element, ElementId, Entity, FocusHandle, Focusable, FontWeight,
-    GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
-    Role, ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign, TextRun,
-    Window,
+    Context, CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    FontWeight, GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels,
+    Point, Render, Role, ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription,
+    TextAlign, TextRun, Window,
 };
-use std::{ops::Range, time::Duration};
+use std::{collections::BTreeMap, ops::Range, time::Duration};
 
 use crate::{
-    app::{ResponseState, WorkspaceViewModel},
+    app::{CookieJarEntry, ResponseState, WorkspaceViewModel},
     ui::components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
     ui::theme::{
-        CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED,
-        OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        ACCENT, CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE,
+        MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
     },
     utils::formatter::format_response_body,
 };
@@ -39,6 +39,20 @@ pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
 enum ResponsePane {
     Body,
     Headers,
+    Cookies,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ResponseCookieEvidence {
+    name: String,
+    origin: String,
+    captured_by_cookie_jar: bool,
+    stored_now: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(super) enum ResponseViewerEvent {
+    OpenCookieJar,
 }
 
 /// Response surface owned by the request workspace.
@@ -57,6 +71,8 @@ pub struct ResponseViewer {
     context_menu_position: Option<Point<Pixels>>,
     _view_model_subscription: Subscription,
 }
+
+impl EventEmitter<ResponseViewerEvent> for ResponseViewer {}
 
 impl Focusable for ResponseViewer {
     fn focus_handle(&self, _cx: &gpui::App) -> FocusHandle {
@@ -149,6 +165,32 @@ impl ResponseViewer {
                 .map(|(k, v)| format!("{k}: {v}"))
                 .collect::<Vec<_>>()
                 .join("\n"),
+            (ResponseState::Success { .. }, ResponsePane::Cookies) => {
+                let cookies = response_cookie_evidence(view_model);
+                if cookies.is_empty() {
+                    format!(
+                        "No Set-Cookie received\nCookie Jar remains {} stored",
+                        view_model.cookie_count()
+                    )
+                } else {
+                    cookies
+                        .into_iter()
+                        .map(|cookie| {
+                            format!(
+                                "{}=[VALUE PROTECTED] · {} · {}",
+                                cookie.name,
+                                cookie.origin,
+                                if cookie.stored_now {
+                                    "stored"
+                                } else {
+                                    "cleared"
+                                }
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                }
+            }
             (ResponseState::Error { message }, _) => message.clone(),
             (ResponseState::Cancelled, _) => "Request cancelled by user".to_string(),
             _ => String::new(),
@@ -158,18 +200,27 @@ impl ResponseViewer {
     fn pane_tab(
         &self,
         pane: ResponsePane,
-        label: &'static str,
+        label: impl Into<String>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self.pane == pane;
+        let selector = match pane {
+            ResponsePane::Body => "response-pane-body",
+            ResponsePane::Headers => "response-pane-headers",
+            ResponsePane::Cookies => "response-pane-cookies",
+        };
         div()
+            .debug_selector(move || selector.into())
             .h_full()
             .flex()
             .items_center()
             .px_2()
             .cursor_pointer()
             .when(active, |d| {
-                d.text_color(rgb(TEXT)).font_weight(FontWeight::SEMIBOLD)
+                d.border_b_2()
+                    .border_color(rgb(ACCENT))
+                    .text_color(rgb(TEXT))
+                    .font_weight(FontWeight::SEMIBOLD)
             })
             .when(!active, |d| {
                 d.text_color(rgb(MUTED))
@@ -177,7 +228,7 @@ impl ResponseViewer {
             })
             .text_size(px(12.0))
             .font_family(FONT_UI)
-            .child(label)
+            .child(label.into())
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, _, _, cx| {
@@ -186,6 +237,15 @@ impl ResponseViewer {
                     cx.notify();
                 }),
             )
+    }
+
+    fn open_cookie_jar(
+        &mut self,
+        _event: &MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.emit(ResponseViewerEvent::OpenCookieJar);
     }
 
     fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
@@ -362,6 +422,263 @@ impl ResponseViewer {
                 viewer: cx.entity().clone(),
             })
     }
+
+    fn render_cookie_content(
+        &self,
+        cookies: Vec<ResponseCookieEvidence>,
+        jar_count: usize,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let cookie_count = cookies.len();
+        let has_cookies = cookie_count > 0;
+
+        div()
+            .debug_selector(|| "response-cookies-panel".into())
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .p_4()
+            .bg(rgb(CODE_BG))
+            .child(
+                div()
+                    .h(px(42.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                div()
+                                    .font_family(FONT_UI)
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_size(px(11.0))
+                                    .text_color(rgb(TEXT))
+                                    .child(format!(
+                                        "CURRENT RESPONSE / REDIRECT CHAIN · COOKIES ({cookie_count})"
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .font_family(FONT_UI)
+                                    .text_size(px(9.0))
+                                    .text_color(rgb(SUBTEXT))
+                                    .child(format!(
+                                        "Response-scoped observation · Cookie Jar now has {jar_count} stored"
+                                    )),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("response-open-cookie-jar")
+                            .debug_selector(|| "response-open-cookie-jar".into())
+                            .h(px(30.0))
+                            .px_3()
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .rounded_lg()
+                            .border_1()
+                            .border_color(rgb(INFO))
+                            .bg(rgb(PANEL))
+                            .font_family(FONT_UI)
+                            .font_weight(FontWeight::BOLD)
+                            .text_size(px(10.0))
+                            .text_color(rgb(INFO))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(INFO_SOFT)))
+                            .child("↗")
+                            .child("Open Cookie Jar")
+                            .on_mouse_up(MouseButton::Left, cx.listener(Self::open_cookie_jar)),
+                    ),
+            )
+            .when(!has_cookies, |panel| {
+                panel.child(
+                    div()
+                        .debug_selector(|| "response-cookies-empty".into())
+                        .flex_1()
+                        .min_h_0()
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .justify_center()
+                        .gap_2()
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(rgb(LINE))
+                        .bg(rgb(PANEL_ALT))
+                        .child(
+                            div()
+                                .font_family(FONT_HEADING)
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(16.0))
+                                .text_color(rgb(TEXT))
+                                .child("No Set-Cookie received"),
+                        )
+                        .child(
+                            div()
+                                .font_family(FONT_UI)
+                                .text_size(px(11.0))
+                                .text_color(rgb(SUBTEXT))
+                                .child(format!(
+                                    "This response stored no new cookies. Cookie Jar remains {jar_count}."
+                                )),
+                        ),
+                )
+            })
+            .when(has_cookies, |panel| {
+                panel.child(
+                    div()
+                        .debug_selector(|| "response-cookie-list".into())
+                        .flex_1()
+                        .min_h_0()
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .children(cookies.into_iter().enumerate().map(|(index, cookie)| {
+                            let source = if cookie.captured_by_cookie_jar {
+                                if cookie.stored_now {
+                                    "CAPTURED · STORED"
+                                } else {
+                                    "CAPTURED · CLEARED"
+                                }
+                            } else {
+                                "SET-COOKIE HEADER"
+                            };
+                            div()
+                                .debug_selector(move || format!("response-cookie-row-{index}"))
+                                .h(px(54.0))
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .gap_3()
+                                .px_3()
+                                .rounded_lg()
+                                .border_1()
+                                .border_color(rgb(LINE))
+                                .bg(rgb(INFO_SOFT))
+                                .child(
+                                    div()
+                                        .debug_selector(move || {
+                                            format!("response-cookie-name-{index}")
+                                        })
+                                        .w(px(150.0))
+                                        .flex_none()
+                                        .font_family(FONT_MONO)
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_size(px(11.0))
+                                        .text_color(rgb(TEXT))
+                                        .child(cookie.name),
+                                )
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .flex_1()
+                                        .overflow_hidden()
+                                        .font_family(FONT_MONO)
+                                        .text_size(px(10.0))
+                                        .text_color(rgb(SUBTEXT))
+                                        .child(cookie.origin),
+                                )
+                                .child(
+                                    div()
+                                        .h(px(24.0))
+                                        .px_2()
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .rounded_lg()
+                                        .bg(rgb(PANEL))
+                                        .font_family(FONT_UI)
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_size(px(9.0))
+                                        .text_color(rgb(MUTED))
+                                        .child("VALUE PROTECTED"),
+                                )
+                                .child(
+                                    div()
+                                        .debug_selector(move || {
+                                            format!("response-cookie-storage-{index}")
+                                        })
+                                        .h(px(24.0))
+                                        .px_2()
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .rounded_lg()
+                                        .bg(rgb(if cookie.stored_now { OK_SOFT } else { PANEL_ALT }))
+                                        .font_family(FONT_UI)
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_size(px(9.0))
+                                        .text_color(rgb(if cookie.stored_now { OK } else { MUTED }))
+                                        .child(source),
+                                )
+                        })),
+                )
+            })
+    }
+}
+
+fn response_cookie_evidence(view_model: &WorkspaceViewModel) -> Vec<ResponseCookieEvidence> {
+    let mut cookies = BTreeMap::<(String, String), bool>::new();
+
+    for cookie in view_model.response_stored_cookies() {
+        cookies.insert((cookie.origin.clone(), cookie.name.clone()), true);
+    }
+
+    if let ResponseState::Success { headers, .. } = view_model.response() {
+        let origin = response_origin(&view_model.effective_url());
+        for (_, value) in headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("set-cookie"))
+        {
+            if let Some(name) = set_cookie_name(value) {
+                cookies.entry((origin.clone(), name)).or_insert(false);
+            }
+        }
+    }
+
+    cookies
+        .into_iter()
+        .map(|((origin, name), captured_by_cookie_jar)| {
+            let stored_now = view_model
+                .cookies()
+                .iter()
+                .any(|cookie: &CookieJarEntry| cookie.origin == origin && cookie.name == name);
+            ResponseCookieEvidence {
+                name,
+                origin,
+                captured_by_cookie_jar,
+                stored_now,
+            }
+        })
+        .collect()
+}
+
+fn set_cookie_name(value: &str) -> Option<String> {
+    value
+        .split(';')
+        .next()?
+        .split_once('=')
+        .map(|(name, _)| name.trim())
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+}
+
+fn response_origin(url: &str) -> String {
+    let Some((scheme, remainder)) = url.split_once("://") else {
+        return url.to_string();
+    };
+    let authority = remainder.split('/').next().unwrap_or(remainder);
+    format!("{scheme}://{authority}")
 }
 
 // Custom text element for rendering multi-line response content with selection
@@ -638,17 +955,24 @@ impl Element for MultiLineTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (state, is_httpbingo) = {
+        let (state, is_httpbingo, response_cookies, jar_count) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model.response().clone(),
                 view_model.effective_url().contains("httpbingo.org"),
+                response_cookie_evidence(view_model),
+                view_model.cookie_count(),
             )
         };
         let pane = self.pane;
         let context_menu_position = self.context_menu_position;
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
         let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
+        let cookies_tab = self.pane_tab(
+            ResponsePane::Cookies,
+            format!("Cookies ({})", response_cookies.len()),
+            cx,
+        );
         let has_completed_response = matches!(&state, ResponseState::Success { .. });
         let has_copyable_body =
             matches!(&state, ResponseState::Success { body, .. } if !body.is_empty());
@@ -730,7 +1054,14 @@ impl Render for ResponseViewer {
                                     .text_color(rgb(TEXT)),
                             )
                             .when(matches!(&state, ResponseState::Success { .. }), |row| {
-                                row.child(div().flex().h_full().child(body_tab).child(headers_tab))
+                                row.child(
+                                    div()
+                                        .flex()
+                                        .h_full()
+                                        .child(body_tab)
+                                        .child(headers_tab)
+                                        .child(cookies_tab),
+                                )
                             }),
                     )
                     .child(
@@ -870,7 +1201,9 @@ impl Render for ResponseViewer {
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(rgb(OK))
                                 .child("●")
-                                .child(if is_httpbingo {
+                                .child(if pane == ResponsePane::Cookies {
+                                    "Response cookie evidence"
+                                } else if is_httpbingo {
                                     "HTTPBingo echo"
                                 } else {
                                     "Response payload"
@@ -940,11 +1273,20 @@ impl Render for ResponseViewer {
                     let content = match pane {
                         ResponsePane::Body => body.clone(),
                         ResponsePane::Headers => header_text,
+                        ResponsePane::Cookies => String::new(),
                     };
-                    div()
-                        .flex_1()
-                        .min_h_0()
-                        .child(self.render_selectable_content(&content, cx))
+                    if pane == ResponsePane::Cookies {
+                        div().flex_1().min_h_0().child(self.render_cookie_content(
+                            response_cookies,
+                            jar_count,
+                            cx,
+                        ))
+                    } else {
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.render_selectable_content(&content, cx))
+                    }
                 }
                 ResponseState::Error { message } => div()
                     .when(is_timeout, |content| {
@@ -998,10 +1340,22 @@ fn format_bytes(bytes: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::status_label;
+    use super::{response_origin, set_cookie_name, status_label};
 
     #[test]
     fn unknown_success_reason_keeps_the_exact_http_status_visible() {
         assert_eq!(status_label(418), "418 Response");
+    }
+
+    #[test]
+    fn response_cookie_projection_keeps_only_name_and_origin() {
+        assert_eq!(
+            set_cookie_name("session=super-secret; Path=/; HttpOnly"),
+            Some("session".to_string())
+        );
+        assert_eq!(
+            response_origin("https://httpbingo.org/cookies?source=response"),
+            "https://httpbingo.org"
+        );
     }
 }

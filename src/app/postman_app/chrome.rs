@@ -1,14 +1,16 @@
 use super::PostmanApp;
 use crate::ui::theme::{
-    ACCENT_DARK, ACCENT_SOFT, ACCENT_VIVID, FONT_HEADING, FONT_UI, LINE, PANEL, PANEL_ALT, SUBTEXT,
-    TEXT,
+    ACCENT_DARK, ACCENT_SOFT, ACCENT_VIVID, FONT_HEADING, FONT_UI, INFO, INFO_SOFT, LINE, PANEL,
+    PANEL_ALT, SUBTEXT, TEXT,
 };
 use gpui::{
     div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Styled,
 };
 
 impl PostmanApp {
-    pub(super) fn render_top_header(&self) -> impl IntoElement {
+    pub(super) fn render_top_header(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let cookie_count = self.view_model.read(cx).cookie_count();
+        let cookie_jar_open = self.cookie_jar_open;
         div()
             .debug_selector(|| "top-header".into())
             .h(px(72.0))
@@ -32,6 +34,33 @@ impl PostmanApp {
                             .font_weight(FontWeight::BOLD)
                             .text_color(rgb(TEXT))
                             .child("Postman GPUI"),
+                    ),
+            )
+            .child(div().flex_1())
+            .child(
+                div()
+                    .id("cookie-jar-trigger")
+                    .debug_selector(|| "cookie-jar-trigger".into())
+                    .h(px(34.0))
+                    .px_3()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(rgb(if cookie_jar_open { INFO } else { LINE }))
+                    .bg(rgb(INFO_SOFT))
+                    .font_family(FONT_UI)
+                    .text_size(px(11.0))
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(rgb(INFO))
+                    .cursor_pointer()
+                    .hover(|style| style.border_color(rgb(INFO)).bg(rgb(PANEL_ALT)))
+                    .child("◫")
+                    .child(format!("Cookie Jar · {cookie_count} stored"))
+                    .on_mouse_up(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.toggle_cookie_jar(cx)),
                     ),
             )
     }

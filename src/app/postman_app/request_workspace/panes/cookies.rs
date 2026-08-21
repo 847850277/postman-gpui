@@ -11,13 +11,14 @@ use gpui::{
 };
 
 #[derive(Clone, Debug)]
-pub(in crate::app::postman_app::request_workspace) enum CookiePaneEvent {
+pub(in crate::app::postman_app) enum CookiePaneEvent {
     ClearAllRequested,
+    CloseRequested,
 }
 
 /// Application-session cookie controls. Sensitive values remain in the transport jar; this pane
 /// renders only the non-sensitive projection owned by WorkspaceViewModel.
-pub(in crate::app::postman_app::request_workspace) struct CookiePane {
+pub(in crate::app::postman_app) struct CookiePane {
     view_model: Entity<WorkspaceViewModel>,
     _subscriptions: Vec<Subscription>,
 }
@@ -25,7 +26,7 @@ pub(in crate::app::postman_app::request_workspace) struct CookiePane {
 impl EventEmitter<CookiePaneEvent> for CookiePane {}
 
 impl CookiePane {
-    pub(in crate::app::postman_app::request_workspace) fn new(
+    pub(in crate::app::postman_app) fn new(
         view_model: Entity<WorkspaceViewModel>,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -43,6 +44,10 @@ impl CookiePane {
         cx: &mut Context<Self>,
     ) {
         cx.emit(CookiePaneEvent::ClearAllRequested);
+    }
+
+    fn close(&mut self, _event: &gpui::MouseUpEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        cx.emit(CookiePaneEvent::CloseRequested);
     }
 }
 
@@ -91,7 +96,7 @@ impl Render for CookiePane {
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
                                     .text_color(rgb(TEXT))
-                                    .child("Application Cookie Jar"),
+                                    .child("Application Cookie Jar · workspace tool"),
                             )
                             .child(
                                 div()
@@ -100,7 +105,7 @@ impl Render for CookiePane {
                                     .text_size(px(9.0))
                                     .text_color(rgb(SUBTEXT))
                                     .child(
-                                        "In-memory session · values protected · shared by requests",
+                                        "Opened from the header · values protected · shared by requests",
                                     ),
                             ),
                     )
@@ -140,6 +145,26 @@ impl Render for CookiePane {
                             .hover(|style| style.bg(rgb(0x00ff_e4d5)))
                             .child("Clear all cookies")
                             .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::clear_all)),
+                    )
+                    .child(
+                        div()
+                            .id("cookie-jar-close")
+                            .debug_selector(|| "cookie-jar-close".into())
+                            .size(px(30.0))
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_lg()
+                            .bg(rgb(PANEL))
+                            .font_family(FONT_UI)
+                            .font_weight(FontWeight::BOLD)
+                            .text_size(px(16.0))
+                            .text_color(rgb(MUTED))
+                            .cursor_pointer()
+                            .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT)))
+                            .child("×")
+                            .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::close)),
                     ),
             )
             .when_some(cleared, |panel, cleared| {
