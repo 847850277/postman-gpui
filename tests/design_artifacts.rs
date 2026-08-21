@@ -44,22 +44,40 @@ struct IssueE2EContract {
     required_visible_text: &'static [&'static str],
 }
 
-const ISSUE_E2E_CONTRACTS: &[IssueE2EContract] = &[IssueE2EContract {
-    issue: 62,
-    required_node_names: &[
-        "Ordered Real-UI Scenario Steps",
-        "Observable Assertions · Verification Contract",
-        "Scope and Non-Goals",
-    ],
-    required_visible_text: &[
-        "Focus the URL input and type the full redirect URL",
-        "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
-        "302 Location: /anything/redirected becomes the followed GET.",
-        "JSON method=GET and url=https://httpbingo.org/anything/redirected.",
-        "Parent roadmap #50 → #62.",
-        ".github/workflows/httpbingo-e2e.yml",
-    ],
-}];
+const ISSUE_E2E_CONTRACTS: &[IssueE2EContract] = &[
+    IssueE2EContract {
+        issue: 62,
+        required_node_names: &[
+            "Ordered Real-UI Scenario Steps",
+            "Observable Assertions · Verification Contract",
+            "Scope and Non-Goals",
+        ],
+        required_visible_text: &[
+            "Focus the URL input and type the full redirect URL",
+            "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+            "302 Location: /anything/redirected becomes the followed GET.",
+            "JSON method=GET and url=https://httpbingo.org/anything/redirected.",
+            "Parent roadmap #50 → #62.",
+            ".github/workflows/httpbingo-e2e.yml",
+        ],
+    },
+    IssueE2EContract {
+        issue: 63,
+        required_node_names: &[
+            "Ordered Real-UI Scenario Steps",
+            "Observable Assertions · Verification Contract",
+            "Scope and Non-Goals",
+        ],
+        required_visible_text: &[
+            "Focus the URL input and type the full JSON endpoint",
+            "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+            "The visible response completes at 200 and the body parses as JSON.",
+            "JSON slideshow.title equals Sample Slide Show; dynamic headers and timestamps are not asserted.",
+            "Parent roadmap #50 → #63.",
+            ".github/workflows/httpbingo-e2e.yml",
+        ],
+    },
+];
 
 // Static design validation cannot infer product meaning from arbitrary canvas nodes. Requiring
 // issue-specific controls and visible values keeps a copied shell or explanatory-card-only design
@@ -252,6 +270,28 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
             "200 OK",
             "\"url\": \"https://httpbingo.org/anything/redirected\"",
             "History preserves the original redirect URL",
+            "no Enter, Tab, blur, Add, or submit-time backfill",
+            "ResponseState::Success { status: 200 }",
+            "Copy → ✓ Copied",
+        ],
+    },
+    IssueContentContract {
+        issue: 63,
+        required_node_names: &[
+            "Active JSON URL Content Item",
+            "Outgoing JSON GET Request Content Item",
+            "Stable JSON Assertion Content Item",
+            "HTTPBingo JSON Response Panel",
+            "Rendered JSON Stable Subset",
+            "JSON GET History Result Content Item",
+            "Copy Response Feedback Content Item",
+        ],
+        required_visible_text: &[
+            "https://httpbingo.org/json",
+            "slideshow.title only",
+            "\"title\": \"Sample Slide Show\"",
+            "200 OK",
+            "History preserves GET /json",
             "no Enter, Tab, blur, Add, or submit-time backfill",
             "ResponseState::Success { status: 200 }",
             "Copy → ✓ Copied",
