@@ -2160,6 +2160,31 @@ mod tests {
     }
 
     #[test]
+    fn put_raw_builds_an_exact_typed_body_without_generated_headers() {
+        let mut vm = RequestViewModel::new();
+        vm.set_method(HttpMethod::PUT);
+        vm.set_url("https://httpbingo.org/anything/raw");
+        vm.set_body_kind(BodyKind::Raw);
+        vm.set_body("plain text body");
+
+        assert_eq!(vm.body(), "plain text body");
+        assert_eq!(
+            vm.request_body(),
+            RequestBody::Raw("plain text body".to_string())
+        );
+        assert!(vm.effective_headers().is_empty());
+
+        let request = vm.build_request();
+        assert_eq!(request.method, HttpMethod::PUT);
+        assert_eq!(request.url, "https://httpbingo.org/anything/raw");
+        assert_eq!(
+            request.body,
+            RequestBody::Raw("plain text body".to_string())
+        );
+        assert!(request.headers.is_empty());
+    }
+
+    #[test]
     fn manual_content_type_is_case_insensitive_and_survives_body_kind_changes() {
         let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);

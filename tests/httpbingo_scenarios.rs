@@ -944,6 +944,7 @@ fn run_application_scenario(
 
     apply_body(cx, &scenario.draft)?;
     assert_json_body_editor_contract(cx, &workspace, scenario)?;
+    assert_raw_body_editor_contract(cx, &workspace, scenario)?;
     assert_url_encoded_body_editor_contract(cx, &workspace, scenario)?;
     assert_multipart_body_editor_contract(cx, &workspace, scenario)?;
 
@@ -1127,6 +1128,77 @@ fn assert_json_body_editor_contract(
                 "effective JSON header row `{selector}` is not rendered"
             ));
         }
+    }
+
+    Ok(())
+}
+
+fn assert_raw_body_editor_contract(
+    cx: &mut VisualTestContext,
+    workspace: &Entity<WorkspaceViewModel>,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    if !scenario
+        .draft
+        .body_kind
+        .as_deref()
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("raw"))
+    {
+        return Ok(());
+    }
+
+    let expected_body = scenario
+        .draft
+        .body
+        .as_deref()
+        .ok_or_else(|| "a Raw UI scenario must contain a body".to_string())?;
+    let (kind, active_body, request_body, effective_headers) =
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.body_kind(),
+                workspace.body(),
+                workspace.request_body(),
+                workspace.effective_headers(),
+            )
+        });
+    if kind != BodyKind::Raw
+        || active_body != expected_body
+        || request_body != RequestBody::Raw(expected_body.to_string())
+    {
+        return Err(format!(
+            "active Raw body was not saved directly to the typed ViewModel draft\n  expected: {expected_body:?}\n  actual:   {request_body:?}"
+        ));
+    }
+    if effective_headers
+        .iter()
+        .any(|header| header.name.eq_ignore_ascii_case("content-type"))
+    {
+        return Err("Raw Body generated an unexpected Content-Type header".to_string());
+    }
+
+    for selector in [
+        "body-kind-selector",
+        "body-kind-raw",
+        "body-raw-live-saved",
+        "body-editor-shell",
+        "body-input",
+        "body-raw-effective-request",
+        "body-raw-generated-header-count",
+        "body-raw-content-type-state",
+        "body-raw-exact-bytes",
+        "body-raw-effective-body",
+        "body-raw-request-target",
+        "body-raw-ready-indicator",
+        "body-source-of-truth",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "Raw Body design contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+    if cx.debug_bounds("body-sample-json").is_some() {
+        return Err("Raw Body must not render the JSON sample action".to_string());
     }
 
     Ok(())

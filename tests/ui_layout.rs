@@ -332,6 +332,78 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
 }
 
 #[gpui::test]
+fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_method(HttpMethod::PUT);
+        workspace.set_url("https://httpbingo.org/anything/raw");
+        workspace.set_body_kind(BodyKind::Raw);
+        workspace.set_body("plain text body");
+        workspace.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let panel = cx
+        .debug_bounds("request-panel")
+        .expect("Body panel should render");
+    let kinds = cx
+        .debug_bounds("body-kind-selector")
+        .expect("Body type selector should render");
+    let editor = cx
+        .debug_bounds("body-editor-shell")
+        .expect("Raw editor shell should render");
+    let source = cx
+        .debug_bounds("body-source-of-truth")
+        .expect("single-source projection should render");
+    let semantics = cx
+        .debug_bounds("body-raw-effective-request")
+        .expect("Raw request semantics should render");
+    let content_type = cx
+        .debug_bounds("body-raw-content-type-state")
+        .expect("Content-Type policy should render");
+    let exact_body = cx
+        .debug_bounds("body-raw-exact-bytes")
+        .expect("exact raw body should render");
+    let ready = cx
+        .debug_bounds("body-raw-ready-indicator")
+        .expect("Raw ready state should render");
+
+    for selector in [
+        "body-kind-raw",
+        "body-raw-live-saved",
+        "body-input",
+        "body-raw-generated-header-count",
+        "body-raw-effective-body",
+        "body-raw-request-target",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #60 contract element `{selector}` should render"
+        );
+    }
+    assert!(cx.debug_bounds("body-sample-json").is_none());
+    assert!(workspace.read_with(cx, |workspace, _| workspace.effective_headers().is_empty()));
+
+    assert_eq!(panel.size.height, px(360.0));
+    assert_eq!(kinds.size.height, px(44.0));
+    assert!(editor.origin.y >= kinds.bottom());
+    assert!(editor.origin.x < semantics.origin.x);
+    assert!(editor.bottom() <= source.origin.y);
+    assert!(source.bottom() <= panel.bottom());
+    assert!(content_type.origin.y >= semantics.origin.y);
+    assert!(content_type.bottom() <= exact_body.origin.y);
+    assert!(exact_body.bottom() <= ready.origin.y);
+    assert!(
+        ready.bottom() <= semantics.bottom(),
+        "Raw ready state {ready:?} overflows semantics panel {semantics:?}"
+    );
+    assert!(semantics.bottom() <= panel.bottom());
+}
+
+#[gpui::test]
 fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();

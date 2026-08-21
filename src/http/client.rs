@@ -132,6 +132,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn raw_body_sends_exact_bytes_without_content_type() {
+        let body = "plain text body";
+        let mut server = Server::new_async().await;
+        let mock = server
+            .mock("PUT", "/anything/raw")
+            .match_header("content-type", Matcher::Missing)
+            .match_body(Matcher::Exact(body.to_string()))
+            .with_status(200)
+            .with_body("ok")
+            .create_async()
+            .await;
+
+        let mut request = Request::new(HttpMethod::PUT, format!("{}/anything/raw", server.url()));
+        request.body = RequestBody::Raw(body.to_string());
+        let response = HttpClient::new()
+            .execute(request)
+            .await
+            .expect("raw request should succeed");
+
+        assert_eq!(response.status(), 200);
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
     async fn multipart_body_sends_ordered_text_and_file_parts() {
         let mut server = Server::new_async().await;
         let fixture_path = std::env::temp_dir().join(format!(
