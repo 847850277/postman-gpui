@@ -142,6 +142,12 @@ creates a second request through the rendered New Request action, keeps both
 tab responses and shared History entries, and submits the final active form
 cell without an intermediate commit action. No other scenario shares state.
 
+Issue #65 similarly links its independently runnable cookie-setting and empty
+`GET /cookies` cases in one additional same-session workflow. It retains the
+intermediate redirect's `Set-Cookie`, verifies automatic sending from a rendered
+New Request, clears the application jar through the Cookies pane, and verifies
+an empty echo without changing completed responses or History.
+
 Cases that fail before network delivery, such as an empty URL, omit `mock`. They
 must expect an error response and no history entry.
 

@@ -1,7 +1,15 @@
 use crate::errors::AppError;
 use crate::http::response::HttpResponse;
 use crate::models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody};
-use reqwest::{multipart, Client, RequestBuilder};
+use reqwest::{
+    cookie::{CookieStore, Jar},
+    header::HeaderValue,
+    multipart, Client, RequestBuilder, Url,
+};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
+};
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 const DEFAULT_REDIRECT_LIMIT: usize = 10;
@@ -9,19 +17,31 @@ const DEFAULT_REDIRECT_LIMIT: usize = 10;
 #[derive(Clone)]
 pub(super) struct HttpClient {
     client: Client,
+    cookie_jar: Arc<ApplicationCookieJar>,
 }
 
 impl HttpClient {
     pub(super) fn new() -> Self {
-        HttpClient {
-            client: Client::builder()
-                .user_agent(DEFAULT_USER_AGENT)
-                // Redirect following is part of the application's request contract. Keep the
-                // policy explicit so a dependency default cannot silently change that behavior.
-                .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
-                .build()
-                .expect("the built-in HTTP client configuration should be valid"),
-        }
+        let cookie_jar = Arc::new(ApplicationCookieJar::default());
+        let client = Client::builder()
+            .user_agent(DEFAULT_USER_AGENT)
+            // Redirect following is part of the application's request contract. Keep the
+            // policy explicit so a dependency default cannot silently change that behavior.
+            .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+            // A single HttpClient lives for the application session. The observable provider
+            // retains cookies from intermediate redirects and adds them to later requests.
+            .cookie_provider(cookie_jar.clone())
+            .build()
+            .expect("the built-in HTTP client configuration should be valid");
+        HttpClient { client, cookie_jar }
+    }
+
+    pub(super) fn cookie_snapshot(&self) -> Vec<(String, String)> {
+        self.cookie_jar.snapshot()
+    }
+
+    pub(super) fn clear_cookies(&self) -> usize {
+        self.cookie_jar.clear()
     }
 
     /// Executes the complete request command without rebuilding or coercing its semantics.
@@ -106,6 +126,99 @@ impl HttpClient {
     }
 }
 
+/// Reqwest's built-in Jar deliberately hides its contents. This wrapper keeps the wire behavior
+/// delegated to that implementation while exposing only cookie names and origins to the UI. It
+/// never copies sensitive values into application state or logs.
+#[derive(Debug, Default)]
+struct ApplicationCookieJar {
+    jar: RwLock<Jar>,
+    cookies_by_origin: RwLock<BTreeMap<String, Vec<String>>>,
+}
+
+impl ApplicationCookieJar {
+    fn snapshot(&self) -> Vec<(String, String)> {
+        self.cookies_by_origin
+            .read()
+            .expect("cookie snapshot lock should not be poisoned")
+            .iter()
+            .flat_map(|(origin, names)| {
+                names.iter().map(move |name| (origin.clone(), name.clone()))
+            })
+            .collect()
+    }
+
+    fn clear(&self) -> usize {
+        let mut jar = self
+            .jar
+            .write()
+            .expect("cookie jar lock should not be poisoned");
+        let mut snapshots = self
+            .cookies_by_origin
+            .write()
+            .expect("cookie snapshot lock should not be poisoned");
+        let cleared = snapshots.values().map(Vec::len).sum();
+        snapshots.clear();
+        *jar = Jar::default();
+        cleared
+    }
+
+    fn refresh_origin_snapshot(&self, url: &Url, jar: &Jar) {
+        let origin = cookie_origin(url);
+        let mut names = jar
+            .cookies(url)
+            .and_then(|header| header.to_str().ok().map(str::to_string))
+            .into_iter()
+            .flat_map(|header| {
+                header
+                    .split(';')
+                    .filter_map(|pair| pair.trim().split_once('=').map(|(name, _)| name.trim()))
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+
+        let mut snapshots = self
+            .cookies_by_origin
+            .write()
+            .expect("cookie snapshot lock should not be poisoned");
+        if names.is_empty() {
+            snapshots.remove(&origin);
+        } else {
+            snapshots.insert(origin, names);
+        }
+    }
+}
+
+impl CookieStore for ApplicationCookieJar {
+    fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
+        let headers = cookie_headers.cloned().collect::<Vec<_>>();
+        let jar = self
+            .jar
+            .read()
+            .expect("cookie jar lock should not be poisoned");
+        jar.set_cookies(&mut headers.iter(), url);
+        self.refresh_origin_snapshot(url, &jar);
+    }
+
+    fn cookies(&self, url: &Url) -> Option<HeaderValue> {
+        self.jar
+            .read()
+            .expect("cookie jar lock should not be poisoned")
+            .cookies(url)
+    }
+}
+
+fn cookie_origin(url: &Url) -> String {
+    let host = url.host_str().unwrap_or("unknown-host");
+    match url.port() {
+        Some(port) => format!("{}://{host}:{port}", url.scheme()),
+        None => format!("{}://{host}", url.scheme()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,6 +286,84 @@ mod tests {
         assert_eq!(response.body(), final_body);
         redirect.assert_async().await;
         target.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn session_cookie_is_retained_across_redirects_sent_later_and_clearable() {
+        let mut server = Server::new_async().await;
+        let set_cookie = server
+            .mock("GET", "/cookies/set")
+            .match_query(Matcher::UrlEncoded(
+                "session".into(),
+                "cookie-e2e-demo".into(),
+            ))
+            .with_status(302)
+            .with_header("location", "/cookies")
+            .with_header("set-cookie", "session=cookie-e2e-demo; Path=/")
+            .create_async()
+            .await;
+        let echo_with_cookie = server
+            .mock("GET", "/cookies")
+            .match_header("cookie", "session=cookie-e2e-demo")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"cookies":{"session":"cookie-e2e-demo"}}"#)
+            .expect(2)
+            .create_async()
+            .await;
+        let echo_without_cookie = server
+            .mock("GET", "/cookies")
+            .match_header("cookie", Matcher::Missing)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"cookies":{}}"#)
+            .create_async()
+            .await;
+        let client = HttpClient::new();
+
+        let set_response = client
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/cookies/set?session=cookie-e2e-demo", server.url()),
+            ))
+            .await
+            .expect("the cookie-setting redirect should complete");
+        assert_eq!(
+            set_response.body(),
+            r#"{"cookies":{"session":"cookie-e2e-demo"}}"#
+        );
+        assert_eq!(
+            client.cookie_snapshot(),
+            vec![(server.url(), "session".to_string())],
+            "application state exposes only origin and cookie name"
+        );
+
+        let echoed = client
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/cookies", server.url()),
+            ))
+            .await
+            .expect("a later request should use the same cookie session");
+        assert_eq!(
+            echoed.body(),
+            r#"{"cookies":{"session":"cookie-e2e-demo"}}"#
+        );
+
+        assert_eq!(client.clear_cookies(), 1);
+        assert!(client.cookie_snapshot().is_empty());
+        let cleared = client
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!("{}/cookies", server.url()),
+            ))
+            .await
+            .expect("the cleared client should remain usable");
+        assert_eq!(cleared.body(), r#"{"cookies":{}}"#);
+
+        set_cookie.assert_async().await;
+        echo_with_cookie.assert_async().await;
+        echo_without_cookie.assert_async().await;
     }
 
     #[tokio::test]

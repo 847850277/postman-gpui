@@ -145,6 +145,84 @@ fn json_response_scenario_asserts_only_the_stable_nested_subset() {
 }
 
 #[test]
+fn cookie_scenarios_define_the_stable_set_and_cleared_echo_contracts() {
+    let files = scenario_files();
+    let scenarios = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .collect::<Vec<_>>();
+    let stored = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| {
+            scenario.name == "HTTPBingo stores a session cookie through the followed redirect"
+        })
+        .expect("Issue #65 cookie-setting scenario should exist");
+    let cleared = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| {
+            scenario.name
+                == "HTTPBingo returns an empty cookie echo after the application jar is cleared"
+        })
+        .expect("Issue #65 cleared-cookie scenario should exist");
+
+    let stored_request = expected_request(&stored.expect.request, Some("https://httpbingo.org"))
+        .expect("the cookie-setting request should be valid");
+    assert_eq!(stored_request.method, HttpMethod::GET);
+    assert_eq!(
+        stored_request.url,
+        "https://httpbingo.org/cookies/set?session=cookie-e2e-demo"
+    );
+    assert!(stored_request.headers.is_empty());
+    assert_eq!(stored_request.body, RequestBody::None);
+    assert_eq!(stored.expect.history_len, 1);
+    let ResponseSpec::Success {
+        status,
+        body_json_contains,
+        body_contains,
+        headers_contain,
+    } = &stored.expect.response
+    else {
+        panic!("the cookie-setting redirect must complete successfully");
+    };
+    assert_eq!(*status, 200);
+    assert_eq!(
+        body_json_contains.as_ref(),
+        Some(&serde_json::json!({
+            "cookies": { "session": "cookie-e2e-demo" }
+        }))
+    );
+    assert!(body_contains.is_none());
+    assert!(headers_contain.is_empty());
+
+    let cleared_request = expected_request(&cleared.expect.request, Some("https://httpbingo.org"))
+        .expect("the cleared-cookie request should be valid");
+    assert_eq!(cleared_request.method, HttpMethod::GET);
+    assert_eq!(cleared_request.url, "https://httpbingo.org/cookies");
+    assert!(cleared_request.headers.is_empty());
+    assert_eq!(cleared_request.body, RequestBody::None);
+    assert_eq!(cleared.expect.history_len, 1);
+    let ResponseSpec::Success {
+        status,
+        body_json_contains,
+        body_contains,
+        headers_contain,
+    } = &cleared.expect.response
+    else {
+        panic!("the after-clear verification must complete successfully");
+    };
+    assert_eq!(*status, 200);
+    assert_eq!(
+        body_json_contains.as_ref(),
+        Some(&serde_json::json!({ "cookies": {} }))
+    );
+    assert!(body_contains.is_none());
+    assert!(headers_contain.is_empty());
+}
+
+#[test]
 fn multipart_text_scenario_builds_a_typed_request_contract() {
     let files = scenario_files();
     let scenario = files

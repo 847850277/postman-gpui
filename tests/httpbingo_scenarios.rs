@@ -22,6 +22,9 @@ const HTML_FORM_DISCOVERY_SCENARIO: &str =
     "HTTPBingo serves the HTML form that submits to POST /post";
 const HTML_FORM_SUBMISSION_SCENARIO: &str =
     "HTTPBingo receives the HTML form submission at POST /post";
+const COOKIE_SET_SCENARIO: &str = "HTTPBingo stores a session cookie through the followed redirect";
+const COOKIE_CLEARED_SCENARIO: &str =
+    "HTTPBingo returns an empty cookie echo after the application jar is cleared";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
@@ -457,6 +460,11 @@ struct HtmlFormWorkflow<'a> {
     submission: &'a RequestScenario,
 }
 
+struct CookieWorkflow<'a> {
+    set: &'a RequestScenario,
+    cleared: &'a RequestScenario,
+}
+
 fn scenario_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases")
 }
@@ -617,10 +625,84 @@ fn validate_html_form_workflow_contract(workflow: &HtmlFormWorkflow<'_>) -> Resu
     Ok(())
 }
 
+fn cookie_workflow(files: &[ScenarioFile]) -> Result<CookieWorkflow<'_>, String> {
+    let workflow = CookieWorkflow {
+        set: find_httpbingo_scenario(files, COOKIE_SET_SCENARIO)?,
+        cleared: find_httpbingo_scenario(files, COOKIE_CLEARED_SCENARIO)?,
+    };
+    validate_cookie_workflow_contract(&workflow)?;
+    Ok(workflow)
+}
+
+fn validate_cookie_workflow_contract(workflow: &CookieWorkflow<'_>) -> Result<(), String> {
+    if !workflow.set.draft.method.eq_ignore_ascii_case("GET")
+        || workflow.set.draft.path != "/cookies/set?session=cookie-e2e-demo"
+        || workflow.set.expect.request.path != workflow.set.draft.path
+        || workflow.set.expect.request.body.is_some()
+        || !workflow.set.expect.request.headers.is_empty()
+    {
+        return Err(
+            "cookie setup must author a bodyless GET /cookies/set with no Cookie header"
+                .to_string(),
+        );
+    }
+    let ResponseSpec::Success {
+        status,
+        body_json_contains: Some(expected_echo),
+        ..
+    } = &workflow.set.expect.response
+    else {
+        return Err("cookie setup must expect HTTPBingo's successful cookie echo".to_string());
+    };
+    if *status != 200
+        || expected_echo
+            .pointer("/cookies/session")
+            .and_then(serde_json::Value::as_str)
+            != Some("cookie-e2e-demo")
+    {
+        return Err("cookie setup must assert the stable session cookie echo".to_string());
+    }
+
+    if !workflow.cleared.draft.method.eq_ignore_ascii_case("GET")
+        || workflow.cleared.draft.path != "/cookies"
+        || workflow.cleared.expect.request.path != workflow.cleared.draft.path
+        || workflow.cleared.expect.request.body.is_some()
+        || !workflow.cleared.expect.request.headers.is_empty()
+    {
+        return Err(
+            "cleared-cookie verification must author a bodyless GET /cookies with no Cookie header"
+                .to_string(),
+        );
+    }
+    let ResponseSpec::Success {
+        status,
+        body_json_contains: Some(expected_echo),
+        ..
+    } = &workflow.cleared.expect.response
+    else {
+        return Err("cleared-cookie verification must expect a successful empty echo".to_string());
+    };
+    if *status != 200
+        || expected_echo
+            .get("cookies")
+            .and_then(serde_json::Value::as_object)
+            .is_none_or(|cookies| !cookies.is_empty())
+    {
+        return Err("cleared-cookie verification must assert an empty cookies object".to_string());
+    }
+    Ok(())
+}
+
 #[test]
 fn html_form_workflow_contract_links_discovery_to_complete_submission() {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     html_form_workflow(&files).expect("Issue #59 workflow contract should be complete");
+}
+
+#[test]
+fn cookie_workflow_contract_links_storage_send_and_clear_in_one_session() {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    cookie_workflow(&files).expect("Issue #65 workflow contract should be complete");
 }
 
 #[gpui::test]
@@ -663,6 +745,15 @@ fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
     let workflow = html_form_workflow(&files).expect("Issue #59 workflow should be valid");
     run_html_form_workflow(test_cx, &workflow)
         .unwrap_or_else(|failure| panic!("Issue #59 HTML form workflow failed:\n{failure}"));
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut TestAppContext) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let workflow = cookie_workflow(&files).expect("Issue #65 workflow should be valid");
+    run_cookie_workflow(test_cx, &workflow)
+        .unwrap_or_else(|failure| panic!("Issue #65 cookie workflow failed:\n{failure}"));
 }
 
 fn run_html_form_workflow(
@@ -788,6 +879,184 @@ fn run_html_form_workflow(
     click(cx, "request-tab-1")?;
     let restored_submission = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&restored_submission, &workflow.submission.expect.response)?;
+
+    Ok(())
+}
+
+fn run_cookie_workflow(
+    test_cx: &mut TestAppContext,
+    workflow: &CookieWorkflow<'_>,
+) -> Result<(), String> {
+    let set_request = expected_request(&workflow.set.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let cookies_request =
+        expected_request(&workflow.cleared.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let set_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.set.draft.path);
+    type_into(cx, "url-input", &set_url)?;
+    let active_set_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    if active_set_url != set_url {
+        return Err(format!(
+            "active cookie-setting URL was not saved before Send\n  expected: {set_url:?}\n  actual:   {active_set_url:?}"
+        ));
+    }
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let set_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&set_response, &workflow.set.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &set_response)?;
+    let (cookies, set_history) = workspace.read_with(cx, |workspace, _| {
+        (workspace.cookies().to_vec(), workspace.history().to_vec())
+    });
+    if cookies.len() != 1 || cookies[0].name != "session" || cookies[0].origin != HTTPBINGO_BASE_URL
+    {
+        return Err(format!(
+            "intermediate Set-Cookie was not projected as one protected session cookie: {cookies:#?}"
+        ));
+    }
+    if set_history.len() != 1 || set_history[0].status != Some(200) {
+        return Err(format!(
+            "cookie-setting request did not create one completed History entry: {set_history:#?}"
+        ));
+    }
+    assert_requests_equivalent(&set_history[0].request, &set_request)
+        .map_err(|error| format!("cookie-setting History mismatch: {error}"))?;
+    if cx.debug_bounds("request-pane-cookies").is_none() {
+        return Err("the application cookie-jar trigger is not rendered".to_string());
+    }
+
+    // Keep the same PostmanApp/RequestRunner session but author the verification request through a
+    // rendered New Request and the focused URL field.
+    click(cx, "rail-new-request")?;
+    let cookies_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.cleared.draft.path);
+    type_into(cx, "url-input", &cookies_url)?;
+    let active_cookies_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    if active_cookies_url != cookies_url {
+        return Err(format!(
+            "active cookie verification URL was not saved before Send\n  expected: {cookies_url:?}\n  actual:   {active_cookies_url:?}"
+        ));
+    }
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let echoed_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    // The setting scenario's stable response subset is also the proof that this separate request
+    // automatically sent Cookie: session=cookie-e2e-demo.
+    assert_response_state(&echoed_response, &workflow.set.expect.response)?;
+    let echoed_history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    if echoed_history.len() != 2 || echoed_history[0].status != Some(200) {
+        return Err(format!(
+            "automatic-cookie request did not extend History correctly: {echoed_history:#?}"
+        ));
+    }
+    assert_requests_equivalent(&echoed_history[0].request, &cookies_request)
+        .map_err(|error| format!("automatic-cookie History mismatch: {error}"))?;
+    if !echoed_history[0].request.headers.is_empty() {
+        return Err(
+            "automatic Cookie must remain transport state instead of leaking into authored History"
+                .to_string(),
+        );
+    }
+
+    click(cx, "request-pane-cookies")?;
+    for selector in [
+        "cookie-jar-panel",
+        "cookie-jar-scope",
+        "cookie-jar-count",
+        "cookie-jar-clear-all",
+        "cookie-row-0",
+        "cookie-name-0",
+        "cookie-origin-0",
+        "cookie-value-protected-0",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "stored-cookie contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+    click(cx, "cookie-jar-clear-all")?;
+    let (cookie_count, cleared_count, response_after_clear, history_after_clear) = workspace
+        .read_with(cx, |workspace, _| {
+            (
+                workspace.cookie_count(),
+                workspace.last_cookie_clear_count(),
+                workspace.response().clone(),
+                workspace.history().to_vec(),
+            )
+        });
+    if cookie_count != 0 || cleared_count != Some(1) {
+        return Err(format!(
+            "Clear all did not produce the expected 1 → 0 jar transition: count={cookie_count}, cleared={cleared_count:?}"
+        ));
+    }
+    let history_changed = history_after_clear.len() != echoed_history.len()
+        || history_after_clear
+            .iter()
+            .zip(&echoed_history)
+            .any(|(after, before)| {
+                after.request != before.request
+                    || after.editor_intent != before.editor_intent
+                    || after.timestamp != before.timestamp
+                    || after.name != before.name
+                    || after.status != before.status
+                    || after.elapsed_ms != before.elapsed_ms
+                    || after.response_size != before.response_size
+            });
+    if response_after_clear != echoed_response || history_changed {
+        return Err("clearing cookies changed the completed ResponseState or History".to_string());
+    }
+    for selector in ["cookie-jar-empty", "cookie-jar-clear-feedback"] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "cleared-cookie contract element `{selector}` is not rendered"
+            ));
+        }
+    }
+    if cx.debug_bounds("cookie-row-0").is_some() {
+        return Err("a stored cookie row remains rendered after Clear all".to_string());
+    }
+
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let cleared_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&cleared_response, &workflow.cleared.expect.response)?;
+    assert_response_quick_copy(cx, &workspace, &cleared_response)?;
+    let (final_cookie_count, final_history) = workspace.read_with(cx, |workspace, _| {
+        (workspace.cookie_count(), workspace.history().to_vec())
+    });
+    if final_cookie_count != 0 || final_history.len() != 3 {
+        return Err(format!(
+            "after-clear request lifecycle is incomplete: cookies={final_cookie_count}, history={}",
+            final_history.len()
+        ));
+    }
+    assert_requests_equivalent(&final_history[0].request, &cookies_request)
+        .map_err(|error| format!("after-clear History mismatch: {error}"))?;
+    assert_requests_equivalent(&final_history[1].request, &cookies_request)
+        .map_err(|error| format!("automatic-cookie History changed: {error}"))?;
+    assert_requests_equivalent(&final_history[2].request, &set_request)
+        .map_err(|error| format!("cookie-setting History changed: {error}"))?;
+    if final_history.iter().any(|entry| entry.status != Some(200)) {
+        return Err(format!(
+            "cookie lifecycle History contains an incomplete status: {final_history:#?}"
+        ));
+    }
+    for selector in [
+        "history-status-200-0",
+        "history-status-200-1",
+        "history-status-200-2",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "cookie lifecycle History element `{selector}` is not rendered"
+            ));
+        }
+    }
 
     Ok(())
 }

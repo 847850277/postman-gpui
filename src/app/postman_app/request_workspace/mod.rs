@@ -35,6 +35,7 @@ use response_panel::{setup_response_viewer_key_bindings, ResponseViewer};
 pub(super) enum RequestWorkspaceEvent {
     Execute(PendingRequest),
     Abort(SendId),
+    ClearCookies,
 }
 
 /// Workspace composition for request tabs, the active composer, and its response.
@@ -80,6 +81,7 @@ impl RequestWorkspace {
                 cx.emit(RequestWorkspaceEvent::Execute(pending.clone()))
             }
             RequestComposerEvent::Abort(send_id) => cx.emit(RequestWorkspaceEvent::Abort(*send_id)),
+            RequestComposerEvent::ClearCookies => cx.emit(RequestWorkspaceEvent::ClearCookies),
         }
     }
 

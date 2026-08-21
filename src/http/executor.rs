@@ -113,6 +113,14 @@ impl RequestExecutor {
         }
     }
 
+    pub(crate) fn cookie_snapshot(&self) -> Vec<(String, String)> {
+        self.client.cookie_snapshot()
+    }
+
+    pub(crate) fn clear_cookies(&self) -> usize {
+        self.client.clear_cookies()
+    }
+
     /// Canonical transport path. Every caller supplies the same typed command; only scheduling
     /// differs between the GPUI application and deterministic test adapters.
     async fn execute(client: HttpClient, request: Request) -> Result<RequestResult, AppError> {

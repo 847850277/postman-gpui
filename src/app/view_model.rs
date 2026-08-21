@@ -26,6 +26,7 @@ pub enum RequestPane {
     Params,
     Authorization,
     Headers,
+    Cookies,
     Body,
     Scripts,
     Tests,
@@ -585,6 +586,7 @@ impl RequestViewModel {
             RequestPane::Params => &self.param_draft,
             RequestPane::Headers => &self.header_draft,
             RequestPane::Authorization
+            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests => return None,
@@ -823,6 +825,7 @@ impl RequestViewModel {
             RequestPane::Params
             | RequestPane::Headers
             | RequestPane::Authorization
+            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests => false,
@@ -849,6 +852,7 @@ impl RequestViewModel {
             RequestPane::Params
             | RequestPane::Headers
             | RequestPane::Authorization
+            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests => false,
@@ -898,6 +902,7 @@ impl RequestViewModel {
             RequestPane::Params => self.append_param_row(),
             RequestPane::Headers => self.append_header_row(),
             RequestPane::Authorization
+            | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests => {}
@@ -1401,11 +1406,22 @@ impl RequestViewModel {
     }
 }
 
+/// Non-sensitive projection of one application-session cookie. Cookie values stay exclusively in
+/// the transport jar; the ViewModel exposes only enough metadata to make storage and clearing
+/// observable through rendered controls.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CookieJarEntry {
+    pub origin: String,
+    pub name: String,
+}
+
 /// Application-level ViewModel. It owns independent request tabs and shared history.
 pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
     active_tab: usize,
     history: RequestHistory,
+    cookie_jar: Vec<CookieJarEntry>,
+    last_cookie_clear_count: Option<usize>,
     next_tab_id: u64,
     next_send_id: u64,
 }
@@ -1421,6 +1437,8 @@ impl WorkspaceViewModel {
             tabs: vec![request],
             active_tab: 0,
             history: RequestHistory::new(),
+            cookie_jar: Vec::new(),
+            last_cookie_clear_count: None,
             next_tab_id: 2,
             next_send_id: 1,
         }
@@ -1596,6 +1614,40 @@ impl WorkspaceViewModel {
 
     pub fn history_len(&self) -> usize {
         self.history.len()
+    }
+
+    pub fn cookies(&self) -> &[CookieJarEntry] {
+        &self.cookie_jar
+    }
+
+    pub fn cookie_count(&self) -> usize {
+        self.cookie_jar.len()
+    }
+
+    pub fn last_cookie_clear_count(&self) -> Option<usize> {
+        self.last_cookie_clear_count
+    }
+
+    pub(crate) fn sync_cookie_jar(&mut self, snapshot: Vec<(String, String)>) {
+        let mut cookie_jar = snapshot
+            .into_iter()
+            .map(|(origin, name)| CookieJarEntry { origin, name })
+            .collect::<Vec<_>>();
+        cookie_jar.sort_by(|left, right| {
+            left.origin
+                .cmp(&right.origin)
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        cookie_jar.dedup();
+        if !cookie_jar.is_empty() {
+            self.last_cookie_clear_count = None;
+        }
+        self.cookie_jar = cookie_jar;
+    }
+
+    pub(crate) fn record_cookies_cleared(&mut self, cleared: usize) {
+        self.cookie_jar.clear();
+        self.last_cookie_clear_count = Some(cleared);
     }
 }
 
@@ -2688,6 +2740,45 @@ mod tests {
         assert_eq!(entry.status, Some(200));
         assert_eq!(entry.elapsed_ms, Some(13));
         assert_eq!(entry.response_size, Some(body.len()));
+    }
+
+    #[test]
+    fn cookie_jar_projection_is_application_scoped_non_sensitive_and_clearable() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://httpbingo.org/cookies");
+        let pending = workspace.begin_send();
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
+                status: 200,
+                headers: vec![("content-type".into(), "application/json".into())],
+                body: r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into(),
+                elapsed_ms: 8,
+            })
+        ));
+        let response_before_clear = workspace.response().clone();
+
+        workspace.sync_cookie_jar(vec![
+            ("https://httpbingo.org".into(), "session".into()),
+            ("https://httpbingo.org".into(), "session".into()),
+        ]);
+        assert_eq!(
+            workspace.cookies(),
+            &[CookieJarEntry {
+                origin: "https://httpbingo.org".into(),
+                name: "session".into(),
+            }]
+        );
+        assert_eq!(workspace.cookie_count(), 1);
+        assert_eq!(workspace.last_cookie_clear_count(), None);
+
+        workspace.new_request();
+        assert_eq!(workspace.cookie_count(), 1, "the jar is shared across tabs");
+        workspace.record_cookies_cleared(1);
+        assert!(workspace.cookies().is_empty());
+        assert_eq!(workspace.last_cookie_clear_count(), Some(1));
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(&response_before_clear, &workspace.tabs()[0].response);
     }
 
     #[test]
