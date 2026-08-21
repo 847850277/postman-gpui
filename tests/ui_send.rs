@@ -439,7 +439,29 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         let body: serde_json::Value = serde_json::from_str(body).unwrap();
         assert_eq!(body["cookies"]["session"], "cookie-e2e-demo");
     });
-    assert!(cx.debug_bounds("request-pane-cookies").is_some());
+    assert!(
+        cx.debug_bounds("request-pane-cookies").is_none(),
+        "the application Cookie Jar is no longer a request editor tab"
+    );
+    assert!(cx.debug_bounds("cookie-jar-trigger").is_some());
+    click(cx, "response-pane-cookies").unwrap();
+    for selector in [
+        "response-cookies-panel",
+        "response-cookie-list",
+        "response-cookie-row-0",
+        "response-cookie-name-0",
+        "response-cookie-storage-0",
+        "response-open-cookie-jar",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "response cookie contract element `{selector}` should be rendered"
+        );
+    }
+    click(cx, "response-open-cookie-jar").unwrap();
+    assert!(cx.debug_bounds("cookie-jar-workspace-overlay").is_some());
+    assert!(cx.debug_bounds("cookie-jar-panel").is_some());
+    click(cx, "cookie-jar-close").unwrap();
 
     // A rendered New Request keeps the application-level transport session while creating a
     // clean request tab. Send is clicked directly from the active URL input.
@@ -472,8 +494,13 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         );
     });
 
-    click(cx, "request-pane-cookies").unwrap();
+    assert!(
+        cx.debug_bounds("response-cookies-empty").is_some(),
+        "the later /cookies response should expose Cookies (0)"
+    );
+    click(cx, "cookie-jar-trigger").unwrap();
     for selector in [
+        "cookie-jar-workspace-overlay",
         "cookie-jar-panel",
         "cookie-jar-scope",
         "cookie-jar-count",
@@ -506,6 +533,7 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     }
     assert!(cx.debug_bounds("cookie-row-0").is_none());
 
+    click(cx, "cookie-jar-close").unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
     workspace.read_with(cx, |workspace, _| {

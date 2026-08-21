@@ -45,9 +45,13 @@ impl RequestRunner {
             let _ = this.update(cx, |this, cx| {
                 this.in_flight.remove(&send_id);
                 let cookie_snapshot = this.executor.cookie_snapshot();
+                let stored_cookies = result
+                    .as_ref()
+                    .map(|response| response.stored_cookies.clone())
+                    .unwrap_or_default();
                 view_model.update(cx, |view_model, cx| {
                     view_model.sync_cookie_jar(cookie_snapshot);
-                    view_model.complete_send(pending, result);
+                    view_model.complete_send_with_stored_cookies(pending, result, stored_cookies);
                     cx.notify();
                 });
             });

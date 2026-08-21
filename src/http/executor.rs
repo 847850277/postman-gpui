@@ -17,6 +17,7 @@ pub struct RequestResult {
     pub headers: Vec<(String, String)>,
     pub body: String,
     pub elapsed_ms: u128,
+    pub stored_cookies: Vec<(String, String)>,
 }
 
 /// A cancellable request scheduled on the executor's Tokio runtime.
@@ -72,6 +73,7 @@ impl RequestResult {
             headers: Vec::new(),
             body,
             elapsed_ms: 0,
+            stored_cookies: Vec::new(),
         }
     }
 
@@ -81,6 +83,7 @@ impl RequestResult {
             headers: Vec::new(),
             body: message,
             elapsed_ms: 0,
+            stored_cookies: Vec::new(),
         }
     }
 }
@@ -188,6 +191,7 @@ impl RequestExecutor {
                     // response viewer so copy/export features never lose the original payload.
                     body: response.body().to_string(),
                     elapsed_ms,
+                    stored_cookies: response.stored_cookies().to_vec(),
                 })
             }
             Err(error) => {

@@ -177,7 +177,7 @@
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Persist Set-Cookie in one application session, attach it automatically to the next request, clear it through rendered controls, and verify the following echo is empty.",
+                  "content": "Expose Set-Cookie under Response Cookies, project outgoing Cookie on the request, manage stored values from a workspace-level Cookie Jar, and verify clearing with an empty echo.",
                   "lineHeight": 1.35,
                   "fontFamily": "$fontBody",
                   "fontSize": 13,
@@ -261,9 +261,9 @@
                   "id": "x87HC3",
                   "name": "Scope Note",
                   "fill": "$muted",
-                  "content": "302 Set-Cookie → 200 echoed → Clear all → 200 empty",
+                  "content": "Response Cookies 1 → Jar 1 → Request Cookie → Clear → Cookies 0",
                   "fontFamily": "$fontBody",
-                  "fontSize": 11,
+                  "fontSize": 10,
                   "fontWeight": "normal"
                 }
               ]
@@ -273,7 +273,7 @@
         {
           "type": "frame",
           "id": "c9RQQL",
-          "name": "Application State · Cookie Jar Cleared Verification",
+          "name": "Application State · Response Cookies and Workspace Jar",
           "clip": true,
           "width": "fill_container",
           "height": 900,
@@ -425,7 +425,7 @@
                       "id": "SO0ZD",
                       "name": "Cookie Jar Trigger Label",
                       "fill": "$blue",
-                      "content": "Cookie Jar · 0",
+                      "content": "Cookie Jar · 0 stored",
                       "fontFamily": "$fontBody",
                       "fontSize": 12,
                       "fontWeight": "700"
@@ -1313,7 +1313,7 @@
                               },
                               "gap": 20,
                               "padding": [
-                                13,
+                                0,
                                 16
                               ],
                               "alignItems": "center",
@@ -1404,24 +1404,43 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "uwLQ3",
-                                  "name": "Request Pane Tab · Cookies · 1 → 0",
-                                  "height": 31,
-                                  "stroke": "$accent",
-                                  "strokeWidth": {
-                                    "bottom": 2
-                                  },
-                                  "layout": "vertical",
-                                  "justifyContent": "center",
+                                  "id": "EuVcn",
+                                  "name": "Request Tabs Spacer",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "pqZGn",
+                                  "name": "Cookie Jar Workspace Origin Content Item",
+                                  "height": 28,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 7,
+                                  "gap": 6,
+                                  "padding": [
+                                    5,
+                                    9
+                                  ],
+                                  "alignItems": "center",
                                   "children": [
                                     {
+                                      "type": "icon",
+                                      "id": "UsAQE",
+                                      "name": "Cookie Jar Workspace Origin Icon",
+                                      "width": 12,
+                                      "height": 12,
+                                      "icon": "archive",
+                                      "library": "lucide",
+                                      "fill": "$blue"
+                                    },
+                                    {
                                       "type": "text",
-                                      "id": "XqA4w",
-                                      "name": "Request Pane Tab Label · Cookies · 1 → 0",
-                                      "fill": "$accent",
-                                      "content": "Cookies · 1 → 0",
+                                      "id": "al0ZM",
+                                      "name": "Cookie Jar Workspace Origin Label",
+                                      "fill": "$blue",
+                                      "content": "COOKIE JAR · HEADER TOOL · NOT A REQUEST TAB",
                                       "fontFamily": "$fontBody",
-                                      "fontSize": 11,
+                                      "fontSize": 9,
                                       "fontWeight": "700"
                                     }
                                   ]
@@ -1470,7 +1489,7 @@
                                           "id": "Gse0V",
                                           "name": "Cookie Jar Editor Title",
                                           "fill": "$text",
-                                          "content": "Application Cookie Jar · lifecycle capture",
+                                          "content": "Application Cookie Jar · workspace tool",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 12,
                                           "fontWeight": "700"
@@ -1482,7 +1501,7 @@
                                       "id": "I2l0vG",
                                       "name": "Cookie Jar Session Scope",
                                       "fill": "$blue",
-                                      "content": "SAME CLIENT SESSION",
+                                      "content": "OPENED FROM HEADER · SAME CLIENT SESSION",
                                       "fontFamily": "$fontMono",
                                       "fontSize": 9,
                                       "fontWeight": "700",
@@ -1941,11 +1960,11 @@
                                   "type": "text",
                                   "id": "JPcSf",
                                   "name": "Cookie Response Tab",
-                                  "fill": "$text",
-                                  "content": "Response",
+                                  "fill": "$muted",
+                                  "content": "Body",
                                   "fontFamily": "$fontBody",
                                   "fontSize": 12,
-                                  "fontWeight": "700"
+                                  "fontWeight": "500"
                                 },
                                 {
                                   "type": "text",
@@ -1955,7 +1974,31 @@
                                   "content": "Headers",
                                   "fontFamily": "$fontBody",
                                   "fontSize": 11,
-                                  "fontWeight": "normal"
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Kthuo",
+                                  "name": "Response Cookies Tab Content Item",
+                                  "height": 31,
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "bottom": 2
+                                  },
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "wDdX8",
+                                      "name": "Response Cookies Tab Label",
+                                      "fill": "$accent",
+                                      "content": "Cookies (0)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
                                 },
                                 {
                                   "type": "frame",
@@ -2055,97 +2098,166 @@
                               "width": "fill_container",
                               "height": "fill_container",
                               "fill": "$panel",
-                              "gap": 12,
+                              "layout": "vertical",
+                              "gap": 10,
                               "padding": 12,
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "AfbyQ",
-                                  "name": "Rendered Cookie JSON Body",
+                                  "id": "uDuV0",
+                                  "name": "Response Cookies Lifecycle Summary",
                                   "width": "fill_container",
-                                  "height": "fill_container",
-                                  "fill": "$code",
-                                  "cornerRadius": 9,
-                                  "layout": "vertical",
-                                  "gap": 8,
-                                  "padding": 12,
+                                  "height": 92,
+                                  "gap": 10,
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "Tk9kC",
-                                      "name": "Rendered Cookie JSON Header",
+                                      "id": "NC39d",
+                                      "name": "Current Response Cookies Content Item",
                                       "width": "fill_container",
-                                      "justifyContent": "space_between",
-                                      "alignItems": "center",
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 9,
+                                      "stroke": "$green",
+                                      "strokeWidth": 1,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": [
+                                        9,
+                                        11
+                                      ],
                                       "children": [
                                         {
                                           "type": "text",
-                                          "id": "MKPjE",
-                                          "name": "Rendered Cookie JSON Label",
-                                          "fill": "$subtle",
-                                          "content": "JSON · AFTER CLEAR VERIFICATION",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 9,
-                                          "fontWeight": "700",
-                                          "letterSpacing": 0.7
+                                          "id": "EyRF8",
+                                          "name": "Current Response Cookies Kicker",
+                                          "fill": "$green",
+                                          "content": "CURRENT RESPONSE · COOKIES (0)",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8.5,
+                                          "fontWeight": "700"
                                         },
                                         {
                                           "type": "text",
-                                          "id": "WchiU",
-                                          "name": "Rendered Cookie JSON State",
-                                          "fill": "$green",
-                                          "content": "ResponseState::Success { status: 200 }",
-                                          "fontFamily": "$fontMono",
+                                          "id": "v8wfv",
+                                          "name": "Current Response Cookies Title",
+                                          "fill": "$text",
+                                          "content": "No Set-Cookie received",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "O9ih6v",
+                                          "name": "Current Response Cookies Detail",
+                                          "fill": "$muted",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "GET /cookies · 200 · Cookie Jar remains 0 · response-scoped observation",
+                                          "lineHeight": 1.25,
+                                          "fontFamily": "$fontBody",
                                           "fontSize": 9,
                                           "fontWeight": "normal"
                                         }
                                       ]
                                     },
                                     {
-                                      "type": "text",
-                                      "id": "qEeQU",
-                                      "name": "Rendered Cookie JSON Empty Evidence",
-                                      "fill": "$codeText",
-                                      "content": "{\n  \"cookies\": {}\n}",
-                                      "lineHeight": 1.45,
-                                      "fontFamily": "$fontMono",
-                                      "fontSize": 15,
-                                      "fontWeight": "normal"
-                                    },
-                                    {
                                       "type": "frame",
-                                      "id": "oklON",
-                                      "name": "Copy Response Feedback Content Item",
-                                      "width": "fill_container",
-                                      "height": 38,
-                                      "fill": "$greenSoft",
-                                      "cornerRadius": 8,
-                                      "gap": 8,
+                                      "id": "XMZRY",
+                                      "name": "Set-Cookie Storage Handoff Content Item",
+                                      "width": 560,
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 9,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 1,
+                                      "gap": 10,
                                       "padding": [
                                         9,
-                                        10
+                                        11
                                       ],
                                       "alignItems": "center",
                                       "children": [
                                         {
-                                          "type": "icon",
-                                          "id": "bMlvW",
-                                          "name": "Copy Response Feedback Icon",
-                                          "width": 15,
-                                          "height": 15,
-                                          "icon": "clipboard-check",
-                                          "library": "lucide",
-                                          "fill": "$green"
+                                          "type": "frame",
+                                          "id": "ti6pa",
+                                          "name": "Set-Cookie Storage Handoff Copy",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 4,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "YozS9",
+                                              "name": "Set-Cookie Storage Handoff Kicker",
+                                              "fill": "$blue",
+                                              "content": "PRIOR 302 RESPONSE · COOKIES (1)",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 8.5,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "Q6E10H",
+                                              "name": "Set-Cookie Storage Handoff Title",
+                                              "fill": "$text",
+                                              "content": "Set-Cookie captured → stored in application jar",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 11,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "brTWE",
+                                              "name": "Set-Cookie Storage Handoff Detail",
+                                              "fill": "$codeText",
+                                              "textGrowth": "fixed-width",
+                                              "width": "fill_container",
+                                              "content": "session=•••••••• · Path=/ · HttpOnly · Secure",
+                                              "lineHeight": 1.25,
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 8.5,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
                                         },
                                         {
-                                          "type": "text",
-                                          "id": "TxGzP",
-                                          "name": "Copy Response Feedback Value",
-                                          "fill": "$green",
-                                          "content": "Copy → ✓ Copied · complete body from ResponseState · view and History unchanged",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 10,
-                                          "fontWeight": "normal"
+                                          "type": "frame",
+                                          "id": "tYLrK",
+                                          "name": "Open Cookie Jar From Response Control",
+                                          "fill": "$panel",
+                                          "cornerRadius": 7,
+                                          "stroke": "$blue",
+                                          "strokeWidth": 1,
+                                          "gap": 5,
+                                          "padding": [
+                                            7,
+                                            9
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "tvkJ1",
+                                              "name": "Open Cookie Jar From Response Icon",
+                                              "width": 12,
+                                              "height": 12,
+                                              "icon": "external-link",
+                                              "library": "lucide",
+                                              "fill": "$blue"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "UPn9y",
+                                              "name": "Open Cookie Jar From Response Label",
+                                              "fill": "$blue",
+                                              "content": "Open Cookie Jar",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
                                         }
                                       ]
                                     }
@@ -2153,132 +2265,235 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "hQoPy",
-                                  "name": "Stable Cookie Verification Subset",
-                                  "width": 430,
+                                  "id": "LstKG",
+                                  "name": "Response Body and Lifecycle Evidence",
+                                  "width": "fill_container",
                                   "height": "fill_container",
-                                  "layout": "vertical",
-                                  "gap": 8,
+                                  "gap": 12,
                                   "children": [
                                     {
-                                      "type": "text",
-                                      "id": "Qf8Fm",
-                                      "name": "Stable Cookie Verification Title",
-                                      "fill": "$subtle",
-                                      "content": "STABLE COOKIE ASSERTIONS",
-                                      "fontFamily": "$fontBody",
-                                      "fontSize": 9,
-                                      "fontWeight": "700",
-                                      "letterSpacing": 0.7
-                                    },
-                                    {
                                       "type": "frame",
-                                      "id": "joExr",
-                                      "name": "Server Echo With Cookie Content Item",
+                                      "id": "AfbyQ",
+                                      "name": "Rendered Cookie JSON Body",
                                       "width": "fill_container",
                                       "height": "fill_container",
-                                      "fill": "$blueSoft",
-                                      "cornerRadius": 8,
+                                      "fill": "$code",
+                                      "cornerRadius": 9,
                                       "layout": "vertical",
-                                      "gap": 4,
-                                      "padding": 10,
+                                      "gap": 8,
+                                      "padding": 12,
                                       "children": [
                                         {
-                                          "type": "text",
-                                          "id": "gwxJ2",
-                                          "name": "Server Echo With Cookie Content Item Title",
-                                          "fill": "$blue",
-                                          "content": "02 · POSITIVE ECHO BEFORE CLEAR",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 9,
-                                          "fontWeight": "700"
+                                          "type": "frame",
+                                          "id": "Tk9kC",
+                                          "name": "Rendered Cookie JSON Header",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "MKPjE",
+                                              "name": "Rendered Cookie JSON Label",
+                                              "fill": "$subtle",
+                                              "content": "BODY SNAPSHOT · AFTER CLEAR",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.7
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "WchiU",
+                                              "name": "Rendered Cookie JSON State",
+                                              "fill": "$green",
+                                              "content": "ResponseState::Success { status: 200 }",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
                                         },
                                         {
                                           "type": "text",
-                                          "id": "KCWce",
-                                          "name": "Server Echo With Cookie Content Item Value",
+                                          "id": "qEeQU",
+                                          "name": "Rendered Cookie JSON Empty Evidence",
                                           "fill": "$codeText",
-                                          "textGrowth": "fixed-width",
-                                          "width": "fill_container",
-                                          "content": "{\"cookies\":{\"session\":\"cookie-e2e-demo\"}}",
-                                          "lineHeight": 1.25,
+                                          "content": "{\n  \"cookies\": {}\n}",
+                                          "lineHeight": 1.45,
                                           "fontFamily": "$fontMono",
-                                          "fontSize": 9,
+                                          "fontSize": 15,
                                           "fontWeight": "normal"
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "oklON",
+                                          "name": "Copy Response Feedback Content Item",
+                                          "width": "fill_container",
+                                          "height": 38,
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 8,
+                                          "gap": 8,
+                                          "padding": [
+                                            9,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "bMlvW",
+                                              "name": "Copy Response Feedback Icon",
+                                              "width": 15,
+                                              "height": 15,
+                                              "icon": "clipboard-check",
+                                              "library": "lucide",
+                                              "fill": "$green"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "TxGzP",
+                                              "name": "Copy Response Feedback Value",
+                                              "fill": "$green",
+                                              "content": "Copy → ✓ Copied · complete body from ResponseState · view and History unchanged",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
                                         }
                                       ]
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "EFt0U",
-                                      "name": "Server Echo After Clear Content Item",
-                                      "width": "fill_container",
+                                      "id": "hQoPy",
+                                      "name": "Stable Cookie Verification Subset",
+                                      "width": 430,
                                       "height": "fill_container",
-                                      "fill": "$greenSoft",
-                                      "cornerRadius": 8,
                                       "layout": "vertical",
-                                      "gap": 4,
-                                      "padding": 10,
+                                      "gap": 8,
                                       "children": [
                                         {
                                           "type": "text",
-                                          "id": "h7Agh",
-                                          "name": "Server Echo After Clear Content Item Title",
-                                          "fill": "$green",
-                                          "content": "04 · NEGATIVE ECHO AFTER CLEAR",
+                                          "id": "Qf8Fm",
+                                          "name": "Stable Cookie Verification Title",
+                                          "fill": "$subtle",
+                                          "content": "LIFECYCLE ASSERTIONS",
                                           "fontFamily": "$fontBody",
                                           "fontSize": 9,
-                                          "fontWeight": "700"
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.7
                                         },
                                         {
-                                          "type": "text",
-                                          "id": "qyRPd",
-                                          "name": "Server Echo After Clear Content Item Value",
-                                          "fill": "$codeText",
-                                          "textGrowth": "fixed-width",
+                                          "type": "frame",
+                                          "id": "joExr",
+                                          "name": "Server Echo With Cookie Content Item",
                                           "width": "fill_container",
-                                          "content": "{\"cookies\":{}} · Cookie header absent",
-                                          "lineHeight": 1.25,
-                                          "fontFamily": "$fontMono",
-                                          "fontSize": 9,
-                                          "fontWeight": "normal"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "C3oLd2",
-                                      "name": "Response View History Consistency Content Item",
-                                      "width": "fill_container",
-                                      "height": "fill_container",
-                                      "fill": "$panelAlt",
-                                      "cornerRadius": 8,
-                                      "layout": "vertical",
-                                      "gap": 4,
-                                      "padding": 10,
-                                      "children": [
-                                        {
-                                          "type": "text",
-                                          "id": "zyjUL",
-                                          "name": "Response View History Consistency Content Item Title",
-                                          "fill": "$muted",
-                                          "content": "SINGLE LIFECYCLE TRUTH",
-                                          "fontFamily": "$fontBody",
-                                          "fontSize": 9,
-                                          "fontWeight": "700"
+                                          "height": "fill_container",
+                                          "fill": "$blueSoft",
+                                          "cornerRadius": 8,
+                                          "layout": "vertical",
+                                          "gap": 4,
+                                          "padding": 10,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "gwxJ2",
+                                              "name": "Server Echo With Cookie Content Item Title",
+                                              "fill": "$blue",
+                                              "content": "02 · POSITIVE ECHO BEFORE CLEAR",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "KCWce",
+                                              "name": "Server Echo With Cookie Content Item Value",
+                                              "fill": "$codeText",
+                                              "textGrowth": "fixed-width",
+                                              "width": "fill_container",
+                                              "content": "{\"cookies\":{\"session\":\"cookie-e2e-demo\"}}",
+                                              "lineHeight": 1.25,
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
                                         },
                                         {
-                                          "type": "text",
-                                          "id": "JwSNw",
-                                          "name": "Response View History Consistency Content Item Value",
-                                          "fill": "$codeText",
-                                          "textGrowth": "fixed-width",
+                                          "type": "frame",
+                                          "id": "EFt0U",
+                                          "name": "Server Echo After Clear Content Item",
                                           "width": "fill_container",
-                                          "content": "ResponseState 200 = View 200 = selected History 200",
-                                          "lineHeight": 1.25,
-                                          "fontFamily": "$fontMono",
-                                          "fontSize": 9,
-                                          "fontWeight": "normal"
+                                          "height": "fill_container",
+                                          "fill": "$greenSoft",
+                                          "cornerRadius": 8,
+                                          "layout": "vertical",
+                                          "gap": 4,
+                                          "padding": 10,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "h7Agh",
+                                              "name": "Server Echo After Clear Content Item Title",
+                                              "fill": "$green",
+                                              "content": "04 · NEGATIVE ECHO AFTER CLEAR",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "qyRPd",
+                                              "name": "Server Echo After Clear Content Item Value",
+                                              "fill": "$codeText",
+                                              "textGrowth": "fixed-width",
+                                              "width": "fill_container",
+                                              "content": "{\"cookies\":{}} · Cookie header absent",
+                                              "lineHeight": 1.25,
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "C3oLd2",
+                                          "name": "Response View History Consistency Content Item",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "fill": "$panelAlt",
+                                          "cornerRadius": 8,
+                                          "layout": "vertical",
+                                          "gap": 4,
+                                          "padding": 10,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "zyjUL",
+                                              "name": "Response View History Consistency Content Item Title",
+                                              "fill": "$muted",
+                                              "content": "SINGLE LIFECYCLE TRUTH",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "JwSNw",
+                                              "name": "Response View History Consistency Content Item Value",
+                                              "fill": "$codeText",
+                                              "textGrowth": "fixed-width",
+                                              "width": "fill_container",
+                                              "content": "ResponseState 200 = View 200 = selected History 200",
+                                              "lineHeight": 1.25,
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
                                         }
                                       ]
                                     }
@@ -2388,7 +2603,7 @@
                   "fill": "$codeText",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Intermediate 302 Set-Cookie retained → followed 200; jar count becomes 1",
+                  "content": "Response → Cookies (1): intermediate 302 Set-Cookie retained; storage handoff opens Cookie Jar; jar count becomes 1",
                   "lineHeight": 1.3,
                   "fontFamily": "$fontMono",
                   "fontSize": 9,
@@ -2437,7 +2652,7 @@
                   "fill": "$codeText",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "GET /cookies · Cookie: session=cookie-e2e-demo · echo contains session",
+                  "content": "Request send projection: GET /cookies · Cookie: session=cookie-e2e-demo · echo contains session",
                   "lineHeight": 1.3,
                   "fontFamily": "$fontMono",
                   "fontSize": 9,
@@ -2486,7 +2701,7 @@
                   "fill": "$codeText",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Click Clear all cookies · jar 1 → 0 · logs remain [REDACTED]",
+                  "content": "Workspace Cookie Jar: Clear all cookies · jar 1 → 0 · logs remain [REDACTED]",
                   "lineHeight": 1.3,
                   "fontFamily": "$fontMono",
                   "fontSize": 9,
@@ -2874,7 +3089,7 @@
                               "fill": "$muted",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "Keep the same application client session; inspect the automatic Cookie echo.",
+                              "content": "Keep the same application client session; inspect Request Headers / send projection and the automatic Cookie echo.",
                               "lineHeight": 1.25,
                               "fontFamily": "$fontBody",
                               "fontSize": 8,
@@ -2928,7 +3143,7 @@
                               "id": "fFoq7",
                               "name": "Clear Cookie Jar Step Title",
                               "fill": "$text",
-                              "content": "Open Cookie Jar and click Clear all cookies",
+                              "content": "Open workspace Cookie Jar from the header and click Clear all cookies",
                               "fontFamily": "$fontBody",
                               "fontSize": 9,
                               "fontWeight": "700"
@@ -3006,7 +3221,7 @@
                               "fill": "$muted",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "Inspect 200 empty JSON, Copy, and all three History results.",
+                              "content": "Inspect Response → Cookies (0), 200 empty JSON body, Copy, and all three History results.",
                               "lineHeight": 1.25,
                               "fontFamily": "$fontBody",
                               "fontSize": 8,
@@ -3360,7 +3575,7 @@
                           "fill": "$codeText",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "Application-level jar · intermediate Set-Cookie capture · automatic Cookie send · rendered Clear all · empty recheck · redacted logs · same-session History.",
+                          "content": "Response Cookies capture · request send projection · workspace-level Cookie Jar and Clear all · empty recheck · redacted logs · same-session History.",
                           "lineHeight": 1.25,
                           "fontFamily": "$fontBody",
                           "fontSize": 8,

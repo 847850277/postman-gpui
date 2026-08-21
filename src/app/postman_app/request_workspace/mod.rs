@@ -29,13 +29,14 @@ mod panes;
 mod response_panel;
 
 use composer::{RequestComposer, RequestComposerEvent};
-use response_panel::{setup_response_viewer_key_bindings, ResponseViewer};
+pub(super) use panes::{CookiePane, CookiePaneEvent};
+use response_panel::{setup_response_viewer_key_bindings, ResponseViewer, ResponseViewerEvent};
 
 #[derive(Clone, Debug)]
 pub(super) enum RequestWorkspaceEvent {
     Execute(PendingRequest),
     Abort(SendId),
-    ClearCookies,
+    OpenCookieJar,
 }
 
 /// Workspace composition for request tabs, the active composer, and its response.
@@ -59,6 +60,7 @@ impl RequestWorkspace {
         let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
         let subscriptions = vec![
             cx.subscribe(&composer, Self::on_composer_event),
+            cx.subscribe(&response_viewer, Self::on_response_viewer_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
@@ -81,7 +83,17 @@ impl RequestWorkspace {
                 cx.emit(RequestWorkspaceEvent::Execute(pending.clone()))
             }
             RequestComposerEvent::Abort(send_id) => cx.emit(RequestWorkspaceEvent::Abort(*send_id)),
-            RequestComposerEvent::ClearCookies => cx.emit(RequestWorkspaceEvent::ClearCookies),
+        }
+    }
+
+    fn on_response_viewer_event(
+        &mut self,
+        _viewer: Entity<ResponseViewer>,
+        event: &ResponseViewerEvent,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ResponseViewerEvent::OpenCookieJar => cx.emit(RequestWorkspaceEvent::OpenCookieJar),
         }
     }
 

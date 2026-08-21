@@ -34,7 +34,6 @@ pub(super) fn adaptive_request_panel_height(
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Authorization
-        | RequestPane::Cookies
         | RequestPane::Scripts
         | RequestPane::Tests
         | RequestPane::Options => {
@@ -59,7 +58,6 @@ pub(super) fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usiz
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Authorization
-        | RequestPane::Cookies
         | RequestPane::Scripts
         | RequestPane::Tests
         | RequestPane::Options => return 0,

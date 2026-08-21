@@ -142,15 +142,7 @@ impl RequestComposer {
     }
 
     pub(super) fn render_request_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let (
-            header_count,
-            cookie_count,
-            authorization_kind,
-            has_authorization,
-            has_body,
-            has_script,
-            has_tests,
-        ) = {
+        let (header_count, authorization_kind, has_authorization, has_body, has_script, has_tests) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model
@@ -158,7 +150,6 @@ impl RequestComposer {
                     .iter()
                     .filter(|row| row.enabled)
                     .count(),
-                view_model.cookie_count(),
                 view_model.authorization_kind(),
                 match view_model.authorization_kind() {
                     AuthorizationKind::Bearer => !view_model.bearer_token().is_empty(),
@@ -201,11 +192,6 @@ impl RequestComposer {
                 cx,
             ))
             .child(self.request_tab(
-                RequestPane::Cookies,
-                format!("Cookies ({cookie_count})"),
-                cx,
-            ))
-            .child(self.request_tab(
                 RequestPane::Body,
                 if has_body { "Body ●" } else { "Body" },
                 cx,
@@ -228,7 +214,6 @@ fn request_pane_selector(pane: RequestPane) -> &'static str {
         RequestPane::Params => "request-pane-params",
         RequestPane::Authorization => "request-pane-authorization",
         RequestPane::Headers => "request-pane-headers",
-        RequestPane::Cookies => "request-pane-cookies",
         RequestPane::Body => "request-pane-body",
         RequestPane::Scripts => "request-pane-scripts",
         RequestPane::Tests => "request-pane-tests",

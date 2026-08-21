@@ -145,8 +145,10 @@ cell without an intermediate commit action. No other scenario shares state.
 Issue #65 similarly links its independently runnable cookie-setting and empty
 `GET /cookies` cases in one additional same-session workflow. It retains the
 intermediate redirect's `Set-Cookie`, verifies automatic sending from a rendered
-New Request, clears the application jar through the Cookies pane, and verifies
-an empty echo without changing completed responses or History.
+New Request, exposes the response-scoped cookie evidence in Response Cookies,
+opens the workspace-level Cookie Jar from the header or response handoff, clears
+the jar there, and verifies an empty echo without changing completed responses
+or History.
 
 Cases that fail before network delivery, such as an empty URL, omit `mock`. They
 must expect an error response and no history entry.

@@ -1,8 +1,8 @@
 use super::{
     layout::adaptive_request_panel_height,
     panes::{
-        AuthorizationPane, BodyPane, CookiePane, CookiePaneEvent, KeyValueRowsKind,
-        KeyValueRowsPane, KeyValueRowsPaneEvent, OptionsPane, ScriptPane, ScriptPaneKind,
+        AuthorizationPane, BodyPane, KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
+        OptionsPane, ScriptPane, ScriptPaneKind,
     },
 };
 use crate::{
@@ -26,7 +26,6 @@ use gpui::{
 pub(super) enum RequestComposerEvent {
     Execute(PendingRequest),
     Abort(SendId),
-    ClearCookies,
 }
 
 /// Method/URL/Send controls plus the currently selected request pane.
@@ -40,7 +39,6 @@ pub(super) struct RequestComposer {
     params_pane: Entity<KeyValueRowsPane>,
     headers_pane: Entity<KeyValueRowsPane>,
     authorization_pane: Entity<AuthorizationPane>,
-    cookie_pane: Entity<CookiePane>,
     body_pane: Entity<BodyPane>,
     script_pane: Entity<ScriptPane>,
     tests_pane: Entity<ScriptPane>,
@@ -63,7 +61,6 @@ impl RequestComposer {
         let headers_pane =
             cx.new(|cx| KeyValueRowsPane::new(view_model.clone(), KeyValueRowsKind::Headers, cx));
         let authorization_pane = cx.new(|cx| AuthorizationPane::new(view_model.clone(), cx));
-        let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
         let body_pane = cx.new(|cx| BodyPane::new(view_model.clone(), cx));
         let script_pane =
             cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, cx));
@@ -76,7 +73,6 @@ impl RequestComposer {
             cx.subscribe(&url_input, Self::on_url_event),
             cx.subscribe(&params_pane, Self::on_key_value_pane_event),
             cx.subscribe(&headers_pane, Self::on_key_value_pane_event),
-            cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
@@ -87,7 +83,6 @@ impl RequestComposer {
             params_pane,
             headers_pane,
             authorization_pane,
-            cookie_pane,
             body_pane,
             script_pane,
             tests_pane,
@@ -152,17 +147,6 @@ impl RequestComposer {
         }
     }
 
-    fn on_cookie_pane_event(
-        &mut self,
-        _pane: Entity<CookiePane>,
-        event: &CookiePaneEvent,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            CookiePaneEvent::ClearAllRequested => cx.emit(RequestComposerEvent::ClearCookies),
-        }
-    }
-
     fn project_method(&self, cx: &mut Context<Self>) {
         let method = self.view_model.read(cx).method();
         self.method_selector
@@ -186,7 +170,6 @@ impl RequestComposer {
             RequestPane::Authorization => self
                 .authorization_pane
                 .update(cx, AuthorizationPane::project_active_request),
-            RequestPane::Cookies => {}
             RequestPane::Body => self.body_pane.update(cx, BodyPane::project_active_request),
             RequestPane::Scripts => self
                 .script_pane
@@ -267,7 +250,6 @@ impl RequestComposer {
                 body_input.read(cx).form_data_entry_count()
             }
             RequestPane::Authorization
-            | RequestPane::Cookies
             | RequestPane::Scripts
             | RequestPane::Tests
             | RequestPane::Options
@@ -282,7 +264,6 @@ impl RequestComposer {
             RequestPane::Params => self.params_pane.clone().into_any_element(),
             RequestPane::Authorization => self.authorization_pane.clone().into_any_element(),
             RequestPane::Headers => self.headers_pane.clone().into_any_element(),
-            RequestPane::Cookies => self.cookie_pane.clone().into_any_element(),
             RequestPane::Body => self.body_pane.clone().into_any_element(),
             RequestPane::Scripts => self.script_pane.clone().into_any_element(),
             RequestPane::Tests => self.tests_pane.clone().into_any_element(),
