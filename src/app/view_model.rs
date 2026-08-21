@@ -2604,6 +2604,42 @@ mod tests {
     }
 
     #[test]
+    fn redirect_completion_uses_final_response_and_keeps_original_request_in_history() {
+        let original_url =
+            "https://httpbingo.org/redirect-to?url=%2Fanything%2Fredirected&status_code=302";
+        let final_body = r#"{"method":"GET","url":"https://httpbingo.org/anything/redirected"}"#;
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url(original_url);
+        let pending = workspace.begin_send();
+
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
+                status: 200,
+                headers: vec![("content-type".into(), "application/json".into())],
+                body: final_body.into(),
+                elapsed_ms: 11,
+            })
+        ));
+
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success {
+                status: 200,
+                body,
+                ..
+            } if body == final_body
+        ));
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::GET);
+        assert_eq!(entry.request.url, original_url);
+        assert_eq!(entry.status, Some(200));
+        assert_eq!(entry.elapsed_ms, Some(11));
+        assert_eq!(entry.response_size, Some(final_body.len()));
+    }
+
+    #[test]
     fn completion_targets_the_originating_tab_after_the_user_switches_tabs() {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://first.example/slow");

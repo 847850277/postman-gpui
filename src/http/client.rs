@@ -4,6 +4,7 @@ use crate::models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestB
 use reqwest::{multipart, Client, RequestBuilder};
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+const DEFAULT_REDIRECT_LIMIT: usize = 10;
 
 #[derive(Clone)]
 pub(super) struct HttpClient {
@@ -15,6 +16,9 @@ impl HttpClient {
         HttpClient {
             client: Client::builder()
                 .user_agent(DEFAULT_USER_AGENT)
+                // Redirect following is part of the application's request contract. Keep the
+                // policy explicit so a dependency default cannot silently change that behavior.
+                .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
                 .build()
                 .expect("the built-in HTTP client configuration should be valid"),
         }
@@ -129,6 +133,46 @@ mod tests {
 
         assert_eq!(response.status(), 200);
         mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn default_client_follows_redirect_to_final_response() {
+        let mut server = Server::new_async().await;
+        let redirected_url = format!("{}/anything/redirected", server.url());
+        let final_body = format!(r#"{{"method":"GET","url":"{redirected_url}"}}"#);
+        let redirect = server
+            .mock("GET", "/redirect-to")
+            .match_query(Matcher::AllOf(vec![
+                Matcher::UrlEncoded("url".into(), "/anything/redirected".into()),
+                Matcher::UrlEncoded("status_code".into(), "302".into()),
+            ]))
+            .with_status(302)
+            .with_header("location", "/anything/redirected")
+            .create_async()
+            .await;
+        let target = server
+            .mock("GET", "/anything/redirected")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(final_body.clone())
+            .create_async()
+            .await;
+
+        let response = HttpClient::new()
+            .execute(Request::new(
+                HttpMethod::GET,
+                format!(
+                    "{}/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+                    server.url()
+                ),
+            ))
+            .await
+            .expect("the default client should follow the redirect");
+
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.body(), final_body);
+        redirect.assert_async().await;
+        target.assert_async().await;
     }
 
     #[tokio::test]

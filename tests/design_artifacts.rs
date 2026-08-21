@@ -38,6 +38,29 @@ struct IssueContentContract {
     required_visible_text: &'static [&'static str],
 }
 
+struct IssueE2EContract {
+    issue: u32,
+    required_node_names: &'static [&'static str],
+    required_visible_text: &'static [&'static str],
+}
+
+const ISSUE_E2E_CONTRACTS: &[IssueE2EContract] = &[IssueE2EContract {
+    issue: 62,
+    required_node_names: &[
+        "Ordered Real-UI Scenario Steps",
+        "Observable Assertions · Verification Contract",
+        "Scope and Non-Goals",
+    ],
+    required_visible_text: &[
+        "Focus the URL input and type the full redirect URL",
+        "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+        "302 Location: /anything/redirected becomes the followed GET.",
+        "JSON method=GET and url=https://httpbingo.org/anything/redirected.",
+        "Parent roadmap #50 → #62.",
+        ".github/workflows/httpbingo-e2e.yml",
+    ],
+}];
+
 // Static design validation cannot infer product meaning from arbitrary canvas nodes. Requiring
 // issue-specific controls and visible values keeps a copied shell or explanatory-card-only design
 // from satisfying the contract. These markers are intentionally scoped to the feature stage; text
@@ -209,6 +232,29 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
             "ResponseState::Success { status: 418 }",
             "ResponseState::Error is not used",
             "I'm a teapot!",
+        ],
+    },
+    IssueContentContract {
+        issue: 62,
+        required_node_names: &[
+            "Active Redirect URL Content Item",
+            "Active Draft Commit Contract",
+            "Initial Outgoing Redirect Request Content Item",
+            "Initial 302 Redirect Content Item",
+            "Final 200 Response Content Item",
+            "Original Redirect History Result Content Item",
+            "HTTPBingo Redirect Response Panel",
+            "Copy Response Feedback Content Item",
+        ],
+        required_visible_text: &[
+            "https://httpbingo.org/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+            "302 Location: /anything/redirected",
+            "200 OK",
+            "\"url\": \"https://httpbingo.org/anything/redirected\"",
+            "History preserves the original redirect URL",
+            "no Enter, Tab, blur, Add, or submit-time backfill",
+            "ResponseState::Success { status: 200 }",
+            "Copy → ✓ Copied",
         ],
     },
     IssueContentContract {
@@ -926,6 +972,28 @@ fn assert_e2e_contract(path: &Path, contract: &Value, issue: u32, file_name: &st
     let contract_text_lower = contract_text.to_ascii_lowercase();
     let mut contract_names = Vec::new();
     collect_names(contract, &mut contract_names);
+
+    if let Some(issue_contract) = ISSUE_E2E_CONTRACTS
+        .iter()
+        .find(|issue_contract| issue_contract.issue == issue)
+    {
+        for required in issue_contract.required_node_names {
+            assert!(
+                contract_names.iter().any(|name| name.contains(required)),
+                "{} E2E Contract is missing concrete node {required:?}",
+                path.display()
+            );
+        }
+        let normalized_contract_text = normalize_whitespace(&contract_text);
+        for required in issue_contract.required_visible_text {
+            let required = normalize_whitespace(required);
+            assert!(
+                normalized_contract_text.contains(&required),
+                "{} E2E Contract is missing visible value {required:?}",
+                path.display()
+            );
+        }
+    }
 
     assert!(
         contract_text.contains(&format!("#{issue}")),
