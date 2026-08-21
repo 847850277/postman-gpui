@@ -160,6 +160,104 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
 }
 
 #[gpui::test]
+fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let final_url = format!("{}/anything/redirected", server.url());
+    let final_body = serde_json::json!({
+        "method": "GET",
+        "url": final_url.clone(),
+    })
+    .to_string();
+    let redirect = server
+        .mock("GET", "/redirect-to")
+        .match_query(Matcher::AllOf(vec![
+            Matcher::UrlEncoded("url".into(), "/anything/redirected".into()),
+            Matcher::UrlEncoded("status_code".into(), "302".into()),
+        ]))
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(302)
+        .with_header("location", "/anything/redirected")
+        .create();
+    let target = server
+        .mock("GET", "/anything/redirected")
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(final_body.clone())
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let original_url = format!(
+        "{}/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+        server.url()
+    );
+    type_into(cx, "url-input", &original_url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        original_url,
+        "the focused redirect URL must already be authoritative before Send"
+    );
+
+    // Keep the URL field active and Send directly. The first mock proves that the initial
+    // outgoing URL is the original draft; the second proves that the client followed Location.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } => {
+            assert_eq!(status, 200);
+            let echo: serde_json::Value =
+                serde_json::from_str(&body).expect("the final target should return JSON");
+            assert_eq!(echo["method"], "GET");
+            assert_eq!(echo["url"], final_url);
+            assert!(headers.iter().any(|(name, value)| {
+                name.eq_ignore_ascii_case("content-type") && value == "application/json"
+            }));
+        }
+        other => panic!("redirect should complete with the final HTTP response: {other:?}"),
+    }
+
+    for selector in [
+        "response-container",
+        "response-content",
+        "response-status",
+        "response-copy-button",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #62 view contract element `{selector}` should be rendered"
+        );
+    }
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::GET);
+        assert_eq!(entry.request.url, original_url);
+        assert_eq!(entry.request.body, RequestBody::None);
+        assert_eq!(entry.status, Some(200));
+        assert_eq!(entry.response_size, Some(final_body.len()));
+    });
+    for selector in ["history-method-0", "history-response-detail-0"] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #62 History contract element `{selector}` should be rendered"
+        );
+    }
+
+    redirect.assert();
+    target.assert();
+}
+
+#[gpui::test]
 fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
