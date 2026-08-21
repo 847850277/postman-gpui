@@ -1,0 +1,3605 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "M02icB",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #65 · Cookie Storage, Sending, and Clearing",
+      "context": "GitHub Issue #65 · application-level cookie jar lifecycle",
+      "clip": true,
+      "width": 1600,
+      "height": 1872,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "YzF2n",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#20342B14",
+            "offset": {
+              "x": 0,
+              "y": 8
+            },
+            "blur": 24
+          },
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "QbZJS",
+              "name": "Issue Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 18,
+              "stroke": "$accent",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 2,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "OCK4P",
+                  "name": "Issue Mark Number",
+                  "fill": "$accent",
+                  "content": "#65",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 25,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "D9kWPP",
+                  "name": "Issue Mark Label",
+                  "fill": "$accentInk",
+                  "content": "COOKIE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700",
+                  "letterSpacing": 1.2
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "LVM6T",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "z9QnV",
+                  "name": "Eyebrow",
+                  "width": "fill_container",
+                  "height": 26,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "iDqCA",
+                      "name": "Issue Badge",
+                      "height": 26,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 13,
+                      "padding": [
+                        5,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "m523jc",
+                          "name": "Issue Badge Label",
+                          "fill": "$accent",
+                          "content": "ISSUE #65 · HTTPBINGO E2E",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700",
+                          "letterSpacing": 0.7
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "L4RiD",
+                      "name": "Delivery Status",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": [
+                        5,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "LnhHo",
+                          "name": "Delivery Status Label",
+                          "fill": "$green",
+                          "content": "PLANNED FEATURE SLICE · DESIGN VERIFIED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700",
+                          "letterSpacing": 0.5
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "pdCKF",
+                      "name": "Issue URL",
+                      "fill": "$subtle",
+                      "content": "https://github.com/847850277/postman-gpui/issues/65",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "v1Gg2E",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Cookie Jar · Store, Send, Clear",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 30,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "KoXUJ",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Persist Set-Cookie in one application session, attach it automatically to the next request, clear it through rendered controls, and verify the following echo is empty.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "cpODg",
+              "name": "Scope Snapshot",
+              "width": 430,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 14,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 16,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "CUYDC",
+                  "name": "Scope Label",
+                  "fill": "$subtle",
+                  "content": "FEATURE SCOPE · SAME CLIENT SESSION",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700",
+                  "letterSpacing": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "SDod1",
+                  "name": "Endpoint Row",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "bJY9K",
+                      "name": "GET Method Badge",
+                      "height": 24,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 12,
+                      "padding": [
+                        4,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "eYEn8",
+                          "name": "GET Method Badge Label",
+                          "fill": "$green",
+                          "content": "GET",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "uuJYS",
+                      "name": "Endpoint",
+                      "fill": "$codeText",
+                      "content": "/cookies/set  →  /cookies",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "x87HC3",
+                  "name": "Scope Note",
+                  "fill": "$muted",
+                  "content": "302 Set-Cookie → 200 echoed → Clear all → 200 empty",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "c9RQQL",
+          "name": "Application State · Cookie Jar Cleared Verification",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#20342B12",
+            "offset": {
+              "x": 0,
+              "y": 10
+            },
+            "blur": 28
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "C0jFz",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 14,
+              "padding": [
+                16,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "I7d48T",
+                  "name": "Brand",
+                  "width": 235,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "xTS0Q",
+                      "name": "Logo",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "pFQRD",
+                          "name": "Logo Letter",
+                          "fill": "$panel",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZTpwJ",
+                      "name": "Product Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xwqqb",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [
+                    10,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hN0cU",
+                      "name": "Search Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "R9hKSd",
+                      "name": "Search Placeholder",
+                      "fill": "$muted",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IOu9v",
+                  "name": "Application Cookie Jar Trigger · Cleared",
+                  "width": 178,
+                  "height": 40,
+                  "fill": "$blueSoft",
+                  "cornerRadius": 10,
+                  "stroke": "$blue",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    9,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "cp2bn",
+                      "name": "Cookie Jar Trigger Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "cookie",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SO0ZD",
+                      "name": "Cookie Jar Trigger Label",
+                      "fill": "$blue",
+                      "content": "Cookie Jar · 0",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "YosJG",
+                  "name": "Environment",
+                  "width": 168,
+                  "height": 36,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "gap": 8,
+                  "padding": [
+                    9,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "i0zHJi",
+                      "name": "Environment Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "IkjBj",
+                      "name": "Environment Label",
+                      "fill": "$muted",
+                      "content": "No Environment",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "NrF51",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "fill": "$bg",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "uhsKD",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    18,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "L8DE5",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "sz45w",
+                          "name": "New Request Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xvZw2",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "d7kwY",
+                          "name": "History Navigation Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZTaIM",
+                      "name": "Collections Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "iKq0C",
+                          "name": "Collections Navigation Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "B3d2zG",
+                      "name": "Environments Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "fnpoW",
+                          "name": "Environments Navigation Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "layers",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tcqom",
+                      "name": "Settings Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "FpGY6",
+                          "name": "Settings Navigation Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Z5MiW",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": [
+                    18,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "h3n8yz",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "height": 28,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "WDOOL",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "xO3S4",
+                          "name": "History Options",
+                          "fill": "$subtle",
+                          "content": "⋯",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "F8VYt",
+                      "name": "History Subtitle",
+                      "fill": "$muted",
+                      "content": "Same application session · newest first",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "f3a2C",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "gap": 8,
+                      "padding": [
+                        10,
+                        11
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "X3pRoj",
+                          "name": "History Search Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "JcAv2",
+                          "name": "History Search Placeholder",
+                          "fill": "$muted",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "oYgPy",
+                      "name": "Cookie History Group Label",
+                      "fill": "$subtle",
+                      "content": "TODAY · COOKIE LIFECYCLE",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.8
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a7TMEX",
+                      "name": "History Result · Cookies Empty After Clear",
+                      "width": "fill_container",
+                      "height": 104,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$green",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hTYDe",
+                          "name": "History Result · Cookies Empty After Clear Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vpVHv",
+                              "name": "History Result · Cookies Empty After Clear Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "iQljc",
+                              "name": "History Result · Cookies Empty After Clear Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "m2EhOU",
+                          "name": "History Result · Cookies Empty After Clear URL",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "httpbingo.org/cookies",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "a4XNsK",
+                          "name": "History Result · Cookies Empty After Clear Evidence",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "{\"cookies\": {}}",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OxMPm",
+                          "name": "History Result · Cookies Empty After Clear Badge",
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "padding": [
+                            3,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "yiLc4",
+                              "name": "History Result · Cookies Empty After Clear Badge Label",
+                              "fill": "$green",
+                              "content": "AFTER CLEAR · SELECTED",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rSah3",
+                      "name": "History Result · Cookie Echo Sent",
+                      "width": "fill_container",
+                      "height": 104,
+                      "fill": "$panel",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Ok0tk",
+                          "name": "History Result · Cookie Echo Sent Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "dqBie",
+                              "name": "History Result · Cookie Echo Sent Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "BLzWz",
+                              "name": "History Result · Cookie Echo Sent Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "gr9I4",
+                          "name": "History Result · Cookie Echo Sent URL",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "httpbingo.org/cookies",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "B5PY0",
+                          "name": "History Result · Cookie Echo Sent Evidence",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "session=cookie-e2e-demo",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "CABMw",
+                          "name": "History Result · Cookie Echo Sent Badge",
+                          "height": 20,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 10,
+                          "padding": [
+                            3,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Lvz9m",
+                              "name": "History Result · Cookie Echo Sent Badge Label",
+                              "fill": "$subtle",
+                              "content": "AUTO COOKIE SENT",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "MwVHL",
+                      "name": "History Result · Set Cookie Stored",
+                      "width": "fill_container",
+                      "height": 104,
+                      "fill": "$panel",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "FnUQ5",
+                          "name": "History Result · Set Cookie Stored Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "R9W0U2",
+                              "name": "History Result · Set Cookie Stored Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "qNyfK",
+                              "name": "History Result · Set Cookie Stored Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "tICJN",
+                          "name": "History Result · Set Cookie Stored URL",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "httpbingo.org/cookies/set",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "PLPom",
+                          "name": "History Result · Set Cookie Stored Evidence",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "?session=cookie-e2e-demo · intermediate 302 Set-Cookie · final 200",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "jKDcC",
+                          "name": "History Result · Set Cookie Stored Badge",
+                          "height": 20,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 10,
+                          "padding": [
+                            3,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "V0484",
+                              "name": "History Result · Set Cookie Stored Badge Label",
+                              "fill": "$subtle",
+                              "content": "COOKIE STORED",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "P9aDT",
+                      "name": "History Cookie Lifecycle Proof",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 10,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "S8Qji",
+                          "name": "History Cookie Lifecycle Proof Kicker",
+                          "fill": "$blue",
+                          "content": "SESSION INVARIANT",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "700",
+                          "letterSpacing": 0.7
+                        },
+                        {
+                          "type": "text",
+                          "id": "q1MGDN",
+                          "name": "History Cookie Lifecycle Proof Value",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "3 requests · 1 client · final jar count 0",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "gLZoz",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "xTGmt",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        10,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "O1UGr",
+                          "name": "Request Tab GET Badge",
+                          "height": 24,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 12,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "m9Lodr",
+                              "name": "Request Tab GET Label",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Z87yq",
+                          "name": "Request Tab Name",
+                          "fill": "$text",
+                          "content": "httpbingo.org/cookies",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "H03Ue",
+                          "name": "Request Tab Saved Indicator",
+                          "fill": "$green",
+                          "width": 6,
+                          "height": 6
+                        },
+                        {
+                          "type": "text",
+                          "id": "feAav",
+                          "name": "Request Tab Close",
+                          "fill": "$subtle",
+                          "content": "×",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 15,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OAa8E",
+                          "name": "New Request Tab",
+                          "width": 30,
+                          "height": 30,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "bvDsj",
+                              "name": "New Request Tab Label",
+                              "fill": "$muted",
+                              "content": "+",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 16,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "C04vIB",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$bg",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "padding": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "heJ9V",
+                          "name": "Request Builder",
+                          "width": "fill_container",
+                          "height": 58,
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "iDNKa",
+                              "name": "Selected GET Method",
+                              "width": 84,
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 8,
+                              "padding": [
+                                12,
+                                13
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "VF3fi",
+                                  "name": "Selected GET Method Label",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "fJAF7",
+                                  "name": "Method Chevron",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$subtle"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "aBDvv",
+                              "name": "Active Cookies URL Content Item",
+                              "width": "fill_container",
+                              "height": 46,
+                              "fill": "$panel",
+                              "cornerRadius": 10,
+                              "stroke": "$blue",
+                              "strokeWidth": 2,
+                              "gap": 10,
+                              "padding": [
+                                8,
+                                13
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "hXAZU",
+                                  "name": "Active Cookies URL Copy",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "GbwmN",
+                                      "name": "Active Cookies URL Value",
+                                      "fill": "$codeText",
+                                      "content": "https://httpbingo.org/cookies",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "c9Tsa",
+                                      "name": "Active Cookies URL State",
+                                      "fill": "$blue",
+                                      "content": "ACTIVE · latest edit already in ViewModel · direct Send",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "h3nSHa",
+                              "name": "Send Cookie Verification Request",
+                              "width": 78,
+                              "height": 46,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 10,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "N8eJx2",
+                                  "name": "Send Cookie Verification Request Label",
+                                  "fill": "$panel",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FHeqw",
+                          "name": "Application Cookie Jar Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": 330,
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "i8WEL",
+                              "name": "Request Pane Tabs",
+                              "width": "fill_container",
+                              "height": 44,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 20,
+                              "padding": [
+                                13,
+                                16
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "GUHdk",
+                                  "name": "Request Pane Tab · Params",
+                                  "height": 31,
+                                  "stroke": "$panel",
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "J4WsAr",
+                                      "name": "Request Pane Tab Label · Params",
+                                      "fill": "$muted",
+                                      "content": "Params",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "LJpqO",
+                                  "name": "Request Pane Tab · Headers",
+                                  "height": 31,
+                                  "stroke": "$panel",
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "wRNA8",
+                                      "name": "Request Pane Tab Label · Headers",
+                                      "fill": "$muted",
+                                      "content": "Headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "db3TC",
+                                  "name": "Request Pane Tab · Auth",
+                                  "height": 31,
+                                  "stroke": "$panel",
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Td6pj",
+                                      "name": "Request Pane Tab Label · Auth",
+                                      "fill": "$muted",
+                                      "content": "Auth",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "OWAXt",
+                                  "name": "Request Pane Tab · Body",
+                                  "height": 31,
+                                  "stroke": "$panel",
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Vb3XN",
+                                      "name": "Request Pane Tab Label · Body",
+                                      "fill": "$muted",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "uwLQ3",
+                                  "name": "Request Pane Tab · Cookies · 1 → 0",
+                                  "height": 31,
+                                  "stroke": "$accent",
+                                  "strokeWidth": {
+                                    "bottom": 2
+                                  },
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "XqA4w",
+                                      "name": "Request Pane Tab Label · Cookies · 1 → 0",
+                                      "fill": "$accent",
+                                      "content": "Cookies · 1 → 0",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "rEkAb",
+                              "name": "Cookie Jar Lifecycle Editor",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "l4Yeo",
+                                  "name": "Cookie Jar Editor Header",
+                                  "width": "fill_container",
+                                  "height": 30,
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "YQt74",
+                                      "name": "Cookie Jar Title Group",
+                                      "gap": 8,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "q3UtY",
+                                          "name": "Cookie Jar Icon",
+                                          "width": 16,
+                                          "height": 16,
+                                          "icon": "cookie",
+                                          "library": "lucide",
+                                          "fill": "$blue"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "Gse0V",
+                                          "name": "Cookie Jar Editor Title",
+                                          "fill": "$text",
+                                          "content": "Application Cookie Jar · lifecycle capture",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "I2l0vG",
+                                      "name": "Cookie Jar Session Scope",
+                                      "fill": "$blue",
+                                      "content": "SAME CLIENT SESSION",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700",
+                                      "letterSpacing": 0.6
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QayoN",
+                                  "name": "Cookie Jar Before and After States",
+                                  "width": "fill_container",
+                                  "height": 140,
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "uUMqc",
+                                      "name": "Stored Cookie Snapshot · Before Clear",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 10,
+                                      "stroke": "$blue",
+                                      "strokeWidth": 1,
+                                      "layout": "vertical",
+                                      "gap": 7,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "hrXRv",
+                                          "name": "Stored Cookie Snapshot Header",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Ki1Y3",
+                                              "name": "Stored Cookie Snapshot Title",
+                                              "fill": "$blue",
+                                              "content": "BEFORE CLEAR · 1 STORED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.6
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "OwvMs",
+                                              "name": "Stored Cookie Snapshot Origin",
+                                              "fill": "$codeText",
+                                              "content": "httpbingo.org",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "W1Pcx",
+                                          "name": "Stored Cookie Row · session",
+                                          "width": "fill_container",
+                                          "height": 52,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "stroke": "$line",
+                                          "strokeWidth": 1,
+                                          "gap": 10,
+                                          "padding": 9,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "eFuUg",
+                                              "name": "Stored Cookie Identity",
+                                              "width": "fill_container",
+                                              "layout": "vertical",
+                                              "gap": 3,
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "sZ2NP",
+                                                  "name": "Stored Cookie Name",
+                                                  "fill": "$codeText",
+                                                  "content": "session",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 11,
+                                                  "fontWeight": "700"
+                                                },
+                                                {
+                                                  "type": "text",
+                                                  "id": "XPFJh",
+                                                  "name": "Stored Cookie Metadata",
+                                                  "fill": "$muted",
+                                                  "content": "•••••••••••• · Path=/ · HttpOnly · Secure",
+                                                  "fontFamily": "$fontMono",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "HD8H7",
+                                          "name": "Clear All Cookies Button",
+                                          "height": 28,
+                                          "fill": "$accentSoft",
+                                          "cornerRadius": 8,
+                                          "stroke": "$accent",
+                                          "strokeWidth": 1,
+                                          "gap": 6,
+                                          "padding": [
+                                            7,
+                                            10
+                                          ],
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "tKp8J",
+                                              "name": "Clear All Cookies Icon",
+                                              "width": 13,
+                                              "height": 13,
+                                              "icon": "trash-2",
+                                              "library": "lucide",
+                                              "fill": "$accent"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "Iu6uB",
+                                              "name": "Clear All Cookies Label",
+                                              "fill": "$accent",
+                                              "content": "Clear all cookies",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "ENmho",
+                                      "name": "Clear All Action Content Item",
+                                      "width": 150,
+                                      "height": "fill_container",
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 10,
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": 12,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "sVBlZ",
+                                          "name": "Clear All Action Arrow",
+                                          "width": 18,
+                                          "height": 18,
+                                          "icon": "arrow-right",
+                                          "library": "lucide",
+                                          "fill": "$accent"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "JHlwI",
+                                          "name": "Clear All Action Title",
+                                          "fill": "$accent",
+                                          "content": "CLEAR ALL",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "I13Uc",
+                                          "name": "Clear All Action Feedback",
+                                          "fill": "$green",
+                                          "content": "✓ Cleared 1 cookie",
+                                          "textAlign": "center",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "GfS08",
+                                      "name": "Cleared Cookie Verification Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 10,
+                                      "stroke": "$green",
+                                      "strokeWidth": 1,
+                                      "layout": "vertical",
+                                      "gap": 8,
+                                      "padding": 11,
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "W921vW",
+                                          "name": "Cleared Cookie Snapshot Header",
+                                          "width": "fill_container",
+                                          "justifyContent": "space_between",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "keXXg",
+                                              "name": "Cleared Cookie Snapshot Title",
+                                              "fill": "$green",
+                                              "content": "AFTER CLEAR · 0 STORED",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.6
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "l71on5",
+                                              "name": "Cleared Cookie Snapshot Origin",
+                                              "fill": "$muted",
+                                              "content": "app session",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 9,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "e4iCFO",
+                                          "name": "Cookie Jar Empty State",
+                                          "width": "fill_container",
+                                          "height": 58,
+                                          "fill": "$panel",
+                                          "cornerRadius": 8,
+                                          "gap": 10,
+                                          "padding": 10,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "XTv4N",
+                                              "name": "Cookie Jar Empty State Icon",
+                                              "width": 20,
+                                              "height": 20,
+                                              "icon": "circle-check",
+                                              "library": "lucide",
+                                              "fill": "$green"
+                                            },
+                                            {
+                                              "type": "frame",
+                                              "id": "Egiu7",
+                                              "name": "Cookie Jar Empty State Copy",
+                                              "width": "fill_container",
+                                              "layout": "vertical",
+                                              "gap": 2,
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "S2BW4",
+                                                  "name": "Cookie Jar Empty State Title",
+                                                  "fill": "$text",
+                                                  "content": "Cookie jar is empty",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 10,
+                                                  "fontWeight": "700"
+                                                },
+                                                {
+                                                  "type": "text",
+                                                  "id": "PgQNP",
+                                                  "name": "Cookie Jar Empty State Note",
+                                                  "fill": "$muted",
+                                                  "content": "Next GET /cookies sends no Cookie header.",
+                                                  "fontFamily": "$fontBody",
+                                                  "fontSize": 9,
+                                                  "fontWeight": "normal"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "bVttB",
+                                  "name": "Cookie Wire and Redaction Evidence",
+                                  "width": "fill_container",
+                                  "height": 58,
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "gdxrG",
+                                      "name": "Outgoing Cookie Request Content Item",
+                                      "width": 384,
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r9KwoM",
+                                          "name": "Outgoing Cookie Request Content Item Kicker",
+                                          "fill": "$blue",
+                                          "content": "WIRE · BEFORE CLEAR",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.6
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "t2zIl",
+                                          "name": "Outgoing Cookie Request Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Cookie: session=cookie-e2e-demo",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "RPWrs",
+                                      "name": "Sensitive Cookie Log Redaction Content Item",
+                                      "width": 384,
+                                      "height": "fill_container",
+                                      "fill": "$accentSoft",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "HSdGR",
+                                          "name": "Sensitive Cookie Log Redaction Content Item Kicker",
+                                          "fill": "$accent",
+                                          "content": "LOGGING POLICY",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.6
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "q8zEpF",
+                                          "name": "Sensitive Cookie Log Redaction Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Cookie + Set-Cookie: session=[REDACTED]",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "KaA5r",
+                                      "name": "Outgoing Cleared Request Content Item",
+                                      "width": 384,
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 9,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "fhPOg",
+                                          "name": "Outgoing Cleared Request Content Item Kicker",
+                                          "fill": "$green",
+                                          "content": "WIRE · AFTER CLEAR",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.6
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "a2xSp",
+                                          "name": "Outgoing Cleared Request Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Cookie header absent",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "boEjT",
+                          "name": "HTTPBingo Cookie Empty Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "cornerRadius": 12,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "NnJfc",
+                              "name": "Cookie Response Header",
+                              "width": "fill_container",
+                              "height": 52,
+                              "fill": "$panel",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 14,
+                              "padding": [
+                                11,
+                                15
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "JPcSf",
+                                  "name": "Cookie Response Tab",
+                                  "fill": "$text",
+                                  "content": "Response",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "NHKIm",
+                                  "name": "Cookie Response Headers Tab",
+                                  "fill": "$muted",
+                                  "content": "Headers",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "HjFwx",
+                                  "name": "Cookie Response Header Spacer",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "nYpid",
+                                  "name": "Cookie Response Status",
+                                  "height": 26,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 13,
+                                  "gap": 6,
+                                  "padding": [
+                                    5,
+                                    9
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "frUc0",
+                                      "name": "Cookie Response Status Dot",
+                                      "fill": "$green",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "D7ta3",
+                                      "name": "Cookie Response Status Label",
+                                      "fill": "$green",
+                                      "content": "200 OK",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Anf6s",
+                                  "name": "Cookie Response Timing",
+                                  "fill": "$subtle",
+                                  "content": "248 ms · 20 B",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "f6q4B",
+                                  "name": "Copy Response Button",
+                                  "height": 30,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$blue",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": [
+                                    7,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "owkEF",
+                                      "name": "Copy Response Icon",
+                                      "width": 13,
+                                      "height": 13,
+                                      "icon": "copy",
+                                      "library": "lucide",
+                                      "fill": "$blue"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "v15t7",
+                                      "name": "Copy Response Label",
+                                      "fill": "$blue",
+                                      "content": "Copy",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "KV3Md",
+                              "name": "Cookie Response Body",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "gap": 12,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "AfbyQ",
+                                  "name": "Rendered Cookie JSON Body",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$code",
+                                  "cornerRadius": 9,
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Tk9kC",
+                                      "name": "Rendered Cookie JSON Header",
+                                      "width": "fill_container",
+                                      "justifyContent": "space_between",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "MKPjE",
+                                          "name": "Rendered Cookie JSON Label",
+                                          "fill": "$subtle",
+                                          "content": "JSON · AFTER CLEAR VERIFICATION",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700",
+                                          "letterSpacing": 0.7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "WchiU",
+                                          "name": "Rendered Cookie JSON State",
+                                          "fill": "$green",
+                                          "content": "ResponseState::Success { status: 200 }",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "qEeQU",
+                                      "name": "Rendered Cookie JSON Empty Evidence",
+                                      "fill": "$codeText",
+                                      "content": "{\n  \"cookies\": {}\n}",
+                                      "lineHeight": 1.45,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 15,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "oklON",
+                                      "name": "Copy Response Feedback Content Item",
+                                      "width": "fill_container",
+                                      "height": 38,
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 8,
+                                      "gap": 8,
+                                      "padding": [
+                                        9,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "bMlvW",
+                                          "name": "Copy Response Feedback Icon",
+                                          "width": 15,
+                                          "height": 15,
+                                          "icon": "clipboard-check",
+                                          "library": "lucide",
+                                          "fill": "$green"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "TxGzP",
+                                          "name": "Copy Response Feedback Value",
+                                          "fill": "$green",
+                                          "content": "Copy → ✓ Copied · complete body from ResponseState · view and History unchanged",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 10,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hQoPy",
+                                  "name": "Stable Cookie Verification Subset",
+                                  "width": 430,
+                                  "height": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Qf8Fm",
+                                      "name": "Stable Cookie Verification Title",
+                                      "fill": "$subtle",
+                                      "content": "STABLE COOKIE ASSERTIONS",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700",
+                                      "letterSpacing": 0.7
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "joExr",
+                                      "name": "Server Echo With Cookie Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "gwxJ2",
+                                          "name": "Server Echo With Cookie Content Item Title",
+                                          "fill": "$blue",
+                                          "content": "02 · POSITIVE ECHO BEFORE CLEAR",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "KCWce",
+                                          "name": "Server Echo With Cookie Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "{\"cookies\":{\"session\":\"cookie-e2e-demo\"}}",
+                                          "lineHeight": 1.25,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "EFt0U",
+                                      "name": "Server Echo After Clear Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "h7Agh",
+                                          "name": "Server Echo After Clear Content Item Title",
+                                          "fill": "$green",
+                                          "content": "04 · NEGATIVE ECHO AFTER CLEAR",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "qyRPd",
+                                          "name": "Server Echo After Clear Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "{\"cookies\":{}} · Cookie header absent",
+                                          "lineHeight": 1.25,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "C3oLd2",
+                                      "name": "Response View History Consistency Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 8,
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "zyjUL",
+                                          "name": "Response View History Consistency Content Item Title",
+                                          "fill": "$muted",
+                                          "content": "SINGLE LIFECYCLE TRUTH",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "JwSNw",
+                                          "name": "Response View History Consistency Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "ResponseState 200 = View 200 = selected History 200",
+                                          "lineHeight": 1.25,
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GQAYR",
+          "name": "Cookie Lifecycle Flow",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 10,
+          "padding": 18,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "MaqhP",
+              "name": "Flow Label",
+              "width": 190,
+              "layout": "vertical",
+              "gap": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "HxQyn",
+                  "name": "Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "APPLICATION COOKIE JAR",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "hLqQ5",
+                  "name": "Flow Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "One session · four observable steps",
+                  "lineHeight": 1.2,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 15,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "HpIgi",
+                  "name": "Flow Subtitle",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Wire values are real; logs redact Cookie and Set-Cookie.",
+                  "lineHeight": 1.25,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "uL7VN",
+              "name": "Set Cookie Response Content Item",
+              "width": "fill_container",
+              "height": 88,
+              "fill": "$blueSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "B9AZ3D",
+                  "name": "Set Cookie Response Content Item Kicker",
+                  "fill": "$blue",
+                  "content": "01 · SET + STORE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "X5ssX",
+                  "name": "Set Cookie Response Content Item Detail",
+                  "fill": "$codeText",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Intermediate 302 Set-Cookie retained → followed 200; jar count becomes 1",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "qH6ES",
+              "name": "Cookie Flow Arrow One",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "fIPZt",
+              "name": "Automatic Cookie Send Content Item",
+              "width": "fill_container",
+              "height": 88,
+              "fill": "$panelAlt",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Lq0wo",
+                  "name": "Automatic Cookie Send Content Item Kicker",
+                  "fill": "$green",
+                  "content": "02 · AUTO-SEND",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "J21xTm",
+                  "name": "Automatic Cookie Send Content Item Detail",
+                  "fill": "$codeText",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "GET /cookies · Cookie: session=cookie-e2e-demo · echo contains session",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "rHxJa",
+              "name": "Cookie Flow Arrow Two",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "BRbZf",
+              "name": "Clear Cookie Jar Content Item",
+              "width": "fill_container",
+              "height": 88,
+              "fill": "$accentSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "a7cMMr",
+                  "name": "Clear Cookie Jar Content Item Kicker",
+                  "fill": "$accent",
+                  "content": "03 · CLEAR",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "HBWt1",
+                  "name": "Clear Cookie Jar Content Item Detail",
+                  "fill": "$codeText",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Click Clear all cookies · jar 1 → 0 · logs remain [REDACTED]",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "QYXtE",
+              "name": "Cookie Flow Arrow Three",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "EgmK7",
+              "name": "Post-Clear Empty Echo Content Item",
+              "width": "fill_container",
+              "height": 88,
+              "fill": "$greenSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LsPSu",
+                  "name": "Post-Clear Empty Echo Content Item Kicker",
+                  "fill": "$green",
+                  "content": "04 · VERIFY EMPTY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "cfSmL",
+                  "name": "Post-Clear Empty Echo Content Item Detail",
+                  "fill": "$codeText",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "GET /cookies · Cookie header absent · {\"cookies\":{}} · 200 OK",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "K0FkK",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ExG3N",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$panelAlt",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 14,
+              "padding": [
+                14,
+                18
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "RbXe0",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Omwu8",
+                      "name": "Contract Title",
+                      "fill": "$text",
+                      "content": "Issue #65 · Cookie Storage, Sending, and Clearing",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KIJDb",
+                      "name": "Contract Paths",
+                      "fill": "$muted",
+                      "content": "tests/httpbingo_scenarios.rs · tests/cases/httpbingo/cookies.json · .github/workflows/httpbingo-e2e.yml · design/issue-0065-cookie-storage-sending-clearing.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "U3KR7",
+                  "name": "Contract Links",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "h3RDl4",
+                      "name": "Contract Status",
+                      "height": 26,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 13,
+                      "padding": [
+                        5,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ahKlW",
+                          "name": "Contract Status Label",
+                          "fill": "$green",
+                          "content": "PLANNED · DESIGN TRACKED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "kuIqj",
+                      "name": "GitHub Issue URL",
+                      "fill": "$blue",
+                      "content": "https://github.com/847850277/postman-gpui/issues/65",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "KN9C3",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 340,
+              "fill": "$panel",
+              "gap": 12,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FQTTc",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": 470,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "KNZlj",
+                      "name": "Scenario Column Title",
+                      "fill": "$accent",
+                      "content": "REAL UI SCENARIO · ORDERED",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SJBzS",
+                      "name": "Focus and Type Cookie-Setting URL Step",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "E21tul",
+                          "name": "Focus and Type Cookie-Setting URL Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "s5fYdB",
+                              "name": "Focus and Type Cookie-Setting URL Step Number",
+                              "fill": "$accent",
+                              "content": "1",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "qH6m4",
+                          "name": "Focus and Type Cookie-Setting URL Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Eym0S",
+                              "name": "Focus and Type Cookie-Setting URL Step Title",
+                              "fill": "$text",
+                              "content": "Focus the URL input and type the full cookie-setting URL",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "vb9Ox",
+                              "name": "Focus and Type Cookie-Setting URL Step Detail",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "https://httpbingo.org/cookies/set?session=cookie-e2e-demo",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Zgu9T",
+                      "name": "Direct Send Without Commit Step",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "e79Kp0",
+                          "name": "Direct Send Without Commit Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "JPC7X",
+                              "name": "Direct Send Without Commit Step Number",
+                              "fill": "$accent",
+                              "content": "2",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Xzll7",
+                          "name": "Direct Send Without Commit Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VKbtM",
+                              "name": "Direct Send Without Commit Step Title",
+                              "fill": "$text",
+                              "content": "Click Send from the still-active URL input",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "KZY0N",
+                              "name": "Direct Send Without Commit Step Detail",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iEUIS",
+                      "name": "Same-Session Cookie Echo Step",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "B7r8V4",
+                          "name": "Same-Session Cookie Echo Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "CMSdu",
+                              "name": "Same-Session Cookie Echo Step Number",
+                              "fill": "$accent",
+                              "content": "3",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tiZ0Q",
+                          "name": "Same-Session Cookie Echo Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "eXLlv",
+                              "name": "Same-Session Cookie Echo Step Title",
+                              "fill": "$text",
+                              "content": "Open a rendered New Request and send GET /cookies",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Vfe87",
+                              "name": "Same-Session Cookie Echo Step Detail",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Keep the same application client session; inspect the automatic Cookie echo.",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jizvC",
+                      "name": "Clear Cookie Jar Step",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "XLN90",
+                          "name": "Clear Cookie Jar Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Jxe78",
+                              "name": "Clear Cookie Jar Step Number",
+                              "fill": "$accent",
+                              "content": "4",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "xCUkv",
+                          "name": "Clear Cookie Jar Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "fFoq7",
+                              "name": "Clear Cookie Jar Step Title",
+                              "fill": "$text",
+                              "content": "Open Cookie Jar and click Clear all cookies",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "dUcaS",
+                              "name": "Clear Cookie Jar Step Detail",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Observe Cleared 1 cookie and a 0-cookie empty state.",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "g1vE1",
+                      "name": "Verify Empty Cookie Echo Step",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "VqYxU",
+                          "name": "Verify Empty Cookie Echo Step Mark",
+                          "width": 22,
+                          "height": 22,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 11,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Zs7nc",
+                              "name": "Verify Empty Cookie Echo Step Number",
+                              "fill": "$accent",
+                              "content": "5",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "rq7v1",
+                          "name": "Verify Empty Cookie Echo Step Copy",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nBkGu",
+                              "name": "Verify Empty Cookie Echo Step Title",
+                              "fill": "$text",
+                              "content": "Send GET /cookies again through rendered controls",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "bUDPC",
+                              "name": "Verify Empty Cookie Echo Step Detail",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Inspect 200 empty JSON, Copy, and all three History results.",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jSblw",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": 500,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rtBIU",
+                      "name": "Assertions Column Title",
+                      "fill": "$green",
+                      "content": "OBSERVABLE ASSERTIONS · VERIFICATION CONTRACT",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "frame",
+                      "id": "f6T9w0",
+                      "name": "Intermediate Set-Cookie Retention Assertion",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 7,
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "NnCi6",
+                          "name": "Intermediate Set-Cookie Retention Assertion Mark",
+                          "width": 20,
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VxMeQ",
+                              "name": "Intermediate Set-Cookie Retention Assertion Mark Label",
+                              "fill": "$blue",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "K8gTs",
+                          "name": "Intermediate Set-Cookie Retention Assertion Copy",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "The intermediate 302 Set-Cookie is retained by the same application client session.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R2VmI",
+                      "name": "Automatic Cookie Sending Assertion",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 7,
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "RQvZ1",
+                          "name": "Automatic Cookie Sending Assertion Mark",
+                          "width": 20,
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n60Lv",
+                              "name": "Automatic Cookie Sending Assertion Mark Label",
+                              "fill": "$blue",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "YrpoQ",
+                          "name": "Automatic Cookie Sending Assertion Copy",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "A later GET /cookies automatically sends Cookie: session=cookie-e2e-demo and echoes it.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "aEzyS",
+                      "name": "Cookie Clearing Assertion",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$greenSoft",
+                      "cornerRadius": 7,
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "k0Cs1P",
+                          "name": "Cookie Clearing Assertion Mark",
+                          "width": 20,
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ljVHT",
+                              "name": "Cookie Clearing Assertion Mark Label",
+                              "fill": "$green",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Rp0OH",
+                          "name": "Cookie Clearing Assertion Copy",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "After Clear all cookies, GET /cookies sends no Cookie header and returns {\"cookies\":{}}.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "C49zY",
+                      "name": "Sensitive Logging Redaction Assertion",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 7,
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "IZJx7",
+                          "name": "Sensitive Logging Redaction Assertion Mark",
+                          "width": 20,
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "uR3Yv",
+                              "name": "Sensitive Logging Redaction Assertion Mark Label",
+                              "fill": "$accent",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "j7VgFp",
+                          "name": "Sensitive Logging Redaction Assertion Copy",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Cookie and Set-Cookie logging values are [REDACTED].",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XjxbU",
+                      "name": "Cookie Lifecycle Consistency Assertion",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": 7,
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "WmIep",
+                          "name": "Cookie Lifecycle Consistency Assertion Mark",
+                          "width": 20,
+                          "height": 20,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Bnug7",
+                              "name": "Cookie Lifecycle Consistency Assertion Mark Label",
+                              "fill": "$muted",
+                              "content": "✓",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "hFyxH",
+                          "name": "Cookie Lifecycle Consistency Assertion Copy",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ResponseState, rendered response, Copy, History, and cancellation semantics remain consistent.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Acd2l",
+                  "name": "Scope and Non-Goals",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "TUiIb",
+                      "name": "Boundary Column Title",
+                      "fill": "$blue",
+                      "content": "SCOPE / NON-GOALS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "frame",
+                      "id": "HL2qk",
+                      "name": "Included Scope",
+                      "width": "fill_container",
+                      "height": 84,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "BCiAb",
+                          "name": "Included Scope Kicker",
+                          "fill": "$green",
+                          "content": "INCLUDED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QJIJI",
+                          "name": "Included Scope Value",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Application-level jar · intermediate Set-Cookie capture · automatic Cookie send · rendered Clear all · empty recheck · redacted logs · same-session History.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "v6LIMk",
+                      "name": "Excluded Scope",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "piif6",
+                          "name": "Excluded Scope Kicker",
+                          "fill": "$accent",
+                          "content": "NOT IN THIS SLICE",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ev6QQ",
+                          "name": "Excluded Scope Value",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Persistent disk storage across app restarts, per-cookie editing, expiry scheduling, import/export, third-party cookie policy, and manual Cookie header authoring.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "zP0bU",
+                      "name": "Tracking Relationship",
+                      "width": "fill_container",
+                      "height": 92,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "KdsQH",
+                          "name": "Tracking Relationship Kicker",
+                          "fill": "$blue",
+                          "content": "TRACEABILITY",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "fX33Z",
+                          "name": "Tracking Relationship Value",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Parent roadmap #50 → #65. Scenario: tests/cases/httpbingo/cookies.json · runner: tests/httpbingo_scenarios.rs · public workflow: .github/workflows/httpbingo-e2e.yml.",
+                          "lineHeight": 1.25,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r21pqT",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentSoft",
+              "gap": 14,
+              "padding": [
+                14,
+                18
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ro5SP",
+                  "name": "Traceability Copy",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "U0sBTw",
+                      "name": "One-to-One Label",
+                      "fill": "$accent",
+                      "content": "ONE ISSUE · ONE E2E SLICE · ONE .PEN FILE",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "text",
+                      "id": "obn5F",
+                      "name": "One-to-One Detail",
+                      "fill": "$accentInk",
+                      "content": "#65 ↔ design/issue-0065-cookie-storage-sending-clearing.pen ↔ tests/cases/httpbingo/cookies.json",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iKVHO",
+                  "name": "Acceptance Badge",
+                  "height": 26,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 13,
+                  "padding": [
+                    5,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "nDjPf",
+                      "name": "Acceptance Badge Label",
+                      "fill": "$green",
+                      "content": "✓ STORE · SEND · CLEAR · EMPTY ECHO · REDACT",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}
