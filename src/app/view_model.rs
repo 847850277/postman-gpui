@@ -30,6 +30,7 @@ pub enum RequestPane {
     Body,
     Scripts,
     Tests,
+    Options,
 }
 
 /// Authentication scheme managed by the Authorization editor.
@@ -389,6 +390,13 @@ impl fmt::Display for SendId {
     }
 }
 
+impl SendId {
+    /// Human-readable identity rendered while one send attempt owns the active lifecycle.
+    pub fn request_id(self) -> String {
+        format!("req-{:02}", self.0)
+    }
+}
+
 /// Immutable command emitted by the ViewModel for the application service to execute.
 #[derive(Clone, Debug)]
 pub struct PendingRequest {
@@ -396,6 +404,7 @@ pub struct PendingRequest {
     send_id: SendId,
     request: Request,
     editor_intent: Option<RequestEditorIntent>,
+    timeout_ms: Option<u64>,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -414,6 +423,11 @@ impl PendingRequest {
 
     pub fn editor_intent(&self) -> Option<&RequestEditorIntent> {
         self.editor_intent.as_ref()
+    }
+
+    /// Per-request deadline captured at Send. `None` means the deadline is disabled.
+    pub fn timeout_ms(&self) -> Option<u64> {
+        self.timeout_ms
     }
 
     fn was_cancelled(&self) -> bool {
@@ -443,6 +457,7 @@ pub struct RequestViewModel {
     basic_password: String,
     pre_request_script: String,
     tests_script: String,
+    timeout_ms: u64,
     request_pane: RequestPane,
     response: ResponseState,
     pending_send_id: Option<SendId>,
@@ -473,6 +488,7 @@ impl RequestViewModel {
             basic_password: String::new(),
             pre_request_script: String::new(),
             tests_script: String::new(),
+            timeout_ms: 0,
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
             pending_send_id: None,
@@ -589,7 +605,8 @@ impl RequestViewModel {
             | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
-            | RequestPane::Tests => return None,
+            | RequestPane::Tests
+            | RequestPane::Options => return None,
         };
         Some((&draft.key, &draft.value))
     }
@@ -649,6 +666,11 @@ impl RequestViewModel {
 
     pub fn tests_script(&self) -> &str {
         &self.tests_script
+    }
+
+    /// Request-level timeout in milliseconds. Zero explicitly disables the deadline.
+    pub fn timeout_ms(&self) -> u64 {
+        self.timeout_ms
     }
 
     pub fn request_pane(&self) -> RequestPane {
@@ -807,6 +829,13 @@ impl RequestViewModel {
         }
     }
 
+    pub fn set_timeout_ms(&mut self, timeout_ms: u64) {
+        if self.timeout_ms != timeout_ms {
+            self.timeout_ms = timeout_ms;
+            self.dirty = true;
+        }
+    }
+
     pub fn set_request_pane(&mut self, pane: RequestPane) {
         self.request_pane = pane;
     }
@@ -828,7 +857,8 @@ impl RequestViewModel {
             | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
-            | RequestPane::Tests => false,
+            | RequestPane::Tests
+            | RequestPane::Options => false,
         };
         if changed {
             if pane == RequestPane::Params {
@@ -855,7 +885,8 @@ impl RequestViewModel {
             | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
-            | RequestPane::Tests => false,
+            | RequestPane::Tests
+            | RequestPane::Options => false,
         };
         if changed {
             if pane == RequestPane::Params {
@@ -905,7 +936,8 @@ impl RequestViewModel {
             | RequestPane::Cookies
             | RequestPane::Body
             | RequestPane::Scripts
-            | RequestPane::Tests => {}
+            | RequestPane::Tests
+            | RequestPane::Options => {}
         }
     }
 
@@ -1083,8 +1115,7 @@ impl RequestViewModel {
         self.bearer_token.clear();
         self.basic_username.clear();
         self.basic_password.clear();
-        self.pre_request_script.clear();
-        self.tests_script.clear();
+        self.timeout_ms = 0;
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
         self.dirty = false;
@@ -1101,6 +1132,9 @@ impl RequestViewModel {
         self.bearer_token.clear();
         self.basic_username.clear();
         self.basic_password.clear();
+        self.pre_request_script.clear();
+        self.tests_script.clear();
+        self.timeout_ms = 0;
 
         let authorization = request
             .headers
@@ -1177,7 +1211,8 @@ impl RequestViewModel {
         self.pending_cancellation = None;
         match result {
             Ok(result) => {
-                let draft_is_unchanged = self.build_request() == pending.request;
+                let draft_is_unchanged = self.build_request() == pending.request
+                    && self.timeout_ms == pending.timeout_ms.unwrap_or(0);
                 self.response = ResponseState::Success {
                     status: result.status,
                     body: result.body,
@@ -1499,12 +1534,14 @@ impl WorkspaceViewModel {
         let cancelled = Arc::new(AtomicBool::new(false));
         let tab = &mut self.tabs[self.active_tab];
         let editor_intent = tab.body_draft.editor_intent();
+        let timeout_ms = (tab.timeout_ms > 0).then_some(tab.timeout_ms);
         let request = tab.begin_send(send_id, cancelled.clone());
         let pending = PendingRequest {
             tab_id: tab.tab_id,
             send_id,
             request,
             editor_intent,
+            timeout_ms,
             cancelled,
         };
         tracing::info!(
@@ -1519,6 +1556,18 @@ impl WorkspaceViewModel {
 
     pub fn active_send_id(&self) -> Option<SendId> {
         self.tabs[self.active_tab].pending_send_id
+    }
+
+    pub fn active_request_id(&self) -> Option<String> {
+        self.active_send_id().map(SendId::request_id)
+    }
+
+    /// Number of request tabs whose active send has not reached a terminal state.
+    pub fn in_flight_count(&self) -> usize {
+        self.tabs
+            .iter()
+            .filter(|tab| tab.pending_send_id.is_some())
+            .count()
     }
 
     pub fn send_id_for_tab(&self, index: usize) -> Option<SendId> {
@@ -2849,12 +2898,48 @@ mod tests {
         let pending = workspace.begin_send();
 
         assert_eq!(workspace.active_send_id(), Some(pending.send_id()));
+        assert_eq!(workspace.active_request_id().as_deref(), Some("req-01"));
+        assert_eq!(workspace.in_flight_count(), 1);
         assert!(workspace.cancel_send(pending.send_id()));
         assert!(matches!(workspace.response(), ResponseState::Cancelled));
+        assert_eq!(workspace.active_request_id(), None);
+        assert_eq!(workspace.in_flight_count(), 0);
         assert!(
             !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
         );
         assert!(matches!(workspace.response(), ResponseState::Cancelled));
         assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
+    fn request_timeout_is_captured_and_finishes_without_fabricating_history() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/slow");
+        workspace.set_timeout_ms(1_000);
+        let pending = workspace.begin_send();
+
+        assert_eq!(pending.timeout_ms(), Some(1_000));
+        assert_eq!(workspace.in_flight_count(), 1);
+        assert!(workspace.complete_send(pending, Err(AppError::Timeout { timeout_ms: 1_000 })));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Error { message } if message == "Request timed out after 1,000 ms"
+        ));
+        assert_eq!(workspace.active_request_id(), None);
+        assert_eq!(workspace.in_flight_count(), 0);
+        assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
+    fn changing_timeout_during_send_keeps_the_request_draft_dirty() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/slow");
+        workspace.set_timeout_ms(1_000);
+        let pending = workspace.begin_send();
+        workspace.set_timeout_ms(2_000);
+
+        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
+        assert_eq!(workspace.timeout_ms(), 2_000);
+        assert!(workspace.is_dirty());
     }
 }

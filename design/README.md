@@ -50,6 +50,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
+| [#78 HEAD and OPTIONS Request Semantics](https://github.com/847850277/postman-gpui/issues/78) | [`issue-0078-head-options-methods.pen`](issue-0078-head-options-methods.pen) |
 | [#81 Multiple Header Rows](https://github.com/847850277/postman-gpui/issues/81) | [`issue-0081-multiple-header-rows.pen`](issue-0081-multiple-header-rows.pen) |
 | [#91 Multipart Text Rows](https://github.com/847850277/postman-gpui/issues/91) | [`issue-0091-multipart-text-rows.pen`](issue-0091-multipart-text-rows.pen) |
 | [#92 Multipart File Picker and Upload](https://github.com/847850277/postman-gpui/issues/92) | [`issue-0092-multipart-file-picker-upload.pen`](issue-0092-multipart-file-picker-upload.pen) |

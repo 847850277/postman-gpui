@@ -223,6 +223,59 @@ fn cookie_scenarios_define_the_stable_set_and_cleared_echo_contracts() {
 }
 
 #[test]
+fn delayed_request_scenarios_keep_completion_cancellation_and_timeout_distinct() {
+    let files = scenario_files();
+    let scenarios = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .collect::<Vec<_>>();
+    let find = |name: &str| {
+        scenarios
+            .iter()
+            .copied()
+            .find(|scenario| scenario.name == name)
+            .unwrap_or_else(|| panic!("Issue #66 scenario `{name}` should exist"))
+    };
+    let completed = find("HTTPBingo completes a delayed request before any deadline");
+    let cancelled = find("HTTPBingo delayed request is cancelled by the user");
+    let timed_out = find("HTTPBingo delayed request reaches its configured timeout");
+
+    assert_eq!(completed.draft.timeout_ms, None);
+    assert_eq!(completed.expect.history_len, 1);
+    assert!(matches!(
+        &completed.expect.response,
+        ResponseSpec::Success { status: 200, .. }
+    ));
+    assert_eq!(cancelled.draft.timeout_ms, None);
+    assert_eq!(cancelled.expect.history_len, 0);
+    assert!(matches!(
+        &cancelled.expect.response,
+        ResponseSpec::Cancelled
+    ));
+    assert_eq!(timed_out.draft.timeout_ms, Some(1_000));
+    assert_eq!(timed_out.expect.history_len, 0);
+    assert!(matches!(
+        &timed_out.expect.response,
+        ResponseSpec::Error { contains }
+            if contains == "Request timed out after 1,000 ms"
+    ));
+
+    for (scenario, path) in [
+        (completed, "/delay/1"),
+        (cancelled, "/delay/5"),
+        (timed_out, "/delay/3"),
+    ] {
+        let request = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+            .expect("Issue #66 expected request should be valid");
+        assert_eq!(request.method, HttpMethod::GET);
+        assert_eq!(request.url, format!("https://httpbingo.org{path}"));
+        assert!(request.headers.is_empty());
+        assert_eq!(request.body, RequestBody::None);
+    }
+}
+
+#[test]
 fn multipart_text_scenario_builds_a_typed_request_contract() {
     let files = scenario_files();
     let scenario = files

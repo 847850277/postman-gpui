@@ -58,6 +58,8 @@ pub struct DraftSpec {
     #[serde(default)]
     pub path: String,
     #[serde(default)]
+    pub timeout_ms: Option<u64>,
+    #[serde(default)]
     pub params: Vec<KeyValueSpec>,
     #[serde(default)]
     pub precreate_param_rows: usize,
@@ -247,6 +249,7 @@ pub enum ResponseSpec {
     Error {
         contains: String,
     },
+    Cancelled,
 }
 
 pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
@@ -522,7 +525,11 @@ fn execute_scenario(
     let pending = workspace.begin_send();
     let sent = vec![pending.request().clone()];
     let executor = RequestExecutor::new();
-    let task = executor.spawn(pending.request().clone());
+    let task = executor.spawn_with_timeout(pending.request().clone(), pending.timeout_ms());
+    if matches!(&scenario.expect.response, ResponseSpec::Cancelled) {
+        workspace.cancel_send(pending.send_id());
+        task.abort_handle().abort();
+    }
     let result = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -603,6 +610,7 @@ fn apply_draft(
 
     workspace.set_method(parse_method(&draft.method)?);
     workspace.set_url(absolute_url(server_url, &draft.path)?);
+    workspace.set_timeout_ms(draft.timeout_ms.unwrap_or(0));
 
     for _ in 0..draft.precreate_param_rows {
         workspace.commit_row_draft(RequestPane::Params);
@@ -916,6 +924,7 @@ pub fn assert_response_state(
         {
             Ok(())
         }
+        (ResponseState::Cancelled, ResponseSpec::Cancelled) => Ok(()),
         _ => Err(format!(
             "response mismatch\n  expected: {expected:#?}\n  actual:   {actual:#?}"
         )),
