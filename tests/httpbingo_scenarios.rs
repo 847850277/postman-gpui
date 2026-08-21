@@ -15,7 +15,7 @@ use postman_gpui::app::{
 };
 use postman_gpui::models::RequestBody;
 use std::path::{Path, PathBuf};
-use ui::{choose_method, click, scroll_down, scroll_up, type_into};
+use ui::{choose_method, click, click_without_wait, scroll_down, scroll_up, type_into};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
 const HTML_FORM_DISCOVERY_SCENARIO: &str =
@@ -25,6 +25,9 @@ const HTML_FORM_SUBMISSION_SCENARIO: &str =
 const COOKIE_SET_SCENARIO: &str = "HTTPBingo stores a session cookie through the followed redirect";
 const COOKIE_CLEARED_SCENARIO: &str =
     "HTTPBingo returns an empty cookie echo after the application jar is cleared";
+const DELAY_COMPLETED_SCENARIO: &str = "HTTPBingo completes a delayed request before any deadline";
+const DELAY_CANCELLED_SCENARIO: &str = "HTTPBingo delayed request is cancelled by the user";
+const DELAY_TIMEOUT_SCENARIO: &str = "HTTPBingo delayed request reaches its configured timeout";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
@@ -756,6 +759,28 @@ fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut
         .unwrap_or_else(|failure| panic!("Issue #65 cookie workflow failed:\n{failure}"));
 }
 
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    for name in [
+        DELAY_COMPLETED_SCENARIO,
+        DELAY_CANCELLED_SCENARIO,
+        DELAY_TIMEOUT_SCENARIO,
+    ] {
+        let scenario = files
+            .iter()
+            .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+            .flat_map(|file| &file.suite.cases)
+            .find(|scenario| scenario.name == name)
+            .unwrap_or_else(|| panic!("Issue #66 scenario `{name}` should exist"));
+        run_application_scenario(test_cx, scenario)
+            .unwrap_or_else(|failure| panic!("Issue #66 scenario `{name}` failed:\n{failure}"));
+    }
+}
+
 fn run_html_form_workflow(
     test_cx: &mut TestAppContext,
     workflow: &HtmlFormWorkflow<'_>,
@@ -1217,6 +1242,43 @@ fn run_application_scenario(
     assert_url_encoded_body_editor_contract(cx, &workspace, scenario)?;
     assert_multipart_body_editor_contract(cx, &workspace, scenario)?;
 
+    if let Some(timeout_ms) = scenario.draft.timeout_ms {
+        click(cx, "request-pane-options")?;
+        for selector in [
+            "request-options-panel",
+            "timeout-configuration",
+            "request-timeout-input",
+            "request-timeout-unit",
+            "request-timeout-contract",
+            "request-lifecycle-state",
+            "request-id-state",
+            "request-in-flight-count",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "request timeout contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+        type_into(cx, "request-timeout-input", &timeout_ms.to_string())?;
+        let configured_timeout = workspace.read_with(cx, |workspace, _| workspace.timeout_ms());
+        if configured_timeout != timeout_ms {
+            return Err(format!(
+                "timeout input was not saved to the active request\n  expected: {timeout_ms}\n  actual:   {configured_timeout}"
+            ));
+        }
+        let timeout_selector = if timeout_ms == 0 {
+            "request-timeout-disabled"
+        } else {
+            "request-timeout-enabled"
+        };
+        if cx.debug_bounds(timeout_selector).is_none() {
+            return Err(format!(
+                "configured timeout surface `{timeout_selector}` is not rendered"
+            ));
+        }
+    }
+
     let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
     if assembled_url != expected.url {
         return Err(format!(
@@ -1225,7 +1287,43 @@ fn run_application_scenario(
         ));
     }
 
-    click(cx, "send-button")?;
+    if matches!(&scenario.expect.response, ResponseSpec::Cancelled) {
+        click_without_wait(cx, "send-button")?;
+        let (request_id, in_flight, response) = workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.active_request_id(),
+                workspace.in_flight_count(),
+                workspace.response().clone(),
+            )
+        });
+        if request_id.is_none() || in_flight != 1 || !matches!(response, ResponseState::Loading) {
+            return Err(format!(
+                "Send did not expose one stable in-flight request before cancellation: request_id={request_id:?}, in_flight={in_flight}, response={response:?}"
+            ));
+        }
+        for _ in 0..32 {
+            if cx.debug_bounds("cancel-send-control").is_some() {
+                break;
+            }
+            if !cx.executor().tick() {
+                break;
+            }
+        }
+        for selector in [
+            "request-in-flight-id",
+            "cancel-send-control",
+            "response-loading",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "in-flight cancellation control `{selector}` is not rendered"
+                ));
+            }
+        }
+        click_without_wait(cx, "send-button")?;
+    } else {
+        click(cx, "send-button")?;
+    }
     cx.run_until_parked();
 
     let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
@@ -1240,8 +1338,8 @@ fn run_application_scenario(
         return Err("response panel is not rendered in the application window".to_string());
     }
     if matches!(
-        scenario.expect.response,
-        ResponseSpec::Success { .. } | ResponseSpec::Error { .. }
+        &scenario.expect.response,
+        ResponseSpec::Success { .. } | ResponseSpec::Error { .. } | ResponseSpec::Cancelled
     ) && cx.debug_bounds("response-content").is_none()
     {
         return Err("response content is not rendered in the application window".to_string());
@@ -1271,10 +1369,43 @@ fn run_application_scenario(
             }
         }
         ResponseSpec::Error { .. } => {
-            if cx.debug_bounds("response-transport-error").is_none() {
+            let is_timeout = matches!(
+                &response,
+                ResponseState::Error { message } if message.starts_with("Request timed out after")
+            );
+            if is_timeout {
+                for selector in ["response-timeout-error", "response-timeout-content"] {
+                    if cx.debug_bounds(selector).is_none() {
+                        return Err(format!(
+                            "timeout terminal surface `{selector}` is not rendered"
+                        ));
+                    }
+                }
+            } else if cx.debug_bounds("response-transport-error").is_none() {
                 return Err("transport failure is not rendered as an error".to_string());
             }
         }
+        ResponseSpec::Cancelled => {
+            for selector in ["response-cancelled", "response-cancelled-content"] {
+                if cx.debug_bounds(selector).is_none() {
+                    return Err(format!(
+                        "user-cancelled terminal surface `{selector}` is not rendered"
+                    ));
+                }
+            }
+            if cx.debug_bounds("response-timeout-error").is_some() {
+                return Err("user cancellation is rendered as a timeout".to_string());
+            }
+        }
+    }
+
+    let (terminal_request_id, terminal_in_flight) = workspace.read_with(cx, |workspace, _| {
+        (workspace.active_request_id(), workspace.in_flight_count())
+    });
+    if terminal_request_id.is_some() || terminal_in_flight != 0 {
+        return Err(format!(
+            "terminal request lifecycle was not cleared: request_id={terminal_request_id:?}, in_flight={terminal_in_flight}"
+        ));
     }
 
     let history_len = workspace.read_with(cx, |workspace, _| workspace.history_len());

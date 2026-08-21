@@ -1,5 +1,70 @@
 {
   "schema_version": 5,
   "target": "httpbingo",
-  "cases": []
+  "cases": [
+    {
+      "name": "HTTPBingo completes a delayed request before any deadline",
+      "draft": {
+        "method": "GET",
+        "path": "/delay/1"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/delay/1",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "GET",
+            "url": "https://httpbingo.org/delay/1"
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo delayed request is cancelled by the user",
+      "draft": {
+        "method": "GET",
+        "path": "/delay/5"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/delay/5",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "cancelled"
+        },
+        "history_len": 0
+      }
+    },
+    {
+      "name": "HTTPBingo delayed request reaches its configured timeout",
+      "draft": {
+        "method": "GET",
+        "path": "/delay/3",
+        "timeout_ms": 1000
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/delay/3",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "error",
+          "contains": "Request timed out after 1,000 ms"
+        },
+        "history_len": 0
+      }
+    }
+  ]
 }

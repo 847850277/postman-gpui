@@ -19,6 +19,8 @@ pub enum AppError {
     UrlEmpty,
     /// Network connection error
     NetworkError(String),
+    /// Request-level deadline configured in the editor elapsed.
+    Timeout { timeout_ms: u64 },
     /// UI rendering error
     RenderError(String),
 }
@@ -31,9 +33,28 @@ impl fmt::Display for AppError {
             AppError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
             AppError::UrlEmpty => write!(f, "Error: URL cannot be empty"),
             AppError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
+            AppError::Timeout { timeout_ms } => {
+                write!(
+                    f,
+                    "Request timed out after {} ms",
+                    format_number(*timeout_ms)
+                )
+            }
             AppError::RenderError(msg) => write!(f, "Render Error: {}", msg),
         }
     }
+}
+
+fn format_number(value: u64) -> String {
+    let digits = value.to_string();
+    let mut formatted = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, character) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            formatted.push(',');
+        }
+        formatted.push(character);
+    }
+    formatted
 }
 
 impl std::error::Error for AppError {}
@@ -88,6 +109,9 @@ mod tests {
 
         let err = AppError::NetworkError("Connection timeout".to_string());
         assert_eq!(err.to_string(), "Network Error: Connection timeout");
+
+        let err = AppError::Timeout { timeout_ms: 1_000 };
+        assert_eq!(err.to_string(), "Request timed out after 1,000 ms");
 
         let err = AppError::RenderError("Failed to render component".to_string());
         assert_eq!(err.to_string(), "Render Error: Failed to render component");

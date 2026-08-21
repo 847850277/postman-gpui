@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use gpui::{point, px, Modifiers, MouseButton, ScrollDelta, ScrollWheelEvent, VisualTestContext};
+use gpui::{
+    point, px, InputEvent, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, ScrollDelta,
+    ScrollWheelEvent, VisualTestContext,
+};
 
 pub fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), String> {
     let bounds = cx
@@ -11,6 +14,42 @@ pub fn click(cx: &mut VisualTestContext, selector: &'static str) -> Result<(), S
     // rendered frame here makes each driver click one complete user action instead of allowing two
     // adjacent clicks to observe the same pre-click frame.
     let _ = cx.debug_bounds(selector);
+    Ok(())
+}
+
+/// Dispatches a click without draining outstanding background work. This is reserved for testing
+/// a rendered Cancel transition while the request task is deliberately still in flight.
+pub fn click_without_wait(
+    cx: &mut VisualTestContext,
+    selector: &'static str,
+) -> Result<(), String> {
+    let bounds = cx
+        .debug_bounds(selector)
+        .ok_or_else(|| format!("application control `{selector}` is not rendered"))?;
+    let position = bounds.center();
+    cx.update(|window, app| {
+        window.dispatch_event(
+            MouseDownEvent {
+                position,
+                modifiers: Modifiers::none(),
+                button: MouseButton::Left,
+                click_count: 1,
+                first_mouse: false,
+            }
+            .to_platform_input(),
+            app,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                position,
+                modifiers: Modifiers::none(),
+                button: MouseButton::Left,
+                click_count: 1,
+            }
+            .to_platform_input(),
+            app,
+        );
+    });
     Ok(())
 }
 

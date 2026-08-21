@@ -149,6 +149,23 @@ const ISSUE_E2E_CONTRACTS: &[IssueE2EContract] = &[
             ".github/workflows/httpbingo-e2e.yml",
         ],
     },
+    IssueE2EContract {
+        issue: 78,
+        required_node_names: &[
+            "Ordered Real-UI Scenario Steps",
+            "Observable Assertions · Verification Contract",
+            "Scope and Non-Goals",
+        ],
+        required_visible_text: &[
+            "Open dropdown → HEAD; focus active URL, type https://httpbingo.org/get, then click Send directly.",
+            "no Enter / Tab / blur / Add / backfill",
+            "Assert exact HEAD + RequestBody::None + 200; inspect stable headers; body.len() = 0; no quick Copy.",
+            "Open dropdown → OPTIONS; type https://httpbingo.org/anything/options; Send; method is never rewritten to GET.",
+            "Allow-Methods contains OPTIONS; body.len() = 0; no Copy; reopen both History rows and restore exact methods.",
+            "Parent roadmap #50 → #78.",
+            ".github/workflows/httpbingo-e2e.yml",
+        ],
+    },
 ];
 
 // Static design validation cannot infer product meaning from arbitrary canvas nodes. Requiring
@@ -534,6 +551,34 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
             "Clipboard equals the complete ResponseState body",
             "Not sent and empty states expose no active Copy action",
             "Copied",
+            "200 OK",
+        ],
+    },
+    IssueContentContract {
+        issue: 78,
+        required_node_names: &[
+            "Method Dropdown Content Item",
+            "Active HEAD Request Content Item",
+            "HEAD Bodyless Send Projection Content Item",
+            "HEAD Exact Method Content Item",
+            "OPTIONS Exact Method Content Item",
+            "HEAD History Result Content Item",
+            "OPTIONS History Result Content Item",
+            "HTTPBingo HEAD Response Panel",
+            "HEAD Response Headers Content Item",
+            "HEAD Empty Response Body Content Item",
+            "Empty Body Quick Copy Suppression Content Item",
+            "OPTIONS Allow-Methods Evidence Content Item",
+        ],
+        required_visible_text: &[
+            "https://httpbingo.org/get",
+            "HEAD /get · RequestBody::None",
+            "OPTIONS /anything/options · RequestBody::None",
+            "OPTIONS is never rewritten to GET",
+            "body.len() = 0 · Quick Copy hidden",
+            "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
+            "restores exact method HEAD",
+            "restores exact method OPTIONS",
             "200 OK",
         ],
     },
@@ -1117,6 +1162,12 @@ fn assert_response_content(path: &Path, response: &Value) {
     let status = response_status_node(response)
         .unwrap_or_else(|| panic!("{} Response Panel is missing status", path.display()));
     let status_text = collect_text(status);
+    let response_text = collect_text(response);
+    let response_text_lower = response_text.to_ascii_lowercase();
+    let is_explicit_empty_body = response_text_lower.contains("body.len() = 0")
+        && (response_text_lower.contains("quick copy hidden")
+            || response_text_lower.contains("no quick copy")
+            || response_text_lower.contains("copy absent"));
     let copy_action = find_descendant(response, &|node| {
         node_name(node).is_some_and(|name| name.contains("Copy Response"))
     });
@@ -1133,21 +1184,28 @@ fn assert_response_content(path: &Path, response: &Value) {
             "{} populated Response Panel must show an HTTP status, got {status_text:?}",
             path.display()
         );
-        assert!(
-            copy_action.is_some(),
-            "{} populated Response Panel must expose Copy",
-            path.display()
-        );
+        if is_explicit_empty_body {
+            assert!(
+                copy_action.is_none(),
+                "{} explicitly empty response must not expose Copy",
+                path.display()
+            );
+        } else {
+            assert!(
+                copy_action.is_some(),
+                "{} populated Response Panel must expose Copy",
+                path.display()
+            );
 
-        let copy_text = collect_text(copy_action.expect("Copy existence was asserted"));
-        assert!(
-            copy_text.split_whitespace().any(|word| word == "Copy"),
-            "{} Copy action must visibly identify its behavior",
-            path.display()
-        );
+            let copy_text = collect_text(copy_action.expect("Copy existence was asserted"));
+            assert!(
+                copy_text.split_whitespace().any(|word| word == "Copy"),
+                "{} Copy action must visibly identify its behavior",
+                path.display()
+            );
+        }
     }
 
-    let response_text = collect_text(response);
     assert!(
         response_text.len() >= 20,
         "{} Response Panel must show concrete result evidence",

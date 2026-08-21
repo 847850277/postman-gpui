@@ -44,11 +44,13 @@ impl RequestComposer {
     }
 
     pub(super) fn render_request_head(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let (is_sending, url_query_count) = {
+        let (is_sending, url_query_count, request_id, in_flight_count) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model.is_sending(),
                 view_model.url_query_parameter_count(),
+                view_model.active_request_id(),
+                view_model.in_flight_count(),
             )
         };
         div()
@@ -87,6 +89,24 @@ impl RequestComposer {
                         )
                     }),
             )
+            .when_some(request_id, |head, request_id| {
+                head.child(
+                    div()
+                        .debug_selector(|| "request-in-flight-id".into())
+                        .h(px(28.0))
+                        .px_2()
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .rounded_lg()
+                        .bg(rgb(INFO_SOFT))
+                        .font_family(FONT_UI)
+                        .font_weight(FontWeight::BOLD)
+                        .text_size(px(10.0))
+                        .text_color(rgb(INFO))
+                        .child(format!("{request_id} · in_flight={in_flight_count}")),
+                )
+            })
             .child(
                 div()
                     .debug_selector(|| "send-button".into())
@@ -110,7 +130,13 @@ impl RequestComposer {
                             style.bg(rgb(ACCENT)).text_color(rgb(PANEL))
                         }
                     })
-                    .child(if is_sending { "Cancel" } else { "Send" })
+                    .child(
+                        div()
+                            .when(is_sending, |label| {
+                                label.debug_selector(|| "cancel-send-control".into())
+                            })
+                            .child(if is_sending { "Cancel" } else { "Send" }),
+                    )
                     .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
             )
     }
@@ -194,6 +220,7 @@ impl RequestComposer {
                 if has_tests { "Tests ●" } else { "Tests" },
                 cx,
             ))
+            .child(self.request_tab(RequestPane::Options, "Options", cx))
     }
 }
 fn request_pane_selector(pane: RequestPane) -> &'static str {
@@ -205,5 +232,6 @@ fn request_pane_selector(pane: RequestPane) -> &'static str {
         RequestPane::Body => "request-pane-body",
         RequestPane::Scripts => "request-pane-scripts",
         RequestPane::Tests => "request-pane-tests",
+        RequestPane::Options => "request-pane-options",
     }
 }

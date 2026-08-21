@@ -2,7 +2,7 @@ use super::{
     layout::adaptive_request_panel_height,
     panes::{
         AuthorizationPane, BodyPane, CookiePane, CookiePaneEvent, KeyValueRowsKind,
-        KeyValueRowsPane, KeyValueRowsPaneEvent, ScriptPane, ScriptPaneKind,
+        KeyValueRowsPane, KeyValueRowsPaneEvent, OptionsPane, ScriptPane, ScriptPaneKind,
     },
 };
 use crate::{
@@ -44,6 +44,7 @@ pub(super) struct RequestComposer {
     body_pane: Entity<BodyPane>,
     script_pane: Entity<ScriptPane>,
     tests_pane: Entity<ScriptPane>,
+    options_pane: Entity<OptionsPane>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -68,6 +69,7 @@ impl RequestComposer {
             cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, cx));
         let tests_pane =
             cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::Tests, cx));
+        let options_pane = cx.new(|cx| OptionsPane::new(view_model.clone(), cx));
 
         let subscriptions = vec![
             cx.subscribe(&method_selector, Self::on_method_changed),
@@ -89,6 +91,7 @@ impl RequestComposer {
             body_pane,
             script_pane,
             tests_pane,
+            options_pane,
             _subscriptions: subscriptions,
         };
         composer.project_active_request(cx);
@@ -191,6 +194,9 @@ impl RequestComposer {
             RequestPane::Tests => self
                 .tests_pane
                 .update(cx, ScriptPane::project_active_request),
+            RequestPane::Options => self
+                .options_pane
+                .update(cx, OptionsPane::project_active_request),
         }
     }
 
@@ -210,6 +216,8 @@ impl RequestComposer {
             .update(cx, ScriptPane::project_active_request);
         self.tests_pane
             .update(cx, ScriptPane::project_active_request);
+        self.options_pane
+            .update(cx, OptionsPane::project_active_request);
         cx.notify();
     }
 
@@ -262,6 +270,7 @@ impl RequestComposer {
             | RequestPane::Cookies
             | RequestPane::Scripts
             | RequestPane::Tests
+            | RequestPane::Options
             | RequestPane::Body => 0,
         };
         let panel_height = adaptive_request_panel_height(
@@ -277,6 +286,7 @@ impl RequestComposer {
             RequestPane::Body => self.body_pane.clone().into_any_element(),
             RequestPane::Scripts => self.script_pane.clone().into_any_element(),
             RequestPane::Tests => self.tests_pane.clone().into_any_element(),
+            RequestPane::Options => self.options_pane.clone().into_any_element(),
         };
 
         div()

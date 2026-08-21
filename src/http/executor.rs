@@ -7,6 +7,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context as TaskContext, Poll},
+    time::Duration,
 };
 
 /// HTTP 请求执行结果
@@ -105,8 +106,17 @@ impl RequestExecutor {
     /// using its abort handle cancels the underlying reqwest future instead of merely ignoring
     /// its UI result.
     pub fn spawn(&self, request: Request) -> RequestTask {
+        self.spawn_with_timeout(request, None)
+    }
+
+    /// Starts the canonical request path with an optional request-level deadline. A zero value is
+    /// treated as disabled so callers cannot accidentally create an immediate timeout.
+    pub fn spawn_with_timeout(&self, request: Request, timeout_ms: Option<u64>) -> RequestTask {
         let client = self.client.clone();
-        let handle = self.runtime.spawn(Self::execute(client, request));
+        let timeout_ms = timeout_ms.filter(|timeout_ms| *timeout_ms > 0);
+        let handle = self
+            .runtime
+            .spawn(Self::execute(client, request, timeout_ms));
         RequestTask {
             handle,
             runtime: self.runtime.clone(),
@@ -123,7 +133,11 @@ impl RequestExecutor {
 
     /// Canonical transport path. Every caller supplies the same typed command; only scheduling
     /// differs between the GPUI application and deterministic test adapters.
-    async fn execute(client: HttpClient, request: Request) -> Result<RequestResult, AppError> {
+    async fn execute(
+        client: HttpClient,
+        request: Request,
+        timeout_ms: Option<u64>,
+    ) -> Result<RequestResult, AppError> {
         if request.url.trim().is_empty() {
             tracing::debug!(method = %request.method, "skipping empty URL");
             return Err(AppError::UrlEmpty);
@@ -142,7 +156,18 @@ impl RequestExecutor {
         }
 
         let started = std::time::Instant::now();
-        let result = client.execute(request).await;
+        let result = match timeout_ms {
+            Some(timeout_ms) => match tokio::time::timeout(
+                Duration::from_millis(timeout_ms),
+                client.execute(request),
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(_) => Err(AppError::Timeout { timeout_ms }),
+            },
+            None => client.execute(request).await,
+        };
         let elapsed_ms = started.elapsed().as_millis();
 
         match result {
@@ -289,6 +314,48 @@ mod tests {
 
         let error = wait(task).expect_err("aborted request should not complete successfully");
         assert!(matches!(error, AppError::NetworkError(message) if message.contains("cancelled")));
+        slow_response.assert();
+    }
+
+    #[test]
+    fn configured_timeout_stops_transport_with_a_distinct_typed_error() {
+        let mut server = Server::new();
+        let (response_started_tx, response_started_rx) = mpsc::channel();
+        let release_response = std::sync::Arc::new((Mutex::new(false), Condvar::new()));
+        let response_gate = release_response.clone();
+        let slow_response = server
+            .mock("GET", "/deadline")
+            .with_chunked_body(move |writer| {
+                writer.write_all(b"started")?;
+                let _ = response_started_tx.send(());
+                let (released, wake) = &*response_gate;
+                let released = released
+                    .lock()
+                    .expect("response gate should not be poisoned");
+                let _ = wake
+                    .wait_timeout_while(released, Duration::from_secs(2), |released| !*released)
+                    .expect("response gate should remain available");
+                Ok(())
+            })
+            .create();
+        let executor = RequestExecutor::new();
+        let task = executor.spawn_with_timeout(
+            Request::new(HttpMethod::GET, format!("{}/deadline", server.url())),
+            Some(50),
+        );
+
+        response_started_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("the delayed response should start before its deadline");
+        let error = wait(task).expect_err("the configured deadline should stop the request");
+        let (released, wake) = &*release_response;
+        *released
+            .lock()
+            .expect("response gate should not be poisoned") = true;
+        wake.notify_all();
+
+        assert!(matches!(&error, AppError::Timeout { timeout_ms: 50 }));
+        assert_eq!(error.to_string(), "Request timed out after 50 ms");
         slow_response.assert();
     }
 }

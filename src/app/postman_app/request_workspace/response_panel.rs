@@ -150,7 +150,7 @@ impl ResponseViewer {
                 .collect::<Vec<_>>()
                 .join("\n"),
             (ResponseState::Error { message }, _) => message.clone(),
-            (ResponseState::Cancelled, _) => "Request cancelled".to_string(),
+            (ResponseState::Cancelled, _) => "Request cancelled by user".to_string(),
             _ => String::new(),
         }
     }
@@ -659,6 +659,11 @@ impl Render for ResponseViewer {
             _ => None,
         };
         let is_transport_failure = matches!(&state, ResponseState::Error { .. });
+        let is_timeout = matches!(
+            &state,
+            ResponseState::Error { message } if message.starts_with("Request timed out after")
+        );
+        let is_cancelled = matches!(&state, ResponseState::Cancelled);
 
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
@@ -675,6 +680,9 @@ impl Render for ResponseViewer {
             ResponseState::Loading => ("Sending…".to_string(), String::new(), String::new(), MUTED),
             ResponseState::Cancelled => {
                 ("Cancelled".to_string(), String::new(), String::new(), MUTED)
+            }
+            ResponseState::Error { .. } if is_timeout => {
+                ("Timed out".to_string(), String::new(), String::new(), ERROR)
             }
             ResponseState::Error { .. } => (
                 "Request failed".to_string(),
@@ -810,6 +818,14 @@ impl Render for ResponseViewer {
                                                     "response-transport-error".into()
                                                 })
                                             })
+                                            .when(is_timeout, |label| {
+                                                label.debug_selector(|| {
+                                                    "response-timeout-error".into()
+                                                })
+                                            })
+                                            .when(is_cancelled, |label| {
+                                                label.debug_selector(|| "response-cancelled".into())
+                                            })
                                             .child(status),
                                     ),
                             )
@@ -894,6 +910,7 @@ impl Render for ResponseViewer {
                             .child("Status, headers, and payload will appear here."),
                     ),
                 ResponseState::Loading => div()
+                    .debug_selector(|| "response-loading".into())
                     .w_full()
                     .flex_1()
                     .min_h_0()
@@ -906,9 +923,10 @@ impl Render for ResponseViewer {
                     .text_color(rgb(CODE_TEXT))
                     .child("Waiting for the server…"),
                 ResponseState::Cancelled => div()
+                    .debug_selector(|| "response-cancelled-content".into())
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content("Request cancelled", cx)),
+                    .child(self.render_selectable_content("Request cancelled by user", cx)),
                 ResponseState::Success { body, headers, .. } => {
                     let header_text = if headers.is_empty() {
                         "No response headers".to_string()
@@ -929,6 +947,9 @@ impl Render for ResponseViewer {
                         .child(self.render_selectable_content(&content, cx))
                 }
                 ResponseState::Error { message } => div()
+                    .when(is_timeout, |content| {
+                        content.debug_selector(|| "response-timeout-content".into())
+                    })
                     .flex_1()
                     .min_h_0()
                     .child(self.render_selectable_content(&message, cx)),
