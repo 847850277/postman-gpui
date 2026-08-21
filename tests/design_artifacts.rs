@@ -195,6 +195,23 @@ const ISSUE_CONTENT_CONTRACTS: &[IssueContentContract] = &[
         ],
     },
     IssueContentContract {
+        issue: 61,
+        required_node_names: &[
+            "Active GET URL Content Item",
+            "Completed Non-2xx Response Content Item",
+            "Transport Failure Contrast Content Item",
+            "Completed 418 History Result Content Item",
+            "HTTPBingo 418 Response Panel",
+        ],
+        required_visible_text: &[
+            "https://httpbingo.org/status/418",
+            "418 Response",
+            "ResponseState::Success { status: 418 }",
+            "ResponseState::Error is not used",
+            "I'm a teapot!",
+        ],
+    },
+    IssueContentContract {
         issue: 70,
         required_node_names: &[
             "Global Search Idle",
