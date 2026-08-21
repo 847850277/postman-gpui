@@ -16,7 +16,14 @@ fn is_sensitive_name(name: &str) -> bool {
         .collect();
     matches!(
         compact_name.as_str(),
-        "authorization" | "proxyauthorization" | "cookie" | "setcookie" | "apikey"
+        "authorization"
+            | "proxyauthorization"
+            | "cookie"
+            | "cookies"
+            | "setcookie"
+            | "apikey"
+            | "session"
+            | "sessionid"
     ) || compact_name.contains("token")
         || compact_name.contains("secret")
         || compact_name.contains("password")
@@ -331,5 +338,31 @@ mod tests {
         assert!(output.contains("1234"));
         assert!(!output.contains(r#""password": "secret""#));
         assert!(output.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn cookie_setting_urls_headers_and_echo_bodies_never_log_session_values() {
+        let request = format_http_request(
+            HttpMethod::GET,
+            "https://httpbingo.org/cookies/set?session=cookie-e2e-demo",
+            &[("Cookie".to_string(), "session=cookie-e2e-demo".to_string())],
+            &RequestBody::None,
+        );
+        assert!(request.contains("session=[REDACTED]"));
+        assert!(request.contains("Cookie: [REDACTED]"));
+        assert!(!request.contains("cookie-e2e-demo"));
+
+        let response = format_http_response(
+            200,
+            12,
+            &[(
+                "Set-Cookie".to_string(),
+                "session=cookie-e2e-demo; Path=/".to_string(),
+            )],
+            r#"{"cookies":{"session":"cookie-e2e-demo"}}"#,
+        );
+        assert!(response.contains("Set-Cookie: [REDACTED]"));
+        assert!(response.contains(r#""cookies": "[REDACTED]""#));
+        assert!(!response.contains("cookie-e2e-demo"));
     }
 }

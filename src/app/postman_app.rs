@@ -67,6 +67,15 @@ impl PostmanApp {
                 self.request_runner
                     .update(cx, |runner, _| runner.abort(*send_id));
             }
+            RequestWorkspaceEvent::ClearCookies => {
+                let cleared = self
+                    .request_runner
+                    .update(cx, |runner, _| runner.clear_cookies());
+                self.view_model.update(cx, |view_model, cx| {
+                    view_model.record_cookies_cleared(cleared);
+                    cx.notify();
+                });
+            }
         }
     }
 

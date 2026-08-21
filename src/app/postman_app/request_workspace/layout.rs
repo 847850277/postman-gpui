@@ -33,7 +33,10 @@ pub(super) fn adaptive_request_panel_height(
         RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Authorization | RequestPane::Scripts | RequestPane::Tests => {
+        RequestPane::Authorization
+        | RequestPane::Cookies
+        | RequestPane::Scripts
+        | RequestPane::Tests => {
             unreachable!("non-row panes returned above")
         }
     };
@@ -54,7 +57,10 @@ pub(super) fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usiz
         RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
         RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Authorization | RequestPane::Scripts | RequestPane::Tests => return 0,
+        RequestPane::Authorization
+        | RequestPane::Cookies
+        | RequestPane::Scripts
+        | RequestPane::Tests => return 0,
     };
     let additional_rows = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH)
         .max(0.0)

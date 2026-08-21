@@ -382,6 +382,157 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
 }
 
 #[gpui::test]
+fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let set_cookie = server
+        .mock("GET", "/cookies/set")
+        .match_query(Matcher::UrlEncoded(
+            "session".into(),
+            "cookie-e2e-demo".into(),
+        ))
+        .match_header("cookie", Matcher::Missing)
+        .with_status(302)
+        .with_header("location", "/cookies")
+        .with_header("set-cookie", "session=cookie-e2e-demo; Path=/")
+        .create();
+    let cookie_echo = server
+        .mock("GET", "/cookies")
+        .match_header("cookie", "session=cookie-e2e-demo")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"cookies":{"session":"cookie-e2e-demo"}}"#)
+        .expect(2)
+        .create();
+    let empty_echo = server
+        .mock("GET", "/cookies")
+        .match_header("cookie", Matcher::Missing)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"cookies":{}}"#)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let set_url = format!("{}/cookies/set?session=cookie-e2e-demo", server.url());
+    type_into(cx, "url-input", &set_url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        set_url,
+        "the focused cookie-setting URL must be authoritative before Send"
+    );
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.cookie_count(), 1);
+        assert_eq!(workspace.cookies()[0].name, "session");
+        assert_eq!(workspace.cookies()[0].origin, server.url());
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(workspace.history()[0].request.url, set_url);
+        assert!(workspace.history()[0].request.headers.is_empty());
+        let ResponseState::Success { status, body, .. } = workspace.response() else {
+            panic!("the cookie-setting redirect should finish as a response");
+        };
+        assert_eq!(*status, 200);
+        let body: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(body["cookies"]["session"], "cookie-e2e-demo");
+    });
+    assert!(cx.debug_bounds("request-pane-cookies").is_some());
+
+    // A rendered New Request keeps the application-level transport session while creating a
+    // clean request tab. Send is clicked directly from the active URL input.
+    click(cx, "rail-new-request").unwrap();
+    let cookies_url = format!("{}/cookies", server.url());
+    type_into(cx, "url-input", &cookies_url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        cookies_url
+    );
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    let response_before_clear =
+        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    match &response_before_clear {
+        ResponseState::Success { status, body, .. } => {
+            assert_eq!(*status, 200);
+            let body: serde_json::Value = serde_json::from_str(body).unwrap();
+            assert_eq!(body["cookies"]["session"], "cookie-e2e-demo");
+        }
+        other => panic!("the later request should receive the automatic cookie: {other:?}"),
+    }
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 2);
+        assert_eq!(workspace.history()[0].request.url, cookies_url);
+        assert!(
+            workspace.history()[0].request.headers.is_empty(),
+            "History keeps authored headers and must not persist the sensitive automatic Cookie"
+        );
+    });
+
+    click(cx, "request-pane-cookies").unwrap();
+    for selector in [
+        "cookie-jar-panel",
+        "cookie-jar-scope",
+        "cookie-jar-count",
+        "cookie-jar-clear-all",
+        "cookie-jar-list",
+        "cookie-row-0",
+        "cookie-name-0",
+        "cookie-origin-0",
+        "cookie-value-protected-0",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #65 cookie contract element `{selector}` should be rendered"
+        );
+    }
+    assert!(cx.debug_bounds("cookie-jar-empty").is_none());
+
+    click(cx, "cookie-jar-clear-all").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.cookie_count(), 0);
+        assert_eq!(workspace.last_cookie_clear_count(), Some(1));
+        assert_eq!(workspace.history_len(), 2);
+        assert_eq!(workspace.response(), &response_before_clear);
+    });
+    for selector in ["cookie-jar-empty", "cookie-jar-clear-feedback"] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "cleared cookie surface `{selector}` should be rendered"
+        );
+    }
+    assert!(cx.debug_bounds("cookie-row-0").is_none());
+
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.cookie_count(), 0);
+        assert_eq!(workspace.history_len(), 3);
+        let ResponseState::Success { status, body, .. } = workspace.response() else {
+            panic!("the after-clear verification should complete as a response");
+        };
+        assert_eq!(*status, 200);
+        let body: serde_json::Value = serde_json::from_str(body).unwrap();
+        assert_eq!(body["cookies"], serde_json::json!({}));
+    });
+    for selector in [
+        "response-status-200",
+        "history-status-200-0",
+        "history-status-200-1",
+        "history-status-200-2",
+    ] {
+        assert!(cx.debug_bounds(selector).is_some());
+    }
+
+    set_cookie.assert();
+    cookie_echo.assert();
+    empty_echo.assert();
+}
+
+#[gpui::test]
 fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server

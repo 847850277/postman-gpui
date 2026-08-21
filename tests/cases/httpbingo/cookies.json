@@ -1,5 +1,54 @@
 {
   "schema_version": 5,
   "target": "httpbingo",
-  "cases": []
+  "cases": [
+    {
+      "name": "HTTPBingo stores a session cookie through the followed redirect",
+      "draft": {
+        "method": "GET",
+        "path": "/cookies/set?session=cookie-e2e-demo"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/cookies/set?session=cookie-e2e-demo",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "cookies": {
+              "session": "cookie-e2e-demo"
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo returns an empty cookie echo after the application jar is cleared",
+      "draft": {
+        "method": "GET",
+        "path": "/cookies"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/cookies",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "cookies": {}
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
 }

@@ -42,7 +42,9 @@ impl RequestRunner {
             let result = result_task.await;
             let _ = this.update(cx, |this, cx| {
                 this.in_flight.remove(&send_id);
+                let cookie_snapshot = this.executor.cookie_snapshot();
                 view_model.update(cx, |view_model, cx| {
+                    view_model.sync_cookie_jar(cookie_snapshot);
                     view_model.complete_send(pending, result);
                     cx.notify();
                 });
@@ -55,6 +57,10 @@ impl RequestRunner {
         if let Some(handle) = self.in_flight.remove(&send_id) {
             handle.abort();
         }
+    }
+
+    pub(super) fn clear_cookies(&self) -> usize {
+        self.executor.clear_cookies()
     }
 
     #[cfg(test)]
