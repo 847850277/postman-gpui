@@ -41,6 +41,7 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#59 HTML Form Page and Submission](https://github.com/847850277/postman-gpui/issues/59) | [`issue-0059-html-form-submission.pen`](issue-0059-html-form-submission.pen) |
 | [#60 Raw Request Body](https://github.com/847850277/postman-gpui/issues/60) | [`issue-0060-raw-request-body.pen`](issue-0060-raw-request-body.pen) |
 | [#61 Non-2xx Response](https://github.com/847850277/postman-gpui/issues/61) | [`issue-0061-non-2xx-response.pen`](issue-0061-non-2xx-response.pen) |
+| [#62 Redirect Following](https://github.com/847850277/postman-gpui/issues/62) | [`issue-0062-redirect-following.pen`](issue-0062-redirect-following.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
