@@ -6,7 +6,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
+use gpui::{AppContext, ClipboardItem, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{
@@ -255,6 +255,130 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
 
     redirect.assert();
     target.assert();
+}
+
+#[gpui::test]
+fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
+    cx: &mut TestAppContext,
+) {
+    let response_body = r#"{"slideshow":{"author":"Yours Truly","date":"date of publication","slides":[{"title":"Wake up to WonderWidgets!","type":"all"},{"items":["Why WonderWidgets are great","Who buys WonderWidgets"],"title":"Overview","type":"all"}],"title":"Sample Slide Show"}}"#;
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/json")
+        .match_query(Matcher::Missing)
+        .match_header("content-type", Matcher::Missing)
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(response_body)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let url = format!("{}/json", server.url());
+    type_into(cx, "url-input", &url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        url,
+        "the focused JSON endpoint must already be authoritative before Send"
+    );
+
+    // Send directly from the active URL field: no Enter, Tab, blur, Add, or submit-time backfill.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    let response_before_copy = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    match &response_before_copy {
+        ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } => {
+            assert_eq!(*status, 200);
+            assert_eq!(body, response_body, "ResponseState must keep the raw body");
+            let json: serde_json::Value =
+                serde_json::from_str(body).expect("the response body should parse as JSON");
+            assert_eq!(json["slideshow"]["title"], "Sample Slide Show");
+            assert!(headers.iter().any(|(name, value)| {
+                name.eq_ignore_ascii_case("content-type") && value == "application/json"
+            }));
+        }
+        other => panic!("GET /json should complete with an HTTP response: {other:?}"),
+    }
+
+    for selector in [
+        "response-container",
+        "response-content",
+        "response-status",
+        "response-status-200",
+        "response-copy-button",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #63 view contract element `{selector}` should be rendered"
+        );
+    }
+    assert!(cx.debug_bounds("response-transport-error").is_none());
+
+    // Selecting the rendered Body copies the pretty-printed view, proving the visible surface is
+    // valid JSON without snapshotting fields such as author, date, or slides.
+    cx.write_to_clipboard(ClipboardItem::new_string("rendered sentinel".to_string()));
+    click(cx, "response-content").unwrap();
+    cx.simulate_keystrokes("ctrl-a ctrl-c");
+    let rendered_body = cx
+        .read_from_clipboard()
+        .and_then(|item| item.text())
+        .expect("the rendered response should be selectable");
+    assert_ne!(
+        rendered_body, response_body,
+        "the JSON view should be formatted"
+    );
+    let rendered_json: serde_json::Value =
+        serde_json::from_str(&rendered_body).expect("the rendered response should remain JSON");
+    assert_eq!(rendered_json["slideshow"]["title"], "Sample Slide Show");
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::GET);
+        assert_eq!(entry.request.url, url);
+        assert!(entry.request.headers.is_empty());
+        assert_eq!(entry.request.body, RequestBody::None);
+        assert_eq!(entry.status, Some(200));
+        assert_eq!(entry.response_size, Some(response_body.len()));
+    });
+    for selector in [
+        "history-method-0",
+        "history-response-detail-0",
+        "history-status-200-0",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #63 History contract element `{selector}` should be rendered"
+        );
+    }
+
+    // Quick Copy deliberately uses the complete raw ResponseState body, not the formatted view.
+    cx.write_to_clipboard(ClipboardItem::new_string("raw sentinel".to_string()));
+    click(cx, "response-copy-button").unwrap();
+    assert_eq!(
+        cx.read_from_clipboard().and_then(|item| item.text()),
+        Some(response_body.to_string())
+    );
+    assert!(cx.debug_bounds("response-copy-feedback").is_some());
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        response_before_copy
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        1
+    );
+
+    request.assert();
 }
 
 #[gpui::test]

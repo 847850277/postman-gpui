@@ -4,8 +4,8 @@ mod common;
 
 use common::scenario::{
     expected_editor_intent, expected_request, load_suite, load_suites,
-    resolve_scenario_fixture_path, run_scenario, validate_body_row_contract, ScenarioFile,
-    ScenarioTarget,
+    resolve_scenario_fixture_path, run_scenario, validate_body_row_contract, ResponseSpec,
+    ScenarioFile, ScenarioTarget,
 };
 use postman_gpui::models::{
     HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RequestBody,
@@ -99,6 +99,49 @@ fn raw_put_scenario_requires_exact_body_without_generated_headers() {
         RequestBody::Raw("plain text body".to_string())
     );
     assert!(expected.headers.is_empty());
+}
+
+#[test]
+fn json_response_scenario_asserts_only_the_stable_nested_subset() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| {
+            scenario.name == "HTTPBingo JSON response is parsed with stable subset assertions"
+        })
+        .expect("Issue #63 JSON response scenario should exist");
+
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #63 expected request should be valid");
+    assert_eq!(expected.method, HttpMethod::GET);
+    assert_eq!(expected.url, "https://httpbingo.org/json");
+    assert!(expected.headers.is_empty());
+    assert_eq!(expected.body, RequestBody::None);
+    assert_eq!(scenario.expect.history_len, 1);
+
+    let ResponseSpec::Success {
+        status,
+        body_contains,
+        body_json_contains,
+        headers_contain,
+    } = &scenario.expect.response
+    else {
+        panic!("Issue #63 must expect a completed HTTP response");
+    };
+    assert_eq!(*status, 200);
+    assert!(body_contains.is_none());
+    assert!(headers_contain.is_empty());
+    assert_eq!(
+        body_json_contains.as_ref(),
+        Some(&serde_json::json!({
+            "slideshow": {
+                "title": "Sample Slide Show"
+            }
+        })),
+        "the public scenario must not snapshot dynamic headers, timestamps, or unrelated JSON fields"
+    );
 }
 
 #[test]

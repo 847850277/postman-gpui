@@ -984,11 +984,16 @@ fn run_application_scenario(
                     "completed HTTP status {status} is not rendered in the response header"
                 ));
             }
-            if *status == 418 && cx.debug_bounds("response-status-418").is_none() {
-                return Err(
-                    "Issue #61 exact status selector `response-status-418` is not rendered"
-                        .to_string(),
-                );
+            let exact_status_selector = match *status {
+                200 => Some("response-status-200"),
+                418 => Some("response-status-418"),
+                _ => None,
+            };
+            if exact_status_selector.is_some_and(|selector| cx.debug_bounds(selector).is_none()) {
+                return Err(format!(
+                    "exact completed status surface `{}` is not rendered",
+                    exact_status_selector.expect("checked selector")
+                ));
             }
             if cx.debug_bounds("response-transport-error").is_some() {
                 return Err(format!(
@@ -1045,11 +1050,17 @@ fn run_application_scenario(
                 "completed HTTP status {status} is not rendered in History"
             ));
         }
-        if *status == 418 && cx.debug_bounds("history-status-418-0").is_none() {
-            return Err(
-                "Issue #61 exact History selector `history-status-418-0` is not rendered"
-                    .to_string(),
-            );
+        let exact_history_status_selector = match *status {
+            200 => Some("history-status-200-0"),
+            418 => Some("history-status-418-0"),
+            _ => None,
+        };
+        if exact_history_status_selector.is_some_and(|selector| cx.debug_bounds(selector).is_none())
+        {
+            return Err(format!(
+                "exact History status surface `{}` is not rendered",
+                exact_history_status_selector.expect("checked selector")
+            ));
         }
     }
     if let Some(entry) = recorded_entry {
