@@ -102,6 +102,71 @@ fn raw_put_scenario_requires_exact_body_without_generated_headers() {
 }
 
 #[test]
+fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers() {
+    let files = scenario_files();
+    let scenarios = files
+        .iter()
+        .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
+        .flat_map(|file| &file.suite.cases)
+        .collect::<Vec<_>>();
+    let head = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| {
+            scenario.name == "HTTPBingo receives HEAD and returns headers without a response body"
+        })
+        .expect("Issue #78 HEAD scenario should exist");
+    let options = scenarios
+        .iter()
+        .copied()
+        .find(|scenario| scenario.name == "HTTPBingo receives OPTIONS without rewriting it to GET")
+        .expect("Issue #78 OPTIONS scenario should exist");
+
+    for (scenario, method, path) in [
+        (head, HttpMethod::HEAD, "/get"),
+        (options, HttpMethod::OPTIONS, "/anything/options"),
+    ] {
+        let request = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+            .expect("Issue #78 expected request should be valid");
+        assert_eq!(request.method, method);
+        assert_eq!(request.url, format!("https://httpbingo.org{path}"));
+        assert!(request.headers.is_empty());
+        assert_eq!(request.body, RequestBody::None);
+        assert_eq!(scenario.expect.history_len, 1);
+    }
+
+    let ResponseSpec::Success {
+        status,
+        body_contains,
+        body_json_contains,
+        headers_contain,
+    } = &head.expect.response
+    else {
+        panic!("HEAD must expect a successful empty-body response");
+    };
+    assert_eq!(*status, 200);
+    assert!(body_contains.is_none() && body_json_contains.is_none());
+    assert!(headers_contain.iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case("content-type") && value == "application/json; charset=utf-8"
+    }));
+
+    let ResponseSpec::Success {
+        status,
+        body_contains,
+        body_json_contains,
+        headers_contain,
+    } = &options.expect.response
+    else {
+        panic!("OPTIONS must expect a successful empty-body response");
+    };
+    assert_eq!(*status, 200);
+    assert!(body_contains.is_none() && body_json_contains.is_none());
+    assert!(headers_contain.iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case("access-control-allow-methods") && value.contains("OPTIONS")
+    }));
+}
+
+#[test]
 fn json_response_scenario_asserts_only_the_stable_nested_subset() {
     let files = scenario_files();
     let scenario = files

@@ -3,6 +3,56 @@
   "target": "httpbingo",
   "cases": [
     {
+      "name": "HTTPBingo receives HEAD and returns headers without a response body",
+      "draft": {
+        "method": "HEAD",
+        "path": "/get"
+      },
+      "expect": {
+        "request": {
+          "method": "HEAD",
+          "path": "/get",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "headers_contain": [
+            ["content-type", "application/json; charset=utf-8"],
+            ["access-control-allow-origin", "*"]
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo receives OPTIONS without rewriting it to GET",
+      "draft": {
+        "method": "OPTIONS",
+        "path": "/anything/options"
+      },
+      "expect": {
+        "request": {
+          "method": "OPTIONS",
+          "path": "/anything/options",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "headers_contain": [
+            [
+              "access-control-allow-methods",
+              "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS"
+            ]
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
       "name": "HTTPBingo receives DELETE without a request body",
       "draft": {
         "method": "DELETE",
