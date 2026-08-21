@@ -1,5 +1,99 @@
 {
   "schema_version": 5,
   "target": "httpbingo",
-  "cases": []
+  "cases": [
+    {
+      "name": "HTTPBingo gzip response decodes into readable JSON",
+      "draft": {
+        "method": "GET",
+        "path": "/gzip",
+        "body": null,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/gzip",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "headers": {
+              "Accept-Encoding": ["gzip,deflate,br"]
+            },
+            "method": "GET",
+            "gzipped": true
+          },
+          "headers_contain": [
+            ["content-type", "application/json; charset=utf-8"]
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo deflate response decodes into readable JSON",
+      "draft": {
+        "method": "GET",
+        "path": "/deflate",
+        "body": null,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/deflate",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "headers": {
+              "Accept-Encoding": ["gzip,deflate,br"]
+            },
+            "method": "GET",
+            "deflated": true
+          },
+          "headers_contain": [
+            ["content-type", "application/json; charset=utf-8"]
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo reports the current Brotli provider capability",
+      "draft": {
+        "method": "GET",
+        "path": "/brotli",
+        "body": null,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/brotli",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 501,
+          "body_json_contains": {
+            "status_code": 501,
+            "error": "Not Implemented"
+          },
+          "headers_contain": [
+            ["content-type", "application/json; charset=utf-8"]
+          ]
+        },
+        "history_len": 1
+      }
+    }
+  ]
 }

@@ -167,6 +167,92 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
 }
 
 #[test]
+fn compression_scenarios_define_decoded_json_and_provider_capability_contracts() {
+    let files = scenario_files();
+    let file = files
+        .iter()
+        .find(|file| {
+            file.path
+                .ends_with("tests/cases/httpbingo/compression.json")
+        })
+        .expect("Issue #67 compression scenario file should exist");
+    assert_eq!(file.suite.target, ScenarioTarget::Httpbingo);
+    assert_eq!(file.suite.cases.len(), 3);
+
+    let cases = [
+        (
+            "HTTPBingo gzip response decodes into readable JSON",
+            "/gzip",
+            200,
+            serde_json::json!({
+                "headers": { "Accept-Encoding": ["gzip,deflate,br"] },
+                "method": "GET",
+                "gzipped": true
+            }),
+        ),
+        (
+            "HTTPBingo deflate response decodes into readable JSON",
+            "/deflate",
+            200,
+            serde_json::json!({
+                "headers": { "Accept-Encoding": ["gzip,deflate,br"] },
+                "method": "GET",
+                "deflated": true
+            }),
+        ),
+        (
+            "HTTPBingo reports the current Brotli provider capability",
+            "/brotli",
+            501,
+            serde_json::json!({
+                "status_code": 501,
+                "error": "Not Implemented"
+            }),
+        ),
+    ];
+
+    for (name, path, expected_status, expected_json) in cases {
+        let scenario = file
+            .suite
+            .cases
+            .iter()
+            .find(|scenario| scenario.name == name)
+            .unwrap_or_else(|| panic!("Issue #67 scenario `{name}` should exist"));
+        assert!(scenario.mock.is_none());
+        assert_eq!(scenario.draft.method, "GET");
+        assert_eq!(scenario.draft.path, path);
+        assert_eq!(scenario.draft.body_kind.as_deref(), Some("none"));
+        assert!(scenario.draft.body.is_none());
+        assert!(scenario.draft.headers.is_empty());
+
+        let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+            .expect("Issue #67 expected request should be valid");
+        assert_eq!(expected.method, HttpMethod::GET);
+        assert_eq!(expected.url, format!("https://httpbingo.org{path}"));
+        assert!(expected.headers.is_empty());
+        assert_eq!(expected.body, RequestBody::None);
+        assert_eq!(scenario.expect.history_len, 1);
+
+        let ResponseSpec::Success {
+            status,
+            body_contains,
+            body_json_contains,
+            headers_contain,
+        } = &scenario.expect.response
+        else {
+            panic!("Issue #67 scenario `{name}` should be a completed HTTP response");
+        };
+        assert_eq!(*status, expected_status);
+        assert!(body_contains.is_none());
+        assert_eq!(body_json_contains.as_ref(), Some(&expected_json));
+        assert!(headers_contain.iter().any(|(header_name, value)| {
+            header_name.eq_ignore_ascii_case("content-type")
+                && value == "application/json; charset=utf-8"
+        }));
+    }
+}
+
+#[test]
 fn json_response_scenario_asserts_only_the_stable_nested_subset() {
     let files = scenario_files();
     let scenario = files

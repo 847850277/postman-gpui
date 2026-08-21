@@ -6,6 +6,10 @@
 #[path = "common/ui.rs"]
 mod ui;
 
+use flate2::{
+    write::{GzEncoder, ZlibEncoder},
+    Compression,
+};
 use gpui::{AppContext, ClipboardItem, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
@@ -18,7 +22,41 @@ use postman_gpui::{
         RequestEditorIntent,
     },
 };
+use std::io::Write;
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
+
+const DEFAULT_ACCEPT_ENCODING: &str = "gzip,deflate,br";
+
+fn gzip(body: &str) -> Vec<u8> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(body.as_bytes())
+        .expect("gzip test payload should be writable");
+    encoder
+        .finish()
+        .expect("gzip test payload should be encodable")
+}
+
+fn deflate(body: &str) -> Vec<u8> {
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(body.as_bytes())
+        .expect("deflate test payload should be writable");
+    encoder
+        .finish()
+        .expect("deflate test payload should be encodable")
+}
+
+fn brotli(body: &str) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    {
+        let mut encoder = brotli::CompressorWriter::new(&mut encoded, 4_096, 5, 22);
+        encoder
+            .write_all(body.as_bytes())
+            .expect("Brotli test payload should be writable");
+    }
+    encoded
+}
 
 #[gpui::test]
 fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
@@ -731,6 +769,170 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
         assert_eq!(workspace.request_body(), RequestBody::None);
         assert!(matches!(workspace.response(), ResponseState::NotSent));
     });
+}
+
+#[gpui::test]
+fn compressed_responses_decode_through_real_controls_and_use_decoded_history_sizes(
+    cx: &mut TestAppContext,
+) {
+    let cases = [
+        (
+            "/gzip",
+            "gzip",
+            r#"{"method":"GET","gzipped":true}"#,
+            gzip as fn(&str) -> Vec<u8>,
+        ),
+        (
+            "/deflate",
+            "deflate",
+            r#"{"method":"GET","deflated":true}"#,
+            deflate as fn(&str) -> Vec<u8>,
+        ),
+        (
+            "/brotli",
+            "br",
+            r#"{"method":"GET","brotli":true}"#,
+            brotli as fn(&str) -> Vec<u8>,
+        ),
+    ];
+    let mut server = mockito::Server::new();
+    let mut requests = Vec::new();
+    for (path, encoding, body, encode) in cases {
+        requests.push(
+            server
+                .mock("GET", path)
+                .match_header("accept-encoding", DEFAULT_ACCEPT_ENCODING)
+                .match_body(Matcher::Exact(String::new()))
+                .with_status(200)
+                .with_header("content-type", "application/json")
+                .with_header("content-encoding", encoding)
+                .with_body(encode(body))
+                .create(),
+        );
+    }
+    let corrupt = server
+        .mock("GET", "/corrupt-gzip")
+        .match_header("accept-encoding", DEFAULT_ACCEPT_ENCODING)
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(200)
+        .with_header("content-encoding", "gzip")
+        .with_body("not a gzip stream")
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    choose_method(cx, "GET").unwrap();
+    let mut urls = Vec::new();
+    for (index, (path, _, body, _)) in cases.into_iter().enumerate() {
+        let url = format!("{}{path}", server.url());
+        if index == 0 {
+            type_into(cx, "url-input", &url).unwrap();
+        } else {
+            replace_text(cx, "url-input", &url).unwrap();
+        }
+        urls.push(url.clone());
+        assert_eq!(
+            workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+            url,
+            "the latest compressed endpoint edit must be authoritative before Send"
+        );
+
+        click(cx, "send-button").unwrap();
+        cx.run_until_parked();
+
+        workspace.read_with(cx, |workspace, _| {
+            assert_eq!(workspace.method(), HttpMethod::GET);
+            assert!(workspace.headers().is_empty());
+            assert_eq!(workspace.request_body(), RequestBody::None);
+            let ResponseState::Success {
+                status,
+                body: decoded,
+                headers,
+                ..
+            } = workspace.response()
+            else {
+                panic!("compressed response should complete successfully");
+            };
+            assert_eq!(*status, 200);
+            assert_eq!(decoded, body);
+            serde_json::from_str::<serde_json::Value>(decoded)
+                .expect("the decoded response should be readable JSON");
+            assert!(headers.iter().any(|(name, value)| {
+                name.eq_ignore_ascii_case("content-type") && value == "application/json"
+            }));
+            assert!(headers.iter().all(|(name, _)| {
+                !name.eq_ignore_ascii_case("content-encoding")
+                    && !name.eq_ignore_ascii_case("content-length")
+            }));
+
+            assert_eq!(workspace.history_len(), index + 1);
+            let entry = &workspace.history()[0];
+            assert_eq!(entry.request.method, HttpMethod::GET);
+            assert_eq!(entry.request.url, url);
+            assert!(entry.request.headers.is_empty());
+            assert_eq!(entry.request.body, RequestBody::None);
+            assert_eq!(entry.status, Some(200));
+            assert_eq!(entry.response_size, Some(body.len()));
+        });
+
+        for selector in [
+            "response-container",
+            "response-content",
+            "response-status-200",
+            "response-copy-button",
+            "history-method-0",
+            "history-status-200-0",
+        ] {
+            assert!(
+                cx.debug_bounds(selector).is_some(),
+                "Issue #67 lifecycle element `{selector}` should be rendered"
+            );
+        }
+        cx.write_to_clipboard(ClipboardItem::new_string("compressed sentinel".to_string()));
+        click(cx, "response-copy-button").unwrap();
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some(body.to_string()),
+            "Quick Copy must use the canonical decoded body"
+        );
+        click(cx, "response-pane-headers").unwrap();
+        assert!(cx.debug_bounds("response-content").is_some());
+        click(cx, "response-pane-body").unwrap();
+    }
+
+    replace_text(cx, "url-input", &format!("{}/corrupt-gzip", server.url())).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Error { message } => assert!(
+            message.to_ascii_lowercase().contains("decod"),
+            "decoder failure should be readable: {message}"
+        ),
+        other => panic!("corrupt compressed bytes must produce an error state: {other:?}"),
+    }
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.history_len()),
+        3,
+        "a decoder failure must not fabricate a successful History entry"
+    );
+    assert!(cx.debug_bounds("response-transport-error").is_some());
+    assert!(cx.debug_bounds("response-copy-button").is_none());
+
+    click(cx, "history-item-2").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::GET);
+        assert_eq!(workspace.url(), urls[0]);
+        assert!(workspace.headers().is_empty());
+        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert!(matches!(workspace.response(), ResponseState::NotSent));
+    });
+
+    for request in requests {
+        request.assert();
+    }
+    corrupt.assert();
 }
 
 #[gpui::test]

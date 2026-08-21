@@ -30,6 +30,9 @@ const DELAY_CANCELLED_SCENARIO: &str = "HTTPBingo delayed request is cancelled b
 const DELAY_TIMEOUT_SCENARIO: &str = "HTTPBingo delayed request reaches its configured timeout";
 const HEAD_SCENARIO: &str = "HTTPBingo receives HEAD and returns headers without a response body";
 const OPTIONS_SCENARIO: &str = "HTTPBingo receives OPTIONS without rewriting it to GET";
+const GZIP_SCENARIO: &str = "HTTPBingo gzip response decodes into readable JSON";
+const DEFLATE_SCENARIO: &str = "HTTPBingo deflate response decodes into readable JSON";
+const BROTLI_SCENARIO: &str = "HTTPBingo reports the current Brotli provider capability";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
@@ -910,6 +913,166 @@ fn run_head_options_workflow(
     {
         return Err(format!(
             "OPTIONS History did not restore its exact request: {restored_options:?}"
+        ));
+    }
+
+    Ok(())
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_compression_decodes_readable_bodies_and_records_decoded_sizes(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let scenarios = [GZIP_SCENARIO, DEFLATE_SCENARIO, BROTLI_SCENARIO].map(|name| {
+        find_httpbingo_scenario(&files, name)
+            .unwrap_or_else(|failure| panic!("Issue #67 scenario lookup failed: {failure}"))
+    });
+
+    run_compression_workflow(test_cx, scenarios)
+        .unwrap_or_else(|failure| panic!("Issue #67 compression workflow failed:\n{failure}"));
+}
+
+fn run_compression_workflow(
+    test_cx: &mut TestAppContext,
+    scenarios: [&RequestScenario; 3],
+) -> Result<(), String> {
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let mut expected_requests = Vec::new();
+
+    for (index, scenario) in scenarios.into_iter().enumerate() {
+        let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+        if index > 0 {
+            click(cx, "new-tab-button")?;
+        }
+        choose_method(cx, &scenario.draft.method)?;
+        type_into(cx, "url-input", &expected.url)?;
+        click(cx, "send-button")?;
+        cx.run_until_parked();
+
+        let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+        assert_response_state(&response, &scenario.expect.response)?;
+        click(cx, "response-pane-body")?;
+        if cx.debug_bounds("response-content").is_none() {
+            return Err(format!(
+                "decoded body is not rendered for {}",
+                scenario.draft.path
+            ));
+        }
+        assert_response_quick_copy(cx, &workspace, &response)?;
+
+        let ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } = &response
+        else {
+            return Err(format!(
+                "compressed endpoint did not complete as an HTTP response: {response:?}"
+            ));
+        };
+        let json: serde_json::Value = serde_json::from_str(body).map_err(|error| {
+            format!(
+                "{} did not decode into readable JSON: {error}\n  body: {body}",
+                scenario.draft.path
+            )
+        })?;
+        if headers.iter().any(|(name, _)| {
+            name.eq_ignore_ascii_case("content-encoding")
+                || name.eq_ignore_ascii_case("content-length")
+        }) {
+            return Err(format!(
+                "{} retained stale wire headers after decoding: {headers:#?}",
+                scenario.draft.path
+            ));
+        }
+        match scenario.draft.path.as_str() {
+            "/gzip" if json.get("gzipped").and_then(serde_json::Value::as_bool) == Some(true) => {}
+            "/deflate"
+                if json.get("deflated").and_then(serde_json::Value::as_bool) == Some(true) => {}
+            "/brotli"
+                if *status == 501
+                    && json.get("error").and_then(serde_json::Value::as_str)
+                        == Some("Not Implemented") => {}
+            path => {
+                return Err(format!(
+                    "{path} returned the wrong decoded capability evidence: {json}"
+                ));
+            }
+        }
+
+        let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+        if history.len() != index + 1 {
+            return Err(format!(
+                "compression workflow History length mismatch after {}: {}",
+                scenario.draft.path,
+                history.len()
+            ));
+        }
+        let entry = &history[0];
+        assert_requests_equivalent(&entry.request, &expected)
+            .map_err(|error| format!("compression History request mismatch: {error}"))?;
+        if entry.status != Some(*status) || entry.response_size != Some(body.len()) {
+            return Err(format!(
+                "History must store the decoded response metrics for {}: status={:?}, size={:?}, decoded={}",
+                scenario.draft.path,
+                entry.status,
+                entry.response_size,
+                body.len()
+            ));
+        }
+
+        click(cx, "response-pane-headers")?;
+        if cx.debug_bounds("response-content").is_none() {
+            return Err(format!(
+                "post-decode headers are not inspectable for {}",
+                scenario.draft.path
+            ));
+        }
+        expected_requests.push(expected);
+    }
+
+    let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    let statuses = history.iter().map(|entry| entry.status).collect::<Vec<_>>();
+    if statuses != vec![Some(501), Some(200), Some(200)] {
+        return Err(format!(
+            "Brotli provider capability must remain distinct from decoder errors: {statuses:?}"
+        ));
+    }
+    for selector in ["history-method-0", "history-method-1", "history-method-2"] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "compression History element `{selector}` is not rendered"
+            ));
+        }
+    }
+
+    click(cx, "history-item-2")?;
+    let restored = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.headers().to_vec(),
+            workspace.request_body(),
+            workspace.response().clone(),
+        )
+    });
+    if restored
+        != (
+            HttpMethod::GET,
+            expected_requests[0].url.clone(),
+            Vec::new(),
+            RequestBody::None,
+            ResponseState::NotSent,
+        )
+    {
+        return Err(format!(
+            "compression History did not restore the original bodyless request: {restored:?}"
         ));
     }
 
