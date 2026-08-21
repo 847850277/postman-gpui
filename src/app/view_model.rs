@@ -2572,6 +2572,38 @@ mod tests {
     }
 
     #[test]
+    fn non_2xx_completion_remains_a_successful_response_and_enters_history() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://httpbingo.org/status/418");
+        let pending = workspace.begin_send();
+
+        assert!(workspace.complete_send(
+            pending,
+            Ok(RequestResult {
+                status: 418,
+                headers: vec![("content-type".into(), "text/plain".into())],
+                body: "I'm a teapot!".into(),
+                elapsed_ms: 7,
+            })
+        ));
+
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success {
+                status: 418,
+                body,
+                ..
+            } if body == "I'm a teapot!"
+        ));
+        assert_eq!(workspace.history_len(), 1);
+        assert_eq!(workspace.history()[0].status, Some(418));
+        assert_eq!(
+            workspace.history()[0].request.url,
+            "https://httpbingo.org/status/418"
+        );
+    }
+
+    #[test]
     fn completion_targets_the_originating_tab_after_the_user_switches_tabs() {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://first.example/slow");

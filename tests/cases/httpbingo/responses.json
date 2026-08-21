@@ -38,7 +38,8 @@
         },
         "response": {
           "kind": "success",
-          "status": 418
+          "status": 418,
+          "body_contains": "I'm a teapot!"
         },
         "history_len": 1
       }

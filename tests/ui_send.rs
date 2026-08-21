@@ -76,6 +76,90 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut TestAppContext) {
+    let response_body = "I'm a teapot!";
+    let mut server = mockito::Server::new();
+    let request = server
+        .mock("GET", "/status/418")
+        .match_body(Matcher::Exact(String::new()))
+        .with_status(418)
+        .with_header("content-type", "text/plain")
+        .with_body(response_body)
+        .create();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let url = format!("{}/status/418", server.url());
+    type_into(cx, "url-input", &url).unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        url,
+        "the active URL input must be authoritative before Send"
+    );
+
+    // Send directly from the active URL field: no Enter, Tab, blur, or submit-time backfill.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } => {
+            assert_eq!(status, 418);
+            assert_eq!(body, response_body);
+            assert!(headers.iter().any(|(name, value)| {
+                name.eq_ignore_ascii_case("content-type") && value == "text/plain"
+            }));
+        }
+        other => panic!("HTTP 418 must complete as an HTTP response: {other:?}"),
+    }
+
+    for selector in [
+        "response-container",
+        "response-content",
+        "response-status",
+        "response-status-418",
+        "response-copy-button",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #61 view contract element `{selector}` should be rendered"
+        );
+    }
+    assert!(
+        cx.debug_bounds("response-transport-error").is_none(),
+        "a completed HTTP 418 response must not use the transport-error surface"
+    );
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.history_len(), 1);
+        let entry = &workspace.history()[0];
+        assert_eq!(entry.request.method, HttpMethod::GET);
+        assert_eq!(entry.request.url, url);
+        assert_eq!(entry.request.body, RequestBody::None);
+        assert_eq!(entry.status, Some(418));
+        assert_eq!(entry.response_size, Some(response_body.len()));
+    });
+    for selector in [
+        "history-method-0",
+        "history-response-detail-0",
+        "history-status-418-0",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "Issue #61 History contract element `{selector}` should be rendered"
+        );
+    }
+
+    request.assert();
+}
+
+#[gpui::test]
 fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
