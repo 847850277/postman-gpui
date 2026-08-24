@@ -4,7 +4,7 @@ use crate::{
     http::executor::RequestResult,
     models::{
         HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request,
-        RequestBody, RequestEditorIntent, RequestHistory,
+        RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
     },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -1186,6 +1186,7 @@ impl RequestViewModel {
 
     fn load_history_entry(&mut self, entry: &HistoryEntry) {
         self.load_request(&entry.request);
+        self.timeout_ms = entry.request_options.timeout_ms.unwrap_or(0);
         if let Some(intent) = &entry.editor_intent {
             self.body_draft = RequestBodyDraft::from_editor_intent(intent);
             self.request_pane = RequestPane::Body;
@@ -1656,14 +1657,19 @@ impl WorkspaceViewModel {
         if let Some((status, elapsed_ms, response_size)) =
             completed_response.filter(|_| !was_cancelled)
         {
-            self.history.add_completed_with_intent(
+            let entry = HistoryEntry::completed_with_intent_and_options(
                 pending.request.clone(),
                 history_label(&pending.request.url),
                 status,
                 elapsed_ms,
                 response_size,
                 pending.editor_intent.clone(),
+                RequestOptions {
+                    timeout_ms: pending.timeout_ms,
+                    ..RequestOptions::default()
+                },
             );
+            self.history.add_entry(entry);
         }
         applied
     }
@@ -2958,6 +2964,23 @@ mod tests {
         assert_eq!(workspace.active_request_id(), None);
         assert_eq!(workspace.in_flight_count(), 0);
         assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
+    fn completed_history_captures_and_replays_request_timeout() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/slow");
+        workspace.set_timeout_ms(1_250);
+        let pending = workspace.begin_send();
+
+        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
+        let entry = workspace.history()[0].clone();
+        assert_eq!(entry.request_options.timeout_ms, Some(1_250));
+
+        workspace.new_request();
+        assert_eq!(workspace.timeout_ms(), 0);
+        workspace.load_history_entry(&entry);
+        assert_eq!(workspace.timeout_ms(), 1_250);
     }
 
     #[test]

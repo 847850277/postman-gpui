@@ -15,13 +15,14 @@ serde_json = "1.0"
 chrono = "0.4"
 form_urlencoded = "1.2"
 mime_guess = "2"
+serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 brotli = "8"
 flate2 = "1"
 gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["test-support"] }
 mockito = "1"
-serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }

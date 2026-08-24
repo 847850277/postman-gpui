@@ -1,5 +1,6 @@
-use super::request::{MultipartValue, Request};
+use super::request::{MultipartValue, Request, RequestOptions};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[cfg(test)]
 use super::request::HttpMethod;
@@ -24,8 +25,11 @@ pub struct MultipartEditorPart {
 /// Request history entry
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
+    /// Stable identity retained across persistence and replay.
+    pub id: String,
     pub request: Request,
     pub editor_intent: Option<RequestEditorIntent>,
+    pub request_options: RequestOptions,
     pub timestamp: DateTime<Utc>,
     pub name: String,
     pub status: Option<u16>,
@@ -36,8 +40,10 @@ pub struct HistoryEntry {
 impl HistoryEntry {
     pub fn new(request: Request, name: String) -> Self {
         Self {
+            id: Uuid::new_v4().to_string(),
             request,
             editor_intent: None,
+            request_options: RequestOptions::default(),
             timestamp: Utc::now(),
             name,
             status: None,
@@ -64,9 +70,31 @@ impl HistoryEntry {
         response_size: usize,
         editor_intent: Option<RequestEditorIntent>,
     ) -> Self {
+        Self::completed_with_intent_and_options(
+            request,
+            name,
+            status,
+            elapsed_ms,
+            response_size,
+            editor_intent,
+            RequestOptions::default(),
+        )
+    }
+
+    pub fn completed_with_intent_and_options(
+        request: Request,
+        name: String,
+        status: u16,
+        elapsed_ms: u128,
+        response_size: usize,
+        editor_intent: Option<RequestEditorIntent>,
+        request_options: RequestOptions,
+    ) -> Self {
         Self {
+            id: Uuid::new_v4().to_string(),
             request,
             editor_intent,
+            request_options,
             timestamp: Utc::now(),
             name,
             status: Some(status),
@@ -139,7 +167,7 @@ impl RequestHistory {
         self.add_entry(entry);
     }
 
-    fn add_entry(&mut self, entry: HistoryEntry) {
+    pub(crate) fn add_entry(&mut self, entry: HistoryEntry) {
         self.entries.insert(0, entry); // Add to front (newest first)
 
         // Trim to max entries
@@ -285,5 +313,15 @@ mod tests {
         let entry = HistoryEntry::new(request, "Users API".to_string());
 
         assert_eq!(entry.display_name(), "GET Users API");
+    }
+
+    #[test]
+    fn history_entries_receive_distinct_stable_ids() {
+        let first = HistoryEntry::new(Request::default(), "first".to_string());
+        let second = HistoryEntry::new(Request::default(), "second".to_string());
+
+        assert_ne!(first.id, second.id);
+        assert!(Uuid::parse_str(&first.id).is_ok());
+        assert!(Uuid::parse_str(&second.id).is_ok());
     }
 }

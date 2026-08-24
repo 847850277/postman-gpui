@@ -2,6 +2,37 @@ use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+/// Product default used by the transport and persisted replay snapshots.
+pub const DEFAULT_MAX_REDIRECT_HOPS: u32 = 10;
+pub const MAX_REDIRECT_HOPS: u32 = 100;
+
+/// Redirect behavior is part of replay intent even though the current transport exposes only the
+/// default in the UI. Issue #68 can wire these model values into per-request execution without a
+/// persistence-format change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectPolicy {
+    Follow,
+    DoNotFollow,
+}
+
+/// Request options that affect wire behavior and therefore must survive History replay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RequestOptions {
+    pub timeout_ms: Option<u64>,
+    pub redirect_policy: RedirectPolicy,
+    pub max_redirect_hops: u32,
+}
+
+impl Default for RequestOptions {
+    fn default() -> Self {
+        Self {
+            timeout_ms: None,
+            redirect_policy: RedirectPolicy::Follow,
+            max_redirect_hops: DEFAULT_MAX_REDIRECT_HOPS,
+        }
+    }
+}
+
 /// HTTP 请求方法枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HttpMethod {
@@ -357,5 +388,17 @@ mod tests {
     fn test_request_with_http_method_enum() {
         let request = Request::new(HttpMethod::POST, "https://api.example.com");
         assert_eq!(request.method, HttpMethod::POST);
+    }
+
+    #[test]
+    fn request_options_match_current_transport_defaults() {
+        assert_eq!(
+            RequestOptions::default(),
+            RequestOptions {
+                timeout_ms: None,
+                redirect_policy: RedirectPolicy::Follow,
+                max_redirect_hops: 10,
+            }
+        );
     }
 }
