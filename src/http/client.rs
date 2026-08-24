@@ -1,6 +1,8 @@
 use crate::errors::AppError;
 use crate::http::response::HttpResponse;
-use crate::models::{HttpMethod, MultipartPart, MultipartValue, Request, RequestBody};
+use crate::models::{
+    HttpMethod, MultipartPart, MultipartValue, Request, RequestBody, DEFAULT_MAX_REDIRECT_HOPS,
+};
 use reqwest::{
     cookie::{CookieStore, Jar},
     header::HeaderValue,
@@ -12,7 +14,6 @@ use std::{
 };
 
 const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
-const DEFAULT_REDIRECT_LIMIT: usize = 10;
 
 tokio::task_local! {
     static RESPONSE_COOKIE_CAPTURE: Arc<Mutex<Vec<(String, String)>>>;
@@ -178,7 +179,9 @@ fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>) -> ClientBuilder {
         .user_agent(DEFAULT_USER_AGENT)
         // Redirect following is part of the application's request contract. Keep the policy
         // explicit so a dependency default cannot silently change that behavior.
-        .redirect(reqwest::redirect::Policy::limited(DEFAULT_REDIRECT_LIMIT))
+        .redirect(reqwest::redirect::Policy::limited(
+            DEFAULT_MAX_REDIRECT_HOPS as usize,
+        ))
         // Both connection pools belong to one application session. The observable provider
         // retains cookies from intermediate redirects and adds them to later requests.
         .cookie_provider(cookie_jar)

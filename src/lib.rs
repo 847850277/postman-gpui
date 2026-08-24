@@ -4,5 +4,6 @@ pub mod assets;
 pub mod errors;
 pub mod http;
 pub mod models;
+pub mod persistence;
 pub mod ui;
 pub mod utils;
