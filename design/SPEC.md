@@ -117,12 +117,37 @@ A response content item must show, when applicable:
 3. positive evidence for included values;
 4. negative evidence for values that must be absent;
 5. consistency between `ResponseState`, rendered response, and History;
-6. a compact **Copy** action when a response body is populated. The action
-   copies the complete body from `ResponseState`, never a truncated visual
-   subset, and is absent from empty or **Not sent** states.
+6. a compact **Copy** action when a text response body is populated. The
+   action copies the complete body from `ResponseState`, never a truncated
+   visual subset, and is absent from empty or **Not sent** states. Byte-only
+   responses expose **Save as…** instead and explicitly omit text Copy.
 
 Sensitive values may be illustrative scenario values. Never place real
 credentials or production secrets in a design artifact.
+
+### Persistent History boundary
+
+When a slice touches durable History, the design must distinguish the runtime
+History projection from the versioned snapshot stored by the History
+application service and repository.
+
+- Persist the sanitized replay request and response metadata, never response
+  bodies, download spools or destinations, tabs, active-tab state, panes,
+  drafts, dirty state, cookie jars, or plaintext authorization/cookie values.
+- A recovered History selection may reuse the normal replay command, but it
+  must restore the sanitized request into the active ViewModel and reset the
+  active response to `ResponseState::NotSent`. A historical HTTP status remains
+  row metadata; it is not restored as the active response.
+- A versioned replay snapshot must include request options that affect wire
+  behavior, including timeout and redirect policy / hop limits.
+- Completed HTTP exchanges, including non-2xx responses, may persist exactly
+  once. Cancelled and no-response failures must not persist, even if partial
+  headers or bytes were observed.
+- Storage read, append, migration, corruption, and clear failures must remain
+  nonfatal and visibly distinguish durable rows from volatile-only rows.
+- Persistence/restart tests should use an isolated SQLite database and a
+  deterministic local server. Public echo examples still use the HTTPS
+  HTTPBingo origin.
 
 All public echo examples and E2E endpoint labels must use the HTTPS HTTPBingo
 origin, `https://httpbingo.org`. Do not use the legacy HTTPBin origin or generic
@@ -226,7 +251,8 @@ The normal CI test job runs this integration test through
 - [ ] Request and stable response evidence are visible
 - [ ] Public endpoint examples use `https://httpbingo.org`
 - [ ] ResponseState, View, and History lifecycle is represented
-- [ ] Populated responses expose Copy; empty and Not sent states do not
+- [ ] Durable History is separated from runtime response, tab, draft, and secret state
+- [ ] Populated text responses expose Copy; byte-only responses expose Save as…; empty and Not sent states expose neither
 - [ ] Shared tokens are unchanged
 - [ ] README and GitHub issue links are present
 - [ ] `cargo test --test design_artifacts` passes

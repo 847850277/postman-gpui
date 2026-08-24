@@ -1,0 +1,2991 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "tp141",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #69 · Downloads and Streaming Responses",
+      "context": "GitHub Issue #69 · child of roadmap #50 · binary, range, streaming, cancellation, and atomic save behavior",
+      "clip": true,
+      "width": 1600,
+      "height": 2020,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "DtxUG",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Nl1Sw",
+              "name": "Downloads Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$blueSoft",
+              "cornerRadius": 20,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "GUUWl",
+                  "name": "Download Stream Feature Icon",
+                  "width": 34,
+                  "height": 34,
+                  "icon": "hard-drive-download",
+                  "library": "lucide",
+                  "fill": "$blue"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "C3phi",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 9,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "f5pRD",
+                  "name": "Issue and Delivery Status",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "UtbBo",
+                      "name": "Issue Badge",
+                      "height": 24,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 7,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "LZKU8",
+                          "name": "Issue Number",
+                          "fill": "$accentInk",
+                          "content": "#69",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "rS3bb",
+                      "name": "Issue URL",
+                      "fill": "$subtle",
+                      "content": "github.com/847850277/postman-gpui/issues/69",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "juafH",
+                      "name": "Delivery Status",
+                      "height": 24,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 7,
+                      "padding": [
+                        0,
+                        9
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ShGIZ",
+                          "name": "Delivery Status Label",
+                          "fill": "$green",
+                          "content": "DESIGN READY · IMPLEMENTATION PENDING",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "pcByb",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Downloads and Streaming Responses",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "LcAF5",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Preserve response bytes, expose bounded streaming progress and cancellation, and commit saved files atomically without ever presenting a partial destination.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Ec9ne",
+              "name": "Endpoint Scope Snapshot",
+              "width": 430,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Yb6N1",
+                  "name": "Scope Label",
+                  "fill": "$subtle",
+                  "content": "HTTPBINGO ENDPOINT SCOPE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "LbwGn",
+                  "name": "Scope Value",
+                  "fill": "$codeText",
+                  "content": "/bytes/:n · /range/:n · /stream/:n · /drip",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "IVEGg",
+                  "name": "Scope Note",
+                  "fill": "$muted",
+                  "content": "Binary hex ≤ 256 B · streaming preview ≤ 64 KiB · full payload file-backed",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Z1jJyv",
+          "name": "Application State · Downloads and Streaming Responses",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "jvpxH",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 20,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "p3uexF",
+                  "name": "Brand",
+                  "width": 280,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "oxsZP",
+                      "name": "Postman GPUI Brand Mark",
+                      "width": 32,
+                      "height": 32,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "OTtVI",
+                          "name": "Brand Send Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "send",
+                          "library": "lucide",
+                          "fill": "$accentInk"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "LR8Pu",
+                      "name": "Brand Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 15,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PW8XH",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 9,
+                  "padding": [
+                    0,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "UgbBk",
+                      "name": "Global Search Icon",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "VoAdq",
+                      "name": "Global Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rcg2e",
+                  "name": "Environment",
+                  "width": 190,
+                  "height": 36,
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "HTdJF",
+                      "name": "Environment Connected Indicator",
+                      "fill": "$green",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "Tio5v",
+                      "name": "Environment Label",
+                      "fill": "$muted",
+                      "content": "HTTPBingo · connected",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "dVAef",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Y5P55",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    16,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "L1iS7P",
+                      "name": "Rail Requests Active",
+                      "width": 38,
+                      "height": 38,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "H0Uvid",
+                          "name": "Requests Rail Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "folder-open",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "P3D5rM",
+                      "name": "Rail History",
+                      "width": 38,
+                      "height": 38,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Ikuxv",
+                          "name": "History Rail Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "wW3pH",
+                      "name": "Rail Collections",
+                      "width": 38,
+                      "height": 38,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "N0xSBq",
+                          "name": "Collections Rail Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "layers",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "MFEUx",
+                      "name": "Rail Settings",
+                      "width": 38,
+                      "height": 38,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "e6pGw",
+                          "name": "Settings Rail Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tB12t",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "t8NFSv",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "G82Tm",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 16,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "DYj4j",
+                          "name": "History Success Count",
+                          "height": 22,
+                          "fill": "$greenSoft",
+                          "cornerRadius": 7,
+                          "padding": [
+                            0,
+                            8
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "OZZYU",
+                              "name": "History Success Count Label",
+                              "fill": "$green",
+                              "content": "3 completed",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "CqJ2s",
+                      "name": "History Scope Label",
+                      "fill": "$subtle",
+                      "content": "WORKSPACE · SUCCESSFUL TERMINAL RESPONSES",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CCUQN",
+                      "name": "History Result · Binary Download",
+                      "width": "fill_container",
+                      "height": 92,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "DPUwO",
+                          "name": "History Result · Binary Download Summary",
+                          "width": "fill_container",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "u6kNHQ",
+                              "name": "History Result · Binary Download Method",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "xhDjp",
+                              "name": "History Result · Binary Download Status",
+                              "fill": "$blue",
+                              "content": "200 · 64 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "QLKn7",
+                          "name": "History Result · Binary Download URL",
+                          "fill": "$codeText",
+                          "content": "/bytes/64",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "cYBqV",
+                          "name": "History Result · Binary Download Lifecycle",
+                          "fill": "$muted",
+                          "content": "ResponseState::Success · metadata only",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TjO7o",
+                      "name": "History Result · Range Slice",
+                      "width": "fill_container",
+                      "height": 92,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "K8DZ1",
+                          "name": "History Result · Range Slice Summary",
+                          "width": "fill_container",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "X2epT",
+                              "name": "History Result · Range Slice Method",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "L7VtJ",
+                              "name": "History Result · Range Slice Status",
+                              "fill": "$green",
+                              "content": "206 · 32 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "R4Ufw",
+                          "name": "History Result · Range Slice URL",
+                          "fill": "$codeText",
+                          "content": "/range/128",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Kkifo",
+                          "name": "History Result · Range Slice Lifecycle",
+                          "fill": "$muted",
+                          "content": "ResponseState::Success · metadata only",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Er1Nn",
+                      "name": "History Result · Completed Stream",
+                      "width": "fill_container",
+                      "height": 92,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "jdCgv",
+                          "name": "History Result · Completed Stream Summary",
+                          "width": "fill_container",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "b8pz0g",
+                              "name": "History Result · Completed Stream Method",
+                              "fill": "$accent",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "g9FV1G",
+                              "name": "History Result · Completed Stream Status",
+                              "fill": "$green",
+                              "content": "200 · 5 chunks",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "FcUqe",
+                          "name": "History Result · Completed Stream URL",
+                          "fill": "$codeText",
+                          "content": "/stream/5",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "HE5lu",
+                          "name": "History Result · Completed Stream Lifecycle",
+                          "fill": "$muted",
+                          "content": "ResponseState::Success · metadata only",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "F15pv",
+                      "name": "History Success-Only Rule Content Item",
+                      "width": "fill_container",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "W4llCK",
+                          "name": "History Success-Only Rule Title",
+                          "fill": "$accent",
+                          "content": "CANCELLED IS ABSENT",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "AvWts",
+                          "name": "History Success-Only Rule Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Cancelled stream creates no successful History entry.",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "650"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "F9I8PI",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "S1QPMY",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 48,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "JwDGq",
+                          "name": "Request Tab · Binary Download Active",
+                          "height": 34,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 9,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "Ip0ha",
+                              "name": "Request Tab Ready Indicator",
+                              "fill": "$green",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "BgyQx",
+                              "name": "Request Tab Label",
+                              "fill": "$text",
+                              "content": "GET · bytes/64",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "750"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "Brgt1",
+                              "name": "Request Tab Close Control",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Y8a9o",
+                          "name": "New Request Tab Control",
+                          "width": 28,
+                          "height": 28,
+                          "fill": "$panel",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "J1J9Q",
+                              "name": "New Request Tab Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BM7xG",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        14,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "aCK0S",
+                          "name": "Method Control · GET Selected",
+                          "width": 96,
+                          "height": 42,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 9,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "kH8E8",
+                              "name": "Method Value",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "850"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "w1XDQ",
+                              "name": "Method Dropdown Icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "GDhHn",
+                          "name": "Active URL Input",
+                          "width": "fill_container",
+                          "height": 42,
+                          "fill": "$panel",
+                          "cornerRadius": 9,
+                          "stroke": "$blue",
+                          "strokeWidth": 1,
+                          "gap": 9,
+                          "padding": [
+                            0,
+                            13
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "EU4ha",
+                              "name": "URL Lock Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "lock-keyhole",
+                              "library": "lucide",
+                              "fill": "$green"
+                            },
+                            {
+                              "type": "text",
+                              "id": "KkPgt",
+                              "name": "Active Binary Download URL Content Item",
+                              "fill": "$codeText",
+                              "content": "https://httpbingo.org/bytes/64",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "650"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ToAyB",
+                          "name": "Send Request Control",
+                          "width": 92,
+                          "height": 42,
+                          "fill": "$accentVivid",
+                          "cornerRadius": 9,
+                          "gap": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ba2Vq",
+                              "name": "Send Request Label",
+                              "fill": "$accentInk",
+                              "content": "Send",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "850"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "v48G1y",
+                              "name": "Send Request Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "send",
+                              "library": "lucide",
+                              "fill": "$accentInk"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "auJG7",
+                      "name": "Download and Stream Request Editor",
+                      "width": "fill_container",
+                      "height": 220,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Oc7Bm",
+                          "name": "Request Editor Tabs",
+                          "width": "fill_container",
+                          "height": 40,
+                          "fill": "$panelAlt",
+                          "gap": 24,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "T5xTV",
+                              "name": "Editor Tab · Params",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "gYWuN",
+                                  "name": "Editor Tab Label · Params",
+                                  "fill": "$muted",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "kLGys",
+                              "name": "Editor Tab · Authorization",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "FQW99",
+                                  "name": "Editor Tab Label · Authorization",
+                                  "fill": "$muted",
+                                  "content": "Authorization",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "gvySc",
+                              "name": "Editor Tab · Headers (0) Selected",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "J1eLU",
+                                  "name": "Editor Tab Label · Headers (0)",
+                                  "fill": "$blue",
+                                  "content": "Headers (0)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n5MDgs",
+                              "name": "Editor Tab · Body",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ujDjn",
+                                  "name": "Editor Tab Label · Body",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "eQSnl",
+                              "name": "Editor Tab · Scripts",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "N9XMa",
+                                  "name": "Editor Tab Label · Scripts",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FcE5Y",
+                              "name": "Editor Tab · Tests",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "BxjTj",
+                                  "name": "Editor Tab Label · Tests",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Id5UT",
+                              "name": "Editor Tab · Options",
+                              "height": 40,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "TSnb7",
+                                  "name": "Editor Tab Label · Options",
+                                  "fill": "$muted",
+                                  "content": "Options",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "GjkbO",
+                          "name": "Download Request Projection",
+                          "width": "fill_container",
+                          "height": 180,
+                          "fill": "$panel",
+                          "gap": 12,
+                          "padding": 14,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "ML78c",
+                              "name": "Active Binary Request Content Item",
+                              "width": 340,
+                              "height": "fill_container",
+                              "fill": "$blueSoft",
+                              "cornerRadius": 11,
+                              "layout": "vertical",
+                              "gap": 9,
+                              "padding": 13,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "g4Cwz",
+                                  "name": "Active Binary Request Label",
+                                  "fill": "$blue",
+                                  "content": "ACTIVE REQUEST · READY",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 8,
+                                  "fontWeight": "850"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aHrMX",
+                                  "name": "Active Binary Request Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "GET https://httpbingo.org/bytes/64",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "VvNwz",
+                                  "name": "Active Draft Commit Contract",
+                                  "fill": "$muted",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Latest URL is already in ViewModel · direct Send · no Enter, Tab, blur, Add, or backfill.",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "SJvVx",
+                              "name": "Outgoing Download Request Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panelAlt",
+                              "cornerRadius": 11,
+                              "layout": "vertical",
+                              "gap": 9,
+                              "padding": 13,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "om93R",
+                                  "name": "Outgoing Download Label",
+                                  "fill": "$green",
+                                  "content": "OUTGOING REQUEST · EXACT",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 8,
+                                  "fontWeight": "850"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "eVBEP",
+                                  "name": "Outgoing Download Value",
+                                  "fill": "$codeText",
+                                  "content": "GET /bytes/64 · RequestBody::None",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "750"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "dJlxJ",
+                                  "name": "Automatic Response Handling Rule",
+                                  "fill": "$muted",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Accept-Encoding is provider-managed; response body remains byte-native until content classification.",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "zcl0k",
+                              "name": "Range Response Verification Content Item",
+                              "width": 350,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 11,
+                              "layout": "vertical",
+                              "gap": 7,
+                              "padding": 13,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "BTFtA",
+                                  "name": "Range Verification Label",
+                                  "fill": "$green",
+                                  "content": "SECONDARY RANGE RUN · STABLE",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 8,
+                                  "fontWeight": "850"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "fQnAm",
+                                  "name": "Range Request Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "GET /range/128 · Range: bytes=32-63",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "750"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "kuh3C",
+                                  "name": "Range Response Value",
+                                  "fill": "$muted",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "206 Partial Content · Content-Range: bytes 32-63/128 · 32 B received",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RsmCd",
+                      "name": "HTTPBingo Binary Download Response Panel",
+                      "width": "fill_container",
+                      "height": 488,
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "y6B0t",
+                          "name": "Binary Response Header",
+                          "width": "fill_container",
+                          "height": 58,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 18,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "S1N2s",
+                              "name": "Response Panel Title",
+                              "fill": "$text",
+                              "content": "Response",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 15,
+                              "fontWeight": "850"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FH0NC",
+                              "name": "Response Body Tab Selected",
+                              "height": 58,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ufqxK",
+                                  "name": "Response Body Tab Label",
+                                  "fill": "$blue",
+                                  "content": "Body · selected",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "E6f2ol",
+                              "name": "Response Headers Tab Control",
+                              "height": 58,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Ws4kg",
+                                  "name": "Response Headers Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Headers (8)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "650"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "q2rpO",
+                              "name": "Binary Response Lifecycle Badge",
+                              "width": "fill_container",
+                              "justifyContent": "end",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d371w",
+                                  "name": "Binary Response Lifecycle Value",
+                                  "fill": "$green",
+                                  "content": "ResponseState::Success { status: 200 }",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ez2V2",
+                              "name": "Binary Download Save Control",
+                              "height": 34,
+                              "fill": "$accentVivid",
+                              "cornerRadius": 8,
+                              "gap": 7,
+                              "padding": [
+                                0,
+                                11
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "j3rDZq",
+                                  "name": "Save As Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "download",
+                                  "library": "lucide",
+                                  "fill": "$accentInk"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "jXx0t",
+                                  "name": "Save As Label",
+                                  "fill": "$accentInk",
+                                  "content": "Save as…",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "850"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "l4ec0",
+                              "name": "Binary Response Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "850"
+                            },
+                            {
+                              "type": "text",
+                              "id": "rdbxY",
+                              "name": "Binary Response Size",
+                              "fill": "$muted",
+                              "content": "64 B",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SaCtB",
+                          "name": "Binary Response Body",
+                          "width": "fill_container",
+                          "height": 368,
+                          "fill": "$panel",
+                          "gap": 16,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "E1BHv",
+                              "name": "Binary Response Preview Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 11,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "RWi3y",
+                                  "name": "Binary Classification Summary",
+                                  "width": "fill_container",
+                                  "height": 64,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 11,
+                                  "gap": 12,
+                                  "padding": 12,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "YNPdt",
+                                      "name": "Binary Classification Icon Surface",
+                                      "width": 38,
+                                      "height": 38,
+                                      "fill": "$panel",
+                                      "cornerRadius": 9,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "jxF7J",
+                                          "name": "Binary File Icon",
+                                          "width": 19,
+                                          "height": 19,
+                                          "icon": "file-code",
+                                          "library": "lucide",
+                                          "fill": "$blue"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "qslex",
+                                      "name": "Binary Classification Text",
+                                      "width": "fill_container",
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "e53DyB",
+                                          "name": "Binary UTF-8 Suppression Content Item",
+                                          "fill": "$text",
+                                          "content": "Binary response · UTF-8 rendering disabled",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 12,
+                                          "fontWeight": "850"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "chRBh",
+                                          "name": "Binary Classification Rule",
+                                          "fill": "$muted",
+                                          "content": "application/octet-stream · ResponsePayload::Binary",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "650"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "tJFFI",
+                                  "name": "Binary Response Metrics",
+                                  "width": "fill_container",
+                                  "height": 58,
+                                  "gap": 10,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "d7w4H0",
+                                      "name": "Binary Byte Count Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "BCuhU",
+                                          "name": "Binary Byte Count Content Item Label",
+                                          "fill": "$subtle",
+                                          "content": "RECEIVED",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 7,
+                                          "fontWeight": "850"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "K2rqs",
+                                          "name": "Binary Byte Count Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "64 B received",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "azDMF",
+                                      "name": "Binary Content Type Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "J2AjK",
+                                          "name": "Binary Content Type Content Item Label",
+                                          "fill": "$subtle",
+                                          "content": "CONTENT-TYPE",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 7,
+                                          "fontWeight": "850"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "KAWcL",
+                                          "name": "Binary Content Type Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "application/octet-stream",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "cPTTI",
+                                      "name": "Binary Text Copy Suppression Content Item",
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$panelAlt",
+                                      "cornerRadius": 9,
+                                      "layout": "vertical",
+                                      "gap": 5,
+                                      "padding": 10,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "EyRBQ",
+                                          "name": "Binary Text Copy Suppression Content Item Label",
+                                          "fill": "$subtle",
+                                          "content": "TEXT ACTION",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 7,
+                                          "fontWeight": "850"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "hmCPf",
+                                          "name": "Binary Text Copy Suppression Content Item Value",
+                                          "fill": "$codeText",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "Binary payload · text Copy absent",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "y1v9A",
+                                  "name": "Binary Hex Preview Content Item",
+                                  "width": "fill_container",
+                                  "height": 146,
+                                  "fill": "$code",
+                                  "cornerRadius": 10,
+                                  "layout": "vertical",
+                                  "gap": 9,
+                                  "padding": 13,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "SUL6w",
+                                      "name": "Binary Hex Preview Header",
+                                      "width": "fill_container",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "rlyvf",
+                                          "name": "Binary Hex Preview Title",
+                                          "fill": "$blue",
+                                          "content": "HEX PREVIEW · first 64 of 64 bytes",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "850"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "tKrej",
+                                          "name": "Binary Hex Preview Limit",
+                                          "fill": "$subtle",
+                                          "content": "Binary hex preview ≤ 256 B",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 8,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "M0oUne",
+                                      "name": "Binary Hex Preview Bytes",
+                                      "fill": "$codeText",
+                                      "content": "0000  3A 91 07 C4  1F B0 6D 22  84 E1 50 0A  73 19 FF 2C\n0010  52 0D 8B 9A  C1 6E 34 77  05 A8 D2 40  9F 11 68 BE\n0020  7C 20 E9 45  36 F4 0B 99  12 D8 5A 01  E7 63 AC 30",
+                                      "lineHeight": 1.55,
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "t2moi1",
+                                      "name": "Binary Stable Assertion Note",
+                                      "fill": "$muted",
+                                      "content": "Preview values are illustrative; E2E asserts byte count, Content-Type, and saved-bytes equality.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 8,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "l9Iyc",
+                              "name": "Binary Save and Storage Contract",
+                              "width": 390,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "eq1ef",
+                                  "name": "Save Success Content Item",
+                                  "width": "fill_container",
+                                  "height": 98,
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 11,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "pzg4n",
+                                      "name": "Save Success Label",
+                                      "fill": "$green",
+                                      "content": "✓ SAVED · DESTINATION COMMITTED",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 8,
+                                      "fontWeight": "850"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "wxJq9",
+                                      "name": "Save Success Path",
+                                      "fill": "$codeText",
+                                      "content": "/tmp/httpbingo-bytes-64.bin",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "mC5sm",
+                                      "name": "Save Byte Equality Content Item",
+                                      "fill": "$muted",
+                                      "content": "64 / 64 bytes · saved bytes == received bytes",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "750"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Uap70",
+                                  "name": "Bounded Memory Rule Content Item",
+                                  "width": "fill_container",
+                                  "height": 98,
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 11,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "KuPz7",
+                                      "name": "Bounded Memory Rule Label",
+                                      "fill": "$blue",
+                                      "content": "BOUNDED PREVIEW · CANONICAL SPOOL",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 8,
+                                      "fontWeight": "850"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "cShkh",
+                                      "name": "Bounded Memory Rule Value",
+                                      "fill": "$codeText",
+                                      "content": "Streaming text preview ≤ 64 KiB",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "750"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "nzSUR",
+                                      "name": "Bounded Memory Rule Detail",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Full binary / streamed payload is file-backed from the first chunk; Save never re-fetches.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "z5k4P",
+                                  "name": "Atomic Save Commit Content Item",
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 11,
+                                  "layout": "vertical",
+                                  "gap": 7,
+                                  "padding": 12,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "cRup1",
+                                      "name": "Atomic Save Commit Label",
+                                      "fill": "$accent",
+                                      "content": "ATOMIC SAVE CONTRACT",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 8,
+                                      "fontWeight": "850"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "lyeJH",
+                                      "name": "Atomic Save Commit Value",
+                                      "fill": "$codeText",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "copy canonical spool → <destination>.part → fsync → atomic rename",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 8,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "i5Hx65",
+                                      "name": "Atomic Save Commit Detail",
+                                      "fill": "$muted",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "The requested final filename appears only after every byte is durable.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "650"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "pcUNR",
+                          "name": "Response View History Consistency Content Item",
+                          "width": "fill_container",
+                          "height": 62,
+                          "fill": "$text",
+                          "gap": 12,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "mHemr",
+                              "name": "Response Integrity Icon",
+                              "width": 17,
+                              "height": 17,
+                              "icon": "shield-check",
+                              "library": "lucide",
+                              "fill": "$greenSoft"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Yt0Qq",
+                              "name": "Response Integrity Summary",
+                              "fill": "$greenSoft",
+                              "content": "VIEW = ResponsePayload bytes · durable History = GET /bytes/64 + 200 + 64 B metadata · no body, spool, or save path",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "bLFpR",
+          "name": "State Row · Streaming, Cancellation, and Save Safety",
+          "width": "fill_container",
+          "height": 320,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 14,
+          "padding": 16,
+          "children": [
+            {
+              "type": "frame",
+              "id": "bbilw",
+              "name": "State 01 · Streaming Receiving",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$blueSoft",
+              "cornerRadius": 12,
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 13,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "vlKVp",
+                  "name": "App Header · Stream Receiving",
+                  "width": "fill_container",
+                  "height": 28,
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "yX9UK",
+                      "name": "Receiving App Indicator",
+                      "fill": "$blue",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "TJXLC",
+                      "name": "Receiving App Context",
+                      "fill": "$blue",
+                      "content": "POSTMAN GPUI · GET /stream/5",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "750"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "RtOSQ",
+                  "name": "State Title",
+                  "fill": "$text",
+                  "content": "01 · Receiving a stream",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "850"
+                },
+                {
+                  "type": "text",
+                  "id": "xT5H8",
+                  "name": "State Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Headers are complete; chunks continue into the canonical spool and bounded preview.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "wlvgn",
+                  "name": "Streaming Receiving State Content Item",
+                  "width": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Dsth9",
+                      "name": "Streaming Receiving Lifecycle",
+                      "fill": "$blue",
+                      "content": "ResponseState::Receiving",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Zc3MZ",
+                      "name": "Streaming Progress Content Item",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "3 / 5 chunks · 1.8 KiB received · total bytes unknown",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Hxi67",
+                      "name": "Indeterminate Streaming Progress Track",
+                      "width": "fill_container",
+                      "height": 8,
+                      "fill": "$line",
+                      "cornerRadius": 4,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "NIuCW",
+                          "name": "Indeterminate Streaming Progress Value",
+                          "width": 190,
+                          "height": 8,
+                          "fill": "$blue",
+                          "cornerRadius": 4
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "YfSWd",
+                  "name": "Streaming Cancel Control",
+                  "width": "fill_container",
+                  "height": 34,
+                  "fill": "$accentSoft",
+                  "cornerRadius": 8,
+                  "gap": 7,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "d1r12v",
+                      "name": "Streaming Cancel Icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "square",
+                      "library": "lucide",
+                      "fill": "$accent"
+                    },
+                    {
+                      "type": "text",
+                      "id": "aCMsU",
+                      "name": "Streaming Cancel Label",
+                      "fill": "$accent",
+                      "content": "Cancel receiving",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Gqndv",
+              "name": "State 02 · Streaming Completed",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$greenSoft",
+              "cornerRadius": 12,
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 13,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "gdZXG",
+                  "name": "App Header · Stream Completed",
+                  "width": "fill_container",
+                  "height": 28,
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "l4FmP2",
+                      "name": "Completed App Indicator",
+                      "fill": "$green",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "oIyUD",
+                      "name": "Completed App Context",
+                      "fill": "$green",
+                      "content": "POSTMAN GPUI · GET /stream/5",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "750"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "oJtFl",
+                  "name": "State Title",
+                  "fill": "$text",
+                  "content": "02 · Stream completed",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "850"
+                },
+                {
+                  "type": "text",
+                  "id": "p5CnPB",
+                  "name": "State Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Terminal success adds status / elapsed / response_size to History; preview and spool remain runtime-only.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "YCPdC",
+                  "name": "Streaming Completed State Content Item",
+                  "width": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "A1rnb",
+                      "name": "Streaming Completed Summary",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "NHzfC",
+                          "name": "Streaming Completed Lifecycle",
+                          "fill": "$green",
+                          "content": "ResponseState::Success",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "AQop6",
+                          "name": "Streaming Completed HTTP Status",
+                          "fill": "$green",
+                          "content": "200 OK",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "850"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "xRzVB",
+                      "name": "Streaming Completed Metrics",
+                      "fill": "$muted",
+                      "content": "5 / 5 chunks · bounded preview · full spool",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "dJvsj",
+                      "name": "Streaming Completed History",
+                      "fill": "$codeText",
+                      "content": "History +1 metadata · GET /stream/5",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PUPNp",
+                  "name": "Streaming Completed Save Control",
+                  "width": "fill_container",
+                  "height": 34,
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 7,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "TNZkc",
+                      "name": "Streaming Save Icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "download",
+                      "library": "lucide",
+                      "fill": "$green"
+                    },
+                    {
+                      "type": "text",
+                      "id": "D0M46",
+                      "name": "Streaming Save Label",
+                      "fill": "$green",
+                      "content": "Save as… · same bytes, no re-fetch",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "G2NAbC",
+              "name": "State 03 · User Cancellation",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$accentSoft",
+              "cornerRadius": 12,
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 13,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hqlf3",
+                  "name": "App Header · Stream Cancelled",
+                  "width": "fill_container",
+                  "height": 28,
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "kJ0I9",
+                      "name": "Cancelled App Indicator",
+                      "fill": "$accent",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "hoW1N",
+                      "name": "Cancelled App Context",
+                      "fill": "$accent",
+                      "content": "POSTMAN GPUI · GET /drip",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "750"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "EbyKm",
+                  "name": "State Title",
+                  "fill": "$text",
+                  "content": "03 · Cancelled by user",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "850"
+                },
+                {
+                  "type": "text",
+                  "id": "e5TOl",
+                  "name": "State Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Cancellation aborts the network read and retires the request_id before cleanup.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "wK51A",
+                  "name": "Streaming Cancellation State Content Item",
+                  "width": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "pQcAe",
+                      "name": "Streaming Cancellation Lifecycle",
+                      "fill": "$accent",
+                      "content": "ResponseState::Cancelled",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "q9Ci4e",
+                      "name": "Streaming Cancellation URL",
+                      "fill": "$codeText",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "https://httpbingo.org/drip?duration=2&numbytes=16&delay=0",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "650"
+                    },
+                    {
+                      "type": "text",
+                      "id": "j5Zefh",
+                      "name": "Streaming Cancellation Transport Rule",
+                      "fill": "$muted",
+                      "content": "transport read stopped · late chunks ignored",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "750"
+                    },
+                    {
+                      "type": "text",
+                      "id": "BAqZd",
+                      "name": "Streaming Cancellation Cleanup Rule",
+                      "fill": "$muted",
+                      "content": "internal spool removed · no successful History entry",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "750"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "bURCF",
+              "name": "State 04 · Save Failure",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$panelAlt",
+              "cornerRadius": 12,
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 13,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m2ebvM",
+                  "name": "App Header · Save Failure",
+                  "width": "fill_container",
+                  "height": 28,
+                  "gap": 7,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "D6ZU9H",
+                      "name": "Save Failure App Indicator",
+                      "fill": "$accent",
+                      "width": 7,
+                      "height": 7
+                    },
+                    {
+                      "type": "text",
+                      "id": "AmLK1",
+                      "name": "Save Failure App Context",
+                      "fill": "$accent",
+                      "content": "POSTMAN GPUI · SAVE /bytes/64",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "750"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "dJv87",
+                  "name": "State Title",
+                  "fill": "$text",
+                  "content": "04 · Save failed safely",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "850"
+                },
+                {
+                  "type": "text",
+                  "id": "y3z5bY",
+                  "name": "State Note",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "A write error never exposes incomplete bytes under the requested final filename.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "CtVUr",
+                  "name": "Save Failure Content Item",
+                  "width": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F0EFpd",
+                      "name": "Save Failure Headline",
+                      "fill": "$accent",
+                      "content": "Save failed · destination unchanged",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "850"
+                    },
+                    {
+                      "type": "text",
+                      "id": "nAuwX",
+                      "name": "Partial File Safety Rule Content Item",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "save failure: final destination unchanged · completed History metadata remains",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "750"
+                    },
+                    {
+                      "type": "text",
+                      "id": "y4uvB",
+                      "name": "Partial File Cleanup Rule",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "partial .part removed; cleanup failure keeps .part and exposes its path",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "750"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "aZbxR",
+                  "name": "Retained Partial Recovery Controls",
+                  "width": "fill_container",
+                  "height": 34,
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "RxlHI",
+                      "name": "Reveal Retained Partial Control",
+                      "width": "fill_container",
+                      "height": 34,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "x7ohhv",
+                          "name": "Reveal Retained Partial Control Label",
+                          "fill": "$muted",
+                          "content": "Reveal .part",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rDtuX",
+                      "name": "Delete Retained Partial Control",
+                      "width": "fill_container",
+                      "height": 34,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "j6CUFB",
+                          "name": "Delete Retained Partial Control Label",
+                          "fill": "$muted",
+                          "content": "Delete .part",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "zFIwf",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hH9nz",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [
+                0,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "DM2C6",
+                  "name": "Contract Icon Surface",
+                  "width": 42,
+                  "height": 42,
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "OefhK",
+                      "name": "Contract Verification Icon",
+                      "width": 20,
+                      "height": 20,
+                      "icon": "list-checks",
+                      "library": "lucide",
+                      "fill": "$green"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "BjEOT",
+                  "name": "Contract Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "w55pf",
+                      "name": "Contract Title",
+                      "fill": "$greenSoft",
+                      "content": "Issue #69 · Real UI download and streaming contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "850"
+                    },
+                    {
+                      "type": "text",
+                      "id": "BXBR7",
+                      "name": "Contract Traceability",
+                      "fill": "$line",
+                      "content": "Parent roadmap #50 → #69 · github.com/847850277/postman-gpui/issues/69",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "650"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kHoyZ",
+                  "name": "Contract Status",
+                  "height": 26,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 8,
+                  "padding": [
+                    0,
+                    9
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "h5h2t",
+                      "name": "Contract Status Label",
+                      "fill": "$accentInk",
+                      "content": "READY FOR IMPLEMENTATION",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "850"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GroPW",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Zv7wR",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 11,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kMgoV",
+                      "name": "Scenario Column Title",
+                      "fill": "$blue",
+                      "content": "ORDERED REAL-UI SCENARIO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "850"
+                    },
+                    {
+                      "type": "text",
+                      "id": "IRp3W",
+                      "name": "Scenario Test Paths",
+                      "fill": "$codeText",
+                      "content": "tests/ui_workspace.rs\ntests/cases/httpbingo/responses.json",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "K4P3n",
+                      "name": "Scenario Ordered Steps",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "1 · Focus the URL input, type https://httpbingo.org/bytes/64, then click Send directly without Enter, Tab, blur, Add, or submit-time backfill.\n2 · Binary response shows application/octet-stream and 64 B received; UTF-8 rendering and text Copy are absent.\n3 · Click Save as… with the injected test destination; saved bytes exactly equal the received ResponsePayload and no second request is sent.\n4 · Send GET /range/128 with Range: bytes=32-63; verify 206 Partial Content, Content-Range: bytes 32-63/128, and 32 B.\n5 · Send GET /stream/5; observe ResponseState::Receiving before ResponseState::Success and a successful History entry.\n6 · Send /drip, cancel while receiving, and verify transport read stops, late chunks are ignored, the spool is removed, and History does not gain success.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "650"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "p6Kig",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": 484,
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 11,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "c14xJ",
+                      "name": "Assertions Column Title",
+                      "fill": "$green",
+                      "content": "OBSERVABLE ASSERTIONS · STABLE SUBSET",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "850"
+                    },
+                    {
+                      "type": "text",
+                      "id": "w9eOrD",
+                      "name": "Binary and Range Assertions",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• /bytes/:n values are not asserted; byte_len, Content-Type, and disk bytes are exact.\n• /range/:n asserts 206 + Content-Range + the exact received 32-byte slice.\n• Binary payload is never decoded into String and exposes Save as… instead of text Copy.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "650"
+                    },
+                    {
+                      "type": "text",
+                      "id": "clY6u",
+                      "name": "Streaming Lifecycle Assertions",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• Receiving reports chunks / bytes and uses an indeterminate bar when total length is unknown.\n• Streaming text preview ≤ 64 KiB; full binary / streamed payload is file-backed from the first chunk.\n• Cancel commits ResponseState::Cancelled; stale request_id chunks cannot overwrite it; no success History row.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "650"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ykE15",
+                      "name": "Atomic Save Assertions",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• copy canonical spool → <destination>.part → fsync → atomic rename.\n• A save or cleanup failure never exposes a partial file under the requested final filename.\n• Normal failure removes .part; cleanup failure retains the .part suffix and exposes Reveal / Delete.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "650"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CTDy5",
+                  "name": "Scope and Non-Goals",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 11,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rnWmq",
+                      "name": "Boundary Column Title",
+                      "fill": "$accent",
+                      "content": "SCOPE · BOUNDARIES · OWNER",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "850"
+                    },
+                    {
+                      "type": "text",
+                      "id": "dAoic",
+                      "name": "Included Scope",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED\n/bytes, /range, /stream, /drip · byte-native payload · Receiving / Success / Cancelled · bounded preview · Save as · atomic commit · partial cleanup · History metadata consistency.",
+                      "lineHeight": 1.55,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "IkcIz",
+                      "name": "Explicit Non-Goals",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NON-GOALS / OUT OF SCOPE\nPersisting response bytes, canonical spools, or download destinations; download manager, resume / retry, parallel segments, media viewers, huge-body benchmarks, and OS-specific picker styling.",
+                      "lineHeight": 1.55,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 8,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "H9RuB",
+                      "name": "Workflow and Design Owner",
+                      "fill": "$codeText",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": ".github/workflows/httpbingo-e2e.yml\ndesign/issue-0069-downloads-streaming-responses.pen\nDedicated download_streaming scenario is added before implementation.",
+                      "lineHeight": 1.55,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "c9b1Fu",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "W1nQL",
+                  "name": "One-to-One Link Icon",
+                  "width": 17,
+                  "height": 17,
+                  "icon": "link-2",
+                  "library": "lucide",
+                  "fill": "$accentInk"
+                },
+                {
+                  "type": "text",
+                  "id": "lFV4G",
+                  "name": "One-to-One Label",
+                  "fill": "$accentInk",
+                  "content": "ONE ISSUE #69 · ONE E2E SLICE · ONE FILE: issue-0069-downloads-streaming-responses.pen",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "850"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}

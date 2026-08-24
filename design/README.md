@@ -47,12 +47,17 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#66 Delayed Requests, Cancellation, and Timeout](https://github.com/847850277/postman-gpui/issues/66) | [`issue-0066-delay-cancel-timeout.pen`](issue-0066-delay-cancel-timeout.pen) |
 | [#67 Gzip / Deflate / Brotli Response Decoding](https://github.com/847850277/postman-gpui/issues/67) | [`issue-0067-compressed-response-decoding.pen`](issue-0067-compressed-response-decoding.pen) |
 | [#68 Redirect Policy and Redirect Chains](https://github.com/847850277/postman-gpui/issues/68) | [`issue-0068-redirect-policy-chains.pen`](issue-0068-redirect-policy-chains.pen) |
+| [#69 Downloads and Streaming Responses](https://github.com/847850277/postman-gpui/issues/69) | [`issue-0069-downloads-streaming-responses.pen`](issue-0069-downloads-streaming-responses.pen) |
 | [#70 Global Search: Requests and History](https://github.com/847850277/postman-gpui/issues/70) | [`issue-0070-global-search.pen`](issue-0070-global-search.pen) |
 | [#72 Multiple Query Parameter Rows](https://github.com/847850277/postman-gpui/issues/72) | [`issue-0072-multiple-query-parameter-rows.pen`](issue-0072-multiple-query-parameter-rows.pen) |
 | [#74 Quick Copy for Populated Response Bodies](https://github.com/847850277/postman-gpui/issues/74) | [`issue-0074-response-quick-copy.pen`](issue-0074-response-quick-copy.pen) |
+| [#76 Response Headers Inspection](https://github.com/847850277/postman-gpui/issues/76) | [`issue-0076-response-headers-inspection.pen`](issue-0076-response-headers-inspection.pen) |
+| [#77 Replay Complete Requests from History](https://github.com/847850277/postman-gpui/issues/77) | [`issue-0077-history-request-replay.pen`](issue-0077-history-request-replay.pen) |
 | [#78 HEAD and OPTIONS Request Semantics](https://github.com/847850277/postman-gpui/issues/78) | [`issue-0078-head-options-methods.pen`](issue-0078-head-options-methods.pen) |
+| [#79 Multi-Tab Request Isolation and Switching](https://github.com/847850277/postman-gpui/issues/79) | [`issue-0079-multi-tab-request-isolation.pen`](issue-0079-multi-tab-request-isolation.pen) |
 | [#81 Multiple Header Rows](https://github.com/847850277/postman-gpui/issues/81) | [`issue-0081-multiple-header-rows.pen`](issue-0081-multiple-header-rows.pen) |
 | [#91 Multipart Text Rows](https://github.com/847850277/postman-gpui/issues/91) | [`issue-0091-multipart-text-rows.pen`](issue-0091-multipart-text-rows.pen) |
 | [#92 Multipart File Picker and Upload](https://github.com/847850277/postman-gpui/issues/92) | [`issue-0092-multipart-file-picker-upload.pen`](issue-0092-multipart-file-picker-upload.pen) |
 | [#93 Multipart Disabled Rows and Invalid Files](https://github.com/847850277/postman-gpui/issues/93) | [`issue-0093-multipart-disabled-invalid-files.pen`](issue-0093-multipart-disabled-invalid-files.pen) |
 | [#95 Multiple URL-Encoded Form Rows](https://github.com/847850277/postman-gpui/issues/95) | [`issue-0095-multiple-urlencoded-form-rows.pen`](issue-0095-multiple-urlencoded-form-rows.pen) |
+| [#131 History Persistence Recovery and Replay E2E](https://github.com/847850277/postman-gpui/issues/131) | [`issue-0131-history-persistence-recovery.pen`](issue-0131-history-persistence-recovery.pen) |

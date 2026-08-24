@@ -1,0 +1,2696 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "NRiYP",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #76 · Response Headers Inspection",
+      "context": "GitHub Issue #76 · Response Headers inspection E2E design",
+      "clip": true,
+      "width": 1600,
+      "height": 1836,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "y6V4V",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 20,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "DdNNX",
+              "name": "Issue Number Mark",
+              "width": 86,
+              "height": 86,
+              "fill": "$accentSoft",
+              "cornerRadius": 14,
+              "stroke": "$accent",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "GxLQ2",
+                  "name": "Issue Label",
+                  "fill": "$accent",
+                  "content": "ISSUE",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 1.4
+                },
+                {
+                  "type": "text",
+                  "id": "u0CUw",
+                  "name": "Issue Number",
+                  "fill": "$accentInk",
+                  "content": "#76",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 25,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "slejg",
+              "name": "Header Main",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 7,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Etl7M",
+                  "name": "Design Eyebrow",
+                  "fill": "$accent",
+                  "content": "HTTPBINGO UI E2E · RESPONSE INSPECTION",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 1.2
+                },
+                {
+                  "type": "text",
+                  "id": "cqobZ",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Response Headers Inspection",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "X9blVl",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "content": "Inspect exact, repeated, and empty response headers without mutating the completed request lifecycle.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "g7MJdL",
+              "name": "Header Metadata",
+              "width": 420,
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "IeQZ7",
+                  "name": "Delivery Status",
+                  "width": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 8,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "JDYBL",
+                      "name": "Status Label",
+                      "fill": "$green",
+                      "content": "DESIGN READY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "snOjD",
+                      "name": "Status Value",
+                      "fill": "$green",
+                      "content": "Implementation contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "IaTqQ",
+                  "name": "Endpoint Scope",
+                  "fill": "$blue",
+                  "content": "GET https://httpbingo.org/response-headers",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "SeBiA",
+                  "name": "Issue URL",
+                  "fill": "$subtle",
+                  "content": "github.com/847850277/postman-gpui/issues/76",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "NWIhK",
+          "name": "Application State · Response Headers Inspection",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "w0eqWS",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panelAlt",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "padding": [
+                0,
+                18
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m0vPk",
+                  "name": "Application Brand",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "PjAW5",
+                      "name": "Brand Mark",
+                      "width": 28,
+                      "height": 28,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 7,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "k4mCk7",
+                          "name": "Brand Glyph",
+                          "fill": "$accent",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 15,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "PhVVr",
+                      "name": "Application Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I0ify",
+                  "name": "Top Header Actions",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "G2lFRj",
+                      "name": "Environment Selector",
+                      "height": 34,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "CjJLj",
+                          "name": "Environment Ready Dot",
+                          "fill": "$green",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "dmMsV",
+                          "name": "Environment Label",
+                          "fill": "$muted",
+                          "content": "No environment",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dmchh",
+                      "name": "Cookie Jar Trigger",
+                      "height": 34,
+                      "fill": "$panel",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "y9H9K",
+                          "name": "Cookie Jar Label",
+                          "fill": "$muted",
+                          "content": "Cookie Jar · 0 stored",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "P4eC6R",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m1vgj",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    18,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "e6gG9",
+                      "name": "Rail · New Request",
+                      "width": 36,
+                      "height": 36,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "OJv8m",
+                          "name": "New Request Glyph",
+                          "fill": "$accent",
+                          "content": "+",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GRBDf",
+                      "name": "Rail · Collections",
+                      "width": 36,
+                      "height": 36,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "k6PC4",
+                          "name": "Collections Glyph",
+                          "fill": "$muted",
+                          "content": "C",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "E4FDvt",
+                      "name": "Rail · History",
+                      "width": 36,
+                      "height": 36,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qeHpw",
+                          "name": "History Glyph",
+                          "fill": "$muted",
+                          "content": "H",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "fMTCf",
+                      "name": "Rail · Settings",
+                      "width": 36,
+                      "height": 36,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "O1aLRH",
+                          "name": "Settings Glyph",
+                          "fill": "$muted",
+                          "content": "S",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "WnU6L",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yPhzx",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "i7ppE",
+                          "name": "History Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 15,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "u67WC",
+                          "name": "History Count",
+                          "fill": "$subtle",
+                          "content": "1",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "etbah",
+                      "name": "History Search",
+                      "width": "fill_container",
+                      "height": 34,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 7,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "uY59X",
+                          "name": "History Search Placeholder",
+                          "fill": "$subtle",
+                          "content": "Search history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "X5IWMA",
+                      "name": "History Result · Response Headers",
+                      "width": "fill_container",
+                      "fill": "$greenSoft",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "lL9rg",
+                          "name": "History Result Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Nx6OH",
+                              "name": "History Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "iH0CB",
+                              "name": "History Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "HaGuk",
+                          "name": "History Request Path",
+                          "fill": "$text",
+                          "content": "/response-headers",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "qcAe0",
+                          "name": "History Result Note",
+                          "fill": "$muted",
+                          "content": "Headers inspected · body unchanged",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LE76W",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "pToqG",
+                      "name": "Request Tabs",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Olnda",
+                          "name": "Active Request Tab · Response headers",
+                          "height": 38,
+                          "fill": "$panel",
+                          "cornerRadius": [
+                            8,
+                            8,
+                            0,
+                            0
+                          ],
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1,
+                            "right": 1,
+                            "left": 1
+                          },
+                          "gap": 10,
+                          "padding": [
+                            0,
+                            13
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "XScgf",
+                              "name": "Request Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "tEwZL",
+                              "name": "Request Tab Title",
+                              "fill": "$text",
+                              "content": "Response headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "TDG8Q",
+                              "name": "Request Tab Close",
+                              "fill": "$subtle",
+                              "content": "×",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kctFC",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 64,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KrQ0v",
+                          "name": "Method Dropdown",
+                          "width": 82,
+                          "height": 40,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 7,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "H5uij",
+                              "name": "Selected Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "H6hdqG",
+                              "name": "Method Chevron",
+                              "fill": "$muted",
+                              "content": "⌄",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "POaUv",
+                          "name": "Active Response Headers URL Content Item",
+                          "width": "fill_container",
+                          "height": 40,
+                          "fill": "$panel",
+                          "cornerRadius": 8,
+                          "stroke": "$blue",
+                          "strokeWidth": 2,
+                          "gap": 10,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Hoq8i",
+                              "name": "Active URL Value",
+                              "fill": "$codeText",
+                              "content": "https://httpbingo.org/response-headers?X-E2E-Header=visible&Content-Type=application/json",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "AQj4h",
+                              "name": "Active URL State",
+                              "fill": "$blue",
+                              "content": "ACTIVE · latest edit already in ViewModel · direct Send",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "mx69Y",
+                          "name": "Send Request Control",
+                          "width": 76,
+                          "height": 40,
+                          "fill": "$accentVivid",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "CARke",
+                              "name": "Send Label",
+                              "fill": "$panel",
+                              "content": "Send",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TTzNA",
+                      "name": "Request Panel · Params Editor",
+                      "width": "fill_container",
+                      "height": 220,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q0gZMa",
+                          "name": "Request Editor Tabs",
+                          "width": "fill_container",
+                          "height": 42,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 24,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "K8OXj",
+                              "name": "Request Editor Tab · Params",
+                              "height": "fill_container",
+                              "stroke": "$accent",
+                              "strokeWidth": {
+                                "bottom": 3
+                              },
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "dnyXr",
+                                  "name": "Params Tab Label",
+                                  "fill": "$text",
+                                  "content": "Params",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "lCBxa",
+                              "name": "Request Editor Tab · Authorization",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "RTnqV",
+                                  "name": "Authorization Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Authorization",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "iPYtE",
+                              "name": "Request Editor Tab · Headers (0)",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "s9xUw4",
+                                  "name": "Headers (0) Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Headers (0)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "MorPT",
+                              "name": "Request Editor Tab · Body",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "wrAQo",
+                                  "name": "Body Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "U6KDJE",
+                              "name": "Request Editor Tab · Scripts",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "loDo4",
+                                  "name": "Scripts Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Scripts",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Y0n6Dv",
+                              "name": "Request Editor Tab · Tests",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "WJkWP",
+                                  "name": "Tests Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Tests",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "E41Xw",
+                              "name": "Request Editor Tab · Options",
+                              "height": "fill_container",
+                              "stroke": "$panelAlt",
+                              "layout": "vertical",
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "U8NbT",
+                                  "name": "Options Tab Label",
+                                  "fill": "$muted",
+                                  "content": "Options",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "rnV26",
+                          "name": "Query Parameters Editor",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": [
+                            10,
+                            14
+                          ],
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "mHcYC",
+                              "name": "Query Parameters Header",
+                              "width": "fill_container",
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "IK8sB",
+                                  "name": "Query Parameters Title",
+                                  "fill": "$text",
+                                  "content": "Query parameters · synchronized with URL query string",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QHZTd",
+                                  "name": "Query Parameters Count",
+                                  "fill": "$green",
+                                  "content": "2 enabled",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "eWn9o",
+                              "name": "Query Parameter Rows",
+                              "width": "fill_container",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "b332YM",
+                                  "name": "Parameter Row · X-E2E-Header",
+                                  "width": "fill_container",
+                                  "height": 46,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 3,
+                                  "padding": [
+                                    6,
+                                    9
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "JHaZA",
+                                      "name": "X-E2E-Header Parameter Key",
+                                      "fill": "$muted",
+                                      "content": "X-E2E-Header",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "YsqBB",
+                                      "name": "X-E2E-Header Parameter Value",
+                                      "fill": "$codeText",
+                                      "content": "visible",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Eha8O",
+                                  "name": "Parameter Row · Content-Type",
+                                  "width": "fill_container",
+                                  "height": 46,
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 3,
+                                  "padding": [
+                                    6,
+                                    9
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "WRT2I",
+                                      "name": "Content-Type Parameter Key",
+                                      "fill": "$muted",
+                                      "content": "Content-Type",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "CZxt4",
+                                      "name": "Content-Type Parameter Value",
+                                      "fill": "$codeText",
+                                      "content": "application/json",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "aYioE",
+                              "name": "Outgoing Response Headers Request Content Item",
+                              "width": "fill_container",
+                              "height": 38,
+                              "fill": "$blueSoft",
+                              "cornerRadius": 7,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "HMxLI",
+                                  "name": "Outgoing Request Label",
+                                  "fill": "$blue",
+                                  "content": "EFFECTIVE GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "tnc0w",
+                                  "name": "Outgoing Request Value",
+                                  "fill": "$codeText",
+                                  "content": "/response-headers?X-E2E-Header=visible&Content-Type=application/json · RequestBody::None",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 9,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "o1nmT",
+                                  "name": "Outgoing Request State",
+                                  "fill": "$blue",
+                                  "content": "Ready · no Enter, Tab, blur, Add, or submit-time backfill",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "y4GCJ",
+                      "name": "HTTPBingo Response Panel · Headers",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "L60pLI",
+                          "name": "Response Panel Header",
+                          "width": "fill_container",
+                          "height": 52,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "QRzDP",
+                              "name": "Response Header Tab Control",
+                              "height": "fill_container",
+                              "gap": 18,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "DnoSY",
+                                  "name": "Response Body Tab",
+                                  "fill": "$muted",
+                                  "content": "Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ThfYv",
+                                  "name": "Response Headers Tab · Keyboard Focused and Selected",
+                                  "height": "fill_container",
+                                  "stroke": "$blue",
+                                  "strokeWidth": {
+                                    "bottom": 3
+                                  },
+                                  "gap": 7,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "muUw7",
+                                      "name": "Response Headers Tab Label",
+                                      "fill": "$text",
+                                      "content": "Headers · selected",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "hEdQa",
+                                      "name": "Response Headers Tab Count",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 10,
+                                      "padding": [
+                                        3,
+                                        7
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "kg8gS",
+                                          "name": "Response Headers Count Value",
+                                          "fill": "$blue",
+                                          "content": "7",
+                                          "fontFamily": "$fontMono",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "T8uM6",
+                                  "name": "Response Cookies Tab",
+                                  "fill": "$muted",
+                                  "content": "Cookies (0)",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "BYpiR",
+                              "name": "Response Summary",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "BG2nv",
+                                  "name": "Copy Response Action",
+                                  "height": 32,
+                                  "fill": "$panel",
+                                  "cornerRadius": 7,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    0,
+                                    11
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "B2zWsU",
+                                      "name": "Copy Response Label",
+                                      "fill": "$muted",
+                                      "content": "Copy",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Kf1LH",
+                                  "name": "Response Status",
+                                  "fill": "$green",
+                                  "content": "200 OK",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ESNYl",
+                                  "name": "Response Timing",
+                                  "fill": "$muted",
+                                  "content": "184 ms",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "A70Zqi",
+                                  "name": "Response Size",
+                                  "fill": "$muted",
+                                  "content": "612 B",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TYwLf",
+                          "name": "Response View State Context",
+                          "width": "fill_container",
+                          "height": 34,
+                          "fill": "$blueSoft",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "uExpU",
+                              "name": "Default Tab Contract",
+                              "fill": "$blue",
+                              "content": "Body is the default response tab. Headers · selected after click or keyboard activation.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ZiRYv",
+                              "name": "Stable Assertion Badge",
+                              "fill": "$blue",
+                              "content": "2 STABLE ASSERTIONS · exact values",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Q4CrG",
+                          "name": "Response Headers Inspector",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "gap": 12,
+                          "padding": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hasJf",
+                              "name": "Response Headers Table Pane",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "Rj2Rm",
+                                  "name": "Response Headers Table Title",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "s7IFX",
+                                      "name": "Response Headers Table Heading",
+                                      "fill": "$text",
+                                      "content": "Response headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 12,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "D9sHaU",
+                                      "name": "Header Matching Rule",
+                                      "fill": "$muted",
+                                      "content": "Header names compare case-insensitively; values compare exactly.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "B5nQB",
+                                  "name": "Response Headers Table",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "fill": "$panel",
+                                  "cornerRadius": 8,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "rq1Ke",
+                                      "name": "Response Headers Table Row · Labels",
+                                      "width": "fill_container",
+                                      "height": 30,
+                                      "fill": "$panelAlt",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "P4u41",
+                                          "name": "Header Name Label Cell",
+                                          "width": 250,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "KLJM1",
+                                              "name": "Header Name Label Cell Text",
+                                              "fill": "$muted",
+                                              "content": "HEADER",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.8
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "l6qsL",
+                                          "name": "Header Value Label Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "PWs2x",
+                                              "name": "Header Value Label Cell Text",
+                                              "fill": "$muted",
+                                              "content": "VALUE",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.8
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ACrqv",
+                                          "name": "Assertion Label Cell",
+                                          "width": 126,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "pwhQo",
+                                              "name": "Assertion Label Cell Text",
+                                              "fill": "$muted",
+                                              "content": "ASSERTION",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700",
+                                              "letterSpacing": 0.8
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Gl5K7",
+                                      "name": "Response Header Row · X-E2E-Header",
+                                      "width": "fill_container",
+                                      "height": 38,
+                                      "fill": "$greenSoft",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "I8G0H",
+                                          "name": "Response Header Row · X-E2E-Header Name Cell",
+                                          "width": 250,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "lb7AN",
+                                              "name": "Response Header Row · X-E2E-Header Name",
+                                              "fill": "$green",
+                                              "content": "X-E2E-Header",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "CURcq",
+                                          "name": "Response Header Row · X-E2E-Header Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "AZJkB",
+                                              "name": "Response Header Row · X-E2E-Header Value",
+                                              "fill": "$codeText",
+                                              "content": "visible",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ztMLf",
+                                          "name": "Response Header Row · X-E2E-Header Assertion Cell",
+                                          "width": 126,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Bn4OV",
+                                              "name": "Response Header Row · X-E2E-Header Assertion",
+                                              "fill": "$green",
+                                              "content": "exact value",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "sKysj",
+                                      "name": "Response Header Row · Content-Type",
+                                      "width": "fill_container",
+                                      "height": 38,
+                                      "fill": "$greenSoft",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "u3ndwx",
+                                          "name": "Response Header Row · Content-Type Name Cell",
+                                          "width": 250,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "OVFY5",
+                                              "name": "Response Header Row · Content-Type Name",
+                                              "fill": "$green",
+                                              "content": "Content-Type",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ywrNk",
+                                          "name": "Response Header Row · Content-Type Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "G6MbE",
+                                              "name": "Response Header Row · Content-Type Value",
+                                              "fill": "$codeText",
+                                              "content": "application/json",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "bSEgj",
+                                          "name": "Response Header Row · Content-Type Assertion Cell",
+                                          "width": 126,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "iSkWj",
+                                              "name": "Response Header Row · Content-Type Assertion",
+                                              "fill": "$green",
+                                              "content": "exact value",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "700"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "KHi85",
+                                      "name": "Response Header Row · Server",
+                                      "width": "fill_container",
+                                      "height": 38,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "PDrTo",
+                                          "name": "Response Header Row · Server Name Cell",
+                                          "width": 250,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "GcgXX",
+                                              "name": "Response Header Row · Server Name",
+                                              "fill": "$codeText",
+                                              "content": "Server",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "a4NuPJ",
+                                          "name": "Response Header Row · Server Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "V0L0a",
+                                              "name": "Response Header Row · Server Value",
+                                              "fill": "$codeText",
+                                              "content": "Fly.io",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "Aca0O",
+                                          "name": "Response Header Row · Server Assertion Cell",
+                                          "width": 126,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "FnAGP",
+                                              "name": "Response Header Row · Server Assertion",
+                                              "fill": "$subtle",
+                                              "content": "dynamic · visible",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "iQz2l",
+                                      "name": "Response Header Row · Date",
+                                      "width": "fill_container",
+                                      "height": 38,
+                                      "fill": "$panel",
+                                      "stroke": "$line",
+                                      "strokeWidth": {
+                                        "bottom": 1
+                                      },
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "CuEnD",
+                                          "name": "Response Header Row · Date Name Cell",
+                                          "width": 250,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "UGX7k",
+                                              "name": "Response Header Row · Date Name",
+                                              "fill": "$codeText",
+                                              "content": "Date",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "rJs7F",
+                                          "name": "Response Header Row · Date Value Cell",
+                                          "width": "fill_container",
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "XTTDh",
+                                              "name": "Response Header Row · Date Value",
+                                              "fill": "$codeText",
+                                              "content": "Mon, 24 Aug 2026 03:33:00 GMT",
+                                              "fontFamily": "$fontMono",
+                                              "fontSize": 10,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "ndXmV",
+                                          "name": "Response Header Row · Date Assertion Cell",
+                                          "width": 126,
+                                          "height": "fill_container",
+                                          "padding": [
+                                            0,
+                                            10
+                                          ],
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "jxdop",
+                                              "name": "Response Header Row · Date Assertion",
+                                              "fill": "$subtle",
+                                              "content": "dynamic · not asserted",
+                                              "fontFamily": "$fontBody",
+                                              "fontSize": 9,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "LGmq0",
+                                  "name": "Stable Response Header Assertion Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 7,
+                                  "padding": [
+                                    8,
+                                    10
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "xA4iS",
+                                      "name": "Stable Assertion Positive Evidence",
+                                      "fill": "$green",
+                                      "content": "✓ X-E2E-Header=visible · ✓ Content-Type=application/json",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 9,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "gcER7",
+                                      "name": "Dynamic Header Negative Evidence",
+                                      "fill": "$muted",
+                                      "content": "Date and proxy headers stay inspectable but are excluded from E2E assertions.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "r9ewQZ",
+                              "name": "Response Header Edge States",
+                              "width": 350,
+                              "height": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "DexZG",
+                                  "name": "Keyboard Header Activation Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$blue",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 4,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "lC3Sh",
+                                      "name": "Keyboard State Title",
+                                      "fill": "$blue",
+                                      "content": "KEYBOARD · FOCUS RING",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700",
+                                      "letterSpacing": 0.8
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "DWmON",
+                                      "name": "Keyboard Activation Keys",
+                                      "fill": "$codeText",
+                                      "content": "Tab → Headers · Enter / Space → activate",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "jjL3U",
+                                      "name": "Mouse Activation Equivalence",
+                                      "fill": "$muted",
+                                      "content": "Mouse click activates the same view without a resend.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "v0uJPs",
+                                  "name": "Repeated Response Header Evidence Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$greenSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 4,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "dWhj2",
+                                      "name": "Repeated Header State Title",
+                                      "fill": "$green",
+                                      "content": "REPEATED HEADER · LOCAL FIXTURE",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700",
+                                      "letterSpacing": 0.8
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "yFnhQ",
+                                      "name": "Repeated Header First Value",
+                                      "fill": "$codeText",
+                                      "content": "X-Repeat: first",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "B1LZO",
+                                      "name": "Repeated Header Second Value",
+                                      "fill": "$codeText",
+                                      "content": "X-Repeat: second",
+                                      "fontFamily": "$fontMono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "vs3Kc",
+                                      "name": "Repeated Header Rule",
+                                      "fill": "$green",
+                                      "content": "Repeated values remain separate rows in arrival order.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hs2Ul",
+                                  "name": "Empty Response Headers Content Item",
+                                  "width": "fill_container",
+                                  "fill": "$accentSoft",
+                                  "cornerRadius": 8,
+                                  "stroke": "$accent",
+                                  "strokeWidth": 1,
+                                  "layout": "vertical",
+                                  "gap": 4,
+                                  "padding": 10,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Bzfjb",
+                                      "name": "Empty Headers State Title",
+                                      "fill": "$accent",
+                                      "content": "EMPTY COLLECTION",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "700",
+                                      "letterSpacing": 0.8
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "rVF2D",
+                                      "name": "Empty Headers Message",
+                                      "fill": "$accentInk",
+                                      "content": "No response headers",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "O9x74o",
+                                      "name": "Empty Headers Recovery",
+                                      "fill": "$muted",
+                                      "content": "Body remains available · Send another request to inspect headers.",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 9,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Y3RhJ",
+                          "name": "Response View State Preservation Content Item",
+                          "width": "fill_container",
+                          "height": 42,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "qeHLG",
+                              "name": "Response Lifecycle State",
+                              "fill": "$green",
+                              "content": "ResponseState::Success { status: 200 } · View = Headers",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SFHYS",
+                              "name": "Response Preservation Rule",
+                              "fill": "$text",
+                              "content": "ResponseState, View, request, active tab, and History remain unchanged.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Btyp1",
+                              "name": "Return To Body Rule",
+                              "fill": "$blue",
+                              "content": "Switch back to Body · no resend · no mutation",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "u7WkI",
+          "name": "Feature Flow · Response Header Inspection",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panel",
+          "cornerRadius": 14,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 10,
+          "padding": 14,
+          "children": [
+            {
+              "type": "frame",
+              "id": "v6msZ",
+              "name": "Feature Flow Header",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "R8NPZM",
+                  "name": "Feature Flow Title",
+                  "fill": "$text",
+                  "content": "Body → Headers → inspect evidence → Body",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "gNR9y",
+                  "name": "Feature Flow Invariant",
+                  "fill": "$green",
+                  "content": "View-only transition · zero request lifecycle mutation",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qAWmy",
+              "name": "Feature Flow Steps",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "T7VB2",
+                  "name": "Flow Step 1 · Body Default",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "EO7fG",
+                      "name": "Flow Step 1 · Body Default Kicker",
+                      "fill": "$muted",
+                      "content": "01 · DEFAULT",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "qMt91",
+                      "name": "Flow Step 1 · Body Default Title",
+                      "fill": "$text",
+                      "content": "Body active",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "HJxID",
+                      "name": "Flow Step 1 · Body Default Note",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Completed response opens on Body.",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jA1uC",
+                  "name": "Flow Step 2 · Activate Headers",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$blueSoft",
+                  "cornerRadius": 9,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SBbZZ",
+                      "name": "Flow Step 2 · Activate Headers Kicker",
+                      "fill": "$blue",
+                      "content": "02 · INPUT",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "l7BtIm",
+                      "name": "Flow Step 2 · Activate Headers Title",
+                      "fill": "$text",
+                      "content": "Click or keyboard",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "DhmKQ",
+                      "name": "Flow Step 2 · Activate Headers Note",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Tab → Headers · Enter / Space → activate.",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "o2qigY",
+                  "name": "Flow Step 3 · Inspect Header Evidence",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 9,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "H4exCT",
+                      "name": "Flow Step 3 · Inspect Header Evidence Kicker",
+                      "fill": "$green",
+                      "content": "03 · EVIDENCE",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "zb6JX",
+                      "name": "Flow Step 3 · Inspect Header Evidence Title",
+                      "fill": "$text",
+                      "content": "Exact + repeated + empty",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Jl42E",
+                      "name": "Flow Step 3 · Inspect Header Evidence Note",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Names insensitive · values exact · rows preserved.",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "MKzLp",
+                  "name": "Flow Step 4 · Return Without Mutation",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 9,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "I91Dh7",
+                      "name": "Flow Step 4 · Return Without Mutation Kicker",
+                      "fill": "$accent",
+                      "content": "04 · INVARIANT",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 8,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "jEV23",
+                      "name": "Flow Step 4 · Return Without Mutation Title",
+                      "fill": "$text",
+                      "content": "Back to Body",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "X7lvZY",
+                      "name": "Flow Step 4 · Return Without Mutation Note",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Request, ResponseState, active tab, and History unchanged.",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "COq9a",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 10,
+          "padding": 18,
+          "children": [
+            {
+              "type": "frame",
+              "id": "MrD0e",
+              "name": "E2E Contract Header",
+              "width": "fill_container",
+              "height": 28,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xeBQX",
+                  "name": "E2E Contract Title",
+                  "fill": "$text",
+                  "content": "E2E CONTRACT · ISSUE #76",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.7
+                },
+                {
+                  "type": "text",
+                  "id": "Oh7cb",
+                  "name": "Parent Roadmap",
+                  "fill": "$accent",
+                  "content": "Parent roadmap #50 → #76.",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SZOM2",
+              "name": "E2E Contract Columns",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "j6wRh",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "g1P5w",
+                      "name": "Scenario Steps Title",
+                      "fill": "$blue",
+                      "content": "ORDERED REAL-UI SCENARIO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.8
+                    },
+                    {
+                      "type": "text",
+                      "id": "PuqAA",
+                      "name": "Scenario Steps Body",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "1. Focus the URL input and type the full response-headers endpoint.\n2. Do not press Enter, Tab, blur, Add, or invoke submit-time backfill.\n3. Click the real Send control; verify 200 OK and Body is the default response tab.\n4. Click Headers and inspect the returned rows.\n5. Return to Body, then Tab → Headers and Enter / Space → activate.\n6. Switch back to Body; do not resend or mutate any product state.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "z7tblD",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "j4BmR",
+                      "name": "Verification Contract Title",
+                      "fill": "$green",
+                      "content": "OBSERVABLE ASSERTIONS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.8
+                    },
+                    {
+                      "type": "text",
+                      "id": "F3bp1U",
+                      "name": "Verification Contract Body",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• X-E2E-Header=visible and Content-Type=application/json render from ResponseState.\n• Header names compare case-insensitively; values compare exactly.\n• Repeated headers remain separate observable rows in arrival order.\n• An empty header collection renders “No response headers”.\n• Mouse and keyboard activate the same Headers view.\n• ResponseState, rendered response, request, active tab, and History remain unchanged after pane switching.",
+                      "lineHeight": 1.45,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "XvmNN",
+                  "name": "Scope and Non-Goals",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yHB72",
+                      "name": "Scope Title",
+                      "fill": "$accent",
+                      "content": "SCOPE · TEST ARTIFACTS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.8
+                    },
+                    {
+                      "type": "text",
+                      "id": "vVivJ",
+                      "name": "Included Scope",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "INCLUDED\n• Body ↔ Headers interaction and keyboard focus.\n• Exact, repeated, dynamic, and empty header presentation.\n• ResponseState / View / History consistency.\n\ntests/cases/httpbingo/responses.json\ntests/ui_send.rs\n.github/workflows/httpbingo-e2e.yml",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JUkL3",
+                      "name": "Explicit Non-Goals",
+                      "fill": "$accentInk",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "NON-GOALS · OUT OF SCOPE\nEditing response headers, request-header authoring, download/streaming behavior, and pixel-level visual regression are not in this slice.",
+                      "lineHeight": 1.4,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qJrY8",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 44,
+              "fill": "$accentVivid",
+              "cornerRadius": 8,
+              "padding": [
+                0,
+                14
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "pJsti",
+                  "name": "One-to-One Rule Label",
+                  "fill": "$panel",
+                  "content": "ONE ISSUE · ONE DESIGN",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "G1qpNz",
+                  "name": "Owning Design Path",
+                  "fill": "$panel",
+                  "content": "design/issue-0076-response-headers-inspection.pen",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "SMM7d",
+                  "name": "Interaction Contract Rule",
+                  "fill": "$panel",
+                  "content": "Rendered controls only · no ViewModel command shortcut",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}

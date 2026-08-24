@@ -1,0 +1,2907 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "tp141",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #79 · Multi-Tab Request Isolation and Switching",
+      "clip": true,
+      "width": 1600,
+      "height": 1840,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "rPvU1",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "HUYXg",
+              "name": "Feature Mark",
+              "width": 84,
+              "height": 84,
+              "fill": "$accentSoft",
+              "cornerRadius": 20,
+              "layout": "vertical",
+              "gap": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "aTxuK",
+                  "name": "Issue Number",
+                  "fill": "$accent",
+                  "content": "79",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 30,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "d7tA7",
+                  "name": "Feature Mark Label",
+                  "fill": "$accent",
+                  "content": "TABS",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700",
+                  "letterSpacing": 1.2
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "QcuWs",
+              "name": "Title Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "YF3Uj",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Issue #79 · Multi-Tab Request Isolation and Switching",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "njDSt",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Each request tab retains its own complete Request, pane, response, and dirty state while all completed sends feed one workspace-level History.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "UuH7G",
+                  "name": "Design Metadata",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "d8SKIU",
+                      "name": "Status · Design Ready",
+                      "fill": "$greenSoft",
+                      "cornerRadius": 12,
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "RmZfb",
+                          "name": "Status Text",
+                          "fill": "$green",
+                          "content": "DESIGN READY · PLANNED",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "pfunx",
+                      "name": "Baseline · Parent Roadmap",
+                      "fill": "$subtle",
+                      "content": "BASELINE · Parent roadmap #50",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AxMJG",
+                      "name": "Issue URL",
+                      "fill": "$blue",
+                      "content": "github.com/847850277/postman-gpui/issues/79",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "h4cNA",
+              "name": "Scope Snapshot",
+              "width": 430,
+              "height": 94,
+              "fill": "$panelAlt",
+              "cornerRadius": 13,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "H0Zug",
+                  "name": "Endpoint · Scope",
+                  "fill": "$blue",
+                  "content": "TWO TAB-LOCAL REQUESTS · ONE SHARED HISTORY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "f5i2P",
+                  "name": "Tab A Endpoint",
+                  "fill": "$codeText",
+                  "content": "A · GET /get?tab=A&q=rust",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "xm0Ze",
+                  "name": "Tab B Endpoint",
+                  "fill": "$codeText",
+                  "content": "B · POST /anything/tab-b?mode=json",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "ogDdR",
+                  "name": "Scope Rule",
+                  "fill": "$muted",
+                  "content": "select → project owner VM · send → complete owner tab",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "IY2GN",
+          "name": "Application State · Tab B Active After Both Sends",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "V4QJDG",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 18,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "UIMmz",
+                  "name": "Application Brand",
+                  "width": 210,
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ETuWl",
+                      "name": "Application Brand Mark",
+                      "width": 34,
+                      "height": 34,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "s418K",
+                          "name": "Application Brand Glyph",
+                          "fill": "$panel",
+                          "content": "P",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 17,
+                          "fontWeight": "800"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "e9qJN",
+                      "name": "Application Brand Text",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Gta9P",
+                  "name": "Global Search",
+                  "width": "fill_container",
+                  "height": 40,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 10,
+                  "padding": [
+                    0,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "vr685",
+                      "name": "Global Search Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "search",
+                      "library": "lucide",
+                      "fill": "$subtle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "qoGRB",
+                      "name": "Global Search Placeholder",
+                      "fill": "$subtle",
+                      "content": "Search requests and history",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VbEcb",
+                  "name": "Environment Selector",
+                  "width": 132,
+                  "height": 36,
+                  "fill": "$panelAlt",
+                  "cornerRadius": 9,
+                  "gap": 7,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "F0msb",
+                      "name": "Environment Status Dot",
+                      "fill": "$green",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "c0gSX",
+                      "name": "Environment Selector Text",
+                      "fill": "$muted",
+                      "content": "No environment",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SKrW7",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": 828,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "y4M6fh",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$text",
+                  "layout": "vertical",
+                  "gap": 18,
+                  "padding": [
+                    18,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "cCcyW",
+                      "name": "Left Rail · New",
+                      "width": 44,
+                      "height": 44,
+                      "fill": "$text",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 2,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "dyKyW",
+                          "name": "New Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "FKjAo",
+                          "name": "New Label",
+                          "fill": "$subtle",
+                          "content": "New",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FE91Z",
+                      "name": "Left Rail · History",
+                      "width": 44,
+                      "height": 44,
+                      "fill": "$accentVivid",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 2,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "YmVmI",
+                          "name": "History Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$panel"
+                        },
+                        {
+                          "type": "text",
+                          "id": "I64nY",
+                          "name": "History Label",
+                          "fill": "$panel",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "StFRU",
+                      "name": "Left Rail · Collections",
+                      "width": 44,
+                      "height": 44,
+                      "fill": "$text",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 2,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "ZgRKd",
+                          "name": "Collections Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "kOiR0",
+                          "name": "Collections Label",
+                          "fill": "$subtle",
+                          "content": "Collections",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "POT61",
+                      "name": "Left Rail · Settings",
+                      "width": 44,
+                      "height": 44,
+                      "fill": "$text",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 2,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "KiYX2",
+                          "name": "Settings Icon",
+                          "width": 17,
+                          "height": 17,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Ibeu4",
+                          "name": "Settings Label",
+                          "fill": "$subtle",
+                          "content": "Settings",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 8,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Etnh4",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "WKbM3",
+                      "name": "History Panel Header",
+                      "width": "fill_container",
+                      "height": 30,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "XpQuc",
+                          "name": "History Panel Title",
+                          "fill": "$text",
+                          "content": "History",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "v1Oie",
+                          "name": "Shared History Count",
+                          "fill": "$green",
+                          "content": "2 completed",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PJZC4",
+                      "name": "History Filter Input",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "zwhyd",
+                          "name": "History Filter Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "TAcgm",
+                          "name": "History Filter Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter shared history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "s3eag",
+                      "name": "Shared History Result · Tab B",
+                      "width": "fill_container",
+                      "height": 132,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 11,
+                      "stroke": "$blue",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ziLW2",
+                          "name": "Tab B History Result Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "bvmVU",
+                              "name": "Tab B History Method",
+                              "fill": "$accent",
+                              "content": "POST · TAB B",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "pUGAA",
+                              "name": "Tab B History Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "S5hMd",
+                          "name": "Tab B History Path",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "/anything/tab-b?mode=json",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Icvui",
+                          "name": "Tab B History Summary",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "X-Tab: B · Bearer\nJSON body · tab_id=2",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "QlzIl",
+                          "name": "Tab B History Time",
+                          "fill": "$subtle",
+                          "content": "10:44:12 · latest",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n2729T",
+                      "name": "Shared History Result · Tab A",
+                      "width": "fill_container",
+                      "height": 122,
+                      "fill": "$panel",
+                      "cornerRadius": 11,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "H2CAuD",
+                          "name": "Tab A History Result Header",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Yo7Wz",
+                              "name": "Tab A History Method",
+                              "fill": "$green",
+                              "content": "GET · TAB A",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "EieA2",
+                              "name": "Tab A History Status",
+                              "fill": "$green",
+                              "content": "200 OK",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "VcpeO",
+                          "name": "Tab A History Path",
+                          "fill": "$codeText",
+                          "content": "/get?tab=A&q=rust",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "AuBFC",
+                          "name": "Tab A History Summary",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "X-Tab: A · No Auth · Body None\ntab_id=1",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xXM0O",
+                      "name": "Runtime History Projection Content Item",
+                      "width": "fill_container",
+                      "height": 132,
+                      "fill": "$greenSoft",
+                      "cornerRadius": 10,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jCZFT",
+                          "name": "Workspace History Label",
+                          "fill": "$green",
+                          "content": "RUNTIME HISTORY PROJECTION",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        },
+                        {
+                          "type": "text",
+                          "id": "lqvnm",
+                          "name": "Workspace History Value",
+                          "fill": "$text",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Shared History · 2 completed Requests",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "e9h8UR",
+                          "name": "Workspace History Rule",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Closing a tab never deletes completed History. Restart restores durable History only. #127 persists sanitized History only; active tab, pane, response, and dirty state remain runtime-only.",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "qg4V9",
+                      "name": "Keyboard Tab Activation Content Item",
+                      "width": "fill_container",
+                      "height": 100,
+                      "fill": "$panel",
+                      "cornerRadius": 10,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "QtjbR",
+                          "name": "Keyboard Tab Activation Label",
+                          "fill": "$blue",
+                          "content": "KEYBOARD PARITY",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "800",
+                          "letterSpacing": 0.6
+                        },
+                        {
+                          "type": "text",
+                          "id": "IaB3z",
+                          "name": "Keyboard Tab Activation Rule",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Tab → focus tab · Enter / Space → activate",
+                          "fontFamily": "$fontMono",
+                          "fontSize": 10,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "k0YP10",
+                          "name": "Keyboard Tab Close Rule",
+                          "fill": "$muted",
+                          "content": "Focused × · Enter / Space → close",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "NhOsw",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "f6TTB",
+                      "name": "Request Tab Bar",
+                      "width": "fill_container",
+                      "height": 58,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        7,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "wTmau",
+                          "name": "Tab A Request Tab Content Item",
+                          "width": 326,
+                          "height": 44,
+                          "fill": "$panelAlt",
+                          "cornerRadius": [
+                            10,
+                            10,
+                            0,
+                            0
+                          ],
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "gap": 9,
+                          "padding": [
+                            0,
+                            11
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WjYYd",
+                              "name": "Tab A Request Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "PQe6Z",
+                              "name": "Tab A Request Tab Title",
+                              "fill": "$muted",
+                              "content": "tab-a-query",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "ib5Nh",
+                              "name": "Tab A Clean Indicator",
+                              "fill": "$green",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "vWI9r",
+                              "name": "Tab A Request Tab State",
+                              "fill": "$subtle",
+                              "content": "200 · Params",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "sHdRA",
+                              "name": "Tab A Request Tab Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "frame",
+                              "id": "habYT",
+                              "name": "Tab A Close Control",
+                              "width": 22,
+                              "height": 22,
+                              "fill": "$panel",
+                              "cornerRadius": 6,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "iLhdG",
+                                  "name": "Tab A Close Control Glyph",
+                                  "fill": "$muted",
+                                  "content": "×",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "MmOF7",
+                          "name": "Tab B Active Request Tab Content Item",
+                          "width": 350,
+                          "height": 44,
+                          "fill": "$panel",
+                          "cornerRadius": [
+                            10,
+                            10,
+                            0,
+                            0
+                          ],
+                          "stroke": "$blue",
+                          "strokeWidth": {
+                            "top": 1,
+                            "right": 1,
+                            "bottom": 3,
+                            "left": 1
+                          },
+                          "gap": 9,
+                          "padding": [
+                            0,
+                            11
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WVdJN",
+                              "name": "Tab B Active Request Tab Method",
+                              "fill": "$accent",
+                              "content": "POST",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ZwDdt",
+                              "name": "Tab B Active Request Tab Title",
+                              "fill": "$text",
+                              "content": "tab-b-json",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "BNell",
+                              "name": "Tab B Clean Indicator",
+                              "fill": "$green",
+                              "width": 7,
+                              "height": 7
+                            },
+                            {
+                              "type": "text",
+                              "id": "zRP6L",
+                              "name": "Tab B Active Request Tab State",
+                              "fill": "$blue",
+                              "content": "200 · Body · ACTIVE",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 9,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "QNNKV",
+                              "name": "Tab B Request Tab Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Z5s1Kl",
+                              "name": "Tab B Close Control",
+                              "width": 22,
+                              "height": 22,
+                              "fill": "$accentSoft",
+                              "cornerRadius": 6,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "d4G9u",
+                                  "name": "Tab B Close Control Glyph",
+                                  "fill": "$accent",
+                                  "content": "×",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 15,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "cb2SB",
+                          "name": "New Request Tab Control",
+                          "width": 34,
+                          "height": 34,
+                          "fill": "$panel",
+                          "cornerRadius": 9,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ALc9e",
+                              "name": "New Request Tab Glyph",
+                              "fill": "$subtle",
+                              "content": "+",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 18,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Z60B9A",
+                      "name": "Active Tab B Projection Content Item",
+                      "width": "fill_container",
+                      "height": 54,
+                      "fill": "$blueSoft",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "g3Xf5I",
+                          "name": "Active Tab Projection Icon Container",
+                          "width": 30,
+                          "height": 30,
+                          "fill": "$blue",
+                          "cornerRadius": 15,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "ktRyD",
+                              "name": "Active Tab Projection Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "panels-top-left",
+                              "library": "lucide",
+                              "fill": "$panel"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "LzVeC",
+                          "name": "Active Tab Projection Message",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "cbP1c",
+                              "name": "Active Tab Projection Primary",
+                              "fill": "$blue",
+                              "content": "TAB B ACTIVE · projection from ViewModel B only",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 13,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "eNJ0r",
+                              "name": "Active Tab Projection Rule",
+                              "fill": "$muted",
+                              "content": "Switching tabs projects state; it never copies business strings between controls or ViewModels.",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "IfAej",
+                          "name": "Active Tab Ownership Badge",
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "padding": [
+                            6,
+                            10
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "TlJpD",
+                              "name": "Active Tab Ownership Badge Text",
+                              "fill": "$blue",
+                              "content": "tab_id=2 · response=200 · dirty=false · pane=Body",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "S9qZz",
+                      "name": "Request Builder",
+                      "width": "fill_container",
+                      "height": 68,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        10,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qvmoA",
+                          "name": "Tab B Method Content Item",
+                          "width": 94,
+                          "height": 44,
+                          "fill": "$accentSoft",
+                          "cornerRadius": 10,
+                          "stroke": "$accent",
+                          "strokeWidth": 1,
+                          "gap": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oqsJ4",
+                              "name": "Tab B Method Value",
+                              "fill": "$accent",
+                              "content": "POST",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 13,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "BxlrC",
+                              "name": "Tab B Method Chevron",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$accent"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hHpED",
+                          "name": "Tab B URL Input",
+                          "width": "fill_container",
+                          "height": 44,
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            13
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "AIrkq",
+                              "name": "Tab B URL Value",
+                              "fill": "$codeText",
+                              "content": "https://httpbingo.org/anything/tab-b?mode=json",
+                              "fontFamily": "$fontMono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "MmKKY",
+                          "name": "Tab B Send Control",
+                          "width": 92,
+                          "height": 44,
+                          "fill": "$accentVivid",
+                          "cornerRadius": 10,
+                          "gap": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "y7hv7d",
+                              "name": "Tab B Send Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "send",
+                              "library": "lucide",
+                              "fill": "$panel"
+                            },
+                            {
+                              "type": "text",
+                              "id": "QFL73",
+                              "name": "Tab B Send Label",
+                              "fill": "$panel",
+                              "content": "Send",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 13,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q2Ax2w",
+                      "name": "Request Editor Tabs",
+                      "width": "fill_container",
+                      "height": 44,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 22,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qiDHU",
+                          "name": "Request Editor Tab · Params (1)",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Z1bVe",
+                              "name": "Params (1) Tab Label",
+                              "fill": "$muted",
+                              "content": "Params (1)",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "vUNnk",
+                          "name": "Request Editor Tab · Authorization (Bearer)",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "H95CO",
+                              "name": "Authorization (Bearer) Tab Label",
+                              "fill": "$muted",
+                              "content": "Authorization (Bearer)",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "aB9KG",
+                          "name": "Request Editor Tab · Headers (1)",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nd6Rk",
+                              "name": "Headers (1) Tab Label",
+                              "fill": "$muted",
+                              "content": "Headers (1)",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "X5uVKi",
+                          "name": "Request Editor Tab · Body",
+                          "height": 44,
+                          "stroke": "$accent",
+                          "strokeWidth": {
+                            "bottom": 3
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Qor5x",
+                              "name": "Body Tab Label",
+                              "fill": "$text",
+                              "content": "Body",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "800"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "sTMd6",
+                          "name": "Request Editor Tab · Scripts",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oBkhT",
+                              "name": "Scripts Tab Label",
+                              "fill": "$muted",
+                              "content": "Scripts",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "UBELA",
+                          "name": "Request Editor Tab · Tests",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oi3Yi",
+                              "name": "Tests Tab Label",
+                              "fill": "$muted",
+                              "content": "Tests",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hVMj5",
+                          "name": "Request Editor Tab · Options",
+                          "height": 44,
+                          "stroke": "$panelAlt",
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "YJ2fe",
+                              "name": "Options Tab Label",
+                              "fill": "$muted",
+                              "content": "Options",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AOYyR",
+                      "name": "Tab B Request Editor",
+                      "width": "fill_container",
+                      "height": 280,
+                      "fill": "$panel",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Jd9Ok",
+                          "name": "Tab B JSON Body Content Item",
+                          "width": 625,
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "right": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "H3QM5",
+                              "name": "Tab B Body Type Toolbar",
+                              "width": "fill_container",
+                              "height": 42,
+                              "fill": "$panelAlt",
+                              "gap": 14,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "mq0j6",
+                                  "name": "Tab B JSON Type Selected",
+                                  "fill": "$blueSoft",
+                                  "cornerRadius": 8,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "fUrIL",
+                                      "name": "Tab B JSON Type Label",
+                                      "fill": "$blue",
+                                      "content": "JSON",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "w1VXbX",
+                                  "name": "Tab B Body Ownership Detail",
+                                  "fill": "$subtle",
+                                  "content": "Body pane belongs to tab_id=2 · active value already in ViewModel",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "vWBSw",
+                              "name": "Tab B JSON Body Editor",
+                              "width": "fill_container",
+                              "height": 108,
+                              "fill": "$code",
+                              "padding": 15,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "N1JmNt",
+                                  "name": "Tab B JSON Body Value",
+                                  "fill": "$codeText",
+                                  "content": "{\n  \"tab\": \"B\",\n  \"message\": \"isolated\"\n}",
+                                  "lineHeight": 1.35,
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "K5HTfF",
+                              "name": "Tab B Outgoing Request Content Item",
+                              "width": "fill_container",
+                              "height": 130,
+                              "fill": "$blueSoft",
+                              "layout": "vertical",
+                              "gap": 7,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "YxMsw",
+                                  "name": "Tab B Outgoing Request Label",
+                                  "fill": "$blue",
+                                  "content": "OUTGOING REQUEST · TAB_ID=2",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.6
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "SPtkv",
+                                  "name": "Tab B Outgoing Request Method URL",
+                                  "fill": "$codeText",
+                                  "content": "POST /anything/tab-b?mode=json",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Cc40j",
+                                  "name": "Tab B Outgoing Request Header Auth",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "X-Tab: B · Authorization: Bearer tab-b-e2e-token",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "vTYIm",
+                                  "name": "Tab B Outgoing Request Body",
+                                  "fill": "$codeText",
+                                  "content": "{\"tab\":\"B\",\"message\":\"isolated\"}",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Aksbx",
+                          "name": "Tab B Isolation Manifest Content Item",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "padding": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "KWUMo",
+                              "name": "Tab B Isolation Manifest Header",
+                              "width": "fill_container",
+                              "height": 26,
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ZULgD",
+                                  "name": "Tab B Isolation Manifest Title",
+                                  "fill": "$text",
+                                  "content": "ACTIVE OWNER · TAB B",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.6
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "dGbIv",
+                                  "name": "Tab B Isolation Manifest State",
+                                  "fill": "$green",
+                                  "content": "6 fields exact",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "pELZE",
+                              "name": "Tab B Request Manifest Row",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "N0Rm6",
+                                  "name": "Tab B Request Manifest Row Label",
+                                  "fill": "$blue",
+                                  "textGrowth": "fixed-width",
+                                  "width": 70,
+                                  "content": "REQUEST",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.4
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "DKaZ0",
+                                  "name": "Tab B Request Manifest Row Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "POST · /anything/tab-b?mode=json",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "bpK2O",
+                              "name": "Tab B Header Manifest Row",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "xExIb",
+                                  "name": "Tab B Header Manifest Row Label",
+                                  "fill": "$blue",
+                                  "textGrowth": "fixed-width",
+                                  "width": 70,
+                                  "content": "HEADER",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.4
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Vq3xS",
+                                  "name": "Tab B Header Manifest Row Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "X-Tab: B",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "M7ai2b",
+                              "name": "Tab B Authorization Manifest Row",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "yuOxW",
+                                  "name": "Tab B Authorization Manifest Row Label",
+                                  "fill": "$blue",
+                                  "textGrowth": "fixed-width",
+                                  "width": 70,
+                                  "content": "AUTH",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.4
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "DTwTS",
+                                  "name": "Tab B Authorization Manifest Row Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Bearer tab-b-e2e-token",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ilYmG",
+                              "name": "Tab B Body Manifest Row",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "PiSwH",
+                                  "name": "Tab B Body Manifest Row Label",
+                                  "fill": "$blue",
+                                  "textGrowth": "fixed-width",
+                                  "width": 70,
+                                  "content": "BODY",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.4
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ysdHc",
+                                  "name": "Tab B Body Manifest Row Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "{\"tab\":\"B\",\"message\":\"isolated\"}",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "BD5pE",
+                              "name": "Tab B Isolation Negative Evidence Row",
+                              "width": "fill_container",
+                              "height": 40,
+                              "fill": "$panelAlt",
+                              "cornerRadius": 8,
+                              "gap": 10,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "BlPNl",
+                                  "name": "Tab B Isolation Negative Evidence Row Label",
+                                  "fill": "$blue",
+                                  "textGrowth": "fixed-width",
+                                  "width": 70,
+                                  "content": "NO LEAK",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.4
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "VRB1Z",
+                                  "name": "Tab B Isolation Negative Evidence Row Value",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "X-Tab: A · q=rust · Body None absent",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "V4P7HZ",
+                      "name": "HTTPBingo Tab B Response Panel",
+                      "width": "fill_container",
+                      "height": 324,
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "w7ka8",
+                          "name": "Tab B Response Header",
+                          "width": "fill_container",
+                          "height": 54,
+                          "fill": "$panelAlt",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 18,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Rk6gO",
+                              "name": "Tab B Response Title",
+                              "fill": "$text",
+                              "content": "Response · Tab B",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 16,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SOrat",
+                              "name": "Tab B Response Body Tab",
+                              "fill": "$text",
+                              "content": "Body · selected",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uIfRL",
+                              "name": "Tab B Response Headers Tab",
+                              "fill": "$subtle",
+                              "content": "Headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "nP8Q3",
+                              "name": "Tab B Response Header Spacer",
+                              "width": "fill_container",
+                              "height": 1
+                            },
+                            {
+                              "type": "frame",
+                              "id": "VgygN",
+                              "name": "Copy Response Action",
+                              "height": 34,
+                              "fill": "$panel",
+                              "cornerRadius": 9,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "gap": 7,
+                              "padding": [
+                                0,
+                                10
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "F1ZUC",
+                                  "name": "Copy Response Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "copy",
+                                  "library": "lucide",
+                                  "fill": "$muted"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "jRXYw",
+                                  "name": "Copy Response Value",
+                                  "fill": "$green",
+                                  "content": "Copy → ✓ Copied",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "gDkJN",
+                              "name": "Tab B Response Status",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "padding": [
+                                6,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hUpdn",
+                                  "name": "Tab B Response Status Value",
+                                  "fill": "$green",
+                                  "content": "200 OK",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "HtFjm",
+                          "name": "Tab B Response Stable Subset Content Item",
+                          "width": "fill_container",
+                          "height": 184,
+                          "fill": "$code",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "padding": 14,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "FzXp2",
+                              "name": "Tab B Response Stable Subset Label",
+                              "fill": "$blue",
+                              "content": "HTTPBINGO ECHO · STABLE SUBSET · tab_id=2",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "800",
+                              "letterSpacing": 0.6
+                            },
+                            {
+                              "type": "text",
+                              "id": "J66AX",
+                              "name": "Tab B Response Stable Subset JSON",
+                              "fill": "$codeText",
+                              "content": "{\n  \"method\": \"POST\",\n  \"args\": {\"mode\": [\"json\"]},\n  \"headers\": {\"X-Tab\": [\"B\"], \"Authorization\": [\"Bearer tab-b-e2e-token\"]},\n  \"json\": {\"tab\": \"B\", \"message\": \"isolated\"}\n}",
+                              "lineHeight": 1.25,
+                              "fontFamily": "$fontMono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Fsz2G",
+                          "name": "Multi-Tab Response Verification Evidence",
+                          "width": "fill_container",
+                          "height": 86,
+                          "fill": "$panelAlt",
+                          "gap": 10,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "l5rboq",
+                              "name": "Tab-Local Response Ownership Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$blueSoft",
+                              "cornerRadius": 9,
+                              "layout": "vertical",
+                              "gap": 5,
+                              "padding": 9,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ZGrDU",
+                                  "name": "Tab-Local Response Ownership Label",
+                                  "fill": "$blue",
+                                  "content": "RESPONSE OWNER",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.5
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "o6se4",
+                                  "name": "Tab-Local Response Ownership Value",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "ResponseState::Success { status: 200 } · tab_id=2",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "F4mfmL",
+                              "name": "Tab-Local Dirty State Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 9,
+                              "layout": "vertical",
+                              "gap": 5,
+                              "padding": 9,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nJYGA",
+                                  "name": "Tab-Local Dirty State Label",
+                                  "fill": "$green",
+                                  "content": "TAB-LOCAL STATE",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.5
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ATIpf",
+                                  "name": "Tab-Local Dirty State Value",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "tab_id=1 · response=200 · dirty=false · pane=Params",
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "a8dZqn",
+                              "name": "Shared History Response Evidence Content Item",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$accentSoft",
+                              "cornerRadius": 9,
+                              "layout": "vertical",
+                              "gap": 5,
+                              "padding": 9,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "GZrdi",
+                                  "name": "Shared History Response Evidence Label",
+                                  "fill": "$accent",
+                                  "content": "SHARED HISTORY",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "800",
+                                  "letterSpacing": 0.5
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Yms3S",
+                                  "name": "Shared History Response Evidence Value",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "2 completed runtime Requests · closing a tab changes no record",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "L3wfQ",
+          "name": "Feature Flow",
+          "width": "fill_container",
+          "height": 140,
+          "fill": "$panel",
+          "cornerRadius": 16,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 12,
+          "padding": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ky3CX",
+              "name": "Multi-Tab Isolation Flow Label",
+              "width": 176,
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 7,
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "BiMPp",
+                  "name": "Multi-Tab Isolation Flow Eyebrow",
+                  "fill": "$accent",
+                  "content": "OWNERSHIP FLOW",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "Fp2bH",
+                  "name": "Multi-Tab Isolation Flow Title",
+                  "fill": "$text",
+                  "content": "two owners,\none History",
+                  "lineHeight": 1.1,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 19,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "ZM8tH",
+                  "name": "Multi-Tab Isolation Flow Caption",
+                  "fill": "$subtle",
+                  "content": "Tabs runtime-only; History durable.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Y6GTZN",
+              "name": "Tab A Isolation Snapshot Content Item",
+              "width": "fill_container",
+              "height": 96,
+              "fill": "$greenSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tR3zb",
+                  "name": "Tab A Isolation Snapshot Label",
+                  "fill": "$green",
+                  "content": "1 · TAB A DRAFT",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "nrV3Y",
+                  "name": "Tab A Isolation Snapshot Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "GET · Params · No Auth · Body None",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "at9vn",
+                  "name": "Tab A Isolation Snapshot Detail",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "https://httpbingo.org/get?tab=A&q=rust\nX-Tab: A · dirty=true · pane=Params",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 8,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "tAv3Y",
+              "name": "Multi-Tab Flow Arrow One",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "l23F8E",
+              "name": "Tab B Isolation Snapshot Content Item",
+              "width": "fill_container",
+              "height": 96,
+              "fill": "$accentSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "z4Eu9x",
+                  "name": "Tab B Isolation Snapshot Label",
+                  "fill": "$accent",
+                  "content": "2 · TAB B DRAFT",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "FWiBn",
+                  "name": "Tab B Isolation Snapshot Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "POST · Body · Bearer tab-b-e2e-token · JSON",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "eaED8",
+                  "name": "Tab B Isolation Snapshot Detail",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "/anything/tab-b?mode=json · X-Tab: B\n{\"tab\":\"B\",\"message\":\"isolated\"} · dirty=true",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 8,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "YNqeO",
+              "name": "Multi-Tab Flow Arrow Two",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "evefc",
+              "name": "Tab Switching Projection Content Item",
+              "width": "fill_container",
+              "height": 96,
+              "fill": "$blueSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "DXdSs",
+                  "name": "Tab Switching Projection Label",
+                  "fill": "$blue",
+                  "content": "3 · SWITCH + SEND",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "liiqX",
+                  "name": "Tab Switching Projection Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Mouse click and Enter / Space run the same tab activation command.",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "UyxXJ",
+                  "name": "Tab Switching Projection Detail",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Send A → A 200; B stays dirty + NOT SENT\nSend B → B 200; A response unchanged",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 8,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "icon",
+              "id": "CGXy7",
+              "name": "Multi-Tab Flow Arrow Three",
+              "width": 16,
+              "height": 16,
+              "icon": "arrow-right",
+              "library": "lucide",
+              "fill": "$subtle"
+            },
+            {
+              "type": "frame",
+              "id": "KvS3J",
+              "name": "Close Tab Valid Active State Content Item",
+              "width": "fill_container",
+              "height": 96,
+              "fill": "$greenSoft",
+              "cornerRadius": 10,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 11,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "f7dPXz",
+                  "name": "Close Tab Valid Active State Label",
+                  "fill": "$green",
+                  "content": "4 · CLOSE TAB B",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 9,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "g2KE3o",
+                  "name": "Close Tab Valid Active State Title",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Close Tab B → Tab A active · History remains 2",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "text",
+                  "id": "kJAjE",
+                  "name": "Close Tab Valid Active State Detail",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "A Request + pane + response intact\nvalid active index=0 · no record deleted",
+                  "lineHeight": 1.3,
+                  "fontFamily": "$fontMono",
+                  "fontSize": 8,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "XtkJO",
+          "name": "E2E Contract",
+          "clip": true,
+          "width": "fill_container",
+          "height": 500,
+          "fill": "$panel",
+          "cornerRadius": 18,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ZWzOu",
+              "name": "Contract Header",
+              "width": "fill_container",
+              "height": 78,
+              "fill": "$text",
+              "gap": 14,
+              "padding": [
+                0,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "twWTq",
+                  "name": "Contract Header Icon",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "$accentVivid",
+                  "cornerRadius": 10,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "M8qR3",
+                      "name": "Contract Header Tabs Icon",
+                      "width": 20,
+                      "height": 20,
+                      "icon": "panels-top-left",
+                      "library": "lucide",
+                      "fill": "$panel"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eGeeL",
+                  "name": "Contract Header Title Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "iNYWc",
+                      "name": "Contract Title",
+                      "fill": "$panel",
+                      "content": "Issue #79 · Real-UI Multi-Tab Isolation Contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "m299q1",
+                      "name": "Contract Subtitle",
+                      "fill": "$line",
+                      "content": "Tab identity owns runtime draft / response; WorkspaceViewModel holds the runtime History projection while the History application service owns durability.",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "qgB8p",
+                  "name": "Contract Stability Badge",
+                  "fill": "$greenSoft",
+                  "cornerRadius": 10,
+                  "padding": [
+                    7,
+                    11
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "IT2L4",
+                      "name": "Contract Stability Badge Text",
+                      "fill": "$green",
+                      "content": "LOCAL + PUBLIC HTTPBINGO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "JWQYN",
+              "name": "Contract Columns",
+              "width": "fill_container",
+              "height": 350,
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ZMVRK",
+                  "name": "Ordered Real-UI Scenario Steps",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panelAlt",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "WjZI2",
+                      "name": "Scenario Steps Label",
+                      "fill": "$blue",
+                      "content": "01 · ORDERED REAL-UI STEPS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "Q6saU",
+                      "name": "Scenario Steps Content",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "1. Create Tab A and enter the complete GET request through rendered controls.\n\n2. Click New Request and build the distinguishable POST JSON request in Tab B.\n\n3. Switch with mouse click, then focus each tab and press Enter / Space; both paths run one activation command.\n\n4. Every switch restores the owning Method, URL, Params, Headers, Auth, Body, pane, response, and dirty state.\n\n5. Send Tab A and Tab B directly without Enter, Tab, blur, Add, or submit-time backfill.\n\n6. Close Tab B; Tab A becomes the valid active tab and shared History retains both completed Requests.",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "g8UNbw",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$blueSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "IUmL5",
+                      "name": "Observable Assertions Label",
+                      "fill": "$blue",
+                      "content": "02 · OBSERVABLE ASSERTIONS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "XbGAA",
+                      "name": "Observable Assertions Content",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "• Tab A sends GET /get?tab=A&q=rust with X-Tab: A, no Auth, and RequestBody::None.\n\n• Tab B sends POST /anything/tab-b?mode=json with X-Tab: B, Bearer auth, and typed JSON.\n\n• Each HTTPBingo echo and ResponseState remains attached to its originating tab_id.\n\n• Switching projects state; controls retain no cross-tab business model and perform no copying between ViewModels.\n\n• dirty=true remains on the unsent owner; successful Send clears only that owner to dirty=false.\n\n• Runtime History records exactly two completed Requests; closing a tab changes no record. Restart restores durable sanitized History only, never tabs.",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "nkQPy",
+                  "name": "Scope and Non-Goals",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$accentSoft",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "gap": 9,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "of35H",
+                      "name": "Scope and Non-Goals Label",
+                      "fill": "$accent",
+                      "content": "03 · SCOPE / NON-GOALS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "dVLl4",
+                      "name": "Included Scope Title",
+                      "fill": "$green",
+                      "content": "INCLUDED",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "text",
+                      "id": "ONao7",
+                      "name": "Included Scope Content",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Two independent RequestViewModels; tab switching and close projection; tab-local response and dirty state; immutable tab_id async targeting; runtime History projection plus application-service durability handoff; mouse and keyboard parity.",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r81qvM",
+                      "name": "Non-Goals Title",
+                      "fill": "$accent",
+                      "content": "NON-GOALS",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 9,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "text",
+                      "id": "XVjeb",
+                      "name": "Non-Goals Content",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "No tab drag/reorder, pinning, reopening closed tabs, tab persistence, cross-window synchronization, or automatic replay. #127 persists sanitized History only; active tab, pane, response, and dirty state remain runtime-only. Closing the final tab and unsaved-draft confirmation remain outside #79.",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "cf8mc",
+                      "name": "Scenario and Workflow Paths",
+                      "fill": "$codeText",
+                      "content": "tests/cases/httpbingo/query_params.json\ntests/cases/httpbingo/bodies.json\ntests/ui_workspace.rs\n.github/workflows/httpbingo-e2e.yml\nParent roadmap #50 → #79.",
+                      "lineHeight": 1.35,
+                      "fontFamily": "$fontMono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "C0QLuA",
+              "name": "One-to-One Rule",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$accentVivid",
+              "gap": 12,
+              "padding": [
+                0,
+                22
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "qboGf",
+                  "name": "One-to-One Rule Icon",
+                  "width": 20,
+                  "height": 20,
+                  "icon": "link",
+                  "library": "lucide",
+                  "fill": "$panel"
+                },
+                {
+                  "type": "frame",
+                  "id": "dCJUR",
+                  "name": "One-to-One Rule Text Block",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mrENs",
+                      "name": "One-to-One Rule Statement",
+                      "fill": "$panel",
+                      "content": "ONE ISSUE · ONE DESIGN · ONE EXECUTABLE REAL-UI SCENARIO",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "800",
+                      "letterSpacing": 0.7
+                    },
+                    {
+                      "type": "text",
+                      "id": "etIVB",
+                      "name": "Owning Design Path",
+                      "fill": "$accentInk",
+                      "content": "design/issue-0079-multi-tab-request-isolation.pen",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "Og7c8",
+                  "name": "One-to-One Rule Issue Reference",
+                  "fill": "$accentInk",
+                  "content": "github.com/847850277/postman-gpui/issues/79",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    }
+  },
+  "fileToken": "a15b07db-3d51-4f58-a91b-7d8fdd04ee10"
+}
