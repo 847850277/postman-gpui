@@ -820,7 +820,6 @@ fn cookie_workflow_contract_links_storage_send_and_clear_in_one_session() {
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let mut scenario_count = 0;
@@ -851,7 +850,6 @@ fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
     test_cx: &mut TestAppContext,
 ) {
@@ -862,7 +860,6 @@ fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let workflow = cookie_workflow(&files).expect("Issue #65 workflow should be valid");
@@ -871,7 +868,6 @@ fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
     test_cx: &mut TestAppContext,
 ) {
@@ -893,7 +889,6 @@ fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_response_headers_are_inspectable_by_mouse_and_keyboard(test_cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let scenario = find_httpbingo_scenario(&files, RESPONSE_HEADERS_SCENARIO)
@@ -1042,7 +1037,6 @@ fn run_response_headers_workflow(
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_history_replay_restores_and_resends_the_complete_request(
     test_cx: &mut TestAppContext,
 ) {
@@ -1186,7 +1180,6 @@ fn run_history_replay_workflow(
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_head_and_options_keep_exact_methods_empty_bodies_and_history_restore(
     test_cx: &mut TestAppContext,
 ) {
@@ -1325,7 +1318,6 @@ fn run_head_options_workflow(
 }
 
 #[gpui::test]
-#[ignore = "requires public HTTPBingo network access"]
 fn httpbingo_compression_decodes_readable_bodies_and_records_decoded_sizes(
     test_cx: &mut TestAppContext,
 ) {
