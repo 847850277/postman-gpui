@@ -13,11 +13,18 @@ Postman GPUI is a simple graphical user interface application for making HTTP re
 
 ## Request History Feature
 
-The history list in the left sidebar shows all your previous requests. Simply **click on any history item** to:
+The history list in the left sidebar displays the newest 50 completed HTTP exchanges from the
+bundled SQLite database. SQLite is the only History source; cancelled and transport-failed requests
+are not recorded. Simply **click on any history item** to:
 - Load the complete URL (including query parameters)
 - Load the HTTP method
-- Load all headers
+- Load non-sensitive headers
 - Load the request body
+
+Known credentials and cookies are removed before persistence. User-authored request bodies and
+non-sensitive query values remain replay data. See the
+[SQLite Request History contract](docs/history-persistence.md) for lifecycle, security, and failure
+behavior.
 
 
 

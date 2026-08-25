@@ -12,6 +12,16 @@ Postman GPUI 是一个受 Postman 启发的简单图形用户界面应用程序�
 - 专业的 JSON 编辑器，支持多行编辑和语法高亮
 - 现代化的用户界面，基于 GPUI 框架构建
 
+## SQLite 请求历史
+
+左侧 History 只展示 SQLite 查询返回的最新 50 条已完成 HTTP 交换。SQLite 是唯一可写和
+权威的数据源；取消、超时及未产生 HTTP 响应的传输失败不会写入 History。恢复时只加载经过
+脱敏的可回放请求，不恢复 Cookie、响应、标签页或未发送草稿。
+
+Authorization、Cookie、API Key 等已知凭据位置会在进入数据库前移除；用户编写的请求体和
+未命中敏感名称规则的查询参数属于明确的回放数据。完整规则见
+[SQLite Request History contract](docs/history-persistence.md)。
+
 ## 项目结构
 
 ```text
