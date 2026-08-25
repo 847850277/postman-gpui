@@ -1323,13 +1323,13 @@ fn run_compression_workflow(
             workspace.response().clone(),
         )
     });
-    if restored
-        != (
-            HttpMethod::GET,
-            expected_requests[0].url.clone(),
-            Vec::new(),
-            RequestBody::None,
-            ResponseState::NotSent,
+    if restored.0 != HttpMethod::GET
+        || restored.1 != expected_requests[0].url
+        || !restored.2.is_empty()
+        || restored.3 != RequestBody::None
+        || !matches!(
+            &restored.4,
+            ResponseState::Historical { response, .. } if response.status == 200
         )
     {
         return Err(format!(

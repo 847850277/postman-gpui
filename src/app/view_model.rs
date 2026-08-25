@@ -3,8 +3,8 @@ use crate::{
     errors::AppError,
     http::executor::RequestResult,
     models::{
-        HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request,
-        RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
+        HistoricalResponse, HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart,
+        MultipartValue, Request, RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
     },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -363,9 +363,33 @@ pub enum ResponseState {
         headers: Vec<(String, String)>,
         elapsed_ms: u128,
     },
+    /// Read-only, sanitized evidence loaded from one immutable persisted History row.
+    Historical {
+        entry_id: String,
+        response: HistoricalResponse,
+    },
+    /// A request-only V1 row (or V2 row without response evidence) was selected.
+    HistoricalUnavailable {
+        entry_id: String,
+    },
     Error {
         message: String,
     },
+}
+
+impl ResponseState {
+    pub fn historical_entry_id(&self) -> Option<&str> {
+        match self {
+            Self::Historical { entry_id, .. } | Self::HistoricalUnavailable { entry_id } => {
+                Some(entry_id)
+            }
+            Self::NotSent
+            | Self::Loading
+            | Self::Cancelled
+            | Self::Success { .. }
+            | Self::Error { .. } => None,
+        }
+    }
 }
 
 /// Stable identity for a request tab. Async completions target this identity rather than
@@ -1192,6 +1216,17 @@ impl RequestViewModel {
             self.request_pane = RequestPane::Body;
             self.dirty = false;
         }
+        self.response = entry.historical_response.clone().map_or_else(
+            || ResponseState::HistoricalUnavailable {
+                entry_id: entry.id.clone(),
+            },
+            |response| ResponseState::Historical {
+                entry_id: entry.id.clone(),
+                response,
+            },
+        );
+        // Persisted History deliberately contains no cookie-jar evidence.
+        self.response_stored_cookies.clear();
     }
 
     fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> Request {
@@ -1684,10 +1719,14 @@ impl WorkspaceViewModel {
         stored_cookies: Vec<(String, String)>,
     ) -> SendCompletion {
         let was_cancelled = pending.was_cancelled();
-        let completed_response = result
-            .as_ref()
-            .ok()
-            .map(|response| (response.status, response.elapsed_ms, response.body.len()));
+        let completed_response = result.as_ref().ok().map(|response| {
+            HistoricalResponse::completed(
+                response.status,
+                response.headers.clone(),
+                response.body.clone(),
+                response.elapsed_ms,
+            )
+        });
         match &result {
             Ok(response) if !was_cancelled => {
                 tracing::info!(
@@ -1724,22 +1763,23 @@ impl WorkspaceViewModel {
             .iter_mut()
             .find(|tab| tab.tab_id == pending.tab_id)
             .is_some_and(|tab| tab.complete_send(&pending, result, stored_cookies));
-        let history_entry = completed_response.filter(|_| !was_cancelled).map(
-            |(status, elapsed_ms, response_size)| {
+        let history_entry = completed_response
+            .filter(|_| !was_cancelled)
+            .map(|response| {
                 HistoryEntry::completed_with_intent_and_options(
                     pending.request.clone(),
                     history_label(&pending.request.url),
-                    status,
-                    elapsed_ms,
-                    response_size,
+                    response.status,
+                    response.elapsed_ms,
+                    response.original_size,
                     pending.editor_intent.clone(),
                     RequestOptions {
                         timeout_ms: pending.timeout_ms,
                         ..RequestOptions::default()
                     },
                 )
-            },
-        );
+                .with_historical_response(response)
+            });
         SendCompletion {
             response_applied: applied,
             history_entry,
@@ -1781,6 +1821,22 @@ impl WorkspaceViewModel {
         skipped_rows: usize,
     ) {
         self.history.replace(entries);
+        let retained_ids = self
+            .history
+            .entries()
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        for tab in &mut self.tabs {
+            if tab
+                .response
+                .historical_entry_id()
+                .is_some_and(|entry_id| !retained_ids.contains(entry_id))
+            {
+                tab.response = ResponseState::NotSent;
+                tab.response_stored_cookies.clear();
+            }
+        }
         self.history_storage_status = HistoryStorageStatus::Ready { skipped_rows };
     }
 
@@ -3142,5 +3198,116 @@ mod tests {
         assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
         assert_eq!(workspace.timeout_ms(), 2_000);
         assert!(workspace.is_dirty());
+    }
+
+    #[test]
+    fn selecting_history_replaces_response_evidence_without_sending_or_mutating_cookies() {
+        let response_entry = |suffix: &str, body: &str| {
+            let response = HistoricalResponse::completed(
+                200,
+                vec![("Content-Type".into(), "text/plain".into())],
+                body.to_string(),
+                9,
+            );
+            let mut entry = HistoryEntry::completed(
+                Request::new(HttpMethod::GET, format!("https://example.com/{suffix}")),
+                suffix.to_string(),
+                200,
+                9,
+                body.len(),
+            )
+            .with_historical_response(response);
+            entry.id = format!("00000000-0000-4000-8000-0000000000{suffix}");
+            entry
+        };
+        let first = response_entry("41", "first historical body");
+        let second = response_entry("42", "second historical body");
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.replace_history_query_result(vec![first.clone(), second.clone()], 0);
+        workspace.sync_cookie_jar(vec![("https://example.com".into(), "existing".into())]);
+
+        workspace.load_history_entry(&first);
+        assert_eq!(workspace.in_flight_count(), 0);
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &first.id
+                    && matches!(&response.body, crate::models::HistoricalResponseBody::Text(body) if body == "first historical body")
+        ));
+        assert_eq!(workspace.cookie_count(), 1);
+        assert!(workspace.response_stored_cookies().is_empty());
+
+        workspace.load_history_entry(&second);
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &second.id
+                    && matches!(&response.body, crate::models::HistoricalResponseBody::Text(body) if body == "second historical body")
+        ));
+        assert_eq!(workspace.history_len(), 2);
+    }
+
+    #[test]
+    fn sending_from_historical_creates_an_independent_row_and_clear_removes_selection() {
+        let response = HistoricalResponse::completed(202, Vec::new(), "stored".to_string(), 4);
+        let original = HistoryEntry::completed(
+            Request::new(HttpMethod::GET, "https://example.com/replay"),
+            "replay".into(),
+            202,
+            4,
+            6,
+        )
+        .with_historical_response(response);
+        let original_id = original.id.clone();
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.replace_history_query_result(vec![original.clone()], 0);
+        workspace.load_history_entry(&original);
+
+        let pending = workspace.begin_send();
+        assert!(matches!(workspace.response(), ResponseState::Loading));
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(RequestResult {
+                status: 200,
+                headers: Vec::new(),
+                body: "new response".into(),
+                elapsed_ms: 5,
+                stored_cookies: Vec::new(),
+            })
+        ));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success { body, .. } if body == "new response"
+        ));
+        assert_eq!(workspace.history_len(), 2);
+        assert_ne!(workspace.history()[0].id, original_id);
+        assert_eq!(workspace.history()[1].id, original_id);
+
+        workspace.load_history_entry(&original);
+        workspace.replace_history_query_result(Vec::new(), 0);
+        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(workspace.history().is_empty());
+    }
+
+    #[test]
+    fn request_only_history_uses_the_explicit_unavailable_state() {
+        let entry = HistoryEntry::completed(
+            Request::new(HttpMethod::GET, "https://example.com/v1"),
+            "legacy".into(),
+            204,
+            1,
+            0,
+        );
+        let entry_id = entry.id.clone();
+        let mut workspace = WorkspaceViewModel::new();
+
+        workspace.load_history_entry(&entry);
+
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::HistoricalUnavailable { entry_id: selected }
+                if selected == &entry_id
+        ));
     }
 }

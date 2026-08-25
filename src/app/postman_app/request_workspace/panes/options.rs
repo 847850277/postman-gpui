@@ -96,6 +96,10 @@ impl Render for OptionsPane {
                 ResponseState::Loading => "ResponseState::Loading",
                 ResponseState::Cancelled => "ResponseState::Cancelled",
                 ResponseState::Success { .. } => "ResponseState::Success",
+                ResponseState::Historical { .. } => "ResponseState::Historical",
+                ResponseState::HistoricalUnavailable { .. } => {
+                    "ResponseState::Historical · unavailable"
+                }
                 ResponseState::Error { message }
                     if message.starts_with("Request timed out after") =>
                 {

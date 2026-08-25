@@ -14,6 +14,7 @@ use headers::render_response_headers;
 
 use crate::{
     app::{CookieJarEntry, ResponseState, WorkspaceViewModel},
+    models::HistoricalResponseBody,
     ui::components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
@@ -135,6 +136,11 @@ impl ResponseViewer {
     fn raw_response_body(&self, cx: &App) -> Option<String> {
         match self.view_model.read(cx).response() {
             ResponseState::Success { body, .. } if !body.is_empty() => Some(body.clone()),
+            ResponseState::Historical { response, .. } => response
+                .body
+                .preview()
+                .filter(|preview| !preview.is_empty())
+                .map(str::to_string),
             _ => None,
         }
     }
@@ -218,6 +224,27 @@ impl ResponseViewer {
                         .collect::<Vec<_>>()
                         .join("\n")
                 }
+            }
+            (ResponseState::Historical { response, .. }, ResponsePane::Body) => response
+                .body
+                .preview()
+                .map(format_response_body)
+                .unwrap_or_else(|| match &response.body {
+                    HistoricalResponseBody::Empty => String::new(),
+                    HistoricalResponseBody::Unsupported => "Body not stored".to_string(),
+                    HistoricalResponseBody::Text(_) | HistoricalResponseBody::TruncatedText(_) => {
+                        unreachable!()
+                    }
+                }),
+            (ResponseState::Historical { response, .. }, ResponsePane::Headers) => response
+                .headers
+                .iter()
+                .map(|(name, value)| format!("{name}: {value}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            (ResponseState::Historical { .. }, ResponsePane::Cookies) => String::new(),
+            (ResponseState::HistoricalUnavailable { .. }, _) => {
+                "This older History entry did not store a response.".to_string()
             }
             (ResponseState::Error { message }, _) => message.clone(),
             (ResponseState::Cancelled, _) => "Request cancelled by user".to_string(),
@@ -1073,10 +1100,15 @@ impl Render for ResponseViewer {
                 view_model.cookie_count(),
             )
         };
+        if matches!(&state, ResponseState::Historical { .. }) && self.pane == ResponsePane::Cookies
+        {
+            self.pane = ResponsePane::Body;
+        }
         let pane = self.pane;
         let context_menu_position = self.context_menu_position;
         let response_header_count = match &state {
             ResponseState::Success { headers, .. } => headers.len(),
+            ResponseState::Historical { response, .. } => response.headers.len(),
             _ => 0,
         };
         let body_tab = self.pane_tab(ResponsePane::Body, "Body", window, cx);
@@ -1092,13 +1124,31 @@ impl Render for ResponseViewer {
             window,
             cx,
         );
-        let has_completed_response = matches!(&state, ResponseState::Success { .. });
-        let has_copyable_body =
-            matches!(&state, ResponseState::Success { body, .. } if !body.is_empty());
+        let has_completed_response = matches!(
+            &state,
+            ResponseState::Success { .. } | ResponseState::Historical { .. }
+        );
+        let has_copyable_body = match &state {
+            ResponseState::Success { body, .. } => !body.is_empty(),
+            ResponseState::Historical { response, .. } => response
+                .body
+                .preview()
+                .is_some_and(|preview| !preview.is_empty()),
+            _ => false,
+        };
+        let is_historical = matches!(
+            &state,
+            ResponseState::Historical { .. } | ResponseState::HistoricalUnavailable { .. }
+        );
+        let historical_truncated = matches!(
+            &state,
+            ResponseState::Historical { response, .. } if response.body.is_truncated()
+        );
         let copied_feedback = has_copyable_body && self.copied_feedback;
         let copy_is_focused = self.copy_focus_handle.is_focused(window);
         let completed_status = match &state {
             ResponseState::Success { status, .. } => Some(*status),
+            ResponseState::Historical { response, .. } => Some(response.status),
             _ => None,
         };
         let is_transport_failure = matches!(&state, ResponseState::Error { .. });
@@ -1119,6 +1169,18 @@ impl Render for ResponseViewer {
                 format!("{elapsed_ms} ms"),
                 format_bytes(body.len()),
                 if *status < 400 { OK } else { ERROR },
+            ),
+            ResponseState::Historical { response, .. } => (
+                status_label(response.status),
+                format!("{} ms", response.elapsed_ms),
+                format_bytes(response.original_size),
+                if response.status < 400 { OK } else { ERROR },
+            ),
+            ResponseState::HistoricalUnavailable { .. } => (
+                "Response unavailable".to_string(),
+                String::new(),
+                String::new(),
+                MUTED,
             ),
             ResponseState::Loading => ("Sending…".to_string(), String::new(), String::new(), MUTED),
             ResponseState::Cancelled => {
@@ -1172,14 +1234,32 @@ impl Render for ResponseViewer {
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(rgb(TEXT)),
                             )
-                            .when(matches!(&state, ResponseState::Success { .. }), |row| {
+                            .when(is_historical, |row| {
+                                row.child(
+                                    div()
+                                        .debug_selector(|| "response-historical-badge".into())
+                                        .px_2()
+                                        .py_1()
+                                        .rounded(px(6.0))
+                                        .bg(rgb(INFO_SOFT))
+                                        .font_family(FONT_UI)
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_size(px(10.0))
+                                        .text_color(rgb(INFO))
+                                        .child("Historical"),
+                                )
+                            })
+                            .when(has_completed_response, |row| {
                                 row.child(
                                     div()
                                         .flex()
                                         .h_full()
                                         .child(body_tab)
                                         .child(headers_tab)
-                                        .child(cookies_tab),
+                                        .when(
+                                            matches!(&state, ResponseState::Success { .. }),
+                                            |tabs| tabs.child(cookies_tab),
+                                        ),
                                 )
                             }),
                     )
@@ -1322,13 +1402,27 @@ impl Render for ResponseViewer {
                                 .child("●")
                                 .child(if pane == ResponsePane::Cookies {
                                     "Response cookie evidence"
+                                } else if is_historical {
+                                    "Persisted historical response"
                                 } else if is_httpbingo {
                                     "HTTPBingo echo"
                                 } else {
                                     "Response payload"
                                 }),
                         )
-                        .when(is_httpbingo, |bar| {
+                        .when(is_historical, |bar| {
+                            bar.child(
+                                div()
+                                    .debug_selector(|| "response-historical-storage".into())
+                                    .text_color(rgb(SUBTEXT))
+                                    .child(if historical_truncated {
+                                        "Stored preview · truncated at 256 KiB"
+                                    } else {
+                                        "Stored sanitized response"
+                                    }),
+                            )
+                        })
+                        .when(is_httpbingo && !is_historical, |bar| {
                             bar.child(div().text_color(rgb(SUBTEXT)).child("stable subset"))
                         }),
                 )
@@ -1393,6 +1487,64 @@ impl Render for ResponseViewer {
                         .min_h_0()
                         .child(self.render_cookie_content(response_cookies, jar_count, cx)),
                 },
+                ResponseState::Historical { response, .. } => match pane {
+                    ResponsePane::Body => match response.body {
+                        HistoricalResponseBody::Empty => div()
+                            .debug_selector(|| "response-historical-empty".into())
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.render_selectable_content("Empty response body", cx)),
+                        HistoricalResponseBody::Text(body) => div()
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.render_selectable_content(&body, cx)),
+                        HistoricalResponseBody::TruncatedText(body) => div()
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .min_h_0()
+                            .child(
+                                div()
+                                    .debug_selector(|| "response-historical-truncated".into())
+                                    .flex_none()
+                                    .px_4()
+                                    .py_2()
+                                    .bg(rgb(INFO_SOFT))
+                                    .font_family(FONT_UI)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_size(px(11.0))
+                                    .text_color(rgb(INFO))
+                                    .child("Persisted preview is truncated at 256 KiB."),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_h_0()
+                                    .child(self.render_selectable_content(&body, cx)),
+                            ),
+                        HistoricalResponseBody::Unsupported => div()
+                            .debug_selector(|| "response-historical-body-not-stored".into())
+                            .flex_1()
+                            .min_h_0()
+                            .child(self.render_selectable_content("Body not stored", cx)),
+                    },
+                    ResponsePane::Headers => div()
+                        .flex_1()
+                        .min_h_0()
+                        .child(render_response_headers(&response.headers)),
+                    ResponsePane::Cookies => div()
+                        .flex_1()
+                        .min_h_0()
+                        .child(self.render_selectable_content("Body not stored", cx)),
+                },
+                ResponseState::HistoricalUnavailable { .. } => div()
+                    .debug_selector(|| "response-historical-unavailable".into())
+                    .flex_1()
+                    .min_h_0()
+                    .child(self.render_selectable_content(
+                        "This older History entry did not store a response.",
+                        cx,
+                    )),
                 ResponseState::Error { message } => div()
                     .when(is_timeout, |content| {
                         content.debug_selector(|| "response-timeout-content".into())

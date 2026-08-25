@@ -19,6 +19,78 @@ pub struct MultipartEditorPart {
     pub value: MultipartValue,
 }
 
+/// Persisted response body evidence attached to one immutable History row.
+///
+/// History never restores transport cookie state. `Unsupported` represents binary, download, or
+/// otherwise non-textual payloads whose bytes are deliberately excluded from SQLite.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HistoricalResponseBody {
+    Empty,
+    Text(String),
+    TruncatedText(String),
+    Unsupported,
+}
+
+impl HistoricalResponseBody {
+    pub fn preview(&self) -> Option<&str> {
+        match self {
+            Self::Text(preview) | Self::TruncatedText(preview) => Some(preview),
+            Self::Empty | Self::Unsupported => None,
+        }
+    }
+
+    pub fn is_truncated(&self) -> bool {
+        matches!(self, Self::TruncatedText(_))
+    }
+
+    pub fn is_available(&self) -> bool {
+        !matches!(self, Self::Unsupported)
+    }
+}
+
+/// Sanitized response evidence that may be replayed without performing a network request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoricalResponse {
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: HistoricalResponseBody,
+    pub media_type: Option<String>,
+    pub elapsed_ms: u128,
+    pub original_size: usize,
+    pub persisted_size: usize,
+}
+
+impl HistoricalResponse {
+    /// Build the unsanitized runtime candidate produced by a completed send. The persistence
+    /// snapshot boundary owns sanitization, body classification, and truncation.
+    pub fn completed(
+        status: u16,
+        headers: Vec<(String, String)>,
+        body: String,
+        elapsed_ms: u128,
+    ) -> Self {
+        let original_size = body.len();
+        let media_type = headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.clone());
+        let body = if body.is_empty() {
+            HistoricalResponseBody::Empty
+        } else {
+            HistoricalResponseBody::Text(body)
+        };
+        Self {
+            status,
+            headers,
+            body,
+            media_type,
+            elapsed_ms,
+            original_size,
+            persisted_size: original_size,
+        }
+    }
+}
+
 /// Request history entry
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
@@ -32,6 +104,8 @@ pub struct HistoryEntry {
     pub status: Option<u16>,
     pub elapsed_ms: Option<u128>,
     pub response_size: Option<usize>,
+    /// `None` identifies a V1 row whose response was never stored.
+    pub historical_response: Option<HistoricalResponse>,
 }
 
 impl HistoryEntry {
@@ -46,6 +120,7 @@ impl HistoryEntry {
             status: None,
             elapsed_ms: None,
             response_size: None,
+            historical_response: None,
         }
     }
 
@@ -97,7 +172,13 @@ impl HistoryEntry {
             status: Some(status),
             elapsed_ms: Some(elapsed_ms),
             response_size: Some(response_size),
+            historical_response: None,
         }
+    }
+
+    pub fn with_historical_response(mut self, response: HistoricalResponse) -> Self {
+        self.historical_response = Some(response);
+        self
     }
 
     /// Get a display name for the history entry

@@ -1,13 +1,15 @@
 //! Versioned, sanitized Request History persistence contract.
 //!
-//! `HistoryEntry` remains the runtime projection. `HistorySnapshotV1` is the only shape that may
+//! `HistoryEntry` remains the runtime projection. Versioned snapshots are the only shapes that may
 //! cross the repository boundary: conversion removes known credentials before a storage adapter
-//! can observe them, keeps request bodies as explicitly documented user-authored replay data, and
-//! never contains GPUI, response-body, tab, cookie-jar, or pending-request state.
+//! can observe them. V1 contains a replay request only; V2 can additionally contain a bounded,
+//! sanitized textual response preview. Neither version contains GPUI, tab, cookie-jar, or
+//! pending-request state.
 
 use crate::models::{
-    HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RedirectPolicy,
-    Request, RequestBody, RequestEditorIntent, RequestOptions, MAX_REDIRECT_HOPS,
+    HistoricalResponse, HistoricalResponseBody, HistoryEntry, HttpMethod, MultipartEditorPart,
+    MultipartPart, MultipartValue, RedirectPolicy, Request, RequestBody, RequestEditorIntent,
+    RequestOptions, MAX_REDIRECT_HOPS,
 };
 use chrono::{DateTime, Utc};
 use reqwest::{
@@ -20,6 +22,8 @@ use std::{fmt, path::PathBuf};
 use uuid::Uuid;
 
 pub const HISTORY_SNAPSHOT_VERSION_V1: u64 = 1;
+pub const HISTORY_SNAPSHOT_VERSION_V2: u64 = 2;
+pub const MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES: usize = 256 * 1024;
 
 /// Errors at the runtime/snapshot and serialized-payload boundaries.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -78,7 +82,7 @@ impl fmt::Display for HistorySnapshotError {
             Self::NumericOverflow { field } => {
                 write!(
                     formatter,
-                    "History field {field} exceeds the V1 numeric range"
+                    "History field {field} exceeds the persisted numeric range"
                 )
             }
             Self::NonUtf8Path { field } => {
@@ -102,35 +106,44 @@ impl std::error::Error for HistorySnapshotError {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VersionedHistorySnapshot {
     V1(HistorySnapshotV1),
+    V2(HistorySnapshotV2),
 }
 
 impl VersionedHistorySnapshot {
     pub fn version(&self) -> u64 {
         match self {
             Self::V1(_) => HISTORY_SNAPSHOT_VERSION_V1,
+            Self::V2(_) => HISTORY_SNAPSHOT_VERSION_V2,
         }
     }
 
+    /// Common request/metadata prefix shared by both persisted versions.
     pub fn as_v1(&self) -> &HistorySnapshotV1 {
         match self {
             Self::V1(snapshot) => snapshot,
+            Self::V2(snapshot) => snapshot.base(),
         }
     }
 
-    pub fn into_v1(self) -> HistorySnapshotV1 {
+    pub fn as_v2(&self) -> Option<&HistorySnapshotV2> {
         match self {
-            Self::V1(snapshot) => snapshot,
+            Self::V1(_) => None,
+            Self::V2(snapshot) => Some(snapshot),
         }
     }
 
     pub fn to_json_bytes(&self) -> Result<Vec<u8>, HistorySnapshotError> {
-        let envelope = match self {
-            Self::V1(snapshot) => HistorySnapshotEnvelope {
+        let serialized = match self {
+            Self::V1(snapshot) => serde_json::to_vec(&HistorySnapshotEnvelope {
                 version: HISTORY_SNAPSHOT_VERSION_V1,
                 snapshot,
-            },
+            }),
+            Self::V2(snapshot) => serde_json::to_vec(&HistorySnapshotEnvelope {
+                version: HISTORY_SNAPSHOT_VERSION_V2,
+                snapshot,
+            }),
         };
-        serde_json::to_vec(&envelope).map_err(|error| HistorySnapshotError::Serialization {
+        serialized.map_err(|error| HistorySnapshotError::Serialization {
             message: error.to_string(),
         })
     }
@@ -163,7 +176,10 @@ impl VersionedHistorySnapshot {
                 message: "version must be an unsigned integer".to_string(),
             },
         )?;
-        if version != HISTORY_SNAPSHOT_VERSION_V1 {
+        if !matches!(
+            version,
+            HISTORY_SNAPSHOT_VERSION_V1 | HISTORY_SNAPSHOT_VERSION_V2
+        ) {
             return Err(HistorySnapshotError::UnsupportedVersion { found: version });
         }
         let snapshot_value =
@@ -173,11 +189,23 @@ impl VersionedHistorySnapshot {
                 .ok_or(HistorySnapshotError::MalformedPayload {
                     message: "snapshot is required".to_string(),
                 })?;
-        let raw: RawHistorySnapshotV1 =
-            serde_json::from_value(snapshot_value).map_err(malformed_payload)?;
-        let mut snapshot = HistorySnapshotV1::from(raw);
-        snapshot.sanitize_and_validate()?;
-        Ok(Self::V1(snapshot))
+        match version {
+            HISTORY_SNAPSHOT_VERSION_V1 => {
+                let raw: RawHistorySnapshotV1 =
+                    serde_json::from_value(snapshot_value).map_err(malformed_payload)?;
+                let mut snapshot = HistorySnapshotV1::from(raw);
+                snapshot.sanitize_and_validate()?;
+                Ok(Self::V1(snapshot))
+            }
+            HISTORY_SNAPSHOT_VERSION_V2 => {
+                let raw: RawHistorySnapshotV2 =
+                    serde_json::from_value(snapshot_value).map_err(malformed_payload)?;
+                let mut snapshot = HistorySnapshotV2::from(raw);
+                snapshot.sanitize_and_validate()?;
+                Ok(Self::V2(snapshot))
+            }
+            found => Err(HistorySnapshotError::UnsupportedVersion { found }),
+        }
     }
 
     pub fn validate_replay_files(&self) -> Result<(), HistorySnapshotError> {
@@ -189,7 +217,7 @@ impl TryFrom<&HistoryEntry> for VersionedHistorySnapshot {
     type Error = HistorySnapshotError;
 
     fn try_from(entry: &HistoryEntry) -> Result<Self, Self::Error> {
-        HistorySnapshotV1::try_from(entry).map(Self::V1)
+        HistorySnapshotV2::try_from(entry).map(Self::V2)
     }
 }
 
@@ -197,14 +225,17 @@ impl TryFrom<VersionedHistorySnapshot> for HistoryEntry {
     type Error = HistorySnapshotError;
 
     fn try_from(snapshot: VersionedHistorySnapshot) -> Result<Self, Self::Error> {
-        HistoryEntry::try_from(snapshot.into_v1())
+        match snapshot {
+            VersionedHistorySnapshot::V1(snapshot) => HistoryEntry::try_from(snapshot),
+            VersionedHistorySnapshot::V2(snapshot) => HistoryEntry::try_from(snapshot),
+        }
     }
 }
 
 #[derive(Serialize)]
-struct HistorySnapshotEnvelope<'a> {
+struct HistorySnapshotEnvelope<'a, T> {
     version: u64,
-    snapshot: &'a HistorySnapshotV1,
+    snapshot: &'a T,
 }
 
 /// Complete V1 History row. All fields are private so callers cannot bypass the sanitizing
@@ -384,6 +415,416 @@ impl TryFrom<HistorySnapshotV1> for HistoryEntry {
             status: Some(snapshot.status),
             elapsed_ms: Some(u128::from(snapshot.elapsed_ms)),
             response_size: Some(response_size),
+            historical_response: None,
+        })
+    }
+}
+
+/// V2 extends the sanitized V1 replay request with optional historical response evidence.
+/// Flattening keeps the stable request fields at the same JSON paths while the versioned envelope
+/// remains the sole decoder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HistorySnapshotV2 {
+    #[serde(flatten)]
+    base: HistorySnapshotV1,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response: Option<HistoricalResponseSnapshotV2>,
+}
+
+#[derive(Deserialize)]
+struct RawHistorySnapshotV2 {
+    #[serde(flatten)]
+    base: RawHistorySnapshotV1,
+    response: Option<RawHistoricalResponseSnapshotV2>,
+}
+
+impl From<RawHistorySnapshotV2> for HistorySnapshotV2 {
+    fn from(raw: RawHistorySnapshotV2) -> Self {
+        Self {
+            base: raw.base.into(),
+            response: raw.response.map(Into::into),
+        }
+    }
+}
+
+impl HistorySnapshotV2 {
+    pub fn base(&self) -> &HistorySnapshotV1 {
+        &self.base
+    }
+
+    pub fn response(&self) -> Option<&HistoricalResponseSnapshotV2> {
+        self.response.as_ref()
+    }
+
+    fn sanitize_and_validate(&mut self) -> Result<(), HistorySnapshotError> {
+        self.base.sanitize_and_validate()?;
+        if let Some(response) = &mut self.response {
+            response.sanitize_and_validate()?;
+            response.validate_against(&self.base)?;
+        }
+        Ok(())
+    }
+}
+
+impl TryFrom<&HistoryEntry> for HistorySnapshotV2 {
+    type Error = HistorySnapshotError;
+
+    fn try_from(entry: &HistoryEntry) -> Result<Self, Self::Error> {
+        let base = HistorySnapshotV1::try_from(entry)?;
+        let response = entry
+            .historical_response
+            .as_ref()
+            .map(HistoricalResponseSnapshotV2::try_from)
+            .transpose()?;
+        let snapshot = Self { base, response };
+        if let Some(response) = &snapshot.response {
+            response.validate_against(&snapshot.base)?;
+        }
+        Ok(snapshot)
+    }
+}
+
+impl TryFrom<HistorySnapshotV2> for HistoryEntry {
+    type Error = HistorySnapshotError;
+
+    fn try_from(mut snapshot: HistorySnapshotV2) -> Result<Self, Self::Error> {
+        snapshot.sanitize_and_validate()?;
+        let response = snapshot
+            .response
+            .map(HistoricalResponse::try_from)
+            .transpose()?;
+        let mut entry = HistoryEntry::try_from(snapshot.base)?;
+        entry.historical_response = response;
+        Ok(entry)
+    }
+}
+
+/// Explicit persisted body classification. Text is copied exactly from the sanitized preview;
+/// unsupported bodies intentionally have no byte payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", content = "preview", rename_all = "snake_case")]
+pub enum HistoricalResponseBodySnapshotV2 {
+    Empty,
+    Text(String),
+    TruncatedText(String),
+    Unsupported,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", content = "preview", rename_all = "snake_case")]
+enum RawHistoricalResponseBodySnapshotV2 {
+    Empty,
+    Text(String),
+    TruncatedText(String),
+    Unsupported,
+}
+
+impl From<RawHistoricalResponseBodySnapshotV2> for HistoricalResponseBodySnapshotV2 {
+    fn from(raw: RawHistoricalResponseBodySnapshotV2) -> Self {
+        match raw {
+            RawHistoricalResponseBodySnapshotV2::Empty => Self::Empty,
+            RawHistoricalResponseBodySnapshotV2::Text(preview) => Self::Text(preview),
+            RawHistoricalResponseBodySnapshotV2::TruncatedText(preview) => {
+                Self::TruncatedText(preview)
+            }
+            RawHistoricalResponseBodySnapshotV2::Unsupported => Self::Unsupported,
+        }
+    }
+}
+
+impl HistoricalResponseBodySnapshotV2 {
+    pub fn preview(&self) -> Option<&str> {
+        match self {
+            Self::Text(preview) | Self::TruncatedText(preview) => Some(preview),
+            Self::Empty | Self::Unsupported => None,
+        }
+    }
+
+    pub fn is_truncated(&self) -> bool {
+        matches!(self, Self::TruncatedText(_))
+    }
+}
+
+/// Sanitized response subset persisted by V2. The summary fields are intentionally repeated and
+/// validated against the History row so a corrupt payload cannot render contradictory evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HistoricalResponseSnapshotV2 {
+    status: u16,
+    headers: Vec<HeaderSnapshotV1>,
+    body: HistoricalResponseBodySnapshotV2,
+    media_type: Option<String>,
+    elapsed_ms: u64,
+    original_size: u64,
+    persisted_size: u64,
+    truncated: bool,
+}
+
+#[derive(Deserialize)]
+struct RawHistoricalResponseSnapshotV2 {
+    status: u16,
+    headers: Vec<HeaderSnapshotV1>,
+    body: RawHistoricalResponseBodySnapshotV2,
+    media_type: Option<String>,
+    elapsed_ms: u64,
+    original_size: u64,
+    persisted_size: u64,
+    truncated: bool,
+}
+
+impl From<RawHistoricalResponseSnapshotV2> for HistoricalResponseSnapshotV2 {
+    fn from(raw: RawHistoricalResponseSnapshotV2) -> Self {
+        Self {
+            status: raw.status,
+            headers: raw.headers,
+            body: raw.body.into(),
+            media_type: raw.media_type,
+            elapsed_ms: raw.elapsed_ms,
+            original_size: raw.original_size,
+            persisted_size: raw.persisted_size,
+            truncated: raw.truncated,
+        }
+    }
+}
+
+impl HistoricalResponseSnapshotV2 {
+    pub fn status(&self) -> u16 {
+        self.status
+    }
+
+    pub fn headers(&self) -> &[HeaderSnapshotV1] {
+        &self.headers
+    }
+
+    pub fn body(&self) -> &HistoricalResponseBodySnapshotV2 {
+        &self.body
+    }
+
+    pub fn media_type(&self) -> Option<&str> {
+        self.media_type.as_deref()
+    }
+
+    pub fn elapsed_ms(&self) -> u64 {
+        self.elapsed_ms
+    }
+
+    pub fn original_size(&self) -> u64 {
+        self.original_size
+    }
+
+    pub fn persisted_size(&self) -> u64 {
+        self.persisted_size
+    }
+
+    pub fn truncated(&self) -> bool {
+        self.truncated
+    }
+
+    fn sanitize_and_validate(&mut self) -> Result<(), HistorySnapshotError> {
+        self.headers
+            .retain(|header| !HistorySensitiveDataPolicy::is_sensitive_header_name(&header.name));
+        let is_download = is_download_response(&self.headers);
+        let media_type = response_media_type(&self.headers).or_else(|| self.media_type.clone());
+        self.media_type = sanitize_media_type(media_type)?;
+
+        let existing_truncation = self.truncated || self.body.is_truncated();
+        self.body = match std::mem::replace(
+            &mut self.body,
+            HistoricalResponseBodySnapshotV2::Unsupported,
+        ) {
+            HistoricalResponseBodySnapshotV2::Empty => HistoricalResponseBodySnapshotV2::Empty,
+            HistoricalResponseBodySnapshotV2::Unsupported => {
+                HistoricalResponseBodySnapshotV2::Unsupported
+            }
+            HistoricalResponseBodySnapshotV2::Text(_preview)
+            | HistoricalResponseBodySnapshotV2::TruncatedText(_preview)
+                if is_download || !is_textual_response_media_type(self.media_type.as_deref()) =>
+            {
+                HistoricalResponseBodySnapshotV2::Unsupported
+            }
+            HistoricalResponseBodySnapshotV2::Text(preview)
+            | HistoricalResponseBodySnapshotV2::TruncatedText(preview) => {
+                let preview =
+                    sanitize_structured_response_body(preview, self.media_type.as_deref());
+                let (preview, truncated_now) =
+                    truncate_utf8_preview(preview, MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES);
+                if existing_truncation || truncated_now {
+                    HistoricalResponseBodySnapshotV2::TruncatedText(preview)
+                } else if preview.is_empty() {
+                    HistoricalResponseBodySnapshotV2::Empty
+                } else {
+                    HistoricalResponseBodySnapshotV2::Text(preview)
+                }
+            }
+        };
+        self.truncated = self.body.is_truncated();
+        self.persisted_size =
+            u64::try_from(self.body.preview().map_or(0, str::len)).map_err(|_| {
+                HistorySnapshotError::NumericOverflow {
+                    field: "response.persisted_size",
+                }
+            })?;
+        self.validate()
+    }
+
+    fn validate(&self) -> Result<(), HistorySnapshotError> {
+        if !(100..=599).contains(&self.status) {
+            return Err(invalid_field(
+                "response.status",
+                "must be between 100 and 599",
+            ));
+        }
+        for header in &self.headers {
+            if HistorySensitiveDataPolicy::is_sensitive_header_name(&header.name) {
+                return Err(invalid_field(
+                    "response.headers.name",
+                    "must not be sensitive",
+                ));
+            }
+            HeaderName::from_bytes(header.name.as_bytes()).map_err(|_| {
+                invalid_field("response.headers.name", "must be a valid HTTP header name")
+            })?;
+            HeaderValue::from_str(&header.value).map_err(|_| {
+                invalid_field(
+                    "response.headers.value",
+                    "must be a valid HTTP header value",
+                )
+            })?;
+        }
+        if self.truncated != self.body.is_truncated() {
+            return Err(invalid_field(
+                "response.truncated",
+                "must match response.body.kind",
+            ));
+        }
+        let preview_size = self.body.preview().map_or(0, str::len);
+        if preview_size > MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES {
+            return Err(invalid_field(
+                "response.body.preview",
+                "must not exceed 256 KiB",
+            ));
+        }
+        if self.persisted_size != preview_size as u64 {
+            return Err(invalid_field(
+                "response.persisted_size",
+                "must equal the persisted UTF-8 preview byte length",
+            ));
+        }
+        if matches!(self.body, HistoricalResponseBodySnapshotV2::Empty) && self.original_size != 0 {
+            return Err(invalid_field(
+                "response.original_size",
+                "must be zero for an empty body",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_against(&self, base: &HistorySnapshotV1) -> Result<(), HistorySnapshotError> {
+        self.validate()?;
+        if self.status != base.status {
+            return Err(invalid_field(
+                "response.status",
+                "must match the History summary status",
+            ));
+        }
+        if self.elapsed_ms != base.elapsed_ms {
+            return Err(invalid_field(
+                "response.elapsed_ms",
+                "must match the History summary elapsed time",
+            ));
+        }
+        if self.original_size != base.response_size {
+            return Err(invalid_field(
+                "response.original_size",
+                "must match the History summary response size",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl TryFrom<&HistoricalResponse> for HistoricalResponseSnapshotV2 {
+    type Error = HistorySnapshotError;
+
+    fn try_from(response: &HistoricalResponse) -> Result<Self, Self::Error> {
+        let elapsed_ms = u64::try_from(response.elapsed_ms).map_err(|_| {
+            HistorySnapshotError::NumericOverflow {
+                field: "response.elapsed_ms",
+            }
+        })?;
+        let original_size = u64::try_from(response.original_size).map_err(|_| {
+            HistorySnapshotError::NumericOverflow {
+                field: "response.original_size",
+            }
+        })?;
+        let body = match &response.body {
+            HistoricalResponseBody::Empty => HistoricalResponseBodySnapshotV2::Empty,
+            HistoricalResponseBody::Text(preview) => {
+                HistoricalResponseBodySnapshotV2::Text(preview.clone())
+            }
+            HistoricalResponseBody::TruncatedText(preview) => {
+                HistoricalResponseBodySnapshotV2::TruncatedText(preview.clone())
+            }
+            HistoricalResponseBody::Unsupported => HistoricalResponseBodySnapshotV2::Unsupported,
+        };
+        let mut snapshot = Self {
+            status: response.status,
+            headers: response
+                .headers
+                .iter()
+                .map(|(name, value)| HeaderSnapshotV1 {
+                    name: name.clone(),
+                    value: value.clone(),
+                })
+                .collect(),
+            body,
+            media_type: response.media_type.clone(),
+            elapsed_ms,
+            original_size,
+            persisted_size: 0,
+            truncated: response.body.is_truncated(),
+        };
+        snapshot.sanitize_and_validate()?;
+        Ok(snapshot)
+    }
+}
+
+impl TryFrom<HistoricalResponseSnapshotV2> for HistoricalResponse {
+    type Error = HistorySnapshotError;
+
+    fn try_from(snapshot: HistoricalResponseSnapshotV2) -> Result<Self, Self::Error> {
+        snapshot.validate()?;
+        let original_size = usize::try_from(snapshot.original_size).map_err(|_| {
+            HistorySnapshotError::NumericOverflow {
+                field: "response.original_size",
+            }
+        })?;
+        let persisted_size = usize::try_from(snapshot.persisted_size).map_err(|_| {
+            HistorySnapshotError::NumericOverflow {
+                field: "response.persisted_size",
+            }
+        })?;
+        let body = match snapshot.body {
+            HistoricalResponseBodySnapshotV2::Empty => HistoricalResponseBody::Empty,
+            HistoricalResponseBodySnapshotV2::Text(preview) => {
+                HistoricalResponseBody::Text(preview)
+            }
+            HistoricalResponseBodySnapshotV2::TruncatedText(preview) => {
+                HistoricalResponseBody::TruncatedText(preview)
+            }
+            HistoricalResponseBodySnapshotV2::Unsupported => HistoricalResponseBody::Unsupported,
+        };
+        Ok(Self {
+            status: snapshot.status,
+            headers: snapshot
+                .headers
+                .into_iter()
+                .map(|header| (header.name, header.value))
+                .collect(),
+            body,
+            media_type: snapshot.media_type,
+            elapsed_ms: u128::from(snapshot.elapsed_ms),
+            original_size,
+            persisted_size,
         })
     }
 }
@@ -1085,10 +1526,11 @@ impl HistorySensitiveDataPolicy {
                 | "session"
                 | "sessionid"
         ) || name.contains("token")
+            || name.contains("apikey")
             || name.contains("secret")
             || name.contains("password")
+            || name.contains("session")
             || name.contains("credential")
-            || name.ends_with("apikey")
     }
 
     pub fn is_sensitive_query_name(name: &str) -> bool {
@@ -1122,6 +1564,140 @@ impl HistorySensitiveDataPolicy {
             || name.ends_with("credential")
             || name.ends_with("securitytoken")
     }
+}
+
+fn response_media_type(headers: &[HeaderSnapshotV1]) -> Option<String> {
+    headers
+        .iter()
+        .find(|header| header.name.eq_ignore_ascii_case("content-type"))
+        .map(|header| header.value.clone())
+}
+
+fn sanitize_media_type(media_type: Option<String>) -> Result<Option<String>, HistorySnapshotError> {
+    media_type
+        .map(|media_type| {
+            let media_type = media_type.trim().to_string();
+            HeaderValue::from_str(&media_type).map_err(|_| {
+                invalid_field("response.media_type", "must be a valid HTTP header value")
+            })?;
+            Ok(media_type)
+        })
+        .transpose()
+}
+
+fn normalized_media_type(media_type: Option<&str>) -> Option<String> {
+    media_type.map(|value| {
+        value
+            .split(';')
+            .next()
+            .unwrap_or(value)
+            .trim()
+            .to_ascii_lowercase()
+    })
+}
+
+fn is_textual_response_media_type(media_type: Option<&str>) -> bool {
+    let Some(media_type) = normalized_media_type(media_type) else {
+        // The current transport exposes a UTF-8 String. In the absence of response metadata,
+        // treating it as plain text preserves deterministic local/test responses.
+        return true;
+    };
+    if media_type == "text/event-stream" {
+        return false;
+    }
+    media_type.starts_with("text/")
+        || media_type == "application/json"
+        || media_type.ends_with("+json")
+        || media_type == "application/x-ndjson"
+        || media_type == "application/xml"
+        || media_type.ends_with("+xml")
+        || media_type == "application/x-www-form-urlencoded"
+        || media_type == "application/javascript"
+        || media_type == "application/graphql"
+        || media_type == "application/yaml"
+        || media_type == "application/x-yaml"
+}
+
+fn is_json_response_media_type(media_type: Option<&str>) -> bool {
+    normalized_media_type(media_type).is_some_and(|media_type| {
+        media_type == "application/json"
+            || media_type.ends_with("+json")
+            || media_type == "application/x-ndjson"
+    })
+}
+
+fn is_form_response_media_type(media_type: Option<&str>) -> bool {
+    normalized_media_type(media_type)
+        .is_some_and(|media_type| media_type == "application/x-www-form-urlencoded")
+}
+
+fn is_download_response(headers: &[HeaderSnapshotV1]) -> bool {
+    headers.iter().any(|header| {
+        header.name.eq_ignore_ascii_case("content-disposition") && {
+            let value = header.value.to_ascii_lowercase();
+            value.contains("attachment") || value.contains("filename=")
+        }
+    })
+}
+
+fn sanitize_structured_response_body(body: String, media_type: Option<&str>) -> String {
+    if is_json_response_media_type(media_type) {
+        if let Ok(mut value) = serde_json::from_str::<Value>(&body) {
+            redact_json_secrets(&mut value);
+            return serde_json::to_string(&value).unwrap_or(body);
+        }
+    } else if is_form_response_media_type(media_type) {
+        let pairs = form_urlencoded::parse(body.as_bytes()).collect::<Vec<_>>();
+        let mut serializer = form_urlencoded::Serializer::new(String::new());
+        for (name, value) in pairs {
+            if is_sensitive_response_field(&name) {
+                serializer.append_pair(&name, "[REDACTED]");
+            } else {
+                serializer.append_pair(&name, &value);
+            }
+        }
+        return serializer.finish();
+    }
+    // Arbitrary plain/raw text has no reliable field structure. The defined V2 policy stores it
+    // verbatim after header sanitization and byte bounding; callers must not infer secret fields.
+    body
+}
+
+fn redact_json_secrets(value: &mut Value) {
+    match value {
+        Value::Object(values) => {
+            for (name, value) in values {
+                if is_sensitive_response_field(name) {
+                    *value = Value::String("[REDACTED]".to_string());
+                } else {
+                    redact_json_secrets(value);
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                redact_json_secrets(value);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn is_sensitive_response_field(name: &str) -> bool {
+    HistorySensitiveDataPolicy::is_sensitive_query_name(name)
+        || HistorySensitiveDataPolicy::is_sensitive_header_name(name)
+}
+
+fn truncate_utf8_preview(mut value: String, max_bytes: usize) -> (String, bool) {
+    if value.len() <= max_bytes {
+        return (value, false);
+    }
+    let mut boundary = max_bytes;
+    while boundary > 0 && !value.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    value.truncate(boundary);
+    (value, true)
 }
 
 fn parse_http_url(value: &str) -> Result<Url, HistorySnapshotError> {

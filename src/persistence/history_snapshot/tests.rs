@@ -26,7 +26,7 @@ fn completed_entry(method: HttpMethod, body: RequestBody) -> HistoryEntry {
 
 fn round_trip(entry: &HistoryEntry) -> HistoryEntry {
     let versioned = VersionedHistorySnapshot::try_from(entry).unwrap();
-    assert_eq!(versioned.version(), HISTORY_SNAPSHOT_VERSION_V1);
+    assert_eq!(versioned.version(), HISTORY_SNAPSHOT_VERSION_V2);
     let bytes = versioned.to_json_bytes().unwrap();
     let decoded = VersionedHistorySnapshot::from_json_bytes(&bytes).unwrap();
     HistoryEntry::try_from(decoded).unwrap()
@@ -208,7 +208,7 @@ fn credentials_are_absent_from_serialized_payload_case_insensitively() {
 #[test]
 fn decoded_v1_payload_is_sanitized_again_before_use() {
     let entry = completed_entry(HttpMethod::GET, RequestBody::None);
-    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let snapshot = VersionedHistorySnapshot::V1(HistorySnapshotV1::try_from(&entry).unwrap());
     let mut value: Value = serde_json::from_slice(&snapshot.to_json_bytes().unwrap()).unwrap();
     value["snapshot"]["request"]["headers"]
         .as_array_mut()
@@ -373,7 +373,7 @@ fn common_sensitive_name_policy_is_case_and_separator_insensitive() {
 #[test]
 fn v1_options_include_timeout_and_redirect_behavior() {
     let entry = completed_entry(HttpMethod::GET, RequestBody::None);
-    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let snapshot = VersionedHistorySnapshot::V1(HistorySnapshotV1::try_from(&entry).unwrap());
     let options = snapshot.as_v1().request().options();
     assert_eq!(options.timeout_ms(), Some(1_250));
     assert_eq!(
@@ -387,9 +387,241 @@ fn v1_options_include_timeout_and_redirect_behavior() {
 fn current_defaults_are_stable_in_v1() {
     let mut entry = completed_entry(HttpMethod::GET, RequestBody::None);
     entry.request_options = RequestOptions::default();
-    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let snapshot = VersionedHistorySnapshot::V1(HistorySnapshotV1::try_from(&entry).unwrap());
     let options = snapshot.as_v1().request().options();
     assert_eq!(options.timeout_ms(), None);
     assert_eq!(options.redirect_policy(), RedirectPolicySnapshotV1::Follow);
     assert_eq!(options.max_hops(), crate::models::DEFAULT_MAX_REDIRECT_HOPS);
+}
+
+fn entry_with_response(
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: impl Into<String>,
+) -> HistoryEntry {
+    let body = body.into();
+    let mut entry = completed_entry(HttpMethod::GET, RequestBody::None);
+    entry.status = Some(status);
+    entry.elapsed_ms = Some(37);
+    entry.response_size = Some(body.len());
+    entry.historical_response = Some(HistoricalResponse::completed(status, headers, body, 37));
+    entry
+}
+
+#[test]
+fn v2_json_response_round_trip_sanitizes_headers_and_structured_secret_fields() {
+    let entry = entry_with_response(
+        418,
+        vec![
+            ("Content-Type".to_string(), "application/json".to_string()),
+            ("X-Trace".to_string(), "trace-safe".to_string()),
+            ("Set-Cookie".to_string(), "sid=cookie-secret".to_string()),
+            (
+                "Authorization".to_string(),
+                "Bearer auth-secret".to_string(),
+            ),
+            ("X-API-Key".to_string(), "api-key-secret".to_string()),
+            ("X-Session-Id".to_string(), "session-secret".to_string()),
+        ],
+        r#"{"message":"safe","password":"json-password","nested":{"access_token":"json-token"}}"#,
+    );
+
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    assert_eq!(snapshot.version(), HISTORY_SNAPSHOT_VERSION_V2);
+    let response = snapshot.as_v2().unwrap().response().unwrap();
+    assert_eq!(response.status(), 418);
+    assert_eq!(response.headers().len(), 2);
+    assert!(response
+        .headers()
+        .iter()
+        .any(|header| header.name() == "X-Trace"));
+    let serialized = snapshot.to_json_string().unwrap();
+    for denied in [
+        "cookie-secret",
+        "auth-secret",
+        "api-key-secret",
+        "session-secret",
+        "json-password",
+        "json-token",
+    ] {
+        assert!(!serialized.contains(denied), "V2 leaked {denied}");
+    }
+    assert!(serialized.contains("trace-safe"));
+    assert!(serialized.contains("safe"));
+    assert!(serialized.contains("[REDACTED]"));
+
+    let restored = HistoryEntry::try_from(snapshot).unwrap();
+    let response = restored.historical_response.unwrap();
+    assert_eq!(response.status, 418);
+    assert_eq!(response.original_size, entry.response_size.unwrap());
+    assert!(matches!(response.body, HistoricalResponseBody::Text(_)));
+    assert!(response
+        .headers
+        .iter()
+        .all(|(name, _)| !HistorySensitiveDataPolicy::is_sensitive_header_name(name)));
+}
+
+#[test]
+fn v2_form_fields_are_redacted_but_arbitrary_plain_text_is_stored_verbatim() {
+    let form = entry_with_response(
+        200,
+        vec![(
+            "content-type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        )],
+        "name=Ada&password=form-secret&session_id=session-secret",
+    );
+    let form_json = VersionedHistorySnapshot::try_from(&form)
+        .unwrap()
+        .to_json_string()
+        .unwrap();
+    assert!(form_json.contains("name=Ada"));
+    assert!(!form_json.contains("form-secret"));
+    assert!(!form_json.contains("session-secret"));
+
+    // Raw/plain response text has no reliable field boundary. V2's defined policy bounds it but
+    // does not guess which arbitrary substrings are credentials.
+    let plain = entry_with_response(
+        200,
+        vec![("Content-Type".to_string(), "text/plain".to_string())],
+        "opaque plain payload: arbitrary-secret-value",
+    );
+    let plain_json = VersionedHistorySnapshot::try_from(&plain)
+        .unwrap()
+        .to_json_string()
+        .unwrap();
+    assert!(plain_json.contains("arbitrary-secret-value"));
+}
+
+#[test]
+fn v2_preview_truncates_on_a_utf8_boundary_and_keeps_both_sizes() {
+    let body = "好".repeat(MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES / 3 + 10);
+    let entry = entry_with_response(
+        200,
+        vec![("Content-Type".to_string(), "text/plain".to_string())],
+        body.clone(),
+    );
+
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let response = snapshot.as_v2().unwrap().response().unwrap();
+    let preview = response.body().preview().unwrap();
+    assert!(response.truncated());
+    assert!(preview.len() <= MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES);
+    assert!(preview.is_char_boundary(preview.len()));
+    assert_eq!(response.original_size(), body.len() as u64);
+    assert_eq!(response.persisted_size(), preview.len() as u64);
+    assert!(matches!(
+        response.body(),
+        HistoricalResponseBodySnapshotV2::TruncatedText(_)
+    ));
+    let preview_len = preview.len();
+
+    let restored = HistoryEntry::try_from(snapshot).unwrap();
+    let response = restored.historical_response.unwrap();
+    assert_eq!(response.original_size, body.len());
+    assert_eq!(response.persisted_size, preview_len);
+    assert!(matches!(
+        response.body,
+        HistoricalResponseBody::TruncatedText(_)
+    ));
+}
+
+#[test]
+fn v2_binary_download_and_stream_bodies_store_metadata_but_no_body_bytes() {
+    for (content_type, extra_headers) in [
+        ("application/octet-stream", Vec::new()),
+        (
+            "text/plain",
+            vec![(
+                "Content-Disposition".to_string(),
+                "attachment; filename=report.txt".to_string(),
+            )],
+        ),
+        ("text/event-stream", Vec::new()),
+    ] {
+        let mut headers = vec![("Content-Type".to_string(), content_type.to_string())];
+        headers.extend(extra_headers);
+        let entry = entry_with_response(200, headers, "body-bytes-must-not-be-stored");
+        let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+        let serialized = snapshot.to_json_string().unwrap();
+        assert!(!serialized.contains("body-bytes-must-not-be-stored"));
+        let response = snapshot.as_v2().unwrap().response().unwrap();
+        assert_eq!(response.persisted_size(), 0);
+        assert!(matches!(
+            response.body(),
+            HistoricalResponseBodySnapshotV2::Unsupported
+        ));
+    }
+}
+
+#[test]
+fn v2_empty_204_is_valid_and_v1_remains_response_unavailable() {
+    let empty = entry_with_response(204, Vec::new(), String::new());
+    let restored =
+        HistoryEntry::try_from(VersionedHistorySnapshot::try_from(&empty).unwrap()).unwrap();
+    assert!(matches!(
+        restored.historical_response.unwrap().body,
+        HistoricalResponseBody::Empty
+    ));
+
+    let entry = completed_entry(HttpMethod::GET, RequestBody::None);
+    let v1 = VersionedHistorySnapshot::V1(HistorySnapshotV1::try_from(&entry).unwrap());
+    let decoded = VersionedHistorySnapshot::from_json_bytes(&v1.to_json_bytes().unwrap()).unwrap();
+    assert_eq!(decoded.version(), HISTORY_SNAPSHOT_VERSION_V1);
+    assert!(HistoryEntry::try_from(decoded)
+        .unwrap()
+        .historical_response
+        .is_none());
+}
+
+#[test]
+fn decoded_v2_response_is_sanitized_again_before_runtime_use() {
+    let entry = entry_with_response(
+        200,
+        vec![("Content-Type".to_string(), "application/json".to_string())],
+        r#"{"message":"safe"}"#,
+    );
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let mut value: Value = serde_json::from_slice(&snapshot.to_json_bytes().unwrap()).unwrap();
+    value["snapshot"]["response"]["headers"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "name": "Set-Cookie",
+            "value": "sid=decoded-cookie-secret"
+        }));
+    value["snapshot"]["response"]["body"]["preview"] =
+        Value::String(r#"{"password":"decoded-json-secret"}"#.to_string());
+    value["snapshot"]["response"]["persisted_size"] =
+        Value::from(r#"{"password":"decoded-json-secret"}"#.len() as u64);
+
+    let decoded =
+        VersionedHistorySnapshot::from_json_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let serialized = decoded.to_json_string().unwrap();
+    assert!(!serialized.contains("decoded-cookie-secret"));
+    assert!(!serialized.contains("decoded-json-secret"));
+    assert!(serialized.contains("[REDACTED]"));
+}
+
+#[test]
+fn decoded_v2_uses_the_sanitized_content_type_header_as_body_classification_truth() {
+    let entry = entry_with_response(
+        200,
+        vec![("Content-Type".to_string(), "text/plain".to_string())],
+        "untrusted-stored-body",
+    );
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let mut value: Value = serde_json::from_slice(&snapshot.to_json_bytes().unwrap()).unwrap();
+    value["snapshot"]["response"]["headers"][0]["value"] =
+        Value::String("application/octet-stream".to_string());
+    value["snapshot"]["response"]["media_type"] = Value::String("text/plain".to_string());
+
+    let decoded =
+        VersionedHistorySnapshot::from_json_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let serialized = decoded.to_json_string().unwrap();
+    assert!(!serialized.contains("untrusted-stored-body"));
+    assert!(matches!(
+        decoded.as_v2().unwrap().response().unwrap().body(),
+        HistoricalResponseBodySnapshotV2::Unsupported
+    ));
 }

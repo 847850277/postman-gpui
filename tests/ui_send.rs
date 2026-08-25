@@ -18,8 +18,8 @@ use postman_gpui::{
         WorkspaceViewModel,
     },
     models::{
-        HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RequestBody,
-        RequestEditorIntent,
+        HistoricalResponseBody, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue,
+        RequestBody, RequestEditorIntent,
     },
 };
 use std::{
@@ -1045,7 +1045,12 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
         assert_eq!(workspace.method(), HttpMethod::HEAD);
         assert_eq!(workspace.url(), head_url);
         assert_eq!(workspace.request_body(), RequestBody::None);
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { response, .. }
+                if response.status == 200
+                    && matches!(&response.body, HistoricalResponseBody::Empty)
+        ));
     });
     assert!(cx.debug_bounds("method-dropdown-selected-value").is_some());
     assert!(cx.debug_bounds("request-tab-method-1").is_some());
@@ -1055,7 +1060,12 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
         assert_eq!(workspace.method(), HttpMethod::OPTIONS);
         assert_eq!(workspace.url(), options_url);
         assert_eq!(workspace.request_body(), RequestBody::None);
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { response, .. }
+                if response.status == 200
+                    && matches!(&response.body, HistoricalResponseBody::Empty)
+        ));
     });
 }
 
@@ -1214,7 +1224,13 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
         assert_eq!(workspace.url(), urls[0]);
         assert!(workspace.headers().is_empty());
         assert_eq!(workspace.request_body(), RequestBody::None);
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { response, .. }
+                if response.status == 200
+                    && matches!(&response.body, HistoricalResponseBody::Text(body)
+                        if body == r#"{"method":"GET","gzipped":true}"#)
+        ));
     });
 
     for request in requests {
