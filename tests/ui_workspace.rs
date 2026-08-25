@@ -235,6 +235,24 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
         workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
         request_url
     );
+
+    replace_text(cx, "url-input", "https://draft.example/enter").unwrap();
+    click(cx, "history-search-input").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        request_url
+    );
+
+    replace_text(cx, "url-input", "https://draft.example/space").unwrap();
+    click(cx, "history-search-input").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        request_url
+    );
     completed.assert();
 }
 

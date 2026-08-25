@@ -139,6 +139,11 @@ application service and repository.
   download spools or destinations; tabs, active-tab state, panes, drafts,
   dirty state, cookie jars; plaintext authorization/cookie values; or
   sensitive response headers such as `Set-Cookie`.
+- Current-session replay may retain the complete Request in an ephemeral
+  overlay keyed only by IDs already confirmed by SQLite. The overlay is not a
+  second History source: it owns no rows, ordering, metadata, or render path;
+  it is never persisted and is pruned whenever the authoritative query drops
+  an ID. After restart, replay uses only the sanitized snapshot.
 - Selecting a V2 snapshot with a stored response must restore the sanitized
   request into the active ViewModel and commit `ResponseState::Historical`
   without sending a network request. Status, sanitized headers, text body,

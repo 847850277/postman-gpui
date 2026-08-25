@@ -1,6 +1,6 @@
 use super::{HistoryStorageStage, WorkspaceViewModel};
 use crate::{
-    models::HistoryEntry,
+    models::{HistoryEntry, Request},
     persistence::{HistoryLoadResult, HistoryLoadWarningKind, HistoryRepositoryTask},
 };
 use gpui::{Context, Entity};
@@ -43,6 +43,7 @@ pub(crate) fn spawn_history_operation_and_reload<A: 'static>(
     operation_stage: HistoryStorageStage,
     operation: HistoryRepositoryTask<()>,
     reload: HistoryRepositoryTask<HistoryLoadResult>,
+    runtime_replay_request: Option<(String, Request)>,
     cx: &mut Context<A>,
 ) {
     view_model.update(cx, |view_model, cx| {
@@ -73,8 +74,11 @@ pub(crate) fn spawn_history_operation_and_reload<A: 'static>(
         match reload.await {
             Ok(result) => {
                 let (entries, skipped_rows) = history_entries_from_load(result);
-                view_model.update(cx, |view_model, cx| {
+                view_model.update(cx, move |view_model, cx| {
                     view_model.replace_history_query_result(entries, skipped_rows);
+                    if let Some((entry_id, request)) = runtime_replay_request {
+                        view_model.confirm_runtime_replay_request(entry_id, request);
+                    }
                     cx.notify();
                 });
             }

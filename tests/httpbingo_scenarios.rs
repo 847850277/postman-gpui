@@ -21,7 +21,9 @@ use postman_gpui::{
     },
 };
 use std::path::{Path, PathBuf};
-use ui::{choose_method, click, click_without_wait, scroll_down, scroll_up, type_into};
+use ui::{
+    choose_method, click, click_without_wait, replace_text, scroll_down, scroll_up, type_into,
+};
 
 const HTTPBINGO_BASE_URL: &str = "https://httpbingo.org";
 const HTML_FORM_DISCOVERY_SCENARIO: &str =
@@ -41,6 +43,8 @@ const DEFLATE_SCENARIO: &str = "HTTPBingo deflate response decodes into readable
 const BROTLI_SCENARIO: &str = "HTTPBingo reports the current Brotli provider capability";
 const RESPONSE_HEADERS_SCENARIO: &str =
     "HTTPBingo response headers are inspectable by mouse and keyboard";
+const HISTORY_REPLAY_SCENARIO: &str =
+    "HTTPBingo receives the complete request replayed from History";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 
 /// One file-backed SQLite database per real-application lifecycle.
@@ -1032,6 +1036,150 @@ fn run_response_headers_workflow(
         return Err(format!(
             "pane switching mutated SQLite History\n  before: {history_before_switch:#?}\n  after:  {history_after_switch:#?}"
         ));
+    }
+
+    Ok(())
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_history_replay_restores_and_resends_the_complete_request(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let scenario = find_httpbingo_scenario(&files, HISTORY_REPLAY_SCENARIO)
+        .expect("Issue #77 History replay scenario should exist");
+    run_history_replay_workflow(test_cx, scenario)
+        .unwrap_or_else(|failure| panic!("Issue #77 History replay workflow failed:\n{failure}"));
+}
+
+fn active_request_projection(
+    workspace: &Entity<WorkspaceViewModel>,
+    cx: &mut VisualTestContext,
+) -> Request {
+    workspace.read_with(cx, |workspace, _| Request {
+        method: workspace.method(),
+        url: workspace.effective_url(),
+        headers: workspace
+            .effective_headers()
+            .into_iter()
+            .map(|header| (header.name, header.value))
+            .collect(),
+        body: workspace.request_body(),
+    })
+}
+
+fn run_history_replay_workflow(
+    test_cx: &mut TestAppContext,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let expected_persisted =
+        persisted_history_projection(&expected, expected_editor_intent(&scenario.draft)?)?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
+
+    choose_method(cx, &scenario.draft.method)?;
+    type_into(cx, "url-input", &expected.url)?;
+    apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+    let bearer_token = scenario
+        .draft
+        .bearer_token
+        .as_deref()
+        .ok_or_else(|| "Issue #77 scenario must include Bearer authorization".to_string())?;
+    click(cx, "request-pane-authorization")?;
+    type_into(cx, "authorization-input", bearer_token)?;
+    apply_body(cx, &scenario.draft)?;
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
+        .map_err(|error| format!("complete draft mismatch before first Send: {error}"))?;
+
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let first_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&first_response, &scenario.expect.response)?;
+    let history_before_replay = history_database.load_authoritative(&workspace, cx)?;
+    if history_before_replay.len() != 1 {
+        return Err(format!(
+            "first Send should create one SQLite History row, actual: {}",
+            history_before_replay.len()
+        ));
+    }
+    let original = history_before_replay[0].clone();
+    let original_id = original.id.clone();
+    assert_requests_equivalent(&original.request, &expected_persisted.request)
+        .map_err(|error| format!("original sanitized History mismatch: {error}"))?;
+
+    click(cx, "new-tab-button")?;
+    type_into(cx, "url-input", "https://draft.example/mouse")?;
+    click(cx, "history-item-0")?;
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
+        .map_err(|error| format!("mouse History replay mismatch: {error}"))?;
+    if !matches!(
+        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Historical { entry_id, .. } if entry_id == original_id
+    ) {
+        return Err("mouse History replay did not select the original historical response".into());
+    }
+    for selector in [
+        "method-dropdown-selected-value",
+        "body-input",
+        "response-historical-badge",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "mouse History replay did not project rendered control `{selector}`"
+            ));
+        }
+    }
+
+    replace_text(cx, "url-input", "https://draft.example/enter")?;
+    click(cx, "history-search-input")?;
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
+        .map_err(|error| format!("Enter History replay mismatch: {error}"))?;
+
+    replace_text(cx, "url-input", "https://draft.example/space")?;
+    click(cx, "history-search-input")?;
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("space");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
+        .map_err(|error| format!("Space History replay mismatch: {error}"))?;
+
+    // Send immediately from the restored ViewModel; HTTPBingo's echo proves the exact wire shape.
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let replay_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&replay_response, &scenario.expect.response)?;
+    let history_after_replay = history_database.load_authoritative(&workspace, cx)?;
+    if history_after_replay.len() != 2 {
+        return Err(format!(
+            "replay should create a second SQLite History row, actual: {}",
+            history_after_replay.len()
+        ));
+    }
+    if history_after_replay[0].id == original_id || history_after_replay[1].id != original_id {
+        return Err(format!(
+            "original and replay IDs are not independent: {history_after_replay:#?}"
+        ));
+    }
+    if !same_history_entry(&history_after_replay[1], &original)
+        || history_after_replay[1].historical_response != original.historical_response
+    {
+        return Err(format!(
+            "replay mutated the original History row\n  before: {original:#?}\n  after:  {:#?}",
+            history_after_replay[1]
+        ));
+    }
+    for (index, entry) in history_after_replay.iter().enumerate() {
+        assert_requests_equivalent(&entry.request, &expected_persisted.request)
+            .map_err(|error| format!("History row {index} request mismatch: {error}"))?;
     }
 
     Ok(())

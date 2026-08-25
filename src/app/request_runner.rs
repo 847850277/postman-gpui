@@ -92,6 +92,7 @@ impl RequestRunner {
             });
             return;
         };
+        let runtime_replay_request = (entry.id.clone(), entry.request.clone());
         let snapshot = match VersionedHistorySnapshot::try_from(&entry) {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -113,6 +114,7 @@ impl RequestRunner {
             HistoryStorageStage::Append,
             append,
             load,
+            Some(runtime_replay_request),
             cx,
         );
     }

@@ -1,0 +1,54 @@
+{
+  "schema_version": 5,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo receives the complete request replayed from History",
+      "draft": {
+        "method": "POST",
+        "path": "/anything/history-replay?existing=1&tag=rust",
+        "headers": [
+          { "key": "X-Replay", "value": "original" }
+        ],
+        "body": "{\"message\":\"history replay\",\"count\":2}",
+        "body_kind": "json",
+        "bearer_token": "Bearer history-e2e-token"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/anything/history-replay?existing=1&tag=rust",
+          "headers": [
+            ["Content-Type", "application/json"],
+            ["Accept", "application/json"],
+            ["X-Replay", "original"],
+            ["Authorization", "Bearer history-e2e-token"]
+          ],
+          "body": "{\"message\":\"history replay\",\"count\":2}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "existing": ["1"],
+              "tag": ["rust"]
+            },
+            "method": "POST",
+            "headers": {
+              "Content-Type": ["application/json"],
+              "X-Replay": ["original"],
+              "Authorization": ["Bearer history-e2e-token"]
+            },
+            "data": "{\"message\":\"history replay\",\"count\":2}",
+            "json": {
+              "message": "history replay",
+              "count": 2
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}
