@@ -10,10 +10,16 @@ use common::scenario::{
     KeyValueSpec, MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
-use postman_gpui::app::{
-    AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
+use postman_gpui::{
+    app::{
+        AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
+    },
+    models::{HistoryEntry, HttpMethod, Request, RequestBody, RequestEditorIntent},
+    persistence::{
+        HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
+        DEFAULT_HISTORY_RETENTION_LIMIT,
+    },
 };
-use postman_gpui::models::{HttpMethod, RequestBody};
 use std::path::{Path, PathBuf};
 use ui::{choose_method, click, click_without_wait, scroll_down, scroll_up, type_into};
 
@@ -34,6 +40,100 @@ const GZIP_SCENARIO: &str = "HTTPBingo gzip response decodes into readable JSON"
 const DEFLATE_SCENARIO: &str = "HTTPBingo deflate response decodes into readable JSON";
 const BROTLI_SCENARIO: &str = "HTTPBingo reports the current Brotli provider capability";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
+
+/// One file-backed SQLite database per real-application lifecycle.
+///
+/// HTTPBingo verifies the transport response while this fixture verifies that History came back
+/// through the same durable boundary used by production. Keeping the directory alive for the
+/// entire window lifetime also makes accidental in-memory History behavior visible to the test.
+struct SqliteHistoryFixture {
+    _directory: tempfile::TempDir,
+    path: PathBuf,
+}
+
+impl SqliteHistoryFixture {
+    fn new() -> Result<Self, String> {
+        let directory = tempfile::tempdir()
+            .map_err(|error| format!("failed to create HTTPBingo History directory: {error}"))?;
+        let path = directory.path().join("request-history.sqlite3");
+        Ok(Self {
+            _directory: directory,
+            path,
+        })
+    }
+
+    fn app_path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    fn load_authoritative(
+        &self,
+        workspace: &Entity<WorkspaceViewModel>,
+        cx: &mut VisualTestContext,
+    ) -> Result<Vec<HistoryEntry>, String> {
+        let mut repository = SqliteHistoryRepository::new(&self.path)
+            .map_err(|error| format!("cannot open HTTPBingo History SQLite database: {error}"))?;
+        let result = repository
+            .load_recent(DEFAULT_HISTORY_RETENTION_LIMIT)
+            .map_err(|error| format!("cannot load HTTPBingo History from SQLite: {error}"))?;
+        let (snapshots, warnings) = result.into_parts();
+        if !warnings.is_empty() {
+            return Err(format!(
+                "HTTPBingo History SQLite load skipped rows: {warnings:#?}"
+            ));
+        }
+        let stored = snapshots
+            .into_iter()
+            .map(HistoryEntry::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("cannot project HTTPBingo SQLite History: {error}"))?;
+        let visible = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+        if visible.len() != stored.len()
+            || visible
+                .iter()
+                .zip(&stored)
+                .any(|(visible, stored)| !same_history_entry(visible, stored))
+        {
+            return Err(format!(
+                "visible History is not the latest SQLite query result\n  SQLite: {stored:#?}\n  visible: {visible:#?}"
+            ));
+        }
+        Ok(stored)
+    }
+}
+
+fn same_history_entry(left: &HistoryEntry, right: &HistoryEntry) -> bool {
+    left.id == right.id
+        && left.request == right.request
+        && left.editor_intent == right.editor_intent
+        && left.request_options == right.request_options
+        && left.timestamp == right.timestamp
+        && left.name == right.name
+        && left.status == right.status
+        && left.elapsed_ms == right.elapsed_ms
+        && left.response_size == right.response_size
+}
+
+/// Project the transport request through the persisted History contract before comparing it with
+/// SQLite. Transport assertions still use the original request and HTTPBingo echo.
+fn persisted_history_projection(
+    request: &Request,
+    editor_intent: Option<RequestEditorIntent>,
+) -> Result<HistoryEntry, String> {
+    let candidate = HistoryEntry::completed_with_intent(
+        request.clone(),
+        request.url.clone(),
+        200,
+        0,
+        0,
+        editor_intent,
+    );
+    let snapshot = VersionedHistorySnapshot::try_from(&candidate)
+        .map_err(|error| format!("cannot sanitize expected SQLite History: {error}"))?;
+    HistoryEntry::try_from(snapshot)
+        .map_err(|error| format!("cannot project expected SQLite History: {error}"))
+}
+
 const PARAM_TOGGLE_SELECTORS: [&str; 16] = [
     "param-row-toggle-0",
     "param-row-toggle-1",
@@ -819,10 +919,14 @@ fn run_head_options_workflow(
 ) -> Result<(), String> {
     let head_request = expected_request(&head.expect.request, Some(HTTPBINGO_BASE_URL))?;
     let options_request = expected_request(&options.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
 
     choose_method(cx, &head.draft.method)?;
     type_into(cx, "url-input", &head_request.url)?;
@@ -840,8 +944,10 @@ fn run_head_options_workflow(
     if cx.debug_bounds("response-content").is_none() {
         return Err("HEAD response headers are not inspectable".to_string());
     }
-    let head_history = workspace
-        .read_with(cx, |workspace, _| workspace.history().first().cloned())
+    let head_history = history_database
+        .load_authoritative(&workspace, cx)?
+        .into_iter()
+        .next()
         .ok_or_else(|| "HEAD did not enter History".to_string())?;
     assert_requests_equivalent(&head_history.request, &head_request)
         .map_err(|error| format!("HEAD History mismatch: {error}"))?;
@@ -864,7 +970,7 @@ fn run_head_options_workflow(
         return Err("OPTIONS response headers are not inspectable".to_string());
     }
 
-    let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    let history = history_database.load_authoritative(&workspace, cx)?;
     if history.len() != 2 {
         return Err(format!(
             "HEAD/OPTIONS workflow should create two History rows, actual: {}",
@@ -938,10 +1044,14 @@ fn run_compression_workflow(
     test_cx: &mut TestAppContext,
     scenarios: [&RequestScenario; 3],
 ) -> Result<(), String> {
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
     let mut expected_requests = Vec::new();
 
     for (index, scenario) in scenarios.into_iter().enumerate() {
@@ -1006,7 +1116,7 @@ fn run_compression_workflow(
             }
         }
 
-        let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+        let history = history_database.load_authoritative(&workspace, cx)?;
         if history.len() != index + 1 {
             return Err(format!(
                 "compression workflow History length mismatch after {}: {}",
@@ -1037,7 +1147,7 @@ fn run_compression_workflow(
         expected_requests.push(expected);
     }
 
-    let history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    let history = history_database.load_authoritative(&workspace, cx)?;
     let statuses = history.iter().map(|entry| entry.status).collect::<Vec<_>>();
     if statuses != vec![Some(501), Some(200), Some(200)] {
         return Err(format!(
@@ -1089,10 +1199,14 @@ fn run_html_form_workflow(
         &workflow.submission.expect.request,
         Some(HTTPBINGO_BASE_URL),
     )?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
 
     choose_method(cx, &workflow.discovery.draft.method)?;
     type_into(
@@ -1106,13 +1220,11 @@ fn run_html_form_workflow(
     let discovery_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&discovery_response, &workflow.discovery.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &discovery_response)?;
-    let (discovery_history_request, discovery_history_status) = workspace
-        .read_with(cx, |workspace, _| {
-            workspace
-                .history()
-                .first()
-                .map(|entry| (entry.request.clone(), entry.status))
-        })
+    let (discovery_history_request, discovery_history_status) = history_database
+        .load_authoritative(&workspace, cx)?
+        .into_iter()
+        .next()
+        .map(|entry| (entry.request, entry.status))
         .ok_or_else(|| "GET /forms/post is missing from History".to_string())?;
     assert_requests_equivalent(&discovery_history_request, &discovery_request)
         .map_err(|error| format!("HTML form discovery History mismatch: {error}"))?;
@@ -1162,13 +1274,11 @@ fn run_html_form_workflow(
     let submission_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&submission_response, &workflow.submission.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &submission_response)?;
-    let history = workspace.read_with(cx, |workspace, _| {
-        workspace
-            .history()
-            .iter()
-            .map(|entry| (entry.request.clone(), entry.status))
-            .collect::<Vec<_>>()
-    });
+    let history = history_database
+        .load_authoritative(&workspace, cx)?
+        .into_iter()
+        .map(|entry| (entry.request, entry.status))
+        .collect::<Vec<_>>();
     if history.len() != 2 {
         return Err(format!(
             "HTML form lifecycle should create two History entries, found {}",
@@ -1213,10 +1323,16 @@ fn run_cookie_workflow(
     let set_request = expected_request(&workflow.set.expect.request, Some(HTTPBINGO_BASE_URL))?;
     let cookies_request =
         expected_request(&workflow.cleared.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let persisted_set_request = persisted_history_projection(&set_request, None)?.request;
+    let persisted_cookies_request = persisted_history_projection(&cookies_request, None)?.request;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
 
     let set_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.set.draft.path);
     type_into(cx, "url-input", &set_url)?;
@@ -1232,9 +1348,8 @@ fn run_cookie_workflow(
     let set_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&set_response, &workflow.set.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &set_response)?;
-    let (cookies, set_history) = workspace.read_with(cx, |workspace, _| {
-        (workspace.cookies().to_vec(), workspace.history().to_vec())
-    });
+    let cookies = workspace.read_with(cx, |workspace, _| workspace.cookies().to_vec());
+    let set_history = history_database.load_authoritative(&workspace, cx)?;
     if cookies.len() != 1 || cookies[0].name != "session" || cookies[0].origin != HTTPBINGO_BASE_URL
     {
         return Err(format!(
@@ -1246,7 +1361,7 @@ fn run_cookie_workflow(
             "cookie-setting request did not create one completed History entry: {set_history:#?}"
         ));
     }
-    assert_requests_equivalent(&set_history[0].request, &set_request)
+    assert_requests_equivalent(&set_history[0].request, &persisted_set_request)
         .map_err(|error| format!("cookie-setting History mismatch: {error}"))?;
     if cx.debug_bounds("request-pane-cookies").is_some() {
         return Err("the application Cookie Jar must not remain a request editor tab".to_string());
@@ -1293,13 +1408,13 @@ fn run_cookie_workflow(
     // The setting scenario's stable response subset is also the proof that this separate request
     // automatically sent Cookie: session=cookie-e2e-demo.
     assert_response_state(&echoed_response, &workflow.set.expect.response)?;
-    let echoed_history = workspace.read_with(cx, |workspace, _| workspace.history().to_vec());
+    let echoed_history = history_database.load_authoritative(&workspace, cx)?;
     if echoed_history.len() != 2 || echoed_history[0].status != Some(200) {
         return Err(format!(
             "automatic-cookie request did not extend History correctly: {echoed_history:#?}"
         ));
     }
-    assert_requests_equivalent(&echoed_history[0].request, &cookies_request)
+    assert_requests_equivalent(&echoed_history[0].request, &persisted_cookies_request)
         .map_err(|error| format!("automatic-cookie History mismatch: {error}"))?;
     if !echoed_history[0].request.headers.is_empty() {
         return Err(
@@ -1330,15 +1445,15 @@ fn run_cookie_workflow(
         }
     }
     click(cx, "cookie-jar-clear-all")?;
-    let (cookie_count, cleared_count, response_after_clear, history_after_clear) = workspace
-        .read_with(cx, |workspace, _| {
+    let (cookie_count, cleared_count, response_after_clear) =
+        workspace.read_with(cx, |workspace, _| {
             (
                 workspace.cookie_count(),
                 workspace.last_cookie_clear_count(),
                 workspace.response().clone(),
-                workspace.history().to_vec(),
             )
         });
+    let history_after_clear = history_database.load_authoritative(&workspace, cx)?;
     if cookie_count != 0 || cleared_count != Some(1) {
         return Err(format!(
             "Clear all did not produce the expected 1 → 0 jar transition: count={cookie_count}, cleared={cleared_count:?}"
@@ -1377,20 +1492,19 @@ fn run_cookie_workflow(
     let cleared_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&cleared_response, &workflow.cleared.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &cleared_response)?;
-    let (final_cookie_count, final_history) = workspace.read_with(cx, |workspace, _| {
-        (workspace.cookie_count(), workspace.history().to_vec())
-    });
+    let final_cookie_count = workspace.read_with(cx, |workspace, _| workspace.cookie_count());
+    let final_history = history_database.load_authoritative(&workspace, cx)?;
     if final_cookie_count != 0 || final_history.len() != 3 {
         return Err(format!(
             "after-clear request lifecycle is incomplete: cookies={final_cookie_count}, history={}",
             final_history.len()
         ));
     }
-    assert_requests_equivalent(&final_history[0].request, &cookies_request)
+    assert_requests_equivalent(&final_history[0].request, &persisted_cookies_request)
         .map_err(|error| format!("after-clear History mismatch: {error}"))?;
-    assert_requests_equivalent(&final_history[1].request, &cookies_request)
+    assert_requests_equivalent(&final_history[1].request, &persisted_cookies_request)
         .map_err(|error| format!("automatic-cookie History changed: {error}"))?;
-    assert_requests_equivalent(&final_history[2].request, &set_request)
+    assert_requests_equivalent(&final_history[2].request, &persisted_set_request)
         .map_err(|error| format!("cookie-setting History changed: {error}"))?;
     if final_history.iter().any(|entry| entry.status != Some(200)) {
         return Err(format!(
@@ -1421,10 +1535,16 @@ fn run_application_scenario(
     }
 
     let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let expected_intent = expected_editor_intent(&scenario.draft)?;
+    let expected_persisted = persisted_history_projection(&expected, expected_intent)?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
 
     choose_method(cx, &scenario.draft.method)?;
     let selected_method = workspace.read_with(cx, |workspace, _| workspace.method().to_string());
@@ -1734,7 +1854,8 @@ fn run_application_scenario(
         ));
     }
 
-    let history_len = workspace.read_with(cx, |workspace, _| workspace.history_len());
+    let stored_history = history_database.load_authoritative(&workspace, cx)?;
+    let history_len = stored_history.len();
     if history_len != scenario.expect.history_len {
         return Err(format!(
             "history length mismatch: expected {}, actual {history_len}",
@@ -1745,13 +1866,12 @@ fn run_application_scenario(
         return Err("completed request method is not rendered in History".to_string());
     }
 
-    let recorded_entry =
-        workspace.read_with(cx, |workspace, _| workspace.history().first().cloned());
+    let recorded_entry = stored_history.first().cloned();
     match (scenario.expect.history_len > 0, recorded_entry.as_ref()) {
         (true, Some(actual)) => {
-            assert_requests_equivalent(&actual.request, &expected).map_err(|error| {
-                format!("request recorded by the real application is incorrect: {error}")
-            })?
+            assert_requests_equivalent(&actual.request, &expected_persisted.request).map_err(
+                |error| format!("request recorded by the real application is incorrect: {error}"),
+            )?
         }
         (true, None) => return Err("request history is missing the completed request".to_string()),
         (false, Some(actual)) => {
@@ -1790,10 +1910,10 @@ fn run_application_scenario(
         }
     }
     if let Some(entry) = recorded_entry {
-        let expected_intent = expected_editor_intent(&scenario.draft)?;
-        if entry.editor_intent != expected_intent {
+        if entry.editor_intent != expected_persisted.editor_intent {
             return Err(format!(
-                "History did not retain the complete editor intent\n  expected: {expected_intent:#?}\n  actual:   {:#?}",
+                "SQLite History did not retain the sanitized editor intent\n  expected: {:#?}\n  actual:   {:#?}",
+                expected_persisted.editor_intent,
                 entry.editor_intent
             ));
         }

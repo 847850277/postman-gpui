@@ -33,20 +33,24 @@ Scenario draft
   -> click Send
   -> WorkspaceViewModel and real RequestExecutor
   -> https://httpbingo.org
-  -> ResponseState, rendered response content, system clipboard, and shared history
+  -> ResponseState, rendered response content, system clipboard
+  -> file-backed SQLite History -> rendered History projection
 ```
 
 It uses the rendered method dropdown, URL field, query/header row editors,
 authorization field, body-kind controls, and Send button. Every user action is
 delivered through the rendered controls; the injected `WorkspaceViewModel` is
-only observed for assertions, so the runner has no second `PostmanApp` command
-surface. The runner then compares the complete request recorded by the real
-application's history, checks the stable HTTPBingo echo, and verifies that the
-response content is present in the window. Every populated response also clicks
-the quick-copy action, compares the system clipboard with the exact
-`ResponseState` body, and verifies that the action did not mutate request,
-response, History, or active-tab state. Empty response bodies must not expose
-the action.
+only observed for UI assertions, so the runner has no second `PostmanApp`
+command surface. Each application lifecycle owns an isolated temporary SQLite
+file. History assertions query that file through `SqliteHistoryRepository`,
+project the returned snapshots, and require the visible History list to match
+the database exactly. HTTPBingo's response proves the complete transport
+request; SQLite History is compared with the sanitized persistence projection,
+including removal of credentials, sensitive query values, and empty multipart
+placeholders. Every populated response also clicks the quick-copy action,
+compares the system clipboard with the exact `ResponseState` body, and verifies
+that the action did not mutate request, response, History, or active-tab state.
+Empty response bodies must not expose the action.
 It covers public DNS, TLS, redirects, request encoding, methods, headers, bodies,
 and non-2xx responses, but does not replace the deterministic local contract.
 
@@ -113,8 +117,8 @@ cargo httpbingo-scenarios
 ```
 
 The HTTPBingo test is ignored during ordinary `cargo test` runs because it
-requires a public service and currently takes about 20–30 seconds. The explicit
-command treats network or HTTPBingo failures as real test failures.
+requires a public service and can take about two minutes. The explicit command
+treats network or HTTPBingo failures as real test failures.
 
 CI runs the same command in the standalone `HTTPBingo E2E` workflow. It runs for
 every pull request, can be started manually with `workflow_dispatch`, and runs
@@ -131,10 +135,10 @@ failure is visible on its own and does not share a log with the GPUI UI tests.
 Every local case starts with a new `WorkspaceViewModel`. A `target: "local"`
 case containing `mock` receives a fresh mockito server and an automatically
 assigned origin. Every `target: "httpbingo"` case starts with a fresh
-`PostmanApp` and GPUI window, must omit `mock`, and receives the
-`https://httpbingo.org` origin from the opt-in runner. Therefore, `draft.path`
-and `expect.request.path` are host-relative in both modes, for example
-`/users/42?active=true`.
+`PostmanApp`, GPUI window, and file-backed SQLite History database, must omit
+`mock`, and receives the `https://httpbingo.org` origin from the opt-in runner.
+Therefore, `draft.path` and `expect.request.path` are host-relative in both
+modes, for example `/users/42?active=true`.
 
 Issue #59 also links its independently runnable GET `/forms/post` and POST
 `/post` cases in one additional application-level workflow. That workflow
@@ -213,10 +217,12 @@ logical `Request` and what the HTTP client actually delivers over the wire.
 
 ### Expected result fields
 
-`expect.request` is compared with the assembled `Request` exactly, including
-method, URL path, header list, header ordering, and body. In HTTPBingo mode the
-comparison uses the completed request recorded by the running application's
-shared history, in addition to assertions against HTTPBingo's echoed response.
+`expect.request` describes the complete transport `Request`, including method,
+URL path, header list, header ordering, and body. In HTTPBingo mode the response
+echo validates transport-visible values. The completed row is then loaded from
+SQLite and compared with the persistence projection of `expect.request`, so
+History intentionally omits values denied by the sensitive-data policy and
+normalizes editor-only placeholders.
 `expect.request.body_kind` is optional; use `multipart` when its URL-encoded
 `body` notation represents ordered typed text parts rather than raw wire bytes.
 Multipart requests containing files instead declare `multipart_parts` in both
