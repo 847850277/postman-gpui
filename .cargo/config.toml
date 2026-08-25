@@ -1,3 +1,4 @@
 [alias]
 scenarios = "test --test request_scenarios"
 httpbingo-scenarios = "test --test httpbingo_scenarios -- --ignored --test-threads=1"
+history-persistence = "test --locked --test history_persistence --test persistence_e2e -- --test-threads=1"
