@@ -1605,6 +1605,10 @@ impl WorkspaceViewModel {
         self.active_tab
     }
 
+    pub fn tab_index(&self, tab_id: RequestTabId) -> Option<usize> {
+        self.tabs.iter().position(|tab| tab.tab_id == tab_id)
+    }
+
     pub fn select_tab(&mut self, index: usize) -> bool {
         if index < self.tabs.len() && index != self.active_tab {
             self.active_tab = index;
@@ -1612,6 +1616,11 @@ impl WorkspaceViewModel {
         } else {
             false
         }
+    }
+
+    pub fn select_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
+        self.tab_index(tab_id)
+            .is_some_and(|index| self.select_tab(index))
     }
 
     pub fn new_request(&mut self) {
@@ -1640,6 +1649,11 @@ impl WorkspaceViewModel {
             self.active_tab = self.tabs.len() - 1;
         }
         true
+    }
+
+    pub fn close_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
+        self.tab_index(tab_id)
+            .is_some_and(|index| self.close_tab(index))
     }
 
     pub fn begin_send(&mut self) -> PendingRequest {
@@ -1686,6 +1700,11 @@ impl WorkspaceViewModel {
 
     pub fn send_id_for_tab(&self, index: usize) -> Option<SendId> {
         self.tabs.get(index).and_then(|tab| tab.pending_send_id)
+    }
+
+    pub fn send_id_for_tab_id(&self, tab_id: RequestTabId) -> Option<SendId> {
+        self.tab_index(tab_id)
+            .and_then(|index| self.send_id_for_tab(index))
     }
 
     pub fn cancel_send(&mut self, send_id: SendId) -> bool {

@@ -12,7 +12,8 @@ use common::scenario::{
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::{
     app::{
-        AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, ResponseState, WorkspaceViewModel,
+        AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, RequestPane, ResponseState,
+        WorkspaceViewModel,
     },
     models::{HistoryEntry, HttpMethod, Request, RequestBody, RequestEditorIntent},
     persistence::{
@@ -45,6 +46,8 @@ const RESPONSE_HEADERS_SCENARIO: &str =
     "HTTPBingo response headers are inspectable by mouse and keyboard";
 const HISTORY_REPLAY_SCENARIO: &str =
     "HTTPBingo receives the complete request replayed from History";
+const MULTI_TAB_A_SCENARIO: &str = "HTTPBingo isolates the GET request in Tab A";
+const MULTI_TAB_B_SCENARIO: &str = "HTTPBingo isolates the POST JSON request in Tab B";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 
 /// One file-backed SQLite database per real-application lifecycle.
@@ -579,6 +582,11 @@ struct CookieWorkflow<'a> {
     cleared: &'a RequestScenario,
 }
 
+struct MultiTabWorkflow<'a> {
+    tab_a: &'a RequestScenario,
+    tab_b: &'a RequestScenario,
+}
+
 fn scenario_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases")
 }
@@ -807,6 +815,109 @@ fn validate_cookie_workflow_contract(workflow: &CookieWorkflow<'_>) -> Result<()
     Ok(())
 }
 
+fn multi_tab_workflow(files: &[ScenarioFile]) -> Result<MultiTabWorkflow<'_>, String> {
+    let workflow = MultiTabWorkflow {
+        tab_a: find_httpbingo_scenario(files, MULTI_TAB_A_SCENARIO)?,
+        tab_b: find_httpbingo_scenario(files, MULTI_TAB_B_SCENARIO)?,
+    };
+    validate_multi_tab_workflow_contract(&workflow)?;
+    Ok(workflow)
+}
+
+fn validate_multi_tab_workflow_contract(workflow: &MultiTabWorkflow<'_>) -> Result<(), String> {
+    let tab_a = workflow.tab_a;
+    if tab_a.mock.is_some()
+        || !tab_a.draft.method.eq_ignore_ascii_case("GET")
+        || tab_a.draft.path != "/get?tab=A&q=rust"
+        || tab_a.expect.request.path != tab_a.draft.path
+        || tab_a.draft.headers.len() != 1
+        || tab_a.draft.headers[0].key != "X-Tab"
+        || tab_a.draft.headers[0].value != "A"
+        || !tab_a.draft.headers[0].enabled
+        || tab_a.draft.body.is_some()
+        || tab_a.draft.body_kind.is_some()
+        || tab_a.draft.bearer_token.is_some()
+        || tab_a.draft.basic_auth.is_some()
+        || tab_a.expect.history_len != 1
+    {
+        return Err(
+            "Tab A must be one bodyless GET with query Params and only `X-Tab: A`".to_string(),
+        );
+    }
+    if tab_a.expect.request.headers != [("X-Tab".to_string(), "A".to_string())]
+        || tab_a.expect.request.body.is_some()
+    {
+        return Err("Tab A's expected request must exactly match its GET draft".to_string());
+    }
+    if !matches!(
+        &tab_a.expect.response,
+        ResponseSpec::Success {
+            status: 200,
+            body_json_contains: Some(_),
+            ..
+        }
+    ) {
+        return Err("Tab A must assert HTTPBingo's successful JSON echo".to_string());
+    }
+
+    let tab_b = workflow.tab_b;
+    let expected_body = r#"{"tab":"B","message":"isolated"}"#;
+    if tab_b.mock.is_some()
+        || !tab_b.draft.method.eq_ignore_ascii_case("POST")
+        || tab_b.draft.path != "/anything/tab-b?mode=json"
+        || tab_b.expect.request.path != tab_b.draft.path
+        || tab_b.draft.headers.len() != 1
+        || tab_b.draft.headers[0].key != "X-Tab"
+        || tab_b.draft.headers[0].value != "B"
+        || !tab_b.draft.headers[0].enabled
+        || tab_b.draft.body.as_deref() != Some(expected_body)
+        || !tab_b
+            .draft
+            .body_kind
+            .as_deref()
+            .is_some_and(|kind| kind.eq_ignore_ascii_case("json"))
+        || tab_b.draft.bearer_token.as_deref() != Some("Bearer tab-b-e2e-token")
+        || tab_b.draft.basic_auth.is_some()
+        || tab_b.expect.request.body.as_deref() != Some(expected_body)
+        || tab_b.expect.history_len != 1
+    {
+        return Err(
+            "Tab B must be the isolated Bearer-authenticated POST JSON request".to_string(),
+        );
+    }
+    for (name, value) in [
+        ("Content-Type", "application/json"),
+        ("Accept", "application/json"),
+        ("X-Tab", "B"),
+        ("Authorization", "Bearer tab-b-e2e-token"),
+    ] {
+        if !tab_b
+            .expect
+            .request
+            .headers
+            .iter()
+            .any(|(actual_name, actual_value)| {
+                actual_name.eq_ignore_ascii_case(name) && actual_value == value
+            })
+        {
+            return Err(format!(
+                "Tab B's expected request is missing `{name}: {value}`"
+            ));
+        }
+    }
+    if !matches!(
+        &tab_b.expect.response,
+        ResponseSpec::Success {
+            status: 200,
+            body_json_contains: Some(_),
+            ..
+        }
+    ) {
+        return Err("Tab B must assert HTTPBingo's successful JSON echo".to_string());
+    }
+    Ok(())
+}
+
 #[test]
 fn html_form_workflow_contract_links_discovery_to_complete_submission() {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
@@ -817,6 +928,12 @@ fn html_form_workflow_contract_links_discovery_to_complete_submission() {
 fn cookie_workflow_contract_links_storage_send_and_clear_in_one_session() {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     cookie_workflow(&files).expect("Issue #65 workflow contract should be complete");
+}
+
+#[test]
+fn multi_tab_workflow_contract_keeps_requests_distinguishable() {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    multi_tab_workflow(&files).expect("Issue #79 workflow contract should be complete");
 }
 
 #[gpui::test]
@@ -1047,6 +1164,16 @@ fn httpbingo_history_replay_restores_and_resends_the_complete_request(
         .unwrap_or_else(|failure| panic!("Issue #77 History replay workflow failed:\n{failure}"));
 }
 
+#[gpui::test]
+fn httpbingo_multi_tab_requests_remain_isolated_across_mouse_keyboard_send_and_close(
+    test_cx: &mut TestAppContext,
+) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let workflow = multi_tab_workflow(&files).expect("Issue #79 workflow should be valid");
+    run_multi_tab_workflow(test_cx, &workflow)
+        .unwrap_or_else(|failure| panic!("Issue #79 multi-tab workflow failed:\n{failure}"));
+}
+
 fn active_request_projection(
     workspace: &Entity<WorkspaceViewModel>,
     cx: &mut VisualTestContext,
@@ -1061,6 +1188,279 @@ fn active_request_projection(
             .collect(),
         body: workspace.request_body(),
     })
+}
+
+fn tab_request_projection(
+    workspace: &Entity<WorkspaceViewModel>,
+    index: usize,
+    cx: &mut VisualTestContext,
+) -> Result<Request, String> {
+    workspace
+        .read_with(cx, |workspace, _| {
+            workspace.tabs().get(index).map(|tab| Request {
+                method: tab.method(),
+                url: tab.effective_url(),
+                headers: tab
+                    .effective_headers()
+                    .into_iter()
+                    .map(|header| (header.name, header.value))
+                    .collect(),
+                body: tab.request_body(),
+            })
+        })
+        .ok_or_else(|| format!("request tab index {index} is missing"))
+}
+
+fn run_multi_tab_workflow(
+    test_cx: &mut TestAppContext,
+    workflow: &MultiTabWorkflow<'_>,
+) -> Result<(), String> {
+    let expected_a = expected_request(&workflow.tab_a.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let expected_b = expected_request(&workflow.tab_b.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let persisted_a =
+        persisted_history_projection(&expected_a, expected_editor_intent(&workflow.tab_a.draft)?)?;
+    let persisted_b =
+        persisted_history_projection(&expected_b, expected_editor_intent(&workflow.tab_b.draft)?)?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
+
+    choose_method(cx, &workflow.tab_a.draft.method)?;
+    type_into(cx, "url-input", &expected_a.url)?;
+    apply_rows(
+        cx,
+        &workspace,
+        RowEditor::Headers,
+        &workflow.tab_a.draft.headers,
+    )?;
+    click(cx, "request-pane-params")?;
+
+    click(cx, "new-tab-button")?;
+    choose_method(cx, &workflow.tab_b.draft.method)?;
+    type_into(cx, "url-input", &expected_b.url)?;
+    apply_rows(
+        cx,
+        &workspace,
+        RowEditor::Headers,
+        &workflow.tab_b.draft.headers,
+    )?;
+    click(cx, "request-pane-authorization")?;
+    type_into(
+        cx,
+        "authorization-input",
+        workflow
+            .tab_b
+            .draft
+            .bearer_token
+            .as_deref()
+            .ok_or_else(|| "Tab B is missing its Bearer token".to_string())?,
+    )?;
+    apply_body(cx, &workflow.tab_b.draft)?;
+
+    assert_requests_equivalent(&tab_request_projection(&workspace, 0, cx)?, &expected_a)
+        .map_err(|error| format!("Tab A draft mismatch before Send: {error}"))?;
+    assert_requests_equivalent(&tab_request_projection(&workspace, 1, cx)?, &expected_b)
+        .map_err(|error| format!("Tab B draft mismatch before Send: {error}"))?;
+    let initial_state = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.tab_count(),
+            workspace.active_tab_index(),
+            workspace.tabs()[0].tab_id().to_string(),
+            workspace.tabs()[1].tab_id().to_string(),
+            workspace.tabs()[0].request_pane(),
+            workspace.tabs()[1].request_pane(),
+            workspace.tabs()[0].authorization_header_preview(),
+            workspace.tabs()[1].authorization_header_preview(),
+            workspace.tabs()[0].is_dirty(),
+            workspace.tabs()[1].is_dirty(),
+            workspace.tabs()[0].response().clone(),
+            workspace.tabs()[1].response().clone(),
+        )
+    });
+    if initial_state
+        != (
+            2,
+            1,
+            "1".to_string(),
+            "2".to_string(),
+            RequestPane::Params,
+            RequestPane::Body,
+            None,
+            Some("Authorization: Bearer tab-b-e2e-token".to_string()),
+            true,
+            true,
+            ResponseState::NotSent,
+            ResponseState::NotSent,
+        )
+    {
+        return Err(format!(
+            "auth, pane, dirty, response, or stable tab identity leaked before Send: {initial_state:#?}"
+        ));
+    }
+
+    // Mouse and keyboard invoke the same stable-tab-id activation command.
+    click(cx, "request-tab-0")?;
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
+        .map_err(|error| format!("mouse did not project Tab A: {error}"))?;
+    if cx.debug_bounds("params-ready-indicator").is_none() {
+        return Err("mouse activation did not restore Tab A's Params pane".to_string());
+    }
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
+        .map_err(|error| format!("Enter did not project Tab B: {error}"))?;
+    if cx.debug_bounds("body-input").is_none() {
+        return Err("Enter activation did not restore Tab B's Body pane".to_string());
+    }
+    cx.simulate_keystrokes("shift-tab");
+    cx.simulate_keystrokes("space");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
+        .map_err(|error| format!("Space did not project Tab A: {error}"))?;
+
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+    let after_a = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.tabs()[0].response().clone(),
+            workspace.tabs()[1].response().clone(),
+            workspace.tabs()[0].is_dirty(),
+            workspace.tabs()[1].is_dirty(),
+            workspace.history_len(),
+        )
+    });
+    assert_response_state(&after_a.0, &workflow.tab_a.expect.response)?;
+    if !matches!(after_a.1, ResponseState::NotSent) || after_a.2 || !after_a.3 || after_a.4 != 1 {
+        return Err(format!(
+            "Tab A completion changed Tab B or shared History incorrectly: {after_a:#?}"
+        ));
+    }
+    let history_after_a = history_database.load_authoritative(&workspace, cx)?;
+    if history_after_a.len() != 1 || history_after_a[0].status != Some(200) {
+        return Err(format!(
+            "Tab A must create one successful SQLite History row: {history_after_a:#?}"
+        ));
+    }
+    assert_requests_equivalent(&history_after_a[0].request, &persisted_a.request)
+        .map_err(|error| format!("Tab A SQLite History mismatch: {error}"))?;
+
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
+        .map_err(|error| format!("keyboard did not return to Tab B before Send: {error}"))?;
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let (response_a, response_b, dirty_a, dirty_b, history_len) =
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.tabs()[0].response().clone(),
+                workspace.tabs()[1].response().clone(),
+                workspace.tabs()[0].is_dirty(),
+                workspace.tabs()[1].is_dirty(),
+                workspace.history_len(),
+            )
+        });
+    assert_response_state(&response_a, &workflow.tab_a.expect.response)?;
+    assert_response_state(&response_b, &workflow.tab_b.expect.response)?;
+    if dirty_a || dirty_b || history_len != 2 {
+        return Err(format!(
+            "two completed tabs must be clean with two shared History rows: dirty=({dirty_a}, {dirty_b}), history={history_len}"
+        ));
+    }
+
+    let history_after_b = history_database.load_authoritative(&workspace, cx)?;
+    if history_after_b.len() != 2
+        || history_after_b[0].status != Some(200)
+        || history_after_b[1].status != Some(200)
+    {
+        return Err(format!(
+            "both Sends must be stored newest-first in SQLite History: {history_after_b:#?}"
+        ));
+    }
+    assert_requests_equivalent(&history_after_b[0].request, &persisted_b.request)
+        .map_err(|error| format!("Tab B SQLite History mismatch: {error}"))?;
+    assert_requests_equivalent(&history_after_b[1].request, &persisted_a.request)
+        .map_err(|error| format!("Tab A SQLite History changed after Tab B Send: {error}"))?;
+    if history_after_b.iter().any(|entry| {
+        entry
+            .request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+    }) {
+        return Err("SQLite History persisted Tab B's Authorization secret".to_string());
+    }
+    for selector in ["history-method-0", "history-method-1"] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!("shared History row `{selector}` is not rendered"));
+        }
+    }
+
+    click(cx, "request-tab-0")?;
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
+        .map_err(|error| format!("Tab A changed after both Sends: {error}"))?;
+    assert_response_state(
+        &workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        &workflow.tab_a.expect.response,
+    )?;
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
+        .map_err(|error| format!("Tab B changed after both Sends: {error}"))?;
+    assert_response_state(
+        &workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        &workflow.tab_b.expect.response,
+    )?;
+
+    click(cx, "close-tab-1")?;
+    let after_close = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.tab_count(),
+            workspace.active_tab_index(),
+            workspace.tabs()[0].tab_id().to_string(),
+            workspace.request_pane(),
+            workspace.response().clone(),
+            workspace.history_len(),
+        )
+    });
+    if after_close.0 != 1
+        || after_close.1 != 0
+        || after_close.2 != "1"
+        || after_close.3 != RequestPane::Params
+        || after_close.5 != 2
+    {
+        return Err(format!(
+            "closing Tab B did not leave a valid active Tab A and shared History: {after_close:#?}"
+        ));
+    }
+    assert_response_state(&after_close.4, &workflow.tab_a.expect.response)?;
+    assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
+        .map_err(|error| format!("closing Tab B changed Tab A: {error}"))?;
+    if cx.debug_bounds("request-tab-0").is_none()
+        || cx.debug_bounds("request-tab-1").is_some()
+        || cx.debug_bounds("history-method-0").is_none()
+        || cx.debug_bounds("history-method-1").is_none()
+    {
+        return Err("closing Tab B corrupted the remaining tab or shared History UI".to_string());
+    }
+    let history_after_close = history_database.load_authoritative(&workspace, cx)?;
+    if history_after_close.len() != history_after_b.len()
+        || history_after_close
+            .iter()
+            .zip(&history_after_b)
+            .any(|(after, before)| !same_history_entry(after, before))
+    {
+        return Err(format!(
+            "closing Tab B mutated SQLite History\n  before: {history_after_b:#?}\n  after:  {history_after_close:#?}"
+        ));
+    }
+
+    Ok(())
 }
 
 fn run_history_replay_workflow(
@@ -2746,6 +3146,7 @@ fn body_effective_header_selector(name: &str) -> Result<&'static str, String> {
         "authorization" => Ok("body-effective-header-authorization"),
         "x-replay" => Ok("body-effective-header-x-replay"),
         "x-scenario" => Ok("body-effective-header-x-scenario"),
+        "x-tab" => Ok("body-effective-header-x-tab"),
         _ => Err(format!(
             "the JSON Body UI scenario driver has no stable selector for header `{name}`"
         )),
