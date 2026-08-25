@@ -1891,19 +1891,8 @@ fn run_application_scenario(
             &scenario.draft.params,
         )?;
     }
-    if scenario.draft.precreate_header_rows == 0 {
-        apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
-    } else {
-        apply_precreated_header_rows(
-            cx,
-            &workspace,
-            scenario.draft.precreate_header_rows,
-            &scenario.draft.headers,
-        )?;
-    }
-    assert_headers_editor_contract(cx, &scenario.draft.headers)?;
-
     if !url_rows.is_empty() || !scenario.draft.params.is_empty() {
+        click(cx, "request-pane-params")?;
         for selector in [
             "params-enabled-count",
             "effective-url-preview",
@@ -1919,6 +1908,18 @@ fn run_application_scenario(
             return Err("URL query count badge is not rendered".to_string());
         }
     }
+
+    if scenario.draft.precreate_header_rows == 0 {
+        apply_rows(cx, &workspace, RowEditor::Headers, &scenario.draft.headers)?;
+    } else {
+        apply_precreated_header_rows(
+            cx,
+            &workspace,
+            scenario.draft.precreate_header_rows,
+            &scenario.draft.headers,
+        )?;
+    }
+    assert_headers_editor_contract(cx, &scenario.draft.headers)?;
 
     if scenario.draft.bearer_token.is_some() && scenario.draft.basic_auth.is_some() {
         return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
@@ -2750,6 +2751,8 @@ fn body_effective_header_selector(name: &str) -> Result<&'static str, String> {
     match name.to_ascii_lowercase().as_str() {
         "content-type" => Ok("body-effective-header-content-type"),
         "accept" => Ok("body-effective-header-accept"),
+        "authorization" => Ok("body-effective-header-authorization"),
+        "x-replay" => Ok("body-effective-header-x-replay"),
         "x-scenario" => Ok("body-effective-header-x-scenario"),
         _ => Err(format!(
             "the JSON Body UI scenario driver has no stable selector for header `{name}`"
