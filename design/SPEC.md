@@ -131,13 +131,25 @@ When a slice touches durable History, the design must distinguish the runtime
 History projection from the versioned snapshot stored by the History
 application service and repository.
 
-- Persist the sanitized replay request and response metadata, never response
-  bodies, download spools or destinations, tabs, active-tab state, panes,
-  drafts, dirty state, cookie jars, or plaintext authorization/cookie values.
-- A recovered History selection may reuse the normal replay command, but it
-  must restore the sanitized request into the active ViewModel and reset the
-  active response to `ResponseState::NotSent`. A historical HTTP status remains
-  row metadata; it is not restored as the active response.
+- `HistorySnapshotV1` is request-only. `HistorySnapshotV2` may additionally
+  persist a sanitized response snapshot for a completed HTTP exchange.
+- Persist the sanitized replay request and response metadata. V2 may persist a
+  textual response body up to `256 KiB`; larger bodies must be truncated with
+  an explicit flag. Never persist binary, download, or streaming bodies;
+  download spools or destinations; tabs, active-tab state, panes, drafts,
+  dirty state, cookie jars; plaintext authorization/cookie values; or
+  sensitive response headers such as `Set-Cookie`.
+- Selecting a V2 snapshot with a stored response must restore the sanitized
+  request into the active ViewModel and commit `ResponseState::Historical`
+  without sending a network request. Status, sanitized headers, text body,
+  Copy availability, and History metadata must remain consistent.
+- Selecting V1 or any snapshot without a stored response must show the
+  explicit unavailable state “This older History entry did not store a
+  response.” It must not imply that a new request was sent.
+- A historical response is read-only evidence. Editing the restored request
+  must not mutate it. Clicking Send starts a new lifecycle
+  `Historical → Loading → terminal`, appends a new History row on completion,
+  and leaves the original entry unchanged.
 - A versioned replay snapshot must include request options that affect wire
   behavior, including timeout and redirect policy / hop limits.
 - Completed HTTP exchanges, including non-2xx responses, may persist exactly
@@ -251,8 +263,10 @@ The normal CI test job runs this integration test through
 - [ ] Request and stable response evidence are visible
 - [ ] Public endpoint examples use `https://httpbingo.org`
 - [ ] ResponseState, View, and History lifecycle is represented
-- [ ] Durable History is separated from runtime response, tab, draft, and secret state
-- [ ] Populated text responses expose Copy; byte-only responses expose Save as…; empty and Not sent states expose neither
+- [ ] `HistorySnapshotV1` request-only and V2 historical-response behavior are visibly distinct
+- [ ] Historical responses are read-only; Send starts a new lifecycle and preserves the original entry
+- [ ] Durable History is separated from tab, draft, cookie-jar, binary/stream, and secret state
+- [ ] Populated live or Historical text responses expose Copy; byte-only responses expose Save as…; unavailable, empty, and Not sent states expose neither
 - [ ] Shared tokens are unchanged
 - [ ] README and GitHub issue links are present
 - [ ] `cargo test --test design_artifacts` passes

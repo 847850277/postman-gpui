@@ -167,6 +167,59 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
 }
 
 #[test]
+fn response_headers_scenario_requires_exact_case_insensitive_header_evidence() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .find(|file| file.path.ends_with("tests/cases/httpbingo/responses.json"))
+        .expect("Issue #76 response scenario file should exist")
+        .suite
+        .cases
+        .iter()
+        .find(|scenario| {
+            scenario.name == "HTTPBingo response headers are inspectable by mouse and keyboard"
+        })
+        .expect("Issue #76 response-header scenario should exist");
+
+    assert!(scenario.mock.is_none());
+    assert_eq!(scenario.draft.method, "GET");
+    assert_eq!(
+        scenario.draft.path,
+        "/response-headers?X-E2E-Header=visible&Content-Type=application/json"
+    );
+    let expected = expected_request(&scenario.expect.request, Some("https://httpbingo.org"))
+        .expect("Issue #76 expected request should be valid");
+    assert_eq!(expected.method, HttpMethod::GET);
+    assert_eq!(
+        expected.url,
+        "https://httpbingo.org/response-headers?X-E2E-Header=visible&Content-Type=application/json"
+    );
+    assert!(expected.headers.is_empty());
+    assert_eq!(expected.body, RequestBody::None);
+    assert_eq!(scenario.expect.history_len, 1);
+
+    let ResponseSpec::Success {
+        status,
+        body_contains,
+        body_json_contains,
+        headers_contain,
+    } = &scenario.expect.response
+    else {
+        panic!("Issue #76 must expect a completed HTTP response");
+    };
+    assert_eq!(*status, 200);
+    assert!(body_contains.is_none() && body_json_contains.is_none());
+    for (expected_name, expected_value) in [
+        ("X-E2E-Header", "visible"),
+        ("Content-Type", "application/json"),
+    ] {
+        assert!(headers_contain.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case(expected_name) && value == expected_value
+        }));
+    }
+}
+
+#[test]
 fn compression_scenarios_define_decoded_json_and_provider_capability_contracts() {
     let files = scenario_files();
     let file = files

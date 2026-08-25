@@ -1,0 +1,2637 @@
+{
+  "version": "2.17",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Issue #136 · Historical Response Selection",
+      "context": "GitHub Issue #136 · Parent #50 · persisted History response selection",
+      "clip": true,
+      "width": 1600,
+      "height": 1836,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 32,
+      "children": [
+        {
+          "type": "frame",
+          "id": "naoQP",
+          "name": "Design Header",
+          "width": "fill_container",
+          "height": 150,
+          "fill": "$panel",
+          "cornerRadius": 12,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "gap": 24,
+          "padding": [
+            22,
+            28
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "UAdw4",
+              "name": "Header Narrative",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 7,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hythr",
+                  "name": "Issue Status",
+                  "fill": "$accent",
+                  "content": "ISSUE #136 · DESIGN READY",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "text",
+                  "id": "BvJUx",
+                  "name": "Design Title",
+                  "fill": "$text",
+                  "content": "Persisted responses return with History",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 30,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "Z2G29",
+                  "name": "Design Summary",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Selecting a persisted History row restores its sanitized request and renders the stored response as ResponseState::Historical — without issuing a network request.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "OdFuD",
+              "name": "Header Traceability",
+              "width": 430,
+              "layout": "vertical",
+              "gap": 9,
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "RL3g7",
+                  "name": "Traceability Badges Row 1",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "justifyContent": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "JxGXG",
+                      "name": "Badge · Parent #50",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "wuwfc",
+                          "name": "Badge Label · Parent #50",
+                          "fill": "$accent",
+                          "content": "Parent #50",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SygDB",
+                      "name": "Badge · Depends on #127",
+                      "fill": "$panelAlt",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YBLKD",
+                          "name": "Badge Label · Depends on #127",
+                          "fill": "$muted",
+                          "content": "Depends on #127",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GZylV",
+                      "name": "Badge · Snapshot V2",
+                      "fill": "$blueSoft",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "XPLk7",
+                          "name": "Badge Label · Snapshot V2",
+                          "fill": "$blue",
+                          "content": "Snapshot V2",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "AHg0S",
+                  "name": "Traceability Badges Row 2",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "justifyContent": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hZyGS",
+                      "name": "Badge · Related #77 · #131",
+                      "fill": "$greenSoft",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "dPzj4",
+                          "name": "Badge Label · Related #77 · #131",
+                          "fill": "$green",
+                          "content": "Related #77 · #131",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ghroy",
+                      "name": "Badge · Scenario · HTTPBingo JSON",
+                      "fill": "$code",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "yGkRW",
+                          "name": "Badge Label · Scenario · HTTPBingo JSON",
+                          "fill": "$codeText",
+                          "content": "Scenario · HTTPBingo JSON",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "YGHUv",
+                  "name": "GitHub Issue URL",
+                  "fill": "$blue",
+                  "content": "https://github.com/847850277/postman-gpui/issues/136",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "Y5NcIH",
+                  "name": "Scenario Endpoint",
+                  "fill": "$subtle",
+                  "content": "Scenario: https://httpbingo.org/json",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "gncgi",
+          "name": "Application State · Historical Response Selected",
+          "clip": true,
+          "width": "fill_container",
+          "height": 900,
+          "fill": "$panel",
+          "cornerRadius": 12,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "u0hNN",
+              "name": "Top Header",
+              "width": "fill_container",
+              "height": 72,
+              "fill": "$panel",
+              "stroke": "$line",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "padding": [
+                0,
+                20
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "TjZ6o",
+                  "name": "Postman GPUI Brand",
+                  "gap": 11,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "FDQoH",
+                      "name": "Brand Mark",
+                      "fill": "$accentVivid",
+                      "width": 22,
+                      "height": 22
+                    },
+                    {
+                      "type": "text",
+                      "id": "L1JgQL",
+                      "name": "Brand Name",
+                      "fill": "$text",
+                      "content": "Postman GPUI",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "DPjrZ",
+                  "name": "Cookie Jar Status",
+                  "fill": "$blueSoft",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "gap": 8,
+                  "padding": [
+                    9,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "V2sasN",
+                      "name": "Cookie Jar Icon",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "cookie",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Vr9dA",
+                      "name": "Cookie Jar Label",
+                      "fill": "$blue",
+                      "content": "Cookie Jar · 0 stored",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "l9lKA",
+              "name": "Application Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$panel",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ghBvJ",
+                  "name": "Left Rail",
+                  "width": 64,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": [
+                    14,
+                    0
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "NZuWa",
+                      "name": "New Request",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "dU0SF",
+                          "name": "New Request Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "plus",
+                          "library": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "umJli",
+                      "name": "History Navigation",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$blueSoft",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "AVKgv",
+                          "name": "History Navigation Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "history",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PlBYW",
+                      "name": "Collections",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "DjXmX",
+                          "name": "Collections Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "panels-top-left",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Jfnf0",
+                      "name": "Environments",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "FzNb3",
+                          "name": "Environments Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "diamond",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gLaPu",
+                      "name": "Shortcuts",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "dCMru",
+                          "name": "Shortcuts Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "command",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "z7P5Q",
+                      "name": "Navigation Spacer",
+                      "width": 40,
+                      "height": "fill_container"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "fEZQF",
+                      "name": "Settings",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "CkjUr",
+                          "name": "Settings Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "settings",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZS8Fi",
+                      "name": "Help",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 9,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "a9Xka",
+                          "name": "Help Icon",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "info",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iV7yl",
+                  "name": "History Panel",
+                  "width": 250,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "UWLxg",
+                      "name": "History Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q72yD",
+                          "name": "History Title Group",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "N4Ien",
+                              "name": "History Title",
+                              "fill": "$text",
+                              "content": "History",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 20,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "dRFAa",
+                              "name": "History Storage",
+                              "fill": "$green",
+                              "content": "Stored in SQLite",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "kjMVx",
+                          "name": "History Actions",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "C5Bgi",
+                              "name": "History Refresh",
+                              "cornerRadius": 6,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                6,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Q20UJ",
+                                  "name": "History Refresh Label",
+                                  "fill": "$muted",
+                                  "content": "Refresh",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "KcDQM",
+                              "name": "History Clear",
+                              "cornerRadius": 6,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                6,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "EdPOm",
+                                  "name": "History Clear Label",
+                                  "fill": "$muted",
+                                  "content": "Clear",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "McMSX",
+                      "name": "Filter History Field",
+                      "width": "fill_container",
+                      "height": 38,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        11
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "xxx7K",
+                          "name": "Filter History Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "$subtle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "XGAU9",
+                          "name": "Filter History Placeholder",
+                          "fill": "$subtle",
+                          "content": "Filter history",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hkcs5",
+                      "name": "History Date Label",
+                      "fill": "$subtle",
+                      "content": "TODAY",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KIYwI",
+                      "name": "History Row · Selected V2 · History Result",
+                      "width": "fill_container",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 9,
+                      "stroke": "$accent",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Zmko3",
+                          "name": "History Row · Selected V2 Request",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "zgzPl",
+                              "name": "History Row · Selected V2 Method",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 7,
+                              "padding": [
+                                6,
+                                9
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "g7uzq2",
+                                  "name": "History Row · Selected V2 Method Label",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "wESyf",
+                              "name": "History Row · Selected V2 URL",
+                              "fill": "$text",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "httpbingo.org/json",
+                              "lineHeight": 1.35,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "qQ0Cl",
+                          "name": "History Row · Selected V2 Metadata",
+                          "fill": "$muted",
+                          "content": "200 · 293 ms · 421 B",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "j4cVOM",
+                          "name": "History Row · Selected V2 Storage Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "b5PMq",
+                              "name": "History Row · Selected V2 Storage Dot",
+                              "fill": "$blue",
+                              "width": 6,
+                              "height": 6
+                            },
+                            {
+                              "type": "text",
+                              "id": "jNHVU",
+                              "name": "History Row · Selected V2 Storage Label",
+                              "fill": "$blue",
+                              "content": "Response stored",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ciy88",
+                      "name": "History Row · POST V2",
+                      "width": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "QdmVx",
+                          "name": "History Row · POST V2 Request",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "yRsOH",
+                              "name": "History Row · POST V2 Method",
+                              "fill": "$blueSoft",
+                              "cornerRadius": 7,
+                              "padding": [
+                                6,
+                                9
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "T4YEQC",
+                                  "name": "History Row · POST V2 Method Label",
+                                  "fill": "$blue",
+                                  "content": "POST",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "rEMMx",
+                              "name": "History Row · POST V2 URL",
+                              "fill": "$text",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "httpbingo.org/anything",
+                              "lineHeight": 1.35,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "a2E1A",
+                          "name": "History Row · POST V2 Metadata",
+                          "fill": "$muted",
+                          "content": "201 · 184 ms · 648 B",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "j4lDzy",
+                          "name": "History Row · POST V2 Storage Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "AetrA",
+                              "name": "History Row · POST V2 Storage Dot",
+                              "fill": "$blue",
+                              "width": 6,
+                              "height": 6
+                            },
+                            {
+                              "type": "text",
+                              "id": "uupmX",
+                              "name": "History Row · POST V2 Storage Label",
+                              "fill": "$blue",
+                              "content": "Response stored",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "h5Ytd8",
+                      "name": "History Row · Legacy V1",
+                      "width": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "MUoDS",
+                          "name": "History Row · Legacy V1 Request",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "FiZ53",
+                              "name": "History Row · Legacy V1 Method",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 7,
+                              "padding": [
+                                6,
+                                9
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "UIkVM",
+                                  "name": "History Row · Legacy V1 Method Label",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "lNj7V",
+                              "name": "History Row · Legacy V1 URL",
+                              "fill": "$text",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "httpbingo.org/status/404",
+                              "lineHeight": 1.35,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "VZg2r",
+                          "name": "History Row · Legacy V1 Metadata",
+                          "fill": "$muted",
+                          "content": "404 · 91 ms · 0 B",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AU1uH",
+                          "name": "History Row · Legacy V1 Storage Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "kVoNZ",
+                              "name": "History Row · Legacy V1 Storage Dot",
+                              "fill": "$subtle",
+                              "width": 6,
+                              "height": 6
+                            },
+                            {
+                              "type": "text",
+                              "id": "hNEMC",
+                              "name": "History Row · Legacy V1 Storage Label",
+                              "fill": "$subtle",
+                              "content": "Request only · V1",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 9,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "u682o",
+                  "name": "Request Workspace",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Aggns",
+                      "name": "Request Tab Bar",
+                      "width": "fill_container",
+                      "height": 52,
+                      "fill": "$panelAlt",
+                      "stroke": "$line",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "shW6i",
+                          "name": "Active Request Tab",
+                          "height": 52,
+                          "stroke": "$green",
+                          "strokeWidth": {
+                            "bottom": 2
+                          },
+                          "gap": 8,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vtw70",
+                              "name": "Active Tab Method",
+                              "fill": "$green",
+                              "content": "GET",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "hAqlQ",
+                              "name": "Active Tab URL",
+                              "fill": "$muted",
+                              "content": "httpbingo.org/json",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "f9aaHg",
+                              "name": "Close Active Tab",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "x",
+                              "library": "lucide",
+                              "fill": "$subtle"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Gm3YP",
+                          "name": "Add Request Tab",
+                          "width": 34,
+                          "height": 34,
+                          "fill": "$panel",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "NeHoc",
+                              "name": "Add Request Tab Icon",
+                              "width": 17,
+                              "height": 17,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "wej85",
+                      "name": "Workspace Content",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panel",
+                      "layout": "vertical",
+                      "gap": 9,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "C3eQ1",
+                          "name": "Request Bar",
+                          "width": "fill_container",
+                          "height": 50,
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "r1da0y",
+                              "name": "HTTP Method Control",
+                              "width": 94,
+                              "height": "fill_container",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 8,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "SOqo3",
+                                  "name": "HTTP Method Value",
+                                  "fill": "$green",
+                                  "content": "GET",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jJHyd",
+                              "name": "Request URL Input",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$panel",
+                              "cornerRadius": 8,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                0,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "An7Ng",
+                                  "name": "Request URL Value",
+                                  "fill": "$codeText",
+                                  "content": "https://httpbingo.org/json",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Jp4li",
+                              "name": "Send Request Button",
+                              "width": 96,
+                              "height": "fill_container",
+                              "fill": "$accentVivid",
+                              "cornerRadius": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "drYna",
+                                  "name": "Send Request Label",
+                                  "fill": "$accentInk",
+                                  "content": "Send",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 13,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "x0pem",
+                          "name": "Request Editor Tabs",
+                          "width": "fill_container",
+                          "height": 36,
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 25,
+                          "padding": [
+                            0,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "aLdBa",
+                              "name": "Request Tab · Params",
+                              "fill": "$muted",
+                              "content": "Params",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "IKVg3",
+                              "name": "Request Tab · Authorization",
+                              "fill": "$muted",
+                              "content": "Authorization",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "jzYaz",
+                              "name": "Request Tab · Headers",
+                              "fill": "$text",
+                              "content": "Headers",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "oWzNM",
+                              "name": "Request Tab · Body",
+                              "fill": "$muted",
+                              "content": "Body",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "JFn8k",
+                              "name": "Request Tab · Scripts",
+                              "fill": "$muted",
+                              "content": "Scripts",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "dksV9",
+                              "name": "Request Tab · Tests",
+                              "fill": "$muted",
+                              "content": "Tests",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cq7zY",
+                              "name": "Request Tab · Options",
+                              "fill": "$muted",
+                              "content": "Options",
+                              "fontFamily": "$fontBody",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "A0y20F",
+                          "name": "Restored Sanitized Request · Effective Request Preview",
+                          "width": "fill_container",
+                          "height": 82,
+                          "fill": "$panelAlt",
+                          "cornerRadius": 8,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            12,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "BPaZW",
+                              "name": "Sanitized Request Summary",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 5,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "b5M9dQ",
+                                  "name": "Sanitized Request Title",
+                                  "fill": "$text",
+                                  "content": "Restored request · sanitized snapshot",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "kSFQc",
+                                  "name": "Sanitized Request Detail",
+                                  "fill": "$muted",
+                                  "content": "GET /json · 0 Params · 0 Headers · No Auth · No Body",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "TUl2D",
+                                  "name": "Sanitized Request Security",
+                                  "fill": "$green",
+                                  "content": "Authorization and Cookie are not present in storage or the active editor.",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "pBwLQ",
+                              "name": "Snapshot Version Chip",
+                              "fill": "$blueSoft",
+                              "cornerRadius": 7,
+                              "padding": [
+                                6,
+                                9
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "upA1b",
+                                  "name": "Snapshot Version Chip Label",
+                                  "fill": "$blue",
+                                  "content": "Snapshot V2",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "rU1Wq",
+                          "name": "Historical Response Panel",
+                          "clip": true,
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "$panel",
+                          "cornerRadius": 10,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "XDnv8",
+                              "name": "Historical Response Header",
+                              "width": "fill_container",
+                              "height": 56,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                15
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "IksaO",
+                                  "name": "Response Title Group",
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "rNJXU",
+                                      "name": "Response Title",
+                                      "fill": "$text",
+                                      "content": "Response",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 17,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "P8ECDC",
+                                      "name": "Historical State Badge",
+                                      "fill": "$blueSoft",
+                                      "cornerRadius": 7,
+                                      "padding": [
+                                        6,
+                                        9
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "r6hKLm",
+                                          "name": "Historical State Badge Label",
+                                          "fill": "$blue",
+                                          "content": "Historical",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "JXhEC",
+                                      "name": "Historical Network Note",
+                                      "fill": "$blue",
+                                      "content": "Loaded from History · no network request",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "RDgrs",
+                                  "name": "Historical Response Metrics",
+                                  "gap": 9,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "LTcx4",
+                                      "name": "Historical Status",
+                                      "fill": "$greenSoft",
+                                      "cornerRadius": 7,
+                                      "padding": [
+                                        6,
+                                        9
+                                      ],
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "z4odv",
+                                          "name": "Historical Status Label",
+                                          "fill": "$green",
+                                          "content": "200 OK",
+                                          "fontFamily": "$fontBody",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "YbNQs",
+                                      "name": "Historical Duration",
+                                      "fill": "$muted",
+                                      "content": "293 ms",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "nFHKZ",
+                                      "name": "Historical Size",
+                                      "fill": "$muted",
+                                      "content": "421 B",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "GlTFM",
+                              "name": "Historical Snapshot Metadata",
+                              "width": "fill_container",
+                              "height": 34,
+                              "fill": "$blueSoft",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 8,
+                              "padding": [
+                                0,
+                                15
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "AdDJS",
+                                  "name": "Historical Snapshot Metadata Icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "database",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "IrR1V",
+                                  "name": "Historical Snapshot Metadata Text",
+                                  "fill": "$blue",
+                                  "content": "Snapshot V2 · sanitized headers · text body stored 421 B / 256 KiB cap",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jjtz3",
+                              "name": "Historical Response Tabs",
+                              "width": "fill_container",
+                              "height": 38,
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "padding": [
+                                0,
+                                15
+                              ],
+                              "justifyContent": "space_between",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EO5bo",
+                                  "name": "Historical Response Tab Labels",
+                                  "gap": 22,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "aRdZC",
+                                      "name": "Historical Body Tab",
+                                      "fill": "$text",
+                                      "content": "Body",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "700"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ALsVa",
+                                      "name": "Historical Headers Tab",
+                                      "fill": "$muted",
+                                      "content": "Headers (6)",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hPPYL",
+                                  "name": "Historical Response Copy · Copy Response Action",
+                                  "fill": "$panelAlt",
+                                  "cornerRadius": 6,
+                                  "stroke": "$line",
+                                  "strokeWidth": 1,
+                                  "gap": 6,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "n1A6mB",
+                                      "name": "Historical Response Copy Icon",
+                                      "width": 13,
+                                      "height": 13,
+                                      "icon": "copy",
+                                      "library": "lucide",
+                                      "fill": "$muted"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "L2OfmQ",
+                                      "name": "Historical Response Copy Label",
+                                      "fill": "$muted",
+                                      "content": "Copy",
+                                      "fontFamily": "$fontBody",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "TDnBm",
+                              "name": "Historical Response Body · Stable Assertion",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "$code",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "padding": 15,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "EdJOj",
+                                  "name": "Historical Body Content",
+                                  "fill": "$codeText",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "{\n  \"slideshow\": {\n    \"author\": \"Yours Truly\",\n    \"date\": \"date of publication\",\n    \"title\": \"Sample Slide Show\"\n  }\n}",
+                                  "lineHeight": 1.35,
+                                  "fontFamily": "$fontMono",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Aydnu",
+                              "name": "Historical Response Footer",
+                              "width": "fill_container",
+                              "height": 32,
+                              "fill": "$panelAlt",
+                              "stroke": "$line",
+                              "strokeWidth": {
+                                "top": 1
+                              },
+                              "gap": 7,
+                              "padding": [
+                                0,
+                                15
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "fibcs",
+                                  "name": "Historical Read Only Icon",
+                                  "width": 12,
+                                  "height": 12,
+                                  "icon": "lock-keyhole",
+                                  "library": "lucide",
+                                  "fill": "$subtle"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Kb6NI",
+                                  "name": "Historical Read Only Helper",
+                                  "fill": "$subtle",
+                                  "content": "Historical is read-only evidence. Editing the request does not mutate this snapshot.",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "dQmrR",
+          "name": "Historical Response State Rules",
+          "width": "fill_container",
+          "height": 160,
+          "fill": "$panelAlt",
+          "cornerRadius": 10,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 9,
+          "padding": [
+            11,
+            14
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "yRfPE",
+              "name": "State Rules Header",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "MtvWQ",
+                  "name": "State Rules Title",
+                  "fill": "$text",
+                  "content": "Historical response selection rules",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "fpNAt",
+                  "name": "Historical Persistence Policy",
+                  "fill": "$subtle",
+                  "content": "Text body cap: 256 KiB · truncated preview is labeled · binary/stream bodies are not persisted · secrets are removed before storage.",
+                  "fontFamily": "$fontMono",
+                  "fontSize": 9,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "pJ33q",
+              "name": "Historical State Rule Cards",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "gMRFI",
+                  "name": "Rule 1 · Snapshot V2",
+                  "width": 494,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 5,
+                  "padding": [
+                    9,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "czV3L",
+                      "name": "Rule 1 · Snapshot V2 Kicker",
+                      "fill": "$blue",
+                      "content": "01 · V2 RESPONSE STORED",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "D6tQGC",
+                      "name": "Rule 1 · Snapshot V2 Title",
+                      "fill": "$text",
+                      "content": "ResponseState::Historical",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "O7jzMI",
+                      "name": "Rule 1 · Snapshot V2 Description",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Render status, sanitized headers, stored text body, and Copy — no network request.",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zzwiE",
+                  "name": "Rule 2 · Snapshot V1",
+                  "width": 494,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 5,
+                  "padding": [
+                    9,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "TUNaw",
+                      "name": "Rule 2 · Snapshot V1 Kicker",
+                      "fill": "$subtle",
+                      "content": "02 · V1 REQUEST ONLY",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "BLCMU",
+                      "name": "Rule 2 · Snapshot V1 Title",
+                      "fill": "$text",
+                      "content": "Response unavailable",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZwV2Y",
+                      "name": "Rule 2 · Snapshot V1 Description",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "This older History entry did not store a response.",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "a8JI6d",
+                  "name": "Rule 3 · Send Again",
+                  "width": 494,
+                  "height": "fill_container",
+                  "fill": "$panel",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 5,
+                  "padding": [
+                    9,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "NU6i3",
+                      "name": "Rule 3 · Send Again Kicker",
+                      "fill": "$accent",
+                      "content": "03 · SEND AGAIN",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 9,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "Sfevu",
+                      "name": "Rule 3 · Send Again Title",
+                      "fill": "$text",
+                      "content": "Historical → Loading → Success",
+                      "fontFamily": "$fontMono",
+                      "fontSize": 12,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "f4ALu",
+                      "name": "Rule 3 · Send Again Description",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Append one new History row; the original historical snapshot remains unchanged.",
+                      "lineHeight": 1.25,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "fMWcW",
+          "name": "E2E Contract",
+          "width": "fill_container",
+          "height": 490,
+          "fill": "$panel",
+          "cornerRadius": 12,
+          "stroke": "$line",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 18,
+          "children": [
+            {
+              "type": "frame",
+              "id": "Z7A3v",
+              "name": "E2E Contract Header",
+              "width": "fill_container",
+              "height": 34,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "l41yt",
+                  "name": "E2E Contract Title Group",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "KbCMr",
+                      "name": "E2E Contract Title",
+                      "fill": "$text",
+                      "content": "E2E Contract · Historical Response Selection",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "B9pMRo",
+                      "name": "E2E Contract Issue Badge",
+                      "fill": "$accentSoft",
+                      "cornerRadius": 7,
+                      "padding": [
+                        6,
+                        9
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gaKaY",
+                          "name": "E2E Contract Issue Badge Label",
+                          "fill": "$accent",
+                          "content": "#136",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 11,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "yHyjg",
+                  "name": "E2E Contract Principle",
+                  "fill": "$blue",
+                  "content": "REAL UI · DETERMINISTIC STORAGE · ZERO NETWORK ON SELECTION",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "z9rDG",
+              "name": "E2E Contract Body",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BaPsj",
+                  "name": "E2E Contract Left Column",
+                  "width": 740,
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "wl5x6",
+                      "name": "Ordered Real-UI Scenario Steps",
+                      "width": "fill_container",
+                      "height": 230,
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "T7yMRL",
+                          "name": "Ordered Steps Title",
+                          "fill": "$text",
+                          "content": "Ordered Real-UI Scenario Steps",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Emu2V",
+                          "name": "Scenario Step 1",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "uQHnw",
+                              "name": "Scenario Step 1 Marker",
+                              "fill": "$accent",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "text",
+                              "id": "l8S1W",
+                              "name": "Scenario Step 1 Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Launch App A with an isolated SQLite database and deterministic local HTTP server.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TLaN0",
+                          "name": "Scenario Step 2",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "q1SPX",
+                              "name": "Scenario Step 2 Marker",
+                              "fill": "$accent",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "text",
+                              "id": "Qd7Be",
+                              "name": "Scenario Step 2 Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Send GET /json through rendered controls and wait for the successful History row.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "uOuoR",
+                          "name": "Scenario Step 3",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "q0y6R",
+                              "name": "Scenario Step 3 Marker",
+                              "fill": "$accent",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "text",
+                              "id": "evLuj",
+                              "name": "Scenario Step 3 Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Destroy App A, launch App B against the same database, then select the persisted row by mouse and Enter / Space.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "F5muT",
+                          "name": "Scenario Step 4",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "OQ1CN",
+                              "name": "Scenario Step 4 Marker",
+                              "fill": "$accent",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "text",
+                              "id": "kNJqa",
+                              "name": "Scenario Step 4 Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Click Send from Historical; observe Historical → Loading → Success and exactly one new History row.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "b86tkb",
+                      "name": "Scope and Non-Goals",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "fill": "$panelAlt",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 7,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "uz2qR",
+                          "name": "Scope and Non-Goals Title",
+                          "fill": "$text",
+                          "content": "Scope and Non-Goals",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "GrAca",
+                          "name": "Included Scope",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "VsbOd",
+                              "name": "Included Scope Badge",
+                              "fill": "$greenSoft",
+                              "cornerRadius": 6,
+                              "padding": [
+                                5,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "P7B14R",
+                                  "name": "Included Scope Badge Label",
+                                  "fill": "$green",
+                                  "content": "IN",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "WkkFX",
+                              "name": "Included Scope Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Included: persisted textual historical response selection; V1 compatibility; truncation and security messaging; keyboard selection; resend lifecycle.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ZBUh7",
+                          "name": "Explicit Non-Goals",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "Qy3Yn",
+                              "name": "Explicit Non-Goals Badge",
+                              "fill": "$accentSoft",
+                              "cornerRadius": 6,
+                              "padding": [
+                                5,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "YmdYX",
+                                  "name": "Explicit Non-Goals Badge Label",
+                                  "fill": "$accent",
+                                  "content": "OUT",
+                                  "fontFamily": "$fontBody",
+                                  "fontSize": 9,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "tdz5d",
+                              "name": "Explicit Non-Goals Text",
+                              "fill": "$muted",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Excluded: binary, download, or stream payload persistence; runtime tabs, drafts, cookie jars; mutation of old History entries; automatic resend on selection.",
+                              "lineHeight": 1.28,
+                              "fontFamily": "$fontBody",
+                              "fontSize": 10,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "h6fbW",
+                  "name": "Observable Assertions · Verification Contract",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$code",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "i9slCX",
+                      "name": "Observable Assertions Title",
+                      "fill": "$text",
+                      "content": "Observable Assertions · Verification Contract",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "F6CYM",
+                      "name": "Assertion 1",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "SUkBX",
+                          "name": "Assertion 1 Marker",
+                          "fill": "$blue",
+                          "width": 5,
+                          "height": 5
+                        },
+                        {
+                          "type": "text",
+                          "id": "J9Q0AJ",
+                          "name": "Assertion 1 Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Selecting Snapshot V2 commits ResponseState::Historical without sending a network request.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pqV42",
+                      "name": "Assertion 2",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "Waec5",
+                          "name": "Assertion 2 Marker",
+                          "fill": "$blue",
+                          "width": 5,
+                          "height": 5
+                        },
+                        {
+                          "type": "text",
+                          "id": "u8lLx",
+                          "name": "Assertion 2 Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Status, sanitized headers, text body, Copy, and History metadata render consistently.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "H7Eu9k",
+                      "name": "Assertion 3",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "t0ZNs",
+                          "name": "Assertion 3 Marker",
+                          "fill": "$blue",
+                          "width": 5,
+                          "height": 5
+                        },
+                        {
+                          "type": "text",
+                          "id": "o0yeo",
+                          "name": "Assertion 3 Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Selecting Snapshot V1 renders “This older History entry did not store a response.”",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jGXjs",
+                      "name": "Assertion 4",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "jcyTc",
+                          "name": "Assertion 4 Marker",
+                          "fill": "$blue",
+                          "width": 5,
+                          "height": 5
+                        },
+                        {
+                          "type": "text",
+                          "id": "a8Qtt0",
+                          "name": "Assertion 4 Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Bodies larger than 256 KiB are truncated with an explicit label; binary and stream bodies are not persisted.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SUUeQ",
+                      "name": "Assertion 5",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "NaGY1",
+                          "name": "Assertion 5 Marker",
+                          "fill": "$blue",
+                          "width": 5,
+                          "height": 5
+                        },
+                        {
+                          "type": "text",
+                          "id": "Tqx7D",
+                          "name": "Assertion 5 Text",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Authorization, Cookie, Set-Cookie, and other sensitive headers are absent from the stored snapshot.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 10,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GdEE5",
+                      "name": "Contract Traceability",
+                      "width": "fill_container",
+                      "fill": "$panel",
+                      "cornerRadius": 6,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        8,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Dmvbg",
+                          "name": "Traceability Parent",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Parent roadmap #50 → #136; depends on #127; related #77 and #131.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "VZ8jk",
+                          "name": "Traceability Scenario Path",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "tests/ui_workspace.rs",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "uh1MU",
+                          "name": "Traceability Workflow",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": ".github/workflows/httpbingo-e2e.yml",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "BUEK0",
+                          "name": "Traceability Design Path",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "design/issue-0136-history-response-display.pen",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontMono",
+                          "fontSize": 9,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "z5IwVb",
+                          "name": "One-to-One Rule",
+                          "fill": "$codeText",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "ONE issue #136 → ONE design/issue-0136-history-response-display.pen.",
+                          "lineHeight": 1.28,
+                          "fontFamily": "$fontBody",
+                          "fontSize": 9,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#F4F7F3"
+    },
+    "panel": {
+      "type": "color",
+      "value": "#FFFEFB"
+    },
+    "panelAlt": {
+      "type": "color",
+      "value": "#EEF5F1"
+    },
+    "line": {
+      "type": "color",
+      "value": "#CFE0D7"
+    },
+    "text": {
+      "type": "color",
+      "value": "#20342B"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#526B60"
+    },
+    "subtle": {
+      "type": "color",
+      "value": "#64786E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#C64B2B"
+    },
+    "accentSoft": {
+      "type": "color",
+      "value": "#FFF0E8"
+    },
+    "green": {
+      "type": "color",
+      "value": "#0E7A4E"
+    },
+    "greenSoft": {
+      "type": "color",
+      "value": "#E4F6EA"
+    },
+    "blue": {
+      "type": "color",
+      "value": "#0F718B"
+    },
+    "blueSoft": {
+      "type": "color",
+      "value": "#E6F4F7"
+    },
+    "code": {
+      "type": "color",
+      "value": "#F0F5F1"
+    },
+    "codeText": {
+      "type": "color",
+      "value": "#243D34"
+    },
+    "accentVivid": {
+      "type": "color",
+      "value": "#F56B3D"
+    },
+    "accentInk": {
+      "type": "color",
+      "value": "#3C1F16"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "fontMono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    }
+  },
+  "fileToken": "c095df85-5bba-4517-a164-ac5b3838190c"
+}

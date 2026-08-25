@@ -61,3 +61,4 @@ Issue #51 -> issue-0051-query-parameter-encoding.pen
 | [#93 Multipart Disabled Rows and Invalid Files](https://github.com/847850277/postman-gpui/issues/93) | [`issue-0093-multipart-disabled-invalid-files.pen`](issue-0093-multipart-disabled-invalid-files.pen) |
 | [#95 Multiple URL-Encoded Form Rows](https://github.com/847850277/postman-gpui/issues/95) | [`issue-0095-multiple-urlencoded-form-rows.pen`](issue-0095-multiple-urlencoded-form-rows.pen) |
 | [#131 History Persistence Recovery and Replay E2E](https://github.com/847850277/postman-gpui/issues/131) | [`issue-0131-history-persistence-recovery.pen`](issue-0131-history-persistence-recovery.pen) |
+| [#136 Persist and Render Historical Responses on Selection](https://github.com/847850277/postman-gpui/issues/136) | [`issue-0136-history-response-display.pen`](issue-0136-history-response-display.pen) |

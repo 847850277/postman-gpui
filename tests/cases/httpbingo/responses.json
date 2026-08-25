@@ -69,6 +69,30 @@
       }
     },
     {
+      "name": "HTTPBingo response headers are inspectable by mouse and keyboard",
+      "draft": {
+        "method": "GET",
+        "path": "/response-headers?X-E2E-Header=visible&Content-Type=application/json"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/response-headers?X-E2E-Header=visible&Content-Type=application/json",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "headers_contain": [
+            ["X-E2E-Header", "visible"],
+            ["Content-Type", "application/json"]
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
       "name": "HTTPBingo JSON response is parsed with stable subset assertions",
       "draft": {
         "method": "GET",

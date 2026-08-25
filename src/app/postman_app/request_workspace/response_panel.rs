@@ -3,10 +3,14 @@ use gpui::{
     Context, CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
     FontWeight, GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels,
-    Point, Render, Role, ShapedLine, StatefulInteractiveElement, Style, Styled, Subscription,
-    TextAlign, TextRun, Window,
+    Point, Render, Role, ShapedLine, SharedString, StatefulInteractiveElement, Style, Styled,
+    Subscription, TextAlign, TextRun, Window,
 };
 use std::{collections::BTreeMap, ops::Range, time::Duration};
+
+mod headers;
+
+use headers::render_response_headers;
 
 use crate::{
     app::{CookieJarEntry, ResponseState, WorkspaceViewModel},
@@ -14,15 +18,25 @@ use crate::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
     ui::theme::{
-        ACCENT, CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE,
-        MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        ACCENT, ACCENT_SOFT, CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO,
+        INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
     },
     utils::formatter::format_response_body,
 };
 
 const COPIED_FEEDBACK_DURATION: Duration = Duration::from_secs(2);
 
-actions!(response_viewer, [Copy, SelectAll, CopyResponseBody]);
+actions!(
+    response_viewer,
+    [
+        Copy,
+        SelectAll,
+        CopyResponseBody,
+        ActivateResponsePaneTab,
+        FocusNextResponsePaneTab,
+        FocusPreviousResponsePaneTab
+    ]
+);
 
 pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
     vec![
@@ -32,6 +46,14 @@ pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("ctrl-a", SelectAll, None),
         KeyBinding::new("enter", CopyResponseBody, Some("ResponseCopyButton")),
         KeyBinding::new("space", CopyResponseBody, Some("ResponseCopyButton")),
+        KeyBinding::new("enter", ActivateResponsePaneTab, Some("ResponsePaneTab")),
+        KeyBinding::new("space", ActivateResponsePaneTab, Some("ResponsePaneTab")),
+        KeyBinding::new("tab", FocusNextResponsePaneTab, Some("ResponsePaneTab")),
+        KeyBinding::new(
+            "shift-tab",
+            FocusPreviousResponsePaneTab,
+            Some("ResponsePaneTab"),
+        ),
     ]
 }
 
@@ -60,6 +82,9 @@ pub struct ResponseViewer {
     view_model: Entity<WorkspaceViewModel>,
     pane: ResponsePane,
     focus_handle: FocusHandle,
+    body_tab_focus_handle: FocusHandle,
+    headers_tab_focus_handle: FocusHandle,
+    cookies_tab_focus_handle: FocusHandle,
     copy_focus_handle: FocusHandle,
     copied_feedback: bool,
     copy_generation: u64,
@@ -91,6 +116,9 @@ impl ResponseViewer {
             view_model,
             pane: ResponsePane::Body,
             focus_handle: cx.focus_handle(),
+            body_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            headers_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            cookies_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             copy_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             copied_feedback: false,
             copy_generation: 0,
@@ -200,17 +228,36 @@ impl ResponseViewer {
     fn pane_tab(
         &self,
         pane: ResponsePane,
-        label: impl Into<String>,
+        label: impl Into<SharedString>,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self.pane == pane;
+        let label = label.into();
         let selector = match pane {
             ResponsePane::Body => "response-pane-body",
             ResponsePane::Headers => "response-pane-headers",
             ResponsePane::Cookies => "response-pane-cookies",
         };
+        let state_selector = match (pane, active) {
+            (ResponsePane::Body, true) => "response-pane-body-active",
+            (ResponsePane::Body, false) => "response-pane-body-inactive",
+            (ResponsePane::Headers, true) => "response-pane-headers-active",
+            (ResponsePane::Headers, false) => "response-pane-headers-inactive",
+            (ResponsePane::Cookies, true) => "response-pane-cookies-active",
+            (ResponsePane::Cookies, false) => "response-pane-cookies-inactive",
+        };
+        let focus_handle = self.pane_focus_handle(pane).clone();
+        let click_focus_handle = focus_handle.clone();
+        let focused = focus_handle.is_focused(window);
         div()
+            .id(selector)
             .debug_selector(move || selector.into())
+            .track_focus(&focus_handle)
+            .key_context("ResponsePaneTab")
+            .role(Role::Tab)
+            .aria_label(format!("{label} response pane"))
+            .aria_selected(active)
             .h_full()
             .flex()
             .items_center()
@@ -226,17 +273,79 @@ impl ResponseViewer {
                 d.text_color(rgb(MUTED))
                     .hover(|s| s.text_color(rgb(SUBTEXT)))
             })
+            .when(focused, |d| {
+                d.bg(rgb(ACCENT_SOFT)).border_1().border_color(rgb(ACCENT))
+            })
             .text_size(px(12.0))
             .font_family(FONT_UI)
-            .child(label.into())
+            .on_action(cx.listener(Self::activate_response_pane_tab))
+            .on_action(cx.listener(Self::focus_next_response_pane_tab))
+            .on_action(cx.listener(Self::focus_previous_response_pane_tab))
+            .child(
+                div()
+                    .debug_selector(move || state_selector.into())
+                    .child(label),
+            )
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.pane = pane;
-                    this.selected_range = 0..0;
-                    cx.notify();
+                cx.listener(move |this, _, window, cx| {
+                    click_focus_handle.focus(window, cx);
+                    this.select_pane(pane, cx);
                 }),
             )
+    }
+
+    fn pane_focus_handle(&self, pane: ResponsePane) -> &FocusHandle {
+        match pane {
+            ResponsePane::Body => &self.body_tab_focus_handle,
+            ResponsePane::Headers => &self.headers_tab_focus_handle,
+            ResponsePane::Cookies => &self.cookies_tab_focus_handle,
+        }
+    }
+
+    fn select_pane(&mut self, pane: ResponsePane, cx: &mut Context<Self>) {
+        self.pane = pane;
+        self.selected_range = 0..0;
+        self.selection_reversed = false;
+        self.is_selecting = false;
+        self.context_menu_position = None;
+        cx.notify();
+    }
+
+    fn activate_response_pane_tab(
+        &mut self,
+        _: &ActivateResponsePaneTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let focused_pane = [
+            ResponsePane::Body,
+            ResponsePane::Headers,
+            ResponsePane::Cookies,
+        ]
+        .into_iter()
+        .find(|pane| self.pane_focus_handle(*pane).is_focused(window));
+        if let Some(pane) = focused_pane {
+            self.select_pane(pane, cx);
+        }
+    }
+
+    fn focus_next_response_pane_tab(
+        &mut self,
+        _: &FocusNextResponsePaneTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        window.focus_next(cx);
+    }
+
+    fn focus_previous_response_pane_tab(
+        &mut self,
+        _: &FocusPreviousResponsePaneTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        window.focus_prev(cx);
     }
 
     fn open_cookie_jar(
@@ -966,11 +1075,21 @@ impl Render for ResponseViewer {
         };
         let pane = self.pane;
         let context_menu_position = self.context_menu_position;
-        let body_tab = self.pane_tab(ResponsePane::Body, "Body", cx);
-        let headers_tab = self.pane_tab(ResponsePane::Headers, "Headers", cx);
+        let response_header_count = match &state {
+            ResponseState::Success { headers, .. } => headers.len(),
+            _ => 0,
+        };
+        let body_tab = self.pane_tab(ResponsePane::Body, "Body", window, cx);
+        let headers_tab = self.pane_tab(
+            ResponsePane::Headers,
+            format!("Headers ({response_header_count})"),
+            window,
+            cx,
+        );
         let cookies_tab = self.pane_tab(
             ResponsePane::Cookies,
             format!("Cookies ({})", response_cookies.len()),
+            window,
             cx,
         );
         let has_completed_response = matches!(&state, ResponseState::Success { .. });
@@ -1260,34 +1379,20 @@ impl Render for ResponseViewer {
                     .flex_1()
                     .min_h_0()
                     .child(self.render_selectable_content("Request cancelled by user", cx)),
-                ResponseState::Success { body, headers, .. } => {
-                    let header_text = if headers.is_empty() {
-                        "No response headers".to_string()
-                    } else {
-                        headers
-                            .iter()
-                            .map(|(k, v)| format!("{k}: {v}"))
-                            .collect::<Vec<_>>()
-                            .join("\n")
-                    };
-                    let content = match pane {
-                        ResponsePane::Body => body.clone(),
-                        ResponsePane::Headers => header_text,
-                        ResponsePane::Cookies => String::new(),
-                    };
-                    if pane == ResponsePane::Cookies {
-                        div().flex_1().min_h_0().child(self.render_cookie_content(
-                            response_cookies,
-                            jar_count,
-                            cx,
-                        ))
-                    } else {
-                        div()
-                            .flex_1()
-                            .min_h_0()
-                            .child(self.render_selectable_content(&content, cx))
-                    }
-                }
+                ResponseState::Success { body, headers, .. } => match pane {
+                    ResponsePane::Body => div()
+                        .flex_1()
+                        .min_h_0()
+                        .child(self.render_selectable_content(&body, cx)),
+                    ResponsePane::Headers => div()
+                        .flex_1()
+                        .min_h_0()
+                        .child(render_response_headers(&headers)),
+                    ResponsePane::Cookies => div()
+                        .flex_1()
+                        .min_h_0()
+                        .child(self.render_cookie_content(response_cookies, jar_count, cx)),
+                },
                 ResponseState::Error { message } => div()
                     .when(is_timeout, |content| {
                         content.debug_selector(|| "response-timeout-content".into())

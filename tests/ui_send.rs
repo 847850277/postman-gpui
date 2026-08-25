@@ -22,10 +22,75 @@ use postman_gpui::{
         RequestEditorIntent,
     },
 };
-use std::io::Write;
+use std::{
+    io::{Read, Write},
+    net::TcpListener,
+    thread::JoinHandle,
+    time::{Duration, Instant},
+};
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
 const DEFAULT_ACCEPT_ENCODING: &str = "gzip,deflate,br";
+
+fn serve_raw_http_response(
+    expected_target: &'static str,
+    response: &'static [u8],
+) -> (String, JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .expect("deterministic response-header fixture should bind locally");
+    let address = listener
+        .local_addr()
+        .expect("deterministic response-header fixture should expose its address");
+    listener
+        .set_nonblocking(true)
+        .expect("deterministic response-header fixture should configure nonblocking accept");
+    let handle = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let (mut stream, _) = loop {
+            match listener.accept() {
+                Ok(connection) => break connection,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock
+                        && Instant::now() < deadline =>
+                {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(error) => panic!("response-header fixture did not receive a request: {error}"),
+            }
+        };
+        stream
+            .set_nonblocking(false)
+            .expect("response-header fixture should use blocking request reads");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("response-header fixture should configure its read deadline");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 1_024];
+        while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+            let read = stream
+                .read(&mut buffer)
+                .expect("response-header fixture should read the HTTP request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+        }
+        let request = String::from_utf8(request)
+            .expect("response-header fixture should receive an ASCII HTTP request");
+        let request_line = request
+            .lines()
+            .next()
+            .expect("response-header fixture should receive a request line");
+        assert_eq!(request_line, format!("GET {expected_target} HTTP/1.1"));
+        stream
+            .write_all(response)
+            .expect("response-header fixture should write its complete response");
+        stream
+            .flush()
+            .expect("response-header fixture should flush its complete response");
+    });
+    (format!("http://{address}{expected_target}"), handle)
+}
 
 fn gzip(body: &str) -> Vec<u8> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -661,6 +726,225 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
     });
     assert!(cx.debug_bounds("history-method-0").is_some());
     request.assert();
+}
+
+#[gpui::test]
+fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
+    cx: &mut TestAppContext,
+) {
+    const HEADER_ROW_SELECTORS: [&str; 10] = [
+        "response-header-row-0",
+        "response-header-row-1",
+        "response-header-row-2",
+        "response-header-row-3",
+        "response-header-row-4",
+        "response-header-row-5",
+        "response-header-row-6",
+        "response-header-row-7",
+        "response-header-row-8",
+        "response-header-row-9",
+    ];
+    let (populated_url, populated_server) = serve_raw_http_response(
+        "/response-headers",
+        b"HTTP/1.1 200 OK\r\nX-E2E-Header: visible\r\nContent-Type: application/json\r\nX-Repeat: first\r\nX-Repeat: second\r\nContent-Length: 11\r\nConnection: close\r\n\r\n{\"ok\":true}",
+    );
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &populated_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    populated_server
+        .join()
+        .expect("populated response-header fixture should finish");
+
+    let headers = workspace.read_with(cx, |workspace, _| {
+        let ResponseState::Success {
+            status,
+            body,
+            headers,
+            ..
+        } = workspace.response()
+        else {
+            panic!("response-header fixture should complete successfully");
+        };
+        assert_eq!(*status, 200);
+        assert_eq!(body, r#"{"ok":true}"#);
+        headers.clone()
+    });
+    assert!(headers
+        .iter()
+        .any(|(name, value)| { name.eq_ignore_ascii_case("x-e2e-header") && value == "visible" }));
+    assert!(headers.iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case("content-type") && value == "application/json"
+    }));
+    assert_eq!(
+        headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("x-repeat"))
+            .map(|(_, value)| value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["first", "second"],
+        "repeated response headers must retain their wire order"
+    );
+    assert!(cx.debug_bounds("response-pane-body-active").is_some());
+    assert!(cx.debug_bounds("response-headers-table").is_none());
+
+    let lifecycle_before_switch = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.method(),
+            workspace.url().to_string(),
+            workspace.effective_headers(),
+            workspace.request_body(),
+            workspace.response().clone(),
+            workspace
+                .history()
+                .iter()
+                .map(|entry| entry.id.clone())
+                .collect::<Vec<_>>(),
+            workspace.active_tab_index(),
+        )
+    });
+
+    click(cx, "response-pane-headers").unwrap();
+    assert!(cx.debug_bounds("response-pane-headers-active").is_some());
+    for selector in [
+        "response-content",
+        "response-headers-summary",
+        "response-headers-count",
+        "response-headers-table",
+        "response-headers-table-labels",
+        "response-headers-rows",
+    ] {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "response-header surface `{selector}` should be rendered"
+        );
+    }
+    assert!(headers.len() <= HEADER_ROW_SELECTORS.len());
+    for selector in HEADER_ROW_SELECTORS.iter().take(headers.len()) {
+        assert!(
+            cx.debug_bounds(selector).is_some(),
+            "response header row `{selector}` should remain observable"
+        );
+    }
+    if headers.len() < HEADER_ROW_SELECTORS.len() {
+        assert!(
+            cx.debug_bounds(HEADER_ROW_SELECTORS[headers.len()])
+                .is_none(),
+            "the rendered table should contain exactly one row per ResponseState header"
+        );
+    }
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.method(),
+                workspace.url().to_string(),
+                workspace.effective_headers(),
+                workspace.request_body(),
+                workspace.response().clone(),
+                workspace
+                    .history()
+                    .iter()
+                    .map(|entry| entry.id.clone())
+                    .collect::<Vec<_>>(),
+                workspace.active_tab_index(),
+            )
+        }),
+        lifecycle_before_switch,
+        "mouse pane switching must not mutate product state"
+    );
+
+    click(cx, "response-pane-body").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert!(
+        cx.debug_bounds("response-pane-headers-active").is_some(),
+        "Enter should activate the keyboard-focused Headers tab"
+    );
+    click(cx, "response-pane-body").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("space");
+    assert!(
+        cx.debug_bounds("response-pane-headers-active").is_some(),
+        "Space should activate the keyboard-focused Headers tab"
+    );
+    click(cx, "response-pane-body").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.method(),
+                workspace.url().to_string(),
+                workspace.effective_headers(),
+                workspace.request_body(),
+                workspace.response().clone(),
+                workspace
+                    .history()
+                    .iter()
+                    .map(|entry| entry.id.clone())
+                    .collect::<Vec<_>>(),
+                workspace.active_tab_index(),
+            )
+        }),
+        lifecycle_before_switch,
+        "keyboard pane switching must not mutate product state"
+    );
+
+    let (empty_url, empty_server) = serve_raw_http_response(
+        "/empty-response-headers",
+        b"HTTP/1.0 204 No Content\r\n\r\n",
+    );
+    replace_text(cx, "url-input", &empty_url).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    empty_server
+        .join()
+        .expect("empty response-header fixture should finish");
+    workspace.read_with(cx, |workspace, _| {
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success {
+                status: 204,
+                body,
+                headers,
+                ..
+            } if body.is_empty() && headers.is_empty()
+        ));
+        assert_eq!(workspace.history_len(), 2);
+    });
+    assert!(cx.debug_bounds("response-pane-body-active").is_some());
+    let empty_lifecycle = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.response().clone(),
+            workspace
+                .history()
+                .iter()
+                .map(|entry| entry.id.clone())
+                .collect::<Vec<_>>(),
+            workspace.active_tab_index(),
+        )
+    });
+    click(cx, "response-pane-headers").unwrap();
+    assert!(cx.debug_bounds("response-pane-headers-active").is_some());
+    assert!(cx.debug_bounds("response-headers-empty").is_some());
+    assert!(cx.debug_bounds("response-headers-table").is_none());
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.response().clone(),
+                workspace
+                    .history()
+                    .iter()
+                    .map(|entry| entry.id.clone())
+                    .collect::<Vec<_>>(),
+                workspace.active_tab_index(),
+            )
+        }),
+        empty_lifecycle,
+        "empty-state inspection must not mutate response, History, or the active tab"
+    );
 }
 
 #[gpui::test]
