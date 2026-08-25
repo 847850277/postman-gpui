@@ -12,14 +12,15 @@
 //! ViewModel before emitting it to the runner.
 
 use crate::{
-    app::{PendingRequest, SendId, WorkspaceViewModel},
+    app::{PendingRequest, RequestTabId, SendId, WorkspaceViewModel},
     models::HistoryEntry,
     ui::theme::BG,
 };
 use gpui::{
-    div, rgb, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    div, rgb, AppContext, Context, Entity, EventEmitter, FocusHandle, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
+use std::collections::HashMap;
 
 mod chrome;
 mod composer;
@@ -28,6 +29,7 @@ mod layout;
 mod panes;
 mod response_panel;
 
+use chrome::setup_request_tab_key_bindings;
 use composer::{RequestComposer, RequestComposerEvent};
 pub(super) use panes::{CookiePane, CookiePaneEvent};
 use response_panel::{setup_response_viewer_key_bindings, ResponseViewer, ResponseViewerEvent};
@@ -47,6 +49,7 @@ pub(super) struct RequestWorkspace {
     view_model: Entity<WorkspaceViewModel>,
     composer: Entity<RequestComposer>,
     response_viewer: Entity<ResponseViewer>,
+    tab_focus_handles: HashMap<RequestTabId, FocusHandle>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -55,6 +58,7 @@ impl EventEmitter<RequestWorkspaceEvent> for RequestWorkspace {}
 impl RequestWorkspace {
     pub(super) fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
         cx.bind_keys(setup_response_viewer_key_bindings());
+        cx.bind_keys(setup_request_tab_key_bindings());
 
         let composer = cx.new(|cx| RequestComposer::new(view_model.clone(), cx));
         let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
@@ -68,6 +72,7 @@ impl RequestWorkspace {
             view_model,
             composer,
             response_viewer,
+            tab_focus_handles: HashMap::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -126,18 +131,28 @@ impl RequestWorkspace {
         self.project_active_request(cx);
     }
 
-    pub(super) fn select_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.update_view_model(cx, |view_model| view_model.select_tab(index)) {
+    pub(super) fn activate_request_tab(&mut self, tab_id: RequestTabId, cx: &mut Context<Self>) {
+        if self.update_view_model(cx, |view_model| view_model.select_tab_by_id(tab_id)) {
             self.project_active_request(cx);
         }
     }
 
-    pub(super) fn close_request_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(send_id) = self.view_model.read(cx).send_id_for_tab(index) {
+    pub(super) fn close_request_tab(&mut self, tab_id: RequestTabId, cx: &mut Context<Self>) {
+        if let Some(send_id) = self.view_model.read(cx).send_id_for_tab_id(tab_id) {
             self.cancel_send(send_id, cx);
         }
-        if self.update_view_model(cx, |view_model| view_model.close_tab(index)) {
+        if self.update_view_model(cx, |view_model| view_model.close_tab_by_id(tab_id)) {
             self.project_active_request(cx);
+        }
+    }
+
+    pub(super) fn focus_active_request_tab(&self, window: &mut Window, cx: &mut Context<Self>) {
+        let active_tab_id = {
+            let view_model = self.view_model.read(cx);
+            view_model.tabs()[view_model.active_tab_index()].tab_id()
+        };
+        if let Some(focus_handle) = self.tab_focus_handles.get(&active_tab_id) {
+            focus_handle.focus(window, cx);
         }
     }
 
@@ -151,7 +166,7 @@ impl RequestWorkspace {
 }
 
 impl Render for RequestWorkspace {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex_1()
             .min_w_0()
@@ -159,7 +174,7 @@ impl Render for RequestWorkspace {
             .flex()
             .flex_col()
             .bg(rgb(BG))
-            .child(self.render_request_tabs_bar(cx))
+            .child(self.render_request_tabs_bar(window, cx))
             .child(
                 div()
                     .flex_1()

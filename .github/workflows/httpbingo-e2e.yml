@@ -51,4 +51,4 @@ jobs:
             ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Run real application scenarios against HTTPBingo
-        run: cargo test --locked --test httpbingo_scenarios -- --ignored --test-threads=1
+        run: cargo test --locked --test httpbingo_scenarios -- --test-threads=1

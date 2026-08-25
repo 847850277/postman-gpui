@@ -1,0 +1,90 @@
+{
+  "schema_version": 5,
+  "target": "httpbingo",
+  "cases": [
+    {
+      "name": "HTTPBingo isolates the GET request in Tab A",
+      "draft": {
+        "method": "GET",
+        "path": "/get?tab=A&q=rust",
+        "headers": [
+          { "key": "X-Tab", "value": "A" }
+        ],
+        "body": null,
+        "body_kind": null
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/get?tab=A&q=rust",
+          "headers": [
+            ["X-Tab", "A"]
+          ],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "tab": ["A"],
+              "q": ["rust"]
+            },
+            "method": "GET",
+            "headers": {
+              "X-Tab": ["A"]
+            }
+          }
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo isolates the POST JSON request in Tab B",
+      "draft": {
+        "method": "POST",
+        "path": "/anything/tab-b?mode=json",
+        "headers": [
+          { "key": "X-Tab", "value": "B" }
+        ],
+        "body": "{\"tab\":\"B\",\"message\":\"isolated\"}",
+        "body_kind": "json",
+        "bearer_token": "Bearer tab-b-e2e-token"
+      },
+      "expect": {
+        "request": {
+          "method": "POST",
+          "path": "/anything/tab-b?mode=json",
+          "headers": [
+            ["Content-Type", "application/json"],
+            ["Accept", "application/json"],
+            ["X-Tab", "B"],
+            ["Authorization", "Bearer tab-b-e2e-token"]
+          ],
+          "body": "{\"tab\":\"B\",\"message\":\"isolated\"}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "args": {
+              "mode": ["json"]
+            },
+            "method": "POST",
+            "headers": {
+              "Content-Type": ["application/json"],
+              "X-Tab": ["B"],
+              "Authorization": ["Bearer tab-b-e2e-token"]
+            },
+            "data": "{\"tab\":\"B\",\"message\":\"isolated\"}",
+            "json": {
+              "tab": "B",
+              "message": "isolated"
+            }
+          }
+        },
+        "history_len": 1
+      }
+    }
+  ]
+}

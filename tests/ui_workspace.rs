@@ -4,6 +4,7 @@
 mod ui;
 
 use gpui::{AppContext, TestAppContext};
+use mockito::Matcher;
 use postman_gpui::app::{
     AuthorizationKind, BodyKind, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PostmanApp,
     RequestBodyDraft, RequestPane, ResponseState, WorkspaceViewModel,
@@ -53,6 +54,193 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
         "https://second.example/orders"
     );
+}
+
+#[gpui::test]
+fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
+    cx: &mut TestAppContext,
+) {
+    let tab_b_body = r#"{"tab":"B","message":"isolated"}"#;
+    let mut server = mockito::Server::new();
+    let tab_a_request = server
+        .mock("GET", "/get")
+        .match_query(Matcher::Exact("tab=A&q=rust".to_string()))
+        .match_header("x-tab", "A")
+        .match_header("authorization", Matcher::Missing)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"tab":"A","method":"GET"}"#)
+        .create();
+    let tab_b_request = server
+        .mock("POST", "/anything/tab-b")
+        .match_query(Matcher::Exact("mode=json".to_string()))
+        .match_header("x-tab", "B")
+        .match_header("authorization", "Bearer tab-b-e2e-token")
+        .match_header("content-type", "application/json")
+        .match_body(Matcher::Exact(tab_b_body.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"tab":"B","method":"POST"}"#)
+        .create();
+    let tab_a_url = format!("{}/get?tab=A&q=rust", server.url());
+    let tab_b_url = format!("{}/anything/tab-b?mode=json", server.url());
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    type_into(cx, "url-input", &tab_a_url).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Tab").unwrap();
+    type_into(cx, "row-value-input", "A").unwrap();
+    click(cx, "request-pane-params").unwrap();
+
+    click(cx, "new-tab-button").unwrap();
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", &tab_b_url).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Tab").unwrap();
+    type_into(cx, "row-value-input", "B").unwrap();
+    click(cx, "request-pane-authorization").unwrap();
+    type_into(cx, "authorization-input", "tab-b-e2e-token").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", tab_b_body).unwrap();
+
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.tab_count(), 2);
+        assert_eq!(workspace.active_tab_index(), 1);
+        assert_eq!(workspace.tabs()[0].tab_id().to_string(), "1");
+        assert_eq!(workspace.tabs()[0].method(), HttpMethod::GET);
+        assert_eq!(workspace.tabs()[0].url(), tab_a_url);
+        assert_eq!(workspace.tabs()[0].request_pane(), RequestPane::Params);
+        assert_eq!(workspace.tabs()[0].request_body(), RequestBody::None);
+        assert!(workspace.tabs()[0].is_dirty());
+        assert!(matches!(
+            workspace.tabs()[0].response(),
+            ResponseState::NotSent
+        ));
+
+        assert_eq!(workspace.tabs()[1].tab_id().to_string(), "2");
+        assert_eq!(workspace.tabs()[1].method(), HttpMethod::POST);
+        assert_eq!(workspace.tabs()[1].url(), tab_b_url);
+        assert_eq!(workspace.tabs()[1].request_pane(), RequestPane::Body);
+        assert_eq!(workspace.tabs()[1].bearer_token(), "tab-b-e2e-token");
+        assert_eq!(
+            workspace.tabs()[1].request_body(),
+            RequestBody::Json(tab_b_body.to_string())
+        );
+        assert!(workspace.tabs()[1].is_dirty());
+        assert!(matches!(
+            workspace.tabs()[1].response(),
+            ResponseState::NotSent
+        ));
+    });
+
+    // Mouse and keyboard both enter the same stable-tab-id activation command. Mouse focuses
+    // Tab A, Tab+Enter activates B, and Shift-Tab+Space activates A again.
+    click(cx, "request-tab-0").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        0
+    );
+    assert!(cx.debug_bounds("params-ready-indicator").is_some());
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        1
+    );
+    assert!(cx.debug_bounds("body-input").is_some());
+    cx.simulate_keystrokes("shift-tab");
+    cx.simulate_keystrokes("space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        0
+    );
+
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    workspace.read_with(cx, |workspace, _| {
+        assert!(matches!(
+            workspace.tabs()[0].response(),
+            ResponseState::Success {
+                status: 200,
+                body,
+                ..
+            } if body.contains(r#""tab":"A""#)
+        ));
+        assert!(!workspace.tabs()[0].is_dirty());
+        assert!(matches!(
+            workspace.tabs()[1].response(),
+            ResponseState::NotSent
+        ));
+        assert!(workspace.tabs()[1].is_dirty());
+        assert_eq!(workspace.history_len(), 1);
+    });
+
+    // Tab A retained focus after Space, so Tab+Enter selects B without a mouse-only path.
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.active_tab_index(), 1);
+        assert!(matches!(
+            workspace.tabs()[0].response(),
+            ResponseState::Success { body, .. } if body.contains(r#""tab":"A""#)
+        ));
+        assert!(matches!(
+            workspace.tabs()[1].response(),
+            ResponseState::Success {
+                status: 200,
+                body,
+                ..
+            } if body.contains(r#""tab":"B""#)
+        ));
+        assert!(!workspace.tabs()[1].is_dirty());
+        assert_eq!(workspace.history_len(), 2);
+
+        let newest = &workspace.history()[0].request;
+        assert_eq!(newest.method, HttpMethod::POST);
+        assert_eq!(newest.url, tab_b_url);
+        assert_eq!(newest.body, RequestBody::Json(tab_b_body.to_string()));
+        assert!(newest
+            .headers
+            .iter()
+            .any(|(name, value)| name.eq_ignore_ascii_case("x-tab") && value == "B"));
+        assert!(newest
+            .headers
+            .iter()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+
+        let oldest = &workspace.history()[1].request;
+        assert_eq!(oldest.method, HttpMethod::GET);
+        assert_eq!(oldest.url, tab_a_url);
+        assert_eq!(oldest.body, RequestBody::None);
+        assert!(oldest
+            .headers
+            .iter()
+            .any(|(name, value)| name.eq_ignore_ascii_case("x-tab") && value == "A"));
+    });
+
+    click(cx, "close-tab-1").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.tab_count(), 1);
+        assert_eq!(workspace.active_tab_index(), 0);
+        assert_eq!(workspace.url(), tab_a_url);
+        assert_eq!(workspace.request_pane(), RequestPane::Params);
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Success { body, .. } if body.contains(r#""tab":"A""#)
+        ));
+        assert_eq!(workspace.history_len(), 2);
+    });
+    assert!(cx.debug_bounds("request-tab-0").is_some());
+    assert!(cx.debug_bounds("request-tab-1").is_none());
+
+    tab_a_request.assert();
+    tab_b_request.assert();
 }
 
 #[gpui::test]
