@@ -468,7 +468,11 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         assert_eq!(workspace.cookies()[0].name, "session");
         assert_eq!(workspace.cookies()[0].origin, server.url());
         assert_eq!(workspace.history_len(), 1);
-        assert_eq!(workspace.history()[0].request.url, set_url);
+        assert_eq!(
+            workspace.history()[0].request.url,
+            format!("{}/cookies/set", server.url()),
+            "the SQLite History projection must remove the sensitive session query"
+        );
         assert!(workspace.history()[0].request.headers.is_empty());
         let ResponseState::Success { status, body, .. } = workspace.response() else {
             panic!("the cookie-setting redirect should finish as a response");

@@ -1461,11 +1461,69 @@ pub struct CookieJarEntry {
     pub name: String,
 }
 
-/// Application-level ViewModel. It owns independent request tabs and shared history.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HistoryStorageStage {
+    Initialize,
+    Load,
+    Append,
+    Clear,
+}
+
+impl fmt::Display for HistoryStorageStage {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Initialize => "initialization",
+            Self::Load => "load",
+            Self::Append => "append",
+            Self::Clear => "clear",
+        })
+    }
+}
+
+/// Observable state of the SQLite-backed History feature. Entries remain only the latest
+/// successful database query result.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HistoryStorageStatus {
+    Loading {
+        stage: HistoryStorageStage,
+    },
+    Ready {
+        skipped_rows: usize,
+    },
+    Error {
+        stage: HistoryStorageStage,
+        message: String,
+    },
+}
+
+/// Result of applying one HTTP completion to request/response state. A completed exchange yields
+/// a History candidate, but the ViewModel never adds it to the visible database query result.
+#[derive(Debug)]
+pub struct SendCompletion {
+    response_applied: bool,
+    history_entry: Option<HistoryEntry>,
+}
+
+impl SendCompletion {
+    pub fn response_applied(&self) -> bool {
+        self.response_applied
+    }
+
+    pub fn history_entry(&self) -> Option<&HistoryEntry> {
+        self.history_entry.as_ref()
+    }
+
+    pub fn into_parts(self) -> (bool, Option<HistoryEntry>) {
+        (self.response_applied, self.history_entry)
+    }
+}
+
+/// Application-level ViewModel. It owns request tabs and the latest SQLite History query result.
 pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
     active_tab: usize,
     history: RequestHistory,
+    history_storage_status: HistoryStorageStatus,
     cookie_jar: Vec<CookieJarEntry>,
     last_cookie_clear_count: Option<usize>,
     next_tab_id: u64,
@@ -1483,6 +1541,9 @@ impl WorkspaceViewModel {
             tabs: vec![request],
             active_tab: 0,
             history: RequestHistory::new(),
+            history_storage_status: HistoryStorageStatus::Loading {
+                stage: HistoryStorageStage::Initialize,
+            },
             cookie_jar: Vec::new(),
             last_cookie_clear_count: None,
             next_tab_id: 2,
@@ -1597,13 +1658,22 @@ impl WorkspaceViewModel {
         cancelled
     }
 
-    /// Applies a response only when both the tab and send attempt still exist. Successful stale
-    /// completions still enter shared history because the HTTP exchange did occur.
+    /// Applies response state but deliberately does not mutate visible History. Application hosts
+    /// that persist History must use `complete_send_for_persistence` and commit its candidate.
     pub fn complete_send(
         &mut self,
         pending: PendingRequest,
         result: Result<RequestResult, AppError>,
     ) -> bool {
+        self.complete_send_for_persistence(pending, result)
+            .response_applied()
+    }
+
+    pub fn complete_send_for_persistence(
+        &mut self,
+        pending: PendingRequest,
+        result: Result<RequestResult, AppError>,
+    ) -> SendCompletion {
         self.complete_send_with_stored_cookies(pending, result, Vec::new())
     }
 
@@ -1612,7 +1682,7 @@ impl WorkspaceViewModel {
         pending: PendingRequest,
         result: Result<RequestResult, AppError>,
         stored_cookies: Vec<(String, String)>,
-    ) -> bool {
+    ) -> SendCompletion {
         let was_cancelled = pending.was_cancelled();
         let completed_response = result
             .as_ref()
@@ -1654,24 +1724,26 @@ impl WorkspaceViewModel {
             .iter_mut()
             .find(|tab| tab.tab_id == pending.tab_id)
             .is_some_and(|tab| tab.complete_send(&pending, result, stored_cookies));
-        if let Some((status, elapsed_ms, response_size)) =
-            completed_response.filter(|_| !was_cancelled)
-        {
-            let entry = HistoryEntry::completed_with_intent_and_options(
-                pending.request.clone(),
-                history_label(&pending.request.url),
-                status,
-                elapsed_ms,
-                response_size,
-                pending.editor_intent.clone(),
-                RequestOptions {
-                    timeout_ms: pending.timeout_ms,
-                    ..RequestOptions::default()
-                },
-            );
-            self.history.add_entry(entry);
+        let history_entry = completed_response.filter(|_| !was_cancelled).map(
+            |(status, elapsed_ms, response_size)| {
+                HistoryEntry::completed_with_intent_and_options(
+                    pending.request.clone(),
+                    history_label(&pending.request.url),
+                    status,
+                    elapsed_ms,
+                    response_size,
+                    pending.editor_intent.clone(),
+                    RequestOptions {
+                        timeout_ms: pending.timeout_ms,
+                        ..RequestOptions::default()
+                    },
+                )
+            },
+        );
+        SendCompletion {
+            response_applied: applied,
+            history_entry,
         }
-        applied
     }
 
     pub fn load_request(&mut self, request: &Request) {
@@ -1692,6 +1764,35 @@ impl WorkspaceViewModel {
 
     pub fn history_len(&self) -> usize {
         self.history.len()
+    }
+
+    pub fn history_storage_status(&self) -> &HistoryStorageStatus {
+        &self.history_storage_status
+    }
+
+    pub(crate) fn set_history_loading(&mut self, stage: HistoryStorageStage) {
+        self.history_storage_status = HistoryStorageStatus::Loading { stage };
+    }
+
+    /// Apply only rows confirmed by a successful SQLite query.
+    pub(crate) fn replace_history_query_result(
+        &mut self,
+        entries: Vec<HistoryEntry>,
+        skipped_rows: usize,
+    ) {
+        self.history.replace(entries);
+        self.history_storage_status = HistoryStorageStatus::Ready { skipped_rows };
+    }
+
+    pub(crate) fn set_history_storage_error(
+        &mut self,
+        stage: HistoryStorageStage,
+        message: impl Into<String>,
+    ) {
+        self.history_storage_status = HistoryStorageStatus::Error {
+            stage,
+            message: message.into(),
+        };
     }
 
     pub fn cookies(&self) -> &[CookieJarEntry] {
@@ -1931,6 +2032,27 @@ fn header_draft_is_complete(draft: &KeyValueDraft) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::persistence::VersionedHistorySnapshot;
+
+    /// Unit-test stand-in for the application lifecycle: complete the response, cross the
+    /// sanitized snapshot boundary, then replace History as if SQLite had returned the rows.
+    fn complete_and_confirm_history(
+        workspace: &mut WorkspaceViewModel,
+        pending: PendingRequest,
+        result: Result<RequestResult, AppError>,
+    ) -> bool {
+        let (response_applied, candidate) = workspace
+            .complete_send_for_persistence(pending, result)
+            .into_parts();
+        if let Some(candidate) = candidate {
+            let snapshot = VersionedHistorySnapshot::try_from(&candidate).unwrap();
+            let confirmed = HistoryEntry::try_from(snapshot).unwrap();
+            let mut entries = workspace.history().to_vec();
+            entries.insert(0, confirmed);
+            workspace.replace_history_query_result(entries, 0);
+        }
+        response_applied
+    }
 
     #[test]
     fn pasted_url_query_is_projected_into_params_and_stays_synchronized() {
@@ -2611,7 +2733,11 @@ mod tests {
 
         let pending = workspace.begin_send();
         assert_eq!(pending.request().body, expected_request_body);
-        assert!(workspace.complete_send(pending, Ok(RequestResult::success("ok".to_string()))));
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(RequestResult::success("ok".to_string()))
+        ));
 
         let entry = workspace.history()[0].clone();
         assert_eq!(entry.request.body, expected_request_body);
@@ -2682,7 +2808,8 @@ mod tests {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://example.com/shared-history");
         let pending = workspace.begin_send();
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             pending,
             Ok(RequestResult {
                 status: 204,
@@ -2709,7 +2836,8 @@ mod tests {
         workspace.set_url("https://httpbingo.org/status/418");
         let pending = workspace.begin_send();
 
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             pending,
             Ok(RequestResult {
                 status: 418,
@@ -2745,7 +2873,8 @@ mod tests {
         workspace.set_url(original_url);
         let pending = workspace.begin_send();
 
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             pending,
             Ok(RequestResult {
                 status: 200,
@@ -2781,7 +2910,8 @@ mod tests {
         workspace.set_url(url);
         let pending = workspace.begin_send();
 
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             pending,
             Ok(RequestResult {
                 status: 200,
@@ -2830,7 +2960,8 @@ mod tests {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://httpbingo.org/cookies");
         let pending = workspace.begin_send();
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             pending,
             Ok(RequestResult {
                 status: 200,
@@ -2873,7 +3004,8 @@ mod tests {
 
         workspace.new_request();
         workspace.set_url("https://second.example/draft");
-        assert!(workspace.complete_send(
+        assert!(complete_and_confirm_history(
+            &mut workspace,
             first,
             Ok(RequestResult {
                 status: 200,
@@ -2900,9 +3032,17 @@ mod tests {
         let older = workspace.begin_send();
         let newer = workspace.begin_send();
 
-        assert!(!workspace.complete_send(older, Ok(RequestResult::success("stale".to_string()))));
+        assert!(!complete_and_confirm_history(
+            &mut workspace,
+            older,
+            Ok(RequestResult::success("stale".to_string()))
+        ));
         assert!(matches!(workspace.response(), ResponseState::Loading));
-        assert!(workspace.complete_send(newer, Ok(RequestResult::success("current".to_string()))));
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            newer,
+            Ok(RequestResult::success("current".to_string()))
+        ));
         assert!(matches!(
             workspace.response(),
             ResponseState::Success { body, .. } if body == "current"
@@ -2917,7 +3057,11 @@ mod tests {
         let pending = workspace.begin_send();
         workspace.set_url("https://example.com/edited");
 
-        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".to_string()))));
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(RequestResult::success("done".to_string()))
+        ));
 
         assert_eq!(workspace.url(), "https://example.com/edited");
         assert!(workspace.is_dirty());
@@ -2973,7 +3117,11 @@ mod tests {
         workspace.set_timeout_ms(1_250);
         let pending = workspace.begin_send();
 
-        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(RequestResult::success("done".into()))
+        ));
         let entry = workspace.history()[0].clone();
         assert_eq!(entry.request_options.timeout_ms, Some(1_250));
 

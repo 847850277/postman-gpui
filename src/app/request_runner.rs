@@ -1,9 +1,16 @@
 use crate::{
-    app::{PendingRequest, SendId, WorkspaceViewModel},
+    app::{
+        spawn_history_operation_and_reload, HistoryStorageStage, PendingRequest, SendId,
+        WorkspaceViewModel,
+    },
     http::executor::RequestExecutor,
+    models::HistoryEntry,
+    persistence::{
+        HistoryRepositoryWorker, VersionedHistorySnapshot, DEFAULT_HISTORY_RETENTION_LIMIT,
+    },
 };
 use gpui::{Context, Entity};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Application service that owns HTTP task lifetimes.
 ///
@@ -12,13 +19,15 @@ use std::collections::HashMap;
 /// request editor from becoming transport owners.
 pub(super) struct RequestRunner {
     executor: RequestExecutor,
+    history_worker: Option<Arc<HistoryRepositoryWorker>>,
     in_flight: HashMap<SendId, tokio::task::AbortHandle>,
 }
 
 impl RequestRunner {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(history_worker: Option<Arc<HistoryRepositoryWorker>>) -> Self {
         Self {
             executor: RequestExecutor::new(),
+            history_worker,
             in_flight: HashMap::new(),
         }
     }
@@ -49,14 +58,63 @@ impl RequestRunner {
                     .as_ref()
                     .map(|response| response.stored_cookies.clone())
                     .unwrap_or_default();
-                view_model.update(cx, |view_model, cx| {
+                let completion = view_model.update(cx, |view_model, cx| {
                     view_model.sync_cookie_jar(cookie_snapshot);
-                    view_model.complete_send_with_stored_cookies(pending, result, stored_cookies);
+                    let completion = view_model.complete_send_with_stored_cookies(
+                        pending,
+                        result,
+                        stored_cookies,
+                    );
                     cx.notify();
+                    completion
                 });
+                if let Some(entry) = completion.history_entry().cloned() {
+                    this.persist_history_entry(entry, view_model, cx);
+                }
             });
         })
         .detach();
+    }
+
+    fn persist_history_entry(
+        &self,
+        entry: HistoryEntry,
+        view_model: Entity<WorkspaceViewModel>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(worker) = self.history_worker.clone() else {
+            view_model.update(cx, |view_model, cx| {
+                view_model.set_history_storage_error(
+                    HistoryStorageStage::Append,
+                    "SQLite History is unavailable",
+                );
+                cx.notify();
+            });
+            return;
+        };
+        let snapshot = match VersionedHistorySnapshot::try_from(&entry) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                view_model.update(cx, |view_model, cx| {
+                    view_model
+                        .set_history_storage_error(HistoryStorageStage::Append, error.to_string());
+                    cx.notify();
+                });
+                return;
+            }
+        };
+
+        let append = worker.append_and_trim(snapshot, DEFAULT_HISTORY_RETENTION_LIMIT);
+        // Queue the authoritative reload directly behind the append. Awaiting both through GPUI's
+        // background executor also keeps worker-thread wakeups away from the foreground executor.
+        let load = worker.load_recent(DEFAULT_HISTORY_RETENTION_LIMIT);
+        spawn_history_operation_and_reload(
+            view_model,
+            HistoryStorageStage::Append,
+            append,
+            load,
+            cx,
+        );
     }
 
     pub(super) fn abort(&mut self, send_id: SendId) {
@@ -90,7 +148,7 @@ mod tests {
 
     #[gpui::test]
     fn starts_empty(cx: &mut gpui::TestAppContext) {
-        let runner = cx.new(|_| RequestRunner::new());
+        let runner = cx.new(|_| RequestRunner::new(None));
         assert_eq!(
             runner.read_with(cx, |runner, _| runner.in_flight_count()),
             0

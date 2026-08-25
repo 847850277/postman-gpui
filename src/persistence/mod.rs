@@ -12,7 +12,7 @@ pub use history_repository::{
     HistoryLoadResult, HistoryLoadWarning, HistoryLoadWarningKind, HistoryRepository,
     HistoryRepositoryError, HistoryRepositoryOperation,
 };
-pub use history_repository_worker::HistoryRepositoryWorker;
+pub use history_repository_worker::{HistoryRepositoryTask, HistoryRepositoryWorker};
 
 pub use history_snapshot::{
     HeaderSnapshotV1, HistorySensitiveDataPolicy, HistorySnapshotError, HistorySnapshotV1,

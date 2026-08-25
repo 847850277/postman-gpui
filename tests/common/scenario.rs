@@ -535,7 +535,7 @@ fn execute_scenario(
         .build()
         .map_err(|error| format!("failed to create scenario scheduling adapter: {error}"))?
         .block_on(task);
-    workspace.complete_send(pending, result);
+    let completion = workspace.complete_send_for_persistence(pending, result);
 
     assert_outgoing_request(&sent, &scenario.expect.request, server_url)?;
     if let Some(mock) = mock {
@@ -547,20 +547,19 @@ fn execute_scenario(
     }
     assert_response_state(workspace.response(), &scenario.expect.response)?;
 
-    if workspace.history_len() != scenario.expect.history_len {
+    let history_len = usize::from(completion.history_entry().is_some());
+    if history_len != scenario.expect.history_len {
         return Err(format!(
             "history length mismatch: expected {}, actual {}",
-            scenario.expect.history_len,
-            workspace.history_len()
+            scenario.expect.history_len, history_len
         ));
     }
     if scenario.expect.history_len > 0 {
         let expected = expected_request(&scenario.expect.request, server_url)?;
-        let actual = workspace
-            .history()
-            .first()
+        let actual = completion
+            .history_entry()
             .map(|entry| &entry.request)
-            .ok_or_else(|| "latest history entry is missing".to_string())?;
+            .ok_or_else(|| "completed History persistence candidate is missing".to_string())?;
         assert_requests_equivalent(actual, &expected)
             .map_err(|error| format!("latest history entry is incorrect: {error}"))?;
     }

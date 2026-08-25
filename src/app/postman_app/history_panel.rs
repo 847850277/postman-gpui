@@ -1,8 +1,9 @@
-use crate::app::WorkspaceViewModel;
-use crate::models::{HistoryEntry, Request};
+use crate::app::{HistoryStorageStatus, WorkspaceViewModel};
+use crate::models::HistoryEntry;
 use crate::ui::components::input::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
-    method_color, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+    method_color, ACCENT_SOFT, ERROR, FONT_HEADING, FONT_UI, LINE, MUTED, OK, PANEL, PANEL_ALT,
+    SUBTEXT, TEXT,
 };
 use gpui::{
     div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
@@ -15,7 +16,9 @@ const HISTORY_SELECTED_BORDER: u32 = 0x00f2_b89f;
 /// Event emitted when a history item is clicked
 #[derive(Debug, Clone)]
 pub enum HistoryListEvent {
-    RequestSelected(HistoryEntry),
+    RequestSelected(Box<HistoryEntry>),
+    RefreshRequested,
+    ClearRequested,
 }
 
 /// History list component for displaying request history
@@ -86,7 +89,11 @@ impl HistoryList {
                 .contains(query)
     }
 
-    fn on_item_clicked(&mut self, index: usize, cx: &mut Context<Self>) -> HistoryListEvent {
+    fn on_item_clicked(
+        &mut self,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) -> Option<HistoryListEvent> {
         self.selected_index = Some(index);
         cx.notify();
 
@@ -99,14 +106,14 @@ impl HistoryList {
                 url = %crate::utils::log::display_url_for_log(&entry.request.url),
                 "history item selected"
             );
-            HistoryListEvent::RequestSelected(entry)
+            Some(HistoryListEvent::RequestSelected(Box::new(entry)))
         } else {
             tracing::warn!(
                 index,
                 entries = self.view_model.read(cx).history_len(),
                 "history item index is out of range"
             );
-            HistoryListEvent::RequestSelected(HistoryEntry::new(Request::default(), String::new()))
+            None
         }
     }
 
@@ -160,6 +167,27 @@ impl Render for HistoryList {
             .collect();
         let has_history = !entries.is_empty();
         let has_visible_entries = !visible_entries.is_empty();
+        let (storage_selector, storage_text, storage_color) =
+            match self.view_model.read(cx).history_storage_status() {
+                HistoryStorageStatus::Loading { stage } => (
+                    "history-storage-loading",
+                    format!("SQLite · Loading {stage}"),
+                    MUTED,
+                ),
+                HistoryStorageStatus::Ready { skipped_rows: 0 } => {
+                    ("history-storage-ready", "Stored in SQLite".to_string(), OK)
+                }
+                HistoryStorageStatus::Ready { skipped_rows } => (
+                    "history-storage-ready-with-warnings",
+                    format!("Stored in SQLite · {skipped_rows} invalid rows skipped"),
+                    MUTED,
+                ),
+                HistoryStorageStatus::Error { stage, message } => (
+                    "history-storage-error",
+                    format!("SQLite unavailable during {stage}: {message}"),
+                    ERROR,
+                ),
+            };
         div()
             .id("history-list")
             .debug_selector(|| "history-panel".into())
@@ -193,25 +221,68 @@ impl Render for HistoryList {
                     )
                     .child(
                         div()
-                            .debug_selector(|| "history-options".into())
-                            .size(px(18.0))
+                            .debug_selector(|| "history-actions".into())
                             .flex()
                             .items_center()
-                            .justify_center()
-                            .font_family(FONT_UI)
-                            .text_size(px(15.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(rgb(MUTED))
-                            .child("•••"),
+                            .gap(px(6.0))
+                            .child(
+                                div()
+                                    .debug_selector(|| "history-refresh-button".into())
+                                    .h(px(24.0))
+                                    .px(px(7.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(LINE))
+                                    .cursor_pointer()
+                                    .font_family(FONT_UI)
+                                    .text_size(px(11.0))
+                                    .text_color(rgb(MUTED))
+                                    .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(TEXT)))
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|_this, _event, _window, cx| {
+                                            cx.emit(HistoryListEvent::RefreshRequested);
+                                        }),
+                                    )
+                                    .child("Refresh"),
+                            )
+                            .child(
+                                div()
+                                    .debug_selector(|| "history-clear-button".into())
+                                    .h(px(24.0))
+                                    .px(px(7.0))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(LINE))
+                                    .cursor_pointer()
+                                    .font_family(FONT_UI)
+                                    .text_size(px(11.0))
+                                    .text_color(rgb(MUTED))
+                                    .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(ERROR)))
+                                    .on_mouse_up(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|_this, _event, _window, cx| {
+                                            cx.emit(HistoryListEvent::ClearRequested);
+                                        }),
+                                    )
+                                    .child("Clear"),
+                            ),
                     ),
             )
             .child(
                 div()
-                    .debug_selector(|| "history-subtitle".into())
+                    .debug_selector(move || storage_selector.into())
+                    .overflow_hidden()
                     .font_family(FONT_UI)
                     .text_size(px(12.0))
-                    .text_color(rgb(SUBTEXT))
-                    .child("Requests in this workspace"),
+                    .text_color(rgb(storage_color))
+                    .child(storage_text),
             )
             .child(
                 div()
@@ -343,8 +414,9 @@ impl Render for HistoryList {
                                     .on_mouse_up(
                                         gpui::MouseButton::Left,
                                         cx.listener(move |this, _event, _window, cx| {
-                                            let event = this.on_item_clicked(index, cx);
-                                            cx.emit(event);
+                                            if let Some(event) = this.on_item_clicked(index, cx) {
+                                                cx.emit(event);
+                                            }
                                         }),
                                     )
                                     .child(
