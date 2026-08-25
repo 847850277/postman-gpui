@@ -39,6 +39,8 @@ const OPTIONS_SCENARIO: &str = "HTTPBingo receives OPTIONS without rewriting it 
 const GZIP_SCENARIO: &str = "HTTPBingo gzip response decodes into readable JSON";
 const DEFLATE_SCENARIO: &str = "HTTPBingo deflate response decodes into readable JSON";
 const BROTLI_SCENARIO: &str = "HTTPBingo reports the current Brotli provider capability";
+const RESPONSE_HEADERS_SCENARIO: &str =
+    "HTTPBingo response headers are inspectable by mouse and keyboard";
 const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 
 /// One file-backed SQLite database per real-application lifecycle.
@@ -884,6 +886,155 @@ fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
         run_application_scenario(test_cx, scenario)
             .unwrap_or_else(|failure| panic!("Issue #66 scenario `{name}` failed:\n{failure}"));
     }
+}
+
+#[gpui::test]
+#[ignore = "requires public HTTPBingo network access"]
+fn httpbingo_response_headers_are_inspectable_by_mouse_and_keyboard(test_cx: &mut TestAppContext) {
+    let files = load_suites(&scenario_root()).expect("scenario files should parse");
+    let scenario = find_httpbingo_scenario(&files, RESPONSE_HEADERS_SCENARIO)
+        .expect("Issue #76 response-header scenario should exist");
+    run_response_headers_workflow(test_cx, scenario)
+        .unwrap_or_else(|failure| panic!("Issue #76 response-header workflow failed:\n{failure}"));
+}
+
+fn run_response_headers_workflow(
+    test_cx: &mut TestAppContext,
+    scenario: &RequestScenario,
+) -> Result<(), String> {
+    let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
+    let expected_persisted =
+        persisted_history_projection(&expected, expected_editor_intent(&scenario.draft)?)?;
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
+
+    choose_method(cx, &scenario.draft.method)?;
+    type_into(cx, "url-input", &expected.url)?;
+    let url_before_send = workspace.read_with(cx, |workspace, _| workspace.effective_url());
+    if url_before_send != expected.url {
+        return Err(format!(
+            "active response-header URL was not saved before Send\n  expected: {:?}\n  actual:   {:?}",
+            expected.url, url_before_send
+        ));
+    }
+    click(cx, "send-button")?;
+    cx.run_until_parked();
+
+    let response_before_switch =
+        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    assert_response_state(&response_before_switch, &scenario.expect.response)?;
+    let ResponseState::Success { headers, .. } = &response_before_switch else {
+        return Err(format!(
+            "response-header endpoint did not complete successfully: {response_before_switch:?}"
+        ));
+    };
+    for (expected_name, expected_value) in [
+        ("X-E2E-Header", "visible"),
+        ("Content-Type", "application/json"),
+    ] {
+        if !headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case(expected_name) && value == expected_value
+        }) {
+            return Err(format!(
+                "HTTPBingo response is missing exact header {expected_name}: {expected_value}\n  actual: {headers:#?}"
+            ));
+        }
+    }
+    if cx.debug_bounds("response-pane-body-active").is_none()
+        || cx.debug_bounds("response-content").is_none()
+        || cx.debug_bounds("response-headers-table").is_some()
+    {
+        return Err("a completed response must default to the Body pane".to_string());
+    }
+
+    let history_before_switch = history_database.load_authoritative(&workspace, cx)?;
+    if history_before_switch.len() != 1 {
+        return Err(format!(
+            "response-header workflow should record one SQLite History row, actual: {}",
+            history_before_switch.len()
+        ));
+    }
+    assert_requests_equivalent(
+        &history_before_switch[0].request,
+        &expected_persisted.request,
+    )
+    .map_err(|error| format!("response-header History request mismatch: {error}"))?;
+    let active_tab_before_switch =
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index());
+
+    click(cx, "response-pane-headers")?;
+    for selector in [
+        "response-pane-headers-active",
+        "response-content",
+        "response-headers-summary",
+        "response-headers-table",
+        "response-headers-rows",
+        "response-header-row-0",
+    ] {
+        if cx.debug_bounds(selector).is_none() {
+            return Err(format!(
+                "response-header inspection surface `{selector}` is not rendered"
+            ));
+        }
+    }
+    click(cx, "response-pane-body")?;
+    if cx.debug_bounds("response-pane-body-active").is_none() {
+        return Err("mouse could not return the response view to Body".to_string());
+    }
+
+    // Clicking Body focuses that real tab. Tab then moves focus to Headers, whose Enter action
+    // must activate the same pane as a mouse click.
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    if cx.debug_bounds("response-pane-headers-active").is_none()
+        || cx.debug_bounds("response-headers-table").is_none()
+    {
+        return Err("keyboard activation did not open the Headers pane".to_string());
+    }
+    click(cx, "response-pane-body")?;
+
+    let response_after_switch =
+        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    if response_after_switch != response_before_switch {
+        return Err(format!(
+            "pane switching mutated ResponseState\n  before: {response_before_switch:#?}\n  after:  {response_after_switch:#?}"
+        ));
+    }
+    let (active_tab_after_switch, method_after_switch, url_after_switch) =
+        workspace.read_with(cx, |workspace, _| {
+            (
+                workspace.active_tab_index(),
+                workspace.method(),
+                workspace.effective_url(),
+            )
+        });
+    if active_tab_after_switch != active_tab_before_switch
+        || method_after_switch != expected.method
+        || url_after_switch != expected.url
+    {
+        return Err(format!(
+            "pane switching mutated request or active tab: tab={active_tab_after_switch}, method={method_after_switch}, url={url_after_switch:?}"
+        ));
+    }
+    let history_after_switch = history_database.load_authoritative(&workspace, cx)?;
+    if history_after_switch.len() != history_before_switch.len()
+        || history_after_switch
+            .iter()
+            .zip(&history_before_switch)
+            .any(|(after, before)| !same_history_entry(after, before))
+    {
+        return Err(format!(
+            "pane switching mutated SQLite History\n  before: {history_before_switch:#?}\n  after:  {history_after_switch:#?}"
+        ));
+    }
+
+    Ok(())
 }
 
 #[gpui::test]

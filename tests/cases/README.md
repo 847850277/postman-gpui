@@ -154,6 +154,14 @@ opens the workspace-level Cookie Jar from the header or response handoff, clears
 the jar there, and verifies an empty echo without changing completed responses
 or History.
 
+Issue #76 adds a dedicated response-inspection workflow for
+`GET /response-headers`. It proves that Body is the default response pane, mouse
+and keyboard activation open the same Headers table, stable header names compare
+case-insensitively while values compare exactly, and returning to Body does not
+mutate the request, `ResponseState`, active tab, or SQLite History. Deterministic
+local UI coverage additionally preserves repeated header rows in wire order and
+renders an explicit empty-header state.
+
 Cases that fail before network delivery, such as an empty URL, omit `mock`. They
 must expect an error response and no history entry.
 
