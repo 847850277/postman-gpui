@@ -24,7 +24,7 @@ pub enum HistoryListEvent {
 /// History list component for displaying request history
 pub struct HistoryList {
     view_model: Entity<WorkspaceViewModel>,
-    selected_index: Option<usize>,
+    selected_entry_id: Option<String>,
     search_query: String,
     search_input: Entity<HeaderInput>,
     _search_subscription: Subscription,
@@ -45,7 +45,7 @@ impl HistoryList {
         let view_model_subscription = cx.observe(&view_model, |_, _, cx| cx.notify());
         Self {
             view_model,
-            selected_index: None,
+            selected_entry_id: None,
             search_query: String::new(),
             search_input,
             _search_subscription: search_subscription,
@@ -94,12 +94,11 @@ impl HistoryList {
         index: usize,
         cx: &mut Context<Self>,
     ) -> Option<HistoryListEvent> {
-        self.selected_index = Some(index);
-        cx.notify();
-
         let entry = self.view_model.read(cx).history().get(index).cloned();
 
         if let Some(entry) = entry {
+            self.selected_entry_id = Some(entry.id.clone());
+            cx.notify();
             tracing::debug!(
                 index,
                 method = %entry.request.method,
@@ -159,6 +158,13 @@ impl HistoryList {
 impl Render for HistoryList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entries = self.view_model.read(cx).history().to_vec();
+        if self
+            .selected_entry_id
+            .as_ref()
+            .is_some_and(|selected| !entries.iter().any(|entry| entry.id == *selected))
+        {
+            self.selected_entry_id = None;
+        }
         let visible_entries: Vec<(usize, HistoryEntry)> = entries
             .iter()
             .enumerate()
@@ -374,8 +380,9 @@ impl Render for HistoryList {
                             .into_iter()
                             .map(|(index, entry)| {
                                 let is_selected = self
-                                    .selected_index
-                                    .map_or(index == 0, |selected| selected == index);
+                                    .selected_entry_id
+                                    .as_deref()
+                                    .is_some_and(|selected| selected == entry.id);
                                 let method_color = rgb(method_color(entry.request.method));
                                 let request_name = Self::request_name(&entry);
                                 let response_detail = Self::response_detail(&entry);

@@ -1,4 +1,4 @@
-//! Issue #131 deterministic persistence E2E coverage.
+//! Issues #131 and #136 deterministic persistence E2E coverage.
 //!
 //! Every test uses the real `PostmanApp`, `RequestExecutor`, repository worker, and a unique
 //! file-backed SQLite database. Public HTTP services and the production History path are never
@@ -17,8 +17,8 @@ use postman_gpui::{
         MultipartDraftValue, PostmanApp, RequestBodyDraft, ResponseState, WorkspaceViewModel,
     },
     models::{
-        HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request,
-        RequestBody, RequestEditorIntent,
+        HistoricalResponseBody, HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart,
+        MultipartValue, Request, RequestBody, RequestEditorIntent,
     },
     persistence::{
         HistoryLoadResult, HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
@@ -103,6 +103,7 @@ fn same_history_entry(left: &HistoryEntry, right: &HistoryEntry) -> bool {
         && left.status == right.status
         && left.elapsed_ms == right.elapsed_ms
         && left.response_size == right.response_size
+        && left.historical_response == right.historical_response
 }
 
 fn assert_visible_matches_sqlite(
@@ -202,7 +203,7 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     assert!(!database_path.exists());
 
     let json_body = r#"{"message":"body-secret-is-user-authored","active":true}"#;
-    let response_body = "response-body-must-not-be-persisted";
+    let response_body = "response-body-persisted-preview";
     let mut server = mockito::Server::new();
     let original = server
         .mock("POST", "/restart-json")
@@ -286,9 +287,10 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     );
 
     let payload = database_payload(&database_path);
-    for denied in ["query-secret", "bearer-secret", "jar-secret", response_body] {
+    for denied in ["query-secret", "bearer-secret", "jar-secret"] {
         assert!(!payload.contains(denied), "SQLite leaked {denied}");
     }
+    assert!(payload.contains(response_body));
     assert!(payload.contains("safe-trace"));
     assert!(payload.contains("body-secret-is-user-authored"));
 
@@ -336,8 +338,27 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
             workspace.request_body(),
             RequestBody::Json(json_body.to_string())
         );
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &original_id
+                    && response.status == 201
+                    && matches!(&response.body, HistoricalResponseBody::Text(body) if body == response_body)
+        ));
+        assert!(workspace.response_stored_cookies().is_empty());
+        assert_eq!(workspace.cookie_count(), 0);
     });
+    assert!(cx.debug_bounds("response-historical-badge").is_some());
+    assert!(cx.debug_bounds("response-copy-button").is_some());
+    assert!(cx.debug_bounds("response-pane-cookies").is_none());
+
+    type_into(cx, "history-search-input", "does-not-match-selected-row").unwrap();
+    assert!(cx.debug_bounds("history-item-0").is_none());
+    assert!(matches!(
+        second_workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        ResponseState::Historical { entry_id, .. } if entry_id == original_id
+    ));
+    replace_text(cx, "history-search-input", "").unwrap();
 
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -425,7 +446,12 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
             workspace.request_body(),
             RequestBody::Raw(raw_body.to_string())
         );
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &raw_id
+                    && matches!(&response.body, HistoricalResponseBody::Text(body) if body == "raw-ok")
+        ));
     });
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -438,7 +464,12 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
             workspace.request_body(),
             RequestBody::UrlEncoded(encoded_body.to_string())
         );
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &form_id
+                    && matches!(&response.body, HistoricalResponseBody::Text(body) if body == "form-ok")
+        ));
     });
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -583,7 +614,11 @@ fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &m
                     && file_name.as_deref() == Some("httpbingo-upload.txt")
                     && content_type.as_deref() == Some("text/plain")
         ));
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { response, .. }
+                if matches!(&response.body, HistoricalResponseBody::Text(body) if body == "multipart-ok")
+        ));
     });
     assert!(cx.debug_bounds("body-form-file-metadata-1").is_some());
     assert!(cx.debug_bounds("body-form-omitted-2").is_some());
@@ -1129,7 +1164,8 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
         .match_body(Matcher::Exact(body.to_string()))
         .with_status(200)
         .with_header("set-cookie", "session=jar-secret; Path=/")
-        .with_body("response-secret")
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"password":"response-secret","message":"stored-response"}"#)
         .create();
     let basic = server
         .mock("GET", "/basic-security")
@@ -1210,6 +1246,13 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
                 && !name.eq_ignore_ascii_case("set-cookie")
                 && !name.eq_ignore_ascii_case("x-api-key")
         }));
+        let response = entry
+            .historical_response
+            .as_ref()
+            .expect("V2 rows should include response evidence");
+        assert!(response.headers.iter().all(|(name, _)| {
+            !postman_gpui::persistence::HistorySensitiveDataPolicy::is_sensitive_header_name(name)
+        }));
     }
     assert_eq!(stored[1].request.body, RequestBody::Json(body.to_string()));
 
@@ -1239,6 +1282,7 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     assert!(payload.contains("body-secret-is-user-authored"));
     for row in payload.lines() {
         let value: serde_json::Value = serde_json::from_str(row).unwrap();
+        assert_eq!(value["version"], serde_json::Value::from(2));
         let top_level = value.as_object().unwrap();
         assert_eq!(
             top_level
@@ -1248,7 +1292,7 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
             std::collections::BTreeSet::from(["snapshot", "version"])
         );
         let snapshot = value["snapshot"].as_object().unwrap();
-        assert!(!snapshot.contains_key("response"));
+        assert!(snapshot.contains_key("response"));
         assert!(!snapshot.contains_key("cookies"));
         assert!(!snapshot.contains_key("tabs"));
         assert!(!snapshot.contains_key("pending_request_id"));
@@ -1302,8 +1346,13 @@ fn legacy_schema_migrates_and_a_malformed_newer_row_is_skipped_after_restart(
                 "preserved"
             )]
         );
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::HistoricalUnavailable { entry_id }
+                if entry_id == "00000000-0000-4000-8000-000000000129"
+        ));
     });
+    assert!(cx.debug_bounds("response-historical-unavailable").is_some());
     close_app(first_app, cx);
     drop(first_workspace);
 
