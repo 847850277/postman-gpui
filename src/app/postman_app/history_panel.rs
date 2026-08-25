@@ -6,14 +6,35 @@ use crate::ui::theme::{
     SUBTEXT, TEXT,
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
-    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
-    Subscription, Window,
+    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
+    FocusHandle, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Render,
+    Role, StatefulInteractiveElement, Styled, Subscription, Window,
 };
+use std::collections::{HashMap, HashSet};
 
 const HISTORY_SELECTED_BORDER: u32 = 0x00f2_b89f;
 
-/// Event emitted when a history item is clicked
+actions!(
+    history_list,
+    [
+        ActivateHistoryItem,
+        FocusFirstHistoryItem,
+        FocusNextHistoryItem,
+        FocusPreviousHistoryItem
+    ]
+);
+
+fn setup_history_list_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("enter", ActivateHistoryItem, Some("HistoryItem")),
+        KeyBinding::new("space", ActivateHistoryItem, Some("HistoryItem")),
+        KeyBinding::new("tab", FocusFirstHistoryItem, Some("HistorySearch")),
+        KeyBinding::new("tab", FocusNextHistoryItem, Some("HistoryItem")),
+        KeyBinding::new("shift-tab", FocusPreviousHistoryItem, Some("HistoryItem")),
+    ]
+}
+
+/// Event emitted when a History command is activated.
 #[derive(Debug, Clone)]
 pub enum HistoryListEvent {
     RequestSelected(Box<HistoryEntry>),
@@ -25,6 +46,7 @@ pub enum HistoryListEvent {
 pub struct HistoryList {
     view_model: Entity<WorkspaceViewModel>,
     selected_entry_id: Option<String>,
+    item_focus_handles: HashMap<String, FocusHandle>,
     search_query: String,
     search_input: Entity<HeaderInput>,
     _search_subscription: Subscription,
@@ -35,6 +57,7 @@ impl EventEmitter<HistoryListEvent> for HistoryList {}
 
 impl HistoryList {
     pub fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+        cx.bind_keys(setup_history_list_key_bindings());
         let search_input = cx.new(|cx| {
             HeaderInput::new(cx)
                 .with_placeholder("Filter history")
@@ -46,6 +69,7 @@ impl HistoryList {
         Self {
             view_model,
             selected_entry_id: None,
+            item_focus_handles: HashMap::new(),
             search_query: String::new(),
             search_input,
             _search_subscription: search_subscription,
@@ -89,18 +113,26 @@ impl HistoryList {
                 .contains(query)
     }
 
-    fn on_item_clicked(
+    /// Mouse, Enter, and Space all resolve the currently rendered row through this command.
+    /// Stable IDs avoid replaying a different request if an async SQLite refresh reorders rows.
+    fn activate_item(
         &mut self,
-        index: usize,
+        entry_id: &str,
         cx: &mut Context<Self>,
     ) -> Option<HistoryListEvent> {
-        let entry = self.view_model.read(cx).history().get(index).cloned();
+        let entry = self
+            .view_model
+            .read(cx)
+            .history()
+            .iter()
+            .find(|entry| entry.id == entry_id)
+            .cloned();
 
         if let Some(entry) = entry {
             self.selected_entry_id = Some(entry.id.clone());
             cx.notify();
             tracing::debug!(
-                index,
+                entry_id,
                 method = %entry.request.method,
                 url = %crate::utils::log::display_url_for_log(&entry.request.url),
                 "history item selected"
@@ -108,12 +140,53 @@ impl HistoryList {
             Some(HistoryListEvent::RequestSelected(Box::new(entry)))
         } else {
             tracing::warn!(
-                index,
+                entry_id,
                 entries = self.view_model.read(cx).history_len(),
-                "history item index is out of range"
+                "history item is no longer present"
             );
             None
         }
+    }
+
+    fn focus_first_item(
+        &mut self,
+        _: &FocusFirstHistoryItem,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let first_visible_id = self
+            .view_model
+            .read(cx)
+            .history()
+            .iter()
+            .find(|entry| self.matches_query(entry))
+            .map(|entry| entry.id.clone());
+        if let Some(focus_handle) = first_visible_id
+            .as_ref()
+            .and_then(|entry_id| self.item_focus_handles.get(entry_id))
+        {
+            focus_handle.focus(window, cx);
+        } else {
+            window.focus_next(cx);
+        }
+    }
+
+    fn focus_next_item(
+        &mut self,
+        _: &FocusNextHistoryItem,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        window.focus_next(cx);
+    }
+
+    fn focus_previous_item(
+        &mut self,
+        _: &FocusPreviousHistoryItem,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        window.focus_prev(cx);
     }
 
     fn request_name(entry: &HistoryEntry) -> String {
@@ -156,8 +229,14 @@ impl HistoryList {
 }
 
 impl Render for HistoryList {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let entries = self.view_model.read(cx).history().to_vec();
+        let retained_entry_ids = entries
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<HashSet<_>>();
+        self.item_focus_handles
+            .retain(|entry_id, _| retained_entry_ids.contains(entry_id.as_str()));
         if self
             .selected_entry_id
             .as_ref()
@@ -292,7 +371,9 @@ impl Render for HistoryList {
             )
             .child(
                 div()
+                    .id("history-search-shell")
                     .debug_selector(|| "history-search-input".into())
+                    .key_context("HistorySearch")
                     .h(px(38.0))
                     .flex_none()
                     .flex()
@@ -303,6 +384,7 @@ impl Render for HistoryList {
                     .bg(rgb(PANEL_ALT))
                     .border_1()
                     .border_color(rgb(LINE))
+                    .on_action(cx.listener(Self::focus_first_item))
                     .child(
                         div()
                             .size(px(15.0))
@@ -349,6 +431,7 @@ impl Render for HistoryList {
                     .overflow_scroll()
                     .children(if visible_entries.is_empty() {
                         vec![div()
+                            .id("history-empty-state")
                             .flex()
                             .flex_col()
                             .gap_2()
@@ -379,14 +462,29 @@ impl Render for HistoryList {
                         visible_entries
                             .into_iter()
                             .map(|(index, entry)| {
+                                let focus_handle = self
+                                    .item_focus_handles
+                                    .entry(entry.id.clone())
+                                    .or_insert_with(|| {
+                                        cx.focus_handle().tab_index(0).tab_stop(true)
+                                    })
+                                    .clone();
+                                let mouse_focus_handle = focus_handle.clone();
+                                let focused = focus_handle.is_focused(window);
                                 let is_selected = self
                                     .selected_entry_id
                                     .as_deref()
                                     .is_some_and(|selected| selected == entry.id);
                                 let method_color = rgb(method_color(entry.request.method));
                                 let request_name = Self::request_name(&entry);
+                                let accessible_label = format!(
+                                    "Replay {} {}",
+                                    entry.request.method, request_name
+                                );
                                 let response_detail = Self::response_detail(&entry);
                                 let response_status = entry.status;
+                                let mouse_entry_id = entry.id.clone();
+                                let keyboard_entry_id = entry.id.clone();
 
                                 let bg_color = if is_selected {
                                     rgb(ACCENT_SOFT)
@@ -395,7 +493,12 @@ impl Render for HistoryList {
                                 };
 
                                 div()
+                                    .id(entry.id.clone())
                                     .debug_selector(move || format!("history-item-{index}"))
+                                    .track_focus(&focus_handle)
+                                    .key_context("HistoryItem")
+                                    .role(Role::Button)
+                                    .aria_label(accessible_label)
                                     .h(px(58.0))
                                     .flex_none()
                                     .flex()
@@ -404,7 +507,7 @@ impl Render for HistoryList {
                                     .px(px(10.0))
                                     .rounded(px(9.0))
                                     .border_1()
-                                    .border_color(rgb(if is_selected {
+                                    .border_color(rgb(if is_selected || focused {
                                         HISTORY_SELECTED_BORDER
                                     } else {
                                         PANEL
@@ -419,13 +522,30 @@ impl Render for HistoryList {
                                         }
                                     })
                                     .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _event, _window, cx| {
-                                            if let Some(event) = this.on_item_clicked(index, cx) {
+                                        MouseButton::Left,
+                                        cx.listener(move |this, _event, window, cx| {
+                                            mouse_focus_handle.focus(window, cx);
+                                            if let Some(event) =
+                                                this.activate_item(&mouse_entry_id, cx)
+                                            {
                                                 cx.emit(event);
                                             }
                                         }),
                                     )
+                                    .on_action(cx.listener(
+                                        move |this,
+                                              _: &ActivateHistoryItem,
+                                              _window,
+                                              cx| {
+                                            if let Some(event) =
+                                                this.activate_item(&keyboard_entry_id, cx)
+                                            {
+                                                cx.emit(event);
+                                            }
+                                        },
+                                    ))
+                                    .on_action(cx.listener(Self::focus_next_item))
+                                    .on_action(cx.listener(Self::focus_previous_item))
                                     .child(
                                         div()
                                             .debug_selector(move || {

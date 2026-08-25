@@ -123,6 +123,7 @@ impl PostmanApp {
             HistoryStorageStage::Initialize,
             initialize,
             load,
+            None,
             cx,
         );
     }
@@ -229,6 +230,7 @@ impl PostmanApp {
             HistoryStorageStage::Clear,
             clear,
             load,
+            None,
             cx,
         );
     }

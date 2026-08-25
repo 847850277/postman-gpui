@@ -9,6 +9,7 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
+    collections::HashMap,
     fmt,
     ops::{Deref, DerefMut},
     path::PathBuf,
@@ -1208,8 +1209,8 @@ impl RequestViewModel {
         self.dirty = false;
     }
 
-    fn load_history_entry(&mut self, entry: &HistoryEntry) {
-        self.load_request(&entry.request);
+    fn load_history_entry(&mut self, entry: &HistoryEntry, replay_request: &Request) {
+        self.load_request(replay_request);
         self.timeout_ms = entry.request_options.timeout_ms.unwrap_or(0);
         if let Some(intent) = &entry.editor_intent {
             self.body_draft = RequestBodyDraft::from_editor_intent(intent);
@@ -1558,6 +1559,11 @@ pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
     active_tab: usize,
     history: RequestHistory,
+    /// Current-process complete Requests keyed by SQLite-confirmed History IDs. This is not a
+    /// second History store: it has no ordering or metadata, is never rendered independently,
+    /// and is pruned whenever the authoritative SQLite query result changes. It only preserves
+    /// credentials stripped at the persistence boundary for same-session replay.
+    runtime_replay_requests: HashMap<String, Request>,
     history_storage_status: HistoryStorageStatus,
     cookie_jar: Vec<CookieJarEntry>,
     last_cookie_clear_count: Option<usize>,
@@ -1576,6 +1582,7 @@ impl WorkspaceViewModel {
             tabs: vec![request],
             active_tab: 0,
             history: RequestHistory::new(),
+            runtime_replay_requests: HashMap::new(),
             history_storage_status: HistoryStorageStatus::Loading {
                 stage: HistoryStorageStage::Initialize,
             },
@@ -1791,7 +1798,12 @@ impl WorkspaceViewModel {
     }
 
     pub fn load_history_entry(&mut self, entry: &HistoryEntry) {
-        self.tabs[self.active_tab].load_history_entry(entry);
+        let replay_request = self
+            .runtime_replay_requests
+            .get(&entry.id)
+            .unwrap_or(&entry.request)
+            .clone();
+        self.tabs[self.active_tab].load_history_entry(entry, &replay_request);
     }
 
     pub fn request_editor_intent(&self) -> Option<RequestEditorIntent> {
@@ -1827,6 +1839,8 @@ impl WorkspaceViewModel {
             .iter()
             .map(|entry| entry.id.as_str())
             .collect::<std::collections::HashSet<_>>();
+        self.runtime_replay_requests
+            .retain(|entry_id, _| retained_ids.contains(entry_id.as_str()));
         for tab in &mut self.tabs {
             if tab
                 .response
@@ -1838,6 +1852,19 @@ impl WorkspaceViewModel {
             }
         }
         self.history_storage_status = HistoryStorageStatus::Ready { skipped_rows };
+    }
+
+    /// Attach a complete Request only after its History ID has been returned by SQLite.
+    /// Recovered rows intentionally have no overlay and therefore replay their sanitized request.
+    pub(crate) fn confirm_runtime_replay_request(&mut self, entry_id: String, request: Request) {
+        if self
+            .history
+            .entries()
+            .iter()
+            .any(|entry| entry.id == entry_id)
+        {
+            self.runtime_replay_requests.insert(entry_id, request);
+        }
     }
 
     pub(crate) fn set_history_storage_error(
@@ -3185,6 +3212,58 @@ mod tests {
         assert_eq!(workspace.timeout_ms(), 0);
         workspace.load_history_entry(&entry);
         assert_eq!(workspace.timeout_ms(), 1_250);
+    }
+
+    #[test]
+    fn runtime_replay_overlay_requires_a_confirmed_row_and_does_not_survive_recovery() {
+        let raw_url = "https://example.com/replay?tag=rust&api_key=runtime-secret";
+        let mut raw_request = Request::new(HttpMethod::POST, raw_url);
+        raw_request.add_header("X-Replay", "original");
+        raw_request.add_header("Authorization", "Bearer runtime-token");
+        raw_request.body = RequestBody::Json(r#"{"replay":true}"#.to_string());
+        let candidate =
+            HistoryEntry::completed(raw_request.clone(), "runtime replay".into(), 200, 4, 2)
+                .with_historical_response(HistoricalResponse::completed(
+                    200,
+                    Vec::new(),
+                    "ok".into(),
+                    4,
+                ));
+        let confirmed = HistoryEntry::try_from(
+            VersionedHistorySnapshot::try_from(&candidate).expect("candidate should serialize"),
+        )
+        .expect("snapshot should return to a History entry");
+        assert_eq!(confirmed.id, candidate.id);
+        assert_eq!(confirmed.request.url, "https://example.com/replay?tag=rust");
+        assert!(confirmed
+            .request
+            .headers
+            .iter()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+
+        let mut current_session = WorkspaceViewModel::new();
+        current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request.clone());
+        assert!(current_session.runtime_replay_requests.is_empty());
+        current_session.replace_history_query_result(vec![confirmed.clone()], 0);
+        current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request);
+        current_session.load_history_entry(&confirmed);
+        assert_eq!(current_session.url(), raw_url);
+        assert_eq!(current_session.bearer_token(), "runtime-token");
+
+        // An explicit refresh retains overlays only for IDs still returned by SQLite.
+        current_session.replace_history_query_result(vec![confirmed.clone()], 0);
+        assert_eq!(current_session.runtime_replay_requests.len(), 1);
+        current_session.replace_history_query_result(Vec::new(), 0);
+        assert!(current_session.runtime_replay_requests.is_empty());
+
+        let mut recovered_session = WorkspaceViewModel::new();
+        recovered_session.replace_history_query_result(vec![confirmed.clone()], 0);
+        recovered_session.load_history_entry(&confirmed);
+        assert_eq!(
+            recovered_session.url(),
+            "https://example.com/replay?tag=rust"
+        );
+        assert!(recovered_session.bearer_token().is_empty());
     }
 
     #[test]

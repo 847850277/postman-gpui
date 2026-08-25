@@ -195,6 +195,153 @@ fn wait_for(
 }
 
 #[gpui::test]
+fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_and_space(
+    test_cx: &mut TestAppContext,
+) {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("history.sqlite3");
+    let json_body = r#"{"message":"history replay","count":2}"#;
+    let mut server = mockito::Server::new();
+    let request_url = format!(
+        "{}/current-session-replay?existing=1&api_key=current-session-secret",
+        server.url()
+    );
+    let request = server
+        .mock("POST", "/current-session-replay")
+        .match_query(Matcher::Exact(
+            "existing=1&api_key=current-session-secret".to_string(),
+        ))
+        .match_header("x-replay", "original")
+        .match_header("authorization", "Bearer history-e2e-token")
+        .match_body(Matcher::Exact(json_body.to_string()))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"replayed":true}"#)
+        .expect(2)
+        .create();
+
+    let (app, workspace, cx) = launch_app(test_cx, &database_path);
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", &request_url).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "X-Replay").unwrap();
+    type_into(cx, "row-value-input", "original").unwrap();
+    click(cx, "request-pane-authorization").unwrap();
+    type_into(cx, "authorization-input", "Bearer history-e2e-token").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", json_body).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+
+    let confirmed = assert_visible_matches_sqlite(&workspace, cx, &database_path);
+    assert_eq!(confirmed.len(), 1);
+    let original = confirmed[0].clone();
+    let original_id = original.id.clone();
+    assert_eq!(
+        original.request.url,
+        format!("{}/current-session-replay?existing=1", server.url())
+    );
+    assert!(original
+        .request
+        .headers
+        .iter()
+        .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+    let payload = database_payload(&database_path);
+    for denied in ["current-session-secret", "history-e2e-token"] {
+        assert!(!payload.contains(denied), "SQLite leaked {denied}");
+    }
+
+    // Mouse activation restores the runtime-complete Request while the rendered History row
+    // remains the sanitized SQLite projection.
+    click(cx, "new-tab-button").unwrap();
+    type_into(cx, "url-input", "https://draft.example/mouse").unwrap();
+    click(cx, "history-item-0").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        assert_eq!(workspace.method(), HttpMethod::POST);
+        assert_eq!(workspace.url(), request_url);
+        assert_eq!(
+            workspace.params(),
+            &[
+                postman_gpui::app::KeyValueRow::enabled("existing", "1"),
+                postman_gpui::app::KeyValueRow::enabled("api_key", "current-session-secret",),
+            ]
+        );
+        assert!(workspace
+            .headers()
+            .iter()
+            .any(|row| row.key == "X-Replay" && row.value == "original"));
+        assert_eq!(workspace.authorization_kind(), AuthorizationKind::Bearer);
+        assert_eq!(workspace.bearer_token(), "history-e2e-token");
+        assert_eq!(workspace.body_kind(), BodyKind::Json);
+        assert_eq!(
+            workspace.request_body(),
+            RequestBody::Json(json_body.to_string())
+        );
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Historical { entry_id, .. } if entry_id == &original_id
+        ));
+        assert_eq!(workspace.history_len(), 1);
+    });
+    assert!(cx.debug_bounds("body-input").is_some());
+    assert!(cx.debug_bounds("response-historical-badge").is_some());
+    click(cx, "request-pane-params").unwrap();
+    assert!(cx.debug_bounds("param-row-toggle-0").is_some());
+    assert!(cx.debug_bounds("param-row-toggle-1").is_some());
+    click(cx, "request-pane-headers").unwrap();
+    assert!(cx.debug_bounds("headers-enabled-count").is_some());
+    click(cx, "request-pane-authorization").unwrap();
+    assert!(cx.debug_bounds("authorization-input").is_some());
+    assert!(cx.debug_bounds("authorization-ready-indicator").is_some());
+    click(cx, "request-pane-body").unwrap();
+
+    // The search editor precedes History rows in the focus order. Tab focuses the first row;
+    // Enter and Space must both invoke the same stable-ID command as the mouse path above.
+    replace_text(cx, "url-input", "https://draft.example/enter").unwrap();
+    click(cx, "history-search-input").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        request_url
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        "history-e2e-token"
+    );
+
+    replace_text(cx, "url-input", "https://draft.example/space").unwrap();
+    click(cx, "history-search-input").unwrap();
+    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        request_url
+    );
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        "history-e2e-token"
+    );
+
+    // No blur, Enter-on-editor, or submit-time projection is needed before Send.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    request.assert();
+    let replayed = assert_visible_matches_sqlite(&workspace, cx, &database_path);
+    assert_eq!(replayed.len(), 2);
+    assert_ne!(replayed[0].id, original_id);
+    assert!(same_history_entry(&replayed[1], &original));
+    assert_eq!(replayed[0].request, replayed[1].request);
+    let payload = database_payload(&database_path);
+    for denied in ["current-session-secret", "history-e2e-token"] {
+        assert!(!payload.contains(denied), "SQLite leaked {denied}");
+    }
+
+    close_app(app, cx);
+}
+
+#[gpui::test]
 fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     test_cx: &mut TestAppContext,
 ) {
