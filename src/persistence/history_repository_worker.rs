@@ -1,7 +1,13 @@
 use super::{
     HistoryLoadResult, HistoryRepository, HistoryRepositoryError, VersionedHistorySnapshot,
 };
-use std::{sync::mpsc, thread};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::mpsc,
+    task::{Context, Poll},
+    thread,
+};
 use tokio::sync::oneshot;
 
 const HISTORY_STORAGE_THREAD_NAME: &str = "postman-history-storage";
@@ -10,6 +16,39 @@ const HISTORY_STORAGE_THREAD_NAME: &str = "postman-history-storage";
 /// methods without ever opening or using a SQLite connection itself.
 pub struct HistoryRepositoryWorker {
     sender: mpsc::Sender<HistoryRepositoryCommand>,
+}
+
+/// Result handle for one command already queued on the SQLite worker.
+///
+/// Ordinary async callers may await it. GPUI hosts use `join_on_background_thread` inside their
+/// background executor so the dedicated storage thread never directly wakes the UI scheduler.
+pub struct HistoryRepositoryTask<T> {
+    queued: Result<(), HistoryRepositoryError>,
+    response: oneshot::Receiver<Result<T, HistoryRepositoryError>>,
+}
+
+impl<T> HistoryRepositoryTask<T> {
+    pub fn join_on_background_thread(self) -> Result<T, HistoryRepositoryError> {
+        self.queued?;
+        self.response
+            .blocking_recv()
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?
+    }
+}
+
+impl<T> Future for HistoryRepositoryTask<T> {
+    type Output = Result<T, HistoryRepositoryError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if let Err(error) = &self.queued {
+            return Poll::Ready(Err(error.clone()));
+        }
+        match Pin::new(&mut self.response).poll(cx) {
+            Poll::Ready(Ok(result)) => Poll::Ready(result),
+            Poll::Ready(Err(_)) => Poll::Ready(Err(HistoryRepositoryError::WorkerUnavailable)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
 impl HistoryRepositoryWorker {
@@ -26,55 +65,50 @@ impl HistoryRepositoryWorker {
         Ok(Self { sender })
     }
 
-    pub async fn initialize(&self) -> Result<(), HistoryRepositoryError> {
+    /// Queue initialization immediately and return a future for its result. Enqueuing before the
+    /// future is first polled preserves command ordering when GPUI starts storage tasks together.
+    pub fn initialize(&self) -> HistoryRepositoryTask<()> {
         let (reply, response) = oneshot::channel();
-        self.sender
+        let queued = self
+            .sender
             .send(HistoryRepositoryCommand::Initialize { reply })
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?;
-        response
-            .await
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable);
+        HistoryRepositoryTask { queued, response }
     }
 
-    pub async fn load_recent(
-        &self,
-        limit: usize,
-    ) -> Result<HistoryLoadResult, HistoryRepositoryError> {
+    pub fn load_recent(&self, limit: usize) -> HistoryRepositoryTask<HistoryLoadResult> {
         let (reply, response) = oneshot::channel();
-        self.sender
+        let queued = self
+            .sender
             .send(HistoryRepositoryCommand::LoadRecent { limit, reply })
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?;
-        response
-            .await
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable);
+        HistoryRepositoryTask { queued, response }
     }
 
-    pub async fn append_and_trim(
+    pub fn append_and_trim(
         &self,
         snapshot: VersionedHistorySnapshot,
         limit: usize,
-    ) -> Result<(), HistoryRepositoryError> {
+    ) -> HistoryRepositoryTask<()> {
         let (reply, response) = oneshot::channel();
-        self.sender
+        let queued = self
+            .sender
             .send(HistoryRepositoryCommand::AppendAndTrim {
                 snapshot: Box::new(snapshot),
                 limit,
                 reply,
             })
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?;
-        response
-            .await
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable);
+        HistoryRepositoryTask { queued, response }
     }
 
-    pub async fn clear(&self) -> Result<(), HistoryRepositoryError> {
+    pub fn clear(&self) -> HistoryRepositoryTask<()> {
         let (reply, response) = oneshot::channel();
-        self.sender
+        let queued = self
+            .sender
             .send(HistoryRepositoryCommand::Clear { reply })
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?;
-        response
-            .await
-            .map_err(|_| HistoryRepositoryError::WorkerUnavailable)?
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable);
+        HistoryRepositoryTask { queued, response }
     }
 }
 

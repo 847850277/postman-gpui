@@ -507,7 +507,7 @@ impl RequestSnapshotV1 {
     pub fn replay_url(&self) -> Result<String, HistorySnapshotError> {
         let mut url = parse_http_url(&self.url)?;
         url.set_query(None);
-        {
+        if !self.query.is_empty() {
             let mut query = url.query_pairs_mut();
             for pair in &self.query {
                 query.append_pair(&pair.name, &pair.value);

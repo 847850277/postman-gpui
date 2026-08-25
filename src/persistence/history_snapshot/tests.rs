@@ -50,6 +50,16 @@ fn every_supported_method_round_trips() {
 }
 
 #[test]
+fn url_without_query_does_not_gain_a_trailing_question_mark_on_replay() {
+    let mut entry = completed_entry(HttpMethod::GET, RequestBody::None);
+    entry.request.url = "https://api.example.com/v1/items".to_string();
+
+    let restored = round_trip(&entry);
+
+    assert_eq!(restored.request.url, entry.request.url);
+}
+
+#[test]
 fn every_supported_body_kind_round_trips() {
     let bodies = vec![
         RequestBody::None,

@@ -5,13 +5,19 @@ mod ui;
 
 use gpui::{px, AppContext, Modifiers, TestAppContext};
 use postman_gpui::app::{AuthorizationKind, BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
-use postman_gpui::http::executor::RequestResult;
-use postman_gpui::models::HttpMethod;
+use postman_gpui::models::{HistoryEntry, HttpMethod, Request};
+use postman_gpui::persistence::{
+    HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
+    DEFAULT_HISTORY_RETENTION_LIMIT,
+};
 use ui::{click, scroll_down};
 
 #[gpui::test]
 fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
-    let (_app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     let top_header = cx
         .debug_bounds("top-header")
@@ -56,7 +62,10 @@ fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn method_menu_opens_directly_below_its_button(cx: &mut TestAppContext) {
-    let (_app, cx) = cx.add_window_view(|_window, cx| PostmanApp::new(cx));
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     let button = cx
         .debug_bounds("method-dropdown-button")
@@ -85,25 +94,27 @@ fn method_menu_opens_directly_below_its_button(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
-    let workspace = cx.new(|_| {
-        let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/get?existing=1");
-        let pending = workspace.begin_send();
-        workspace.complete_send(
-            pending,
-            Ok(RequestResult {
-                status: 200,
-                headers: Vec::new(),
-                body: r#"{"ok":true}"#.to_string(),
-                elapsed_ms: 483,
-                stored_cookies: Vec::new(),
-            }),
-        );
-        workspace
-    });
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("history.sqlite3");
+    let entry = HistoryEntry::completed(
+        Request::new(HttpMethod::GET, "https://httpbingo.org/get?existing=1"),
+        "https://httpbingo.org/get?existing=1".to_string(),
+        200,
+        483,
+        r#"{"ok":true}"#.len(),
+    );
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let mut repository = SqliteHistoryRepository::new(&database_path).unwrap();
+    repository.initialize().unwrap();
+    repository
+        .append_and_trim(&snapshot, DEFAULT_HISTORY_RETENTION_LIMIT)
+        .unwrap();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+    });
+    cx.run_until_parked();
 
     let panel = cx
         .debug_bounds("history-panel")
@@ -111,9 +122,15 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
     let header = cx
         .debug_bounds("history-header")
         .expect("history header should render");
-    let options = cx
-        .debug_bounds("history-options")
-        .expect("history options should render");
+    let actions = cx
+        .debug_bounds("history-actions")
+        .expect("history actions should render");
+    let refresh = cx
+        .debug_bounds("history-refresh-button")
+        .expect("history refresh should render");
+    let clear = cx
+        .debug_bounds("history-clear-button")
+        .expect("history clear should render");
     let search = cx
         .debug_bounds("history-search-input")
         .expect("history search should render");
@@ -130,8 +147,11 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
     assert_eq!(panel.size.width, px(320.0));
     assert_eq!(header.origin.x, panel.origin.x + px(16.0));
     assert_eq!(header.origin.y, panel.origin.y + px(18.0));
-    assert_eq!(options.size.width, px(18.0));
-    assert_eq!(options.size.height, px(18.0));
+    assert!(actions.size.width > px(18.0));
+    assert_eq!(actions.size.height, px(24.0));
+    assert_eq!(refresh.size.height, px(24.0));
+    assert_eq!(clear.size.height, px(24.0));
+    assert!(cx.debug_bounds("history-storage-ready").is_some());
     assert_eq!(search.size.height, px(38.0));
     assert!(date.origin.y >= search.bottom());
     assert_eq!(item.size.height, px(58.0));

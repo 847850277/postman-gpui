@@ -668,12 +668,9 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
             .cloned()
             .collect::<Vec<_>>()
     });
-    assert_eq!(
-        authorization_headers,
-        vec![(
-            "Authorization".to_string(),
-            "Basic dWktdXNlcjp1aS1wYXNz".to_string()
-        )]
+    assert!(
+        authorization_headers.is_empty(),
+        "the request must send Basic Auth, but SQLite History must not persist it"
     );
     assert!(cx.debug_bounds("response-content").is_some());
     assert!(cx.debug_bounds("history-item-0").is_some());

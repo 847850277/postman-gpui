@@ -19,11 +19,7 @@ The history list in the left sidebar shows all your previous requests. Simply **
 - Load all headers
 - Load the request body
 
-The versioned persistence and sensitive-data boundary is documented in
-[`docs/history-snapshot-v1.md`](docs/history-snapshot-v1.md). SQLite storage is intentionally a
-separate layer and is not part of the V1 snapshot contract.
-The SQLite repository, schema migration, and worker-thread boundary are documented in
-[`docs/history-repository-sqlite.md`](docs/history-repository-sqlite.md).
+
 
 
 ## Project Structure
