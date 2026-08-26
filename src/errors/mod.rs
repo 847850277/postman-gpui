@@ -6,6 +6,8 @@
 
 use std::fmt;
 
+use crate::models::RedirectHop;
+
 /// Unified application error type
 #[derive(Debug, Clone)]
 pub enum AppError {
@@ -21,6 +23,11 @@ pub enum AppError {
     NetworkError(String),
     /// Request-level deadline configured in the editor elapsed.
     Timeout { timeout_ms: u64 },
+    /// A followed response remained a redirect after the configured number of observable hops.
+    RedirectLimitExceeded {
+        max_hops: u32,
+        chain: Vec<RedirectHop>,
+    },
     /// UI rendering error
     RenderError(String),
 }
@@ -40,7 +47,19 @@ impl fmt::Display for AppError {
                     format_number(*timeout_ms)
                 )
             }
+            AppError::RedirectLimitExceeded { max_hops, .. } => {
+                write!(f, "Redirect limit exceeded after {max_hops} hops.")
+            }
             AppError::RenderError(msg) => write!(f, "Render Error: {}", msg),
+        }
+    }
+}
+
+impl AppError {
+    pub fn redirect_chain(&self) -> &[RedirectHop] {
+        match self {
+            Self::RedirectLimitExceeded { chain, .. } => chain,
+            _ => &[],
         }
     }
 }
@@ -112,6 +131,12 @@ mod tests {
 
         let err = AppError::Timeout { timeout_ms: 1_000 };
         assert_eq!(err.to_string(), "Request timed out after 1,000 ms");
+
+        let err = AppError::RedirectLimitExceeded {
+            max_hops: 2,
+            chain: Vec::new(),
+        };
+        assert_eq!(err.to_string(), "Redirect limit exceeded after 2 hops.");
 
         let err = AppError::RenderError("Failed to render component".to_string());
         assert_eq!(err.to_string(), "Render Error: Failed to render component");

@@ -1,5 +1,161 @@
 {
   "schema_version": 5,
   "target": "httpbingo",
-  "cases": []
+  "cases": [
+    {
+      "name": "HTTPBingo follows a relative redirect chain and exposes every hop",
+      "draft": {
+        "method": "GET",
+        "path": "/relative-redirect/3",
+        "redirect_policy": "follow",
+        "max_redirect_hops": 5,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/relative-redirect/3",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "GET"
+          },
+          "headers_contain": [
+            ["content-type", "application/json; charset=utf-8"]
+          ],
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/relative-redirect/3",
+              "location": "/relative-redirect/2"
+            },
+            {
+              "status": 302,
+              "url": "/relative-redirect/2",
+              "location": "/relative-redirect/1"
+            },
+            {
+              "status": 302,
+              "url": "/relative-redirect/1",
+              "location": "/get"
+            },
+            {
+              "status": 200,
+              "url": "/get"
+            }
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo returns the first redirect when following is disabled",
+      "draft": {
+        "method": "GET",
+        "path": "/redirect-to?url=%2Fanything%2Fstop&status_code=302",
+        "redirect_policy": "do_not_follow",
+        "max_redirect_hops": 10,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/redirect-to?url=%2Fanything%2Fstop&status_code=302",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 302,
+          "headers_contain": [
+            ["location", "/anything/stop"]
+          ],
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/redirect-to?url=%2Fanything%2Fstop&status_code=302",
+              "location": "/anything/stop"
+            }
+          ]
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HTTPBingo stops an absolute redirect chain at the configured limit",
+      "draft": {
+        "method": "GET",
+        "path": "/absolute-redirect/3",
+        "redirect_policy": "follow",
+        "max_redirect_hops": 2,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/absolute-redirect/3",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "error",
+          "contains": "Redirect limit exceeded after 2 hops.",
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/absolute-redirect/3",
+              "location": "https://httpbingo.org/absolute-redirect/2"
+            },
+            {
+              "status": 302,
+              "url": "/absolute-redirect/2",
+              "location": "https://httpbingo.org/absolute-redirect/1"
+            }
+          ]
+        },
+        "history_len": 0
+      }
+    },
+    {
+      "name": "HTTPBingo follows the standard redirect endpoint to its terminal response",
+      "draft": {
+        "method": "GET",
+        "path": "/redirect/1",
+        "redirect_policy": "follow",
+        "max_redirect_hops": 5,
+        "body_kind": "none"
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/redirect/1",
+          "headers": [],
+          "body": null
+        },
+        "response": {
+          "kind": "success",
+          "status": 200,
+          "body_json_contains": {
+            "method": "GET"
+          },
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/redirect/1",
+              "location": "/get"
+            },
+            {
+              "status": 200,
+              "url": "/get"
+            }
+          ]
+        },
+        "history_len": 1
+      }
+    }
+  ]
 }

@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::http::client::HttpClient;
-use crate::models::Request;
+use crate::models::{RedirectHop, Request, RequestOptions};
 use crate::utils::log::{format_http_request, format_http_response};
 use std::{
     future::Future,
@@ -18,6 +18,7 @@ pub struct RequestResult {
     pub body: String,
     pub elapsed_ms: u128,
     pub stored_cookies: Vec<(String, String)>,
+    pub redirect_chain: Vec<RedirectHop>,
 }
 
 /// A cancellable request scheduled on the executor's Tokio runtime.
@@ -74,6 +75,7 @@ impl RequestResult {
             body,
             elapsed_ms: 0,
             stored_cookies: Vec::new(),
+            redirect_chain: Vec::new(),
         }
     }
 
@@ -84,6 +86,7 @@ impl RequestResult {
             body: message,
             elapsed_ms: 0,
             stored_cookies: Vec::new(),
+            redirect_chain: Vec::new(),
         }
     }
 }
@@ -109,17 +112,25 @@ impl RequestExecutor {
     /// using its abort handle cancels the underlying reqwest future instead of merely ignoring
     /// its UI result.
     pub fn spawn(&self, request: Request) -> RequestTask {
-        self.spawn_with_timeout(request, None)
+        self.spawn_with_options(request, RequestOptions::default())
     }
 
     /// Starts the canonical request path with an optional request-level deadline. A zero value is
     /// treated as disabled so callers cannot accidentally create an immediate timeout.
     pub fn spawn_with_timeout(&self, request: Request, timeout_ms: Option<u64>) -> RequestTask {
+        self.spawn_with_options(
+            request,
+            RequestOptions {
+                timeout_ms,
+                ..RequestOptions::default()
+            },
+        )
+    }
+
+    /// Starts the canonical request path with the complete per-request transport policy.
+    pub fn spawn_with_options(&self, request: Request, options: RequestOptions) -> RequestTask {
         let client = self.client.clone();
-        let timeout_ms = timeout_ms.filter(|timeout_ms| *timeout_ms > 0);
-        let handle = self
-            .runtime
-            .spawn(Self::execute(client, request, timeout_ms));
+        let handle = self.runtime.spawn(Self::execute(client, request, options));
         RequestTask {
             handle,
             runtime: self.runtime.clone(),
@@ -139,7 +150,7 @@ impl RequestExecutor {
     async fn execute(
         client: HttpClient,
         request: Request,
-        timeout_ms: Option<u64>,
+        options: RequestOptions,
     ) -> Result<RequestResult, AppError> {
         if request.url.trim().is_empty() {
             tracing::debug!(method = %request.method, "skipping empty URL");
@@ -159,17 +170,17 @@ impl RequestExecutor {
         }
 
         let started = std::time::Instant::now();
-        let result = match timeout_ms {
+        let result = match options.timeout_ms.filter(|timeout_ms| *timeout_ms > 0) {
             Some(timeout_ms) => match tokio::time::timeout(
                 Duration::from_millis(timeout_ms),
-                client.execute(request),
+                client.execute_with_options(request, options),
             )
             .await
             {
                 Ok(result) => result,
                 Err(_) => Err(AppError::Timeout { timeout_ms }),
             },
-            None => client.execute(request).await,
+            None => client.execute_with_options(request, options).await,
         };
         let elapsed_ms = started.elapsed().as_millis();
 
@@ -192,6 +203,7 @@ impl RequestExecutor {
                     body: response.body().to_string(),
                     elapsed_ms,
                     stored_cookies: response.stored_cookies().to_vec(),
+                    redirect_chain: response.redirect_chain().to_vec(),
                 })
             }
             Err(error) => {

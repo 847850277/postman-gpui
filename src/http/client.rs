@@ -1,12 +1,13 @@
 use crate::errors::AppError;
 use crate::http::response::HttpResponse;
 use crate::models::{
-    HttpMethod, MultipartPart, MultipartValue, Request, RequestBody, DEFAULT_MAX_REDIRECT_HOPS,
+    HttpMethod, MultipartPart, MultipartValue, RedirectHop, RedirectPolicy, Request, RequestBody,
+    RequestOptions, MAX_REDIRECT_HOPS,
 };
 use reqwest::{
     cookie::{CookieStore, Jar},
-    header::HeaderValue,
-    multipart, Client, ClientBuilder, RequestBuilder, Url,
+    header::{HeaderValue, LOCATION},
+    multipart, Client, ClientBuilder, Response, StatusCode, Url,
 };
 use std::{
     collections::BTreeMap,
@@ -36,6 +37,7 @@ impl HttpClient {
             .gzip(true)
             .deflate(true)
             .brotli(true)
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .expect("the built-in HTTP client configuration should be valid");
         // Reqwest 0.12 currently adds Accept-Encoding even when Range is present. Keep a second
@@ -44,6 +46,7 @@ impl HttpClient {
             .no_gzip()
             .no_deflate()
             .no_brotli()
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .expect("the range HTTP client configuration should be valid");
         HttpClient {
@@ -62,12 +65,22 @@ impl HttpClient {
     }
 
     /// Executes the complete request command without rebuilding or coercing its semantics.
+    #[cfg(test)]
     pub(super) async fn execute(&self, request: Request) -> Result<HttpResponse, AppError> {
+        self.execute_with_options(request, RequestOptions::default())
+            .await
+    }
+
+    pub(super) async fn execute_with_options(
+        &self,
+        request: Request,
+        options: RequestOptions,
+    ) -> Result<HttpResponse, AppError> {
         let stored_cookies = Arc::new(Mutex::new(Vec::new()));
         let response = RESPONSE_COOKIE_CAPTURE
             .scope(
                 stored_cookies.clone(),
-                self.execute_with_cookie_capture(request),
+                self.execute_with_cookie_capture(request, options),
             )
             .await?;
         let mut stored_cookies = stored_cookies
@@ -81,18 +94,72 @@ impl HttpClient {
 
     async fn execute_with_cookie_capture(
         &self,
-        request: Request,
+        mut request: Request,
+        options: RequestOptions,
     ) -> Result<HttpResponse, AppError> {
-        let Request {
-            method,
-            url,
-            headers,
-            body,
-        } = request;
-        let has_accept_encoding = headers
+        let mut redirect_chain = Vec::new();
+
+        loop {
+            let response = self.send_once(&request).await?;
+            let status = response.status();
+            let response_url = response.url().clone();
+            let location = response
+                .headers()
+                .get(LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_string);
+
+            if !is_redirect_status(status) {
+                if !redirect_chain.is_empty() {
+                    redirect_chain.push(RedirectHop::terminal(
+                        status.as_u16(),
+                        response_url.to_string(),
+                    ));
+                }
+                return Self::finish_response(response, redirect_chain).await;
+            }
+
+            redirect_chain.push(RedirectHop::new(
+                status.as_u16(),
+                response_url.to_string(),
+                location.clone(),
+            ));
+            if options.redirect_policy == RedirectPolicy::DoNotFollow {
+                return Self::finish_response(response, redirect_chain).await;
+            }
+
+            let Some(location) = location else {
+                return Self::finish_response(response, redirect_chain).await;
+            };
+            let Ok(next_url) = response_url.join(&location) else {
+                return Self::finish_response(response, redirect_chain).await;
+            };
+            if !matches!(next_url.scheme(), "http" | "https") {
+                return Err(AppError::HttpError(format!(
+                    "redirect URL uses unsupported scheme: {}",
+                    next_url.scheme()
+                )));
+            }
+
+            let max_hops = options.max_redirect_hops.clamp(1, MAX_REDIRECT_HOPS);
+            if redirect_chain.len() >= max_hops as usize {
+                return Err(AppError::RedirectLimitExceeded {
+                    max_hops,
+                    chain: redirect_chain,
+                });
+            }
+
+            apply_redirect_semantics(&mut request, status, &response_url, next_url);
+        }
+    }
+
+    async fn send_once(&self, request: &Request) -> Result<Response, AppError> {
+        let has_accept_encoding = request
+            .headers
             .iter()
             .any(|(name, _)| name.eq_ignore_ascii_case("accept-encoding"));
-        let has_range = headers
+        let has_range = request
+            .headers
             .iter()
             .any(|(name, _)| name.eq_ignore_ascii_case("range"));
         let client = if has_range && !has_accept_encoding {
@@ -100,29 +167,29 @@ impl HttpClient {
         } else {
             &self.client
         };
-        let mut request = match method {
-            HttpMethod::GET => client.get(&url),
-            HttpMethod::POST => client.post(&url),
-            HttpMethod::PUT => client.put(&url),
-            HttpMethod::DELETE => client.delete(&url),
-            HttpMethod::PATCH => client.patch(&url),
-            HttpMethod::HEAD => client.head(&url),
-            HttpMethod::OPTIONS => client.request(reqwest::Method::OPTIONS, &url),
+        let mut builder = match request.method {
+            HttpMethod::GET => client.get(&request.url),
+            HttpMethod::POST => client.post(&request.url),
+            HttpMethod::PUT => client.put(&request.url),
+            HttpMethod::DELETE => client.delete(&request.url),
+            HttpMethod::PATCH => client.patch(&request.url),
+            HttpMethod::HEAD => client.head(&request.url),
+            HttpMethod::OPTIONS => client.request(reqwest::Method::OPTIONS, &request.url),
         };
 
-        for (key, value) in headers {
-            request = request.header(key, value);
+        for (key, value) in &request.headers {
+            builder = builder.header(key, value);
         }
 
-        request = match body {
-            RequestBody::None => request,
+        builder = match &request.body {
+            RequestBody::None => builder,
             RequestBody::Json(body) | RequestBody::Raw(body) | RequestBody::UrlEncoded(body) => {
-                request.body(body)
+                builder.body(body.clone())
             }
             RequestBody::Multipart(parts) => {
                 let mut form = multipart::Form::new();
                 for part in parts {
-                    let MultipartPart { name, value } = part;
+                    let MultipartPart { name, value } = part.clone();
                     form = match value {
                         MultipartValue::Text(value) => form.text(name, value),
                         MultipartValue::File {
@@ -149,15 +216,17 @@ impl HttpClient {
                         }
                     };
                 }
-                request.multipart(form)
+                builder.multipart(form)
             }
         };
 
-        Self::send(request).await
+        Ok(builder.send().await?)
     }
 
-    async fn send(request: RequestBuilder) -> Result<HttpResponse, AppError> {
-        let response = request.send().await?;
+    async fn finish_response(
+        response: Response,
+        redirect_chain: Vec<RedirectHop>,
+    ) -> Result<HttpResponse, AppError> {
         let status = response.status().as_u16();
         let headers = response
             .headers()
@@ -170,21 +239,63 @@ impl HttpClient {
             })
             .collect();
         let body = response.text().await?;
-        Ok(HttpResponse::new(status, headers, body))
+        Ok(HttpResponse::new(status, headers, body).with_redirect_chain(redirect_chain))
     }
 }
 
 fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>) -> ClientBuilder {
     Client::builder()
         .user_agent(DEFAULT_USER_AGENT)
-        // Redirect following is part of the application's request contract. Keep the policy
-        // explicit so a dependency default cannot silently change that behavior.
-        .redirect(reqwest::redirect::Policy::limited(
-            DEFAULT_MAX_REDIRECT_HOPS as usize,
-        ))
         // Both connection pools belong to one application session. The observable provider
         // retains cookies from intermediate redirects and adds them to later requests.
         .cookie_provider(cookie_jar)
+}
+
+fn is_redirect_status(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::MOVED_PERMANENTLY
+            | StatusCode::FOUND
+            | StatusCode::SEE_OTHER
+            | StatusCode::TEMPORARY_REDIRECT
+            | StatusCode::PERMANENT_REDIRECT
+    )
+}
+
+fn apply_redirect_semantics(
+    request: &mut Request,
+    status: StatusCode,
+    previous_url: &Url,
+    next_url: Url,
+) {
+    let drop_payload = match status {
+        StatusCode::MOVED_PERMANENTLY | StatusCode::FOUND => request.method == HttpMethod::POST,
+        StatusCode::SEE_OTHER => request.method != HttpMethod::HEAD,
+        StatusCode::TEMPORARY_REDIRECT | StatusCode::PERMANENT_REDIRECT => false,
+        _ => false,
+    };
+    if drop_payload {
+        request.method = HttpMethod::GET;
+        request.body = RequestBody::None;
+        request.headers.retain(|(name, _)| {
+            !matches!(
+                name.to_ascii_lowercase().as_str(),
+                "content-type" | "content-length" | "content-encoding" | "transfer-encoding"
+            )
+        });
+    }
+
+    let cross_origin = previous_url.host_str() != next_url.host_str()
+        || previous_url.port_or_known_default() != next_url.port_or_known_default();
+    if cross_origin {
+        request.headers.retain(|(name, _)| {
+            !matches!(
+                name.to_ascii_lowercase().as_str(),
+                "authorization" | "cookie" | "cookie2" | "proxy-authorization" | "www-authenticate"
+            )
+        });
+    }
+    request.url = next_url.to_string();
 }
 
 /// Reqwest's built-in Jar deliberately hides its contents. This wrapper keeps the wire behavior
@@ -535,8 +646,99 @@ mod tests {
 
         assert_eq!(response.status(), 200);
         assert_eq!(response.body(), final_body);
+        assert_eq!(
+            response.redirect_chain(),
+            &[
+                RedirectHop::new(
+                    302,
+                    format!(
+                        "{}/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+                        server.url()
+                    ),
+                    Some("/anything/redirected")
+                ),
+                RedirectHop::terminal(200, redirected_url),
+            ]
+        );
         redirect.assert_async().await;
         target.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn do_not_follow_returns_the_first_redirect_and_raw_location() {
+        let mut server = Server::new_async().await;
+        let redirect = server
+            .mock("GET", "/start")
+            .with_status(302)
+            .with_header("location", "/target")
+            .with_body("redirect response")
+            .create_async()
+            .await;
+
+        let start_url = format!("{}/start", server.url());
+        let response = HttpClient::new()
+            .execute_with_options(
+                Request::new(HttpMethod::GET, &start_url),
+                RequestOptions {
+                    redirect_policy: RedirectPolicy::DoNotFollow,
+                    ..RequestOptions::default()
+                },
+            )
+            .await
+            .expect("no-follow should return the redirect response");
+
+        assert_eq!(response.status(), 302);
+        assert_eq!(response.body(), "redirect response");
+        assert!(response
+            .headers()
+            .iter()
+            .any(|(name, value)| { name.eq_ignore_ascii_case("location") && value == "/target" }));
+        assert_eq!(
+            response.redirect_chain(),
+            &[RedirectHop::new(302, start_url, Some("/target"))]
+        );
+        redirect.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn redirect_limit_error_retains_the_observed_partial_chain() {
+        let mut server = Server::new_async().await;
+        let first = server
+            .mock("GET", "/redirect/3")
+            .with_status(302)
+            .with_header("location", "/redirect/2")
+            .create_async()
+            .await;
+        let second = server
+            .mock("GET", "/redirect/2")
+            .with_status(302)
+            .with_header("location", "/redirect/1")
+            .create_async()
+            .await;
+        let first_url = format!("{}/redirect/3", server.url());
+        let second_url = format!("{}/redirect/2", server.url());
+
+        let error = HttpClient::new()
+            .execute_with_options(
+                Request::new(HttpMethod::GET, &first_url),
+                RequestOptions {
+                    max_redirect_hops: 2,
+                    ..RequestOptions::default()
+                },
+            )
+            .await
+            .expect_err("the second observed redirect should reach the configured limit");
+
+        assert_eq!(error.to_string(), "Redirect limit exceeded after 2 hops.");
+        assert_eq!(
+            error.redirect_chain(),
+            &[
+                RedirectHop::new(302, first_url, Some("/redirect/2")),
+                RedirectHop::new(302, second_url, Some("/redirect/1")),
+            ]
+        );
+        first.assert_async().await;
+        second.assert_async().await;
     }
 
     #[tokio::test]

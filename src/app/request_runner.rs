@@ -41,7 +41,7 @@ impl RequestRunner {
         let send_id = pending.send_id();
         let request_task = self
             .executor
-            .spawn_with_timeout(pending.request().clone(), pending.timeout_ms());
+            .spawn_with_options(pending.request().clone(), pending.request_options());
         self.in_flight.insert(send_id, request_task.abort_handle());
 
         // Joining the Tokio task on GPUI's background executor keeps transport wake-ups away

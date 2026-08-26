@@ -9,7 +9,7 @@ use postman_gpui::{
         AuthorizationKind, BodyKind, PostmanApp, RequestBodyDraft, RequestPane, ResponseState,
         WorkspaceViewModel,
     },
-    models::HttpMethod,
+    models::{HttpMethod, RedirectPolicy},
 };
 use ui::click;
 
@@ -119,6 +119,26 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.authorization_kind()),
         AuthorizationKind::Basic
+    );
+
+    click(cx, "request-pane-options").unwrap();
+    click(cx, "redirect-policy-follow").unwrap();
+    cx.simulate_keystrokes("right");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.redirect_policy()),
+        RedirectPolicy::DoNotFollow
+    );
+    cx.simulate_keystrokes("left");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.redirect_policy()),
+        RedirectPolicy::Follow
+    );
+    click(cx, "redirect-max-hops-decrease").unwrap();
+    cx.simulate_keystrokes("enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.max_redirect_hops()),
+        8,
+        "the focused stepper should activate through Enter"
     );
 
     click(cx, "request-pane-body").unwrap();
