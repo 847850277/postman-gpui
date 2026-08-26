@@ -3,7 +3,7 @@ use super::super::layout::{
     visible_row_capacity,
 };
 use crate::{
-    app::{KeyValueRow, RequestPane, WorkspaceViewModel},
+    app::{ActivateControl, KeyValueRow, RequestPane, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
@@ -14,8 +14,8 @@ use crate::{
 };
 use gpui::{
     div, prelude::FluentBuilder, px, relative, rgb, AppContext, Context, Entity, EventEmitter,
-    FontWeight, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    FocusHandle, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Role,
+    ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -187,9 +187,14 @@ pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     kind: KeyValueRowsKind,
     row_editors: Vec<Entity<PersistentRowEditor>>,
     row_subscriptions: Vec<Subscription>,
+    row_toggle_focus_handles: Vec<FocusHandle>,
+    row_delete_focus_handles: Vec<FocusHandle>,
     rows_scroll_handle: ScrollHandle,
     draft_key_input: Entity<HeaderInput>,
     draft_value_input: Entity<HeaderInput>,
+    draft_toggle_focus_handle: FocusHandle,
+    draft_delete_focus_handle: FocusHandle,
+    add_row_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -226,9 +231,14 @@ impl KeyValueRowsPane {
             kind,
             row_editors: Vec::new(),
             row_subscriptions: Vec::new(),
+            row_toggle_focus_handles: Vec::new(),
+            row_delete_focus_handles: Vec::new(),
             rows_scroll_handle: ScrollHandle::new(),
             draft_key_input,
             draft_value_input,
+            draft_toggle_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            draft_delete_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            add_row_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         pane.project_active_request(cx);
@@ -266,6 +276,14 @@ impl KeyValueRowsPane {
         };
         self.row_editors.clear();
         self.row_subscriptions.clear();
+        while self.row_toggle_focus_handles.len() < rows.len() {
+            self.row_toggle_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+            self.row_delete_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+        }
+        self.row_toggle_focus_handles.truncate(rows.len());
+        self.row_delete_focus_handles.truncate(rows.len());
         for (index, row) in rows.into_iter().enumerate() {
             let kind = self.kind;
             let editor = cx.new(|cx| PersistentRowEditor::new(kind, index, row, cx));
@@ -374,6 +392,10 @@ impl KeyValueRowsPane {
 
     fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.remove_param(index));
+        if index < self.row_toggle_focus_handles.len() {
+            self.row_toggle_focus_handles.remove(index);
+            self.row_delete_focus_handles.remove(index);
+        }
         self.rebuild_row_editors(cx);
         self.emit_effective_url_changed(cx);
     }
@@ -395,12 +417,33 @@ impl KeyValueRowsPane {
 
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.remove_header(index));
+        if index < self.row_toggle_focus_handles.len() {
+            self.row_toggle_focus_handles.remove(index);
+            self.row_delete_focus_handles.remove(index);
+        }
         self.rebuild_row_editors(cx);
     }
 
     fn clear_header_draft(&mut self, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.clear_header_draft());
         self.project_draft(cx);
+    }
+
+    fn focus_after_row_removal(
+        &self,
+        removed_index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(focus) = self
+            .row_toggle_focus_handles
+            .get(removed_index)
+            .or_else(|| self.row_toggle_focus_handles.last())
+        {
+            focus.focus(window, cx);
+        } else {
+            self.add_row_focus_handle.focus(window, cx);
+        }
     }
 
     fn project_draft(&self, cx: &mut Context<Self>) {
@@ -435,8 +478,15 @@ impl KeyValueRowsPane {
         cx.notify();
     }
 
-    fn render_params_editor(&self, panel_height: f32, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_params_editor(
+        &self,
+        panel_height: f32,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let row_editors = self.row_editors.clone();
+        let toggle_focus_handles = self.row_toggle_focus_handles.clone();
+        let delete_focus_handles = self.row_delete_focus_handles.clone();
         let (rows, draft_key, visible_row_count, enabled_count, effective_url) = {
             let view_model = self.view_model.read(cx);
             let (draft_key, _) = view_model
@@ -570,6 +620,12 @@ impl KeyValueRowsPane {
                                     let row_selector = format!("param-row-{index}");
                                     let toggle_selector = format!("param-row-toggle-{index}");
                                     let delete_selector = format!("param-row-delete-{index}");
+                                    let toggle_focus = toggle_focus_handles[index].clone();
+                                    let mouse_toggle_focus = toggle_focus.clone();
+                                    let toggle_focused = toggle_focus.is_focused(window);
+                                    let delete_focus = delete_focus_handles[index].clone();
+                                    let mouse_delete_focus = delete_focus.clone();
+                                    let delete_focused = delete_focus.is_focused(window);
                                     div()
                                         .debug_selector(move || row_selector.clone())
                                         .h(px(38.0))
@@ -581,7 +637,17 @@ impl KeyValueRowsPane {
                                         .text_size(px(12.0))
                                         .child(
                                             div()
+                                                .id(("param-row-toggle", index))
                                                 .debug_selector(move || toggle_selector.clone())
+                                                .track_focus(&toggle_focus)
+                                                .key_context("KeyboardButton")
+                                                .role(Role::CheckBox)
+                                                .aria_label(format!(
+                                                    "{} parameter row {}",
+                                                    if is_enabled { "Disable" } else { "Enable" },
+                                                    index + 1
+                                                ))
+                                                .aria_selected(is_enabled)
                                                 .size(px(18.0))
                                                 .flex()
                                                 .items_center()
@@ -596,10 +662,19 @@ impl KeyValueRowsPane {
                                                 .bg(rgb(if is_enabled { INFO } else { PANEL }))
                                                 .text_color(rgb(PANEL))
                                                 .cursor_pointer()
+                                                .when(toggle_focused, |control| {
+                                                    control.border_2().border_color(rgb(ACCENT))
+                                                })
                                                 .child(if is_enabled { "✓" } else { "" })
+                                                .on_action(cx.listener(
+                                                    move |this, _: &ActivateControl, _, cx| {
+                                                        this.toggle_param(index, cx)
+                                                    },
+                                                ))
                                                 .on_mouse_up(
                                                     gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, _, cx| {
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        mouse_toggle_focus.focus(window, cx);
                                                         this.toggle_param(index, cx)
                                                     }),
                                                 ),
@@ -607,7 +682,15 @@ impl KeyValueRowsPane {
                                         .child(row_editor)
                                         .child(
                                             div()
+                                                .id(("param-row-delete", index))
                                                 .debug_selector(move || delete_selector.clone())
+                                                .track_focus(&delete_focus)
+                                                .key_context("KeyboardButton")
+                                                .role(Role::Button)
+                                                .aria_label(format!(
+                                                    "Delete parameter row {}",
+                                                    index + 1
+                                                ))
                                                 .w(px(56.0))
                                                 .h(px(32.0))
                                                 .flex()
@@ -621,11 +704,26 @@ impl KeyValueRowsPane {
                                                         .bg(rgb(ACCENT_SOFT))
                                                         .text_color(rgb(ERROR))
                                                 })
+                                                .when(delete_focused, |control| {
+                                                    control.border_1().border_color(rgb(ACCENT))
+                                                })
                                                 .child("×")
+                                                .on_action(cx.listener(
+                                                    move |this, _: &ActivateControl, window, cx| {
+                                                        this.remove_param(index, cx);
+                                                        this.focus_after_row_removal(
+                                                            index, window, cx,
+                                                        );
+                                                    },
+                                                ))
                                                 .on_mouse_up(
                                                     gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, _, cx| {
-                                                        this.remove_param(index, cx)
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        mouse_delete_focus.focus(window, cx);
+                                                        this.remove_param(index, cx);
+                                                        this.focus_after_row_removal(
+                                                            index, window, cx,
+                                                        );
                                                     }),
                                                 ),
                                         )
@@ -722,7 +820,12 @@ impl KeyValueRowsPane {
                     .bg(rgb(PANEL))
                     .child(
                         div()
+                            .id("params-add-row-button")
                             .debug_selector(|| "add-row-button".into())
+                            .track_focus(&self.add_row_focus_handle)
+                            .key_context("KeyboardButton")
+                            .role(Role::Button)
+                            .aria_label("Add parameter row")
                             .h(px(32.0))
                             .w_full()
                             .px_3()
@@ -743,10 +846,19 @@ impl KeyValueRowsPane {
                                     .border_color(rgb(INFO))
                                     .text_color(rgb(INFO))
                             })
+                            .when(self.add_row_focus_handle.is_focused(window), |button| {
+                                button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT))
+                            })
                             .child("＋ Add parameter")
+                            .on_action(cx.listener(|this, _: &ActivateControl, _window, cx| {
+                                this.add_current_row(cx)
+                            }))
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| this.add_current_row(cx)),
+                                cx.listener(|this, _, window, cx| {
+                                    this.add_row_focus_handle.focus(window, cx);
+                                    this.add_current_row(cx);
+                                }),
                             ),
                     ),
             )
@@ -819,8 +931,15 @@ impl KeyValueRowsPane {
             )
             .into_any_element()
     }
-    fn render_headers_editor(&self, panel_height: f32, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_headers_editor(
+        &self,
+        panel_height: f32,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let row_editors = self.row_editors.clone();
+        let toggle_focus_handles = self.row_toggle_focus_handles.clone();
+        let delete_focus_handles = self.row_delete_focus_handles.clone();
         let (rows, draft_key, draft_value, visible_row_count, enabled_count) = {
             let view_model = self.view_model.read(cx);
             let (draft_key, draft_value) = view_model
@@ -848,6 +967,12 @@ impl KeyValueRowsPane {
         let draft_value_input_selector = format!("header-row-value-input-{draft_index}");
         let draft_status_selector = format!("header-row-status-{draft_index}");
         let draft_delete_selector = format!("header-row-delete-{draft_index}");
+        let draft_toggle_focus = self.draft_toggle_focus_handle.clone();
+        let mouse_draft_toggle_focus = draft_toggle_focus.clone();
+        let draft_toggle_focused = draft_toggle_focus.is_focused(window);
+        let draft_delete_focus = self.draft_delete_focus_handle.clone();
+        let mouse_draft_delete_focus = draft_delete_focus.clone();
+        let draft_delete_focused = draft_delete_focus.is_focused(window);
         let visible_capacity = visible_row_capacity(RequestPane::Headers, panel_height);
         let show_scrollbar = visible_row_count > visible_capacity;
         let scrollbar = row_scrollbar_geometry(
@@ -967,6 +1092,7 @@ impl KeyValueRowsPane {
                             .children(rows.into_iter().zip(row_editors).enumerate().map(
                                 |(index, (row, row_editor))| {
                                     let is_complete = header_row_complete(&row);
+                                    let row_enabled = row.enabled;
                                     let is_sent = row.enabled && is_complete;
                                     let (status, status_bg, status_color) = if !is_complete {
                                         ("DRAFT", PANEL_ALT, SUBTEXT)
@@ -979,6 +1105,12 @@ impl KeyValueRowsPane {
                                     let toggle_selector = format!("header-row-toggle-{index}");
                                     let status_selector = format!("header-row-status-{index}");
                                     let delete_selector = format!("header-row-delete-{index}");
+                                    let toggle_focus = toggle_focus_handles[index].clone();
+                                    let mouse_toggle_focus = toggle_focus.clone();
+                                    let toggle_focused = toggle_focus.is_focused(window);
+                                    let delete_focus = delete_focus_handles[index].clone();
+                                    let mouse_delete_focus = delete_focus.clone();
+                                    let delete_focused = delete_focus.is_focused(window);
 
                                     div()
                                         .debug_selector(move || row_selector.clone())
@@ -991,7 +1123,17 @@ impl KeyValueRowsPane {
                                         .text_size(px(12.0))
                                         .child(
                                             div()
+                                                .id(("header-row-toggle", index))
                                                 .debug_selector(move || toggle_selector.clone())
+                                                .track_focus(&toggle_focus)
+                                                .key_context("KeyboardButton")
+                                                .role(Role::CheckBox)
+                                                .aria_label(format!(
+                                                    "{} header row {}",
+                                                    if row_enabled { "Disable" } else { "Enable" },
+                                                    index + 1
+                                                ))
+                                                .aria_selected(row_enabled)
                                                 .size(px(18.0))
                                                 .flex_none()
                                                 .flex()
@@ -1007,10 +1149,22 @@ impl KeyValueRowsPane {
                                                 .bg(rgb(if is_sent { INFO } else { PANEL }))
                                                 .text_color(rgb(PANEL))
                                                 .cursor_pointer()
+                                                .when(toggle_focused, |control| {
+                                                    control.border_2().border_color(rgb(ACCENT))
+                                                })
                                                 .child(if is_sent { "✓" } else { "" })
+                                                .on_action(cx.listener(
+                                                    move |this,
+                                                          _: &ActivateControl,
+                                                          _,
+                                                          cx| {
+                                                        this.toggle_header(index, cx)
+                                                    },
+                                                ))
                                                 .on_mouse_up(
                                                     gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, _, cx| {
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        mouse_toggle_focus.focus(window, cx);
                                                         this.toggle_header(index, cx)
                                                     }),
                                                 ),
@@ -1044,9 +1198,17 @@ impl KeyValueRowsPane {
                                                 )
                                                 .child(
                                                     div()
+                                                        .id(("header-row-delete", index))
                                                         .debug_selector(move || {
                                                             delete_selector.clone()
                                                         })
+                                                        .track_focus(&delete_focus)
+                                                        .key_context("KeyboardButton")
+                                                        .role(Role::Button)
+                                                        .aria_label(format!(
+                                                            "Delete header row {}",
+                                                            index + 1
+                                                        ))
                                                         .size(px(28.0))
                                                         .flex()
                                                         .items_center()
@@ -1059,11 +1221,31 @@ impl KeyValueRowsPane {
                                                                 .bg(rgb(ACCENT_SOFT))
                                                                 .text_color(rgb(ERROR))
                                                         })
+                                                        .when(delete_focused, |control| {
+                                                            control
+                                                                .border_1()
+                                                                .border_color(rgb(ACCENT))
+                                                        })
                                                         .child("×")
+                                                        .on_action(cx.listener(
+                                                            move |this,
+                                                                  _: &ActivateControl,
+                                                                  window,
+                                                                  cx| {
+                                                                this.remove_header(index, cx);
+                                                                this.focus_after_row_removal(
+                                                                    index, window, cx,
+                                                                );
+                                                            },
+                                                        ))
                                                         .on_mouse_up(
                                                             gpui::MouseButton::Left,
-                                                            cx.listener(move |this, _, _, cx| {
-                                                                this.remove_header(index, cx)
+                                                            cx.listener(move |this, _, window, cx| {
+                                                                mouse_delete_focus.focus(window, cx);
+                                                                this.remove_header(index, cx);
+                                                                this.focus_after_row_removal(
+                                                                    index, window, cx,
+                                                                );
                                                             }),
                                                         ),
                                                 ),
@@ -1082,7 +1264,17 @@ impl KeyValueRowsPane {
                                     .text_size(px(12.0))
                                     .child(
                                         div()
+                                            .id("header-draft-toggle")
                                             .debug_selector(move || draft_toggle_selector.clone())
+                                            .track_focus(&draft_toggle_focus)
+                                            .key_context("KeyboardButton")
+                                            .role(Role::CheckBox)
+                                            .aria_label(if draft_complete {
+                                                "Commit and disable draft header row"
+                                            } else {
+                                                "Complete the draft header before toggling"
+                                            })
+                                            .aria_selected(draft_complete)
                                             .size(px(18.0))
                                             .flex_none()
                                             .flex()
@@ -1097,12 +1289,38 @@ impl KeyValueRowsPane {
                                             }))
                                             .bg(rgb(if draft_complete { INFO } else { PANEL }))
                                             .text_color(rgb(PANEL))
+                                            .when(draft_toggle_focused, |control| {
+                                                control.border_2().border_color(rgb(ACCENT))
+                                            })
                                             .child(if draft_complete { "✓" } else { "" })
+                                            .on_action(cx.listener(
+                                                move |this,
+                                                      _: &ActivateControl,
+                                                      window,
+                                                      cx| {
+                                                    if draft_complete {
+                                                        this.toggle_header_draft(cx);
+                                                        if let Some(focus) = this
+                                                            .row_toggle_focus_handles
+                                                            .last()
+                                                        {
+                                                            focus.focus(window, cx);
+                                                        }
+                                                    }
+                                                },
+                                            ))
                                             .when(draft_complete, |this| {
                                                 this.cursor_pointer().on_mouse_up(
                                                     gpui::MouseButton::Left,
-                                                    cx.listener(|this, _, _, cx| {
-                                                        this.toggle_header_draft(cx)
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        mouse_draft_toggle_focus.focus(window, cx);
+                                                        this.toggle_header_draft(cx);
+                                                        if let Some(focus) = this
+                                                            .row_toggle_focus_handles
+                                                            .last()
+                                                        {
+                                                            focus.focus(window, cx);
+                                                        }
                                                     }),
                                                 )
                                             }),
@@ -1191,9 +1409,14 @@ impl KeyValueRowsPane {
                                             )
                                             .child(
                                                 div()
+                                                    .id("header-draft-delete")
                                                     .debug_selector(move || {
                                                         draft_delete_selector.clone()
                                                     })
+                                                    .track_focus(&draft_delete_focus)
+                                                    .key_context("KeyboardButton")
+                                                    .role(Role::Button)
+                                                    .aria_label("Clear draft header row")
                                                     .size(px(28.0))
                                                     .flex()
                                                     .items_center()
@@ -1206,10 +1429,22 @@ impl KeyValueRowsPane {
                                                             .bg(rgb(ACCENT_SOFT))
                                                             .text_color(rgb(ERROR))
                                                     })
+                                                    .when(draft_delete_focused, |control| {
+                                                        control
+                                                            .border_1()
+                                                            .border_color(rgb(ACCENT))
+                                                    })
                                                     .child("×")
+                                                    .on_action(cx.listener(
+                                                        |this, _: &ActivateControl, _, cx| {
+                                                            this.clear_header_draft(cx)
+                                                        },
+                                                    ))
                                                     .on_mouse_up(
                                                         gpui::MouseButton::Left,
-                                                        cx.listener(|this, _, _, cx| {
+                                                        cx.listener(move |this, _, window, cx| {
+                                                            mouse_draft_delete_focus
+                                                                .focus(window, cx);
                                                             this.clear_header_draft(cx)
                                                         }),
                                                     ),
@@ -1255,7 +1490,12 @@ impl KeyValueRowsPane {
                     .bg(rgb(INFO_SOFT))
                     .child(
                         div()
+                            .id("headers-add-row-button")
                             .debug_selector(|| "add-row-button".into())
+                            .track_focus(&self.add_row_focus_handle)
+                            .key_context("KeyboardButton")
+                            .role(Role::Button)
+                            .aria_label("Add header row")
                             .h(px(32.0))
                             .w_full()
                             .px_3()
@@ -1278,6 +1518,9 @@ impl KeyValueRowsPane {
                                     .border_color(rgb(INFO))
                                     .text_color(rgb(INFO))
                             })
+                            .when(self.add_row_focus_handle.is_focused(window), |button| {
+                                button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT))
+                            })
                             .child("＋ Add another header row")
                             .child(
                                 div()
@@ -1285,9 +1528,17 @@ impl KeyValueRowsPane {
                                     .text_color(rgb(MUTED))
                                     .child("Click repeatedly — rows are unlimited"),
                             )
+                            .on_action(cx.listener(
+                                |this, _: &ActivateControl, _window, cx| {
+                                    this.add_current_row(cx)
+                                },
+                            ))
                             .on_mouse_up(
                                 gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| this.add_current_row(cx)),
+                                cx.listener(|this, _, window, cx| {
+                                    this.add_row_focus_handle.focus(window, cx);
+                                    this.add_current_row(cx);
+                                }),
                             ),
                     ),
             )
@@ -1340,8 +1591,8 @@ impl Render for KeyValueRowsPane {
             window.viewport_size().height.as_f32(),
         );
         match self.kind {
-            KeyValueRowsKind::Params => self.render_params_editor(panel_height, cx),
-            KeyValueRowsKind::Headers => self.render_headers_editor(panel_height, cx),
+            KeyValueRowsKind::Params => self.render_params_editor(panel_height, window, cx),
+            KeyValueRowsKind::Headers => self.render_headers_editor(panel_height, window, cx),
         }
     }
 }

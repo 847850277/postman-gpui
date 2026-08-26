@@ -179,9 +179,9 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
         assert_eq!(workspace.history_len(), 1);
     });
 
-    // Tab A retained focus after Space, so Tab+Enter selects B without a mouse-only path.
-    cx.simulate_keystrokes("tab");
-    cx.simulate_keystrokes("enter");
+    // Clicking the now-keyboard-focusable Send control moves focus to it. The application-level
+    // request-cycle command switches tabs without relying on the pointer's previous focus target.
+    cx.simulate_keystrokes("ctrl-tab");
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
     workspace.read_with(cx, |workspace, _| {

@@ -50,6 +50,8 @@ pub(super) struct RequestWorkspace {
     composer: Entity<RequestComposer>,
     response_viewer: Entity<ResponseViewer>,
     tab_focus_handles: HashMap<RequestTabId, FocusHandle>,
+    tab_close_focus_handles: HashMap<RequestTabId, FocusHandle>,
+    new_tab_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -73,6 +75,8 @@ impl RequestWorkspace {
             composer,
             response_viewer,
             tab_focus_handles: HashMap::new(),
+            tab_close_focus_handles: HashMap::new(),
+            new_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         }
     }
@@ -146,14 +150,54 @@ impl RequestWorkspace {
         }
     }
 
-    pub(super) fn focus_active_request_tab(&self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn focus_active_request_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let active_tab_id = {
             let view_model = self.view_model.read(cx);
             view_model.tabs()[view_model.active_tab_index()].tab_id()
         };
-        if let Some(focus_handle) = self.tab_focus_handles.get(&active_tab_id) {
-            focus_handle.focus(window, cx);
-        }
+        self.tab_focus_handles
+            .entry(active_tab_id)
+            .or_insert_with(|| cx.focus_handle().tab_index(0).tab_stop(true))
+            .focus(window, cx);
+    }
+
+    pub(super) fn send_or_cancel(&mut self, cx: &mut Context<Self>) {
+        self.composer
+            .update(cx, |composer, cx| composer.send_or_cancel(cx));
+    }
+
+    pub(super) fn focus_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.composer
+            .update(cx, |composer, cx| composer.focus_url(window, cx));
+    }
+
+    pub(super) fn close_active_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let active_tab_id = {
+            let view_model = self.view_model.read(cx);
+            view_model.tabs()[view_model.active_tab_index()].tab_id()
+        };
+        self.close_request_tab(active_tab_id, cx);
+        self.focus_active_request_tab(window, cx);
+    }
+
+    pub(super) fn activate_relative_request(
+        &mut self,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let tab_id = {
+            let view_model = self.view_model.read(cx);
+            let count = view_model.tabs().len();
+            if count == 0 {
+                return;
+            }
+            let next = (view_model.active_tab_index() as isize + delta).rem_euclid(count as isize)
+                as usize;
+            view_model.tabs()[next].tab_id()
+        };
+        self.activate_request_tab(tab_id, cx);
+        self.focus_active_request_tab(window, cx);
     }
 
     pub(super) fn load_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {

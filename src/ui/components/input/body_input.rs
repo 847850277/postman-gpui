@@ -29,10 +29,14 @@ actions!(
         ShiftTab,
         Left,
         Right,
+        WordLeft,
+        WordRight,
         Up,
         Down,
         SelectLeft,
         SelectRight,
+        SelectWordLeft,
+        SelectWordRight,
         SelectUp,
         SelectDown,
         SelectAll,
@@ -41,6 +45,8 @@ actions!(
         Paste,
         Cut,
         Copy,
+        Undo,
+        Redo,
     ]
 );
 
@@ -312,6 +318,7 @@ impl Render for BodyInput {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_type = self.current_type;
         div()
+            .key_context("BodyInput")
             .flex()
             .flex_col()
             .gap_0()
@@ -405,30 +412,45 @@ impl Render for BodyInput {
 
 pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
     vec![
-        KeyBinding::new("backspace", Backspace, None),
-        KeyBinding::new("delete", Delete, None),
-        KeyBinding::new("enter", Enter, None),
-        KeyBinding::new("escape", Escape, None),
-        KeyBinding::new("tab", Tab, None),
-        KeyBinding::new("shift-tab", ShiftTab, None),
-        KeyBinding::new("left", Left, None),
-        KeyBinding::new("right", Right, None),
-        KeyBinding::new("up", Up, None),
-        KeyBinding::new("down", Down, None),
-        KeyBinding::new("shift-left", SelectLeft, None),
-        KeyBinding::new("shift-right", SelectRight, None),
-        KeyBinding::new("shift-up", SelectUp, None),
-        KeyBinding::new("shift-down", SelectDown, None),
-        KeyBinding::new("cmd-a", SelectAll, None),
-        KeyBinding::new("ctrl-a", SelectAll, None),
-        KeyBinding::new("cmd-v", Paste, None),
-        KeyBinding::new("ctrl-v", Paste, None),
-        KeyBinding::new("cmd-c", Copy, None),
-        KeyBinding::new("ctrl-c", Copy, None),
-        KeyBinding::new("cmd-x", Cut, None),
-        KeyBinding::new("ctrl-x", Cut, None),
-        KeyBinding::new("home", Home, None),
-        KeyBinding::new("end", End, None),
+        KeyBinding::new("backspace", Backspace, Some("BodyInput")),
+        KeyBinding::new("delete", Delete, Some("BodyInput")),
+        KeyBinding::new("enter", Enter, Some("BodyInput")),
+        KeyBinding::new("escape", Escape, Some("BodyInput")),
+        KeyBinding::new("tab", Tab, Some("BodyInput")),
+        KeyBinding::new("shift-tab", ShiftTab, Some("BodyInput")),
+        KeyBinding::new("left", Left, Some("BodyInput")),
+        KeyBinding::new("right", Right, Some("BodyInput")),
+        KeyBinding::new("alt-left", WordLeft, Some("BodyInput")),
+        KeyBinding::new("ctrl-left", WordLeft, Some("BodyInput")),
+        KeyBinding::new("alt-right", WordRight, Some("BodyInput")),
+        KeyBinding::new("ctrl-right", WordRight, Some("BodyInput")),
+        KeyBinding::new("up", Up, Some("BodyInput")),
+        KeyBinding::new("down", Down, Some("BodyInput")),
+        KeyBinding::new("shift-left", SelectLeft, Some("BodyInput")),
+        KeyBinding::new("shift-right", SelectRight, Some("BodyInput")),
+        KeyBinding::new("alt-shift-left", SelectWordLeft, Some("BodyInput")),
+        KeyBinding::new("ctrl-shift-left", SelectWordLeft, Some("BodyInput")),
+        KeyBinding::new("alt-shift-right", SelectWordRight, Some("BodyInput")),
+        KeyBinding::new("ctrl-shift-right", SelectWordRight, Some("BodyInput")),
+        KeyBinding::new("shift-up", SelectUp, Some("BodyInput")),
+        KeyBinding::new("shift-down", SelectDown, Some("BodyInput")),
+        KeyBinding::new("cmd-a", SelectAll, Some("BodyInput")),
+        KeyBinding::new("ctrl-a", SelectAll, Some("BodyInput")),
+        KeyBinding::new("cmd-v", Paste, Some("BodyInput")),
+        KeyBinding::new("ctrl-v", Paste, Some("BodyInput")),
+        KeyBinding::new("cmd-c", Copy, Some("BodyInput")),
+        KeyBinding::new("ctrl-c", Copy, Some("BodyInput")),
+        KeyBinding::new("cmd-x", Cut, Some("BodyInput")),
+        KeyBinding::new("ctrl-x", Cut, Some("BodyInput")),
+        KeyBinding::new("cmd-z", Undo, Some("BodyInput")),
+        KeyBinding::new("ctrl-z", Undo, Some("BodyInput")),
+        KeyBinding::new("cmd-shift-z", Redo, Some("BodyInput")),
+        KeyBinding::new("ctrl-shift-z", Redo, Some("BodyInput")),
+        KeyBinding::new("ctrl-y", Redo, Some("BodyInput")),
+        KeyBinding::new("home", Home, Some("BodyInput")),
+        KeyBinding::new("end", End, Some("BodyInput")),
+        KeyBinding::new("cmd-left", Home, Some("BodyInput")),
+        KeyBinding::new("cmd-right", End, Some("BodyInput")),
     ]
 }
 

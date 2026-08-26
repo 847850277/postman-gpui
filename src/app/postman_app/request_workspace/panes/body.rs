@@ -2,8 +2,9 @@ mod raw;
 
 use crate::{
     app::{
-        BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
-        MultipartDraftValue, RequestBodyDraft, ResponseState, WorkspaceViewModel,
+        ActivateControl, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
+        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, ResponseState,
+        WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
@@ -15,17 +16,31 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FontWeight,
-    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
-    Subscription, Window,
+    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
+    FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use raw::render_raw_request_semantics;
+
+actions!(body_kind, [NextBodyKind, PreviousBodyKind]);
+
+fn setup_body_kind_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("right", NextBodyKind, Some("BodyKind")),
+        KeyBinding::new("down", NextBodyKind, Some("BodyKind")),
+        KeyBinding::new("left", PreviousBodyKind, Some("BodyKind")),
+        KeyBinding::new("up", PreviousBodyKind, Some("BodyKind")),
+    ]
+}
 
 /// BodyPane owns BodyInput's text/form editing state. Complete body drafts remain authoritative in
 /// the shared WorkspaceViewModel and are projected only on request or pane changes.
 pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     view_model: Entity<WorkspaceViewModel>,
     body_input: Entity<BodyInput>,
+    kind_focus_handles: Vec<FocusHandle>,
+    sample_focus_handle: FocusHandle,
+    clear_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -34,6 +49,7 @@ impl BodyPane {
         view_model: Entity<WorkspaceViewModel>,
         cx: &mut Context<Self>,
     ) -> Self {
+        cx.bind_keys(setup_body_kind_key_bindings());
         let body_input = cx.new(|cx| {
             BodyInput::new(cx)
                 .with_placeholder("Enter request body (JSON, form data, etc.)")
@@ -43,6 +59,11 @@ impl BodyPane {
         let mut pane = Self {
             view_model,
             body_input,
+            kind_focus_handles: (0..5)
+                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
+                .collect(),
+            sample_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            clear_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         pane.project_active_request(cx);
@@ -199,7 +220,7 @@ impl BodyPane {
         cx.notify();
     }
 
-    fn render_body_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_body_editor(&self, window: &Window, cx: &mut Context<Self>) -> gpui::AnyElement {
         let (
             kind,
             body,
@@ -269,16 +290,23 @@ impl BodyPane {
                             .text_color(rgb(SUBTEXT))
                             .child("BODY TYPE"),
                     )
-                    .child(self.body_kind_option("none", BodyKind::None, kind, cx))
-                    .child(self.body_kind_option("form-data", BodyKind::Multipart, kind, cx))
+                    .child(self.body_kind_option("none", BodyKind::None, kind, window, cx))
+                    .child(self.body_kind_option(
+                        "form-data",
+                        BodyKind::Multipart,
+                        kind,
+                        window,
+                        cx,
+                    ))
                     .child(self.body_kind_option(
                         "x-www-form-urlencoded",
                         BodyKind::UrlEncoded,
                         kind,
+                        window,
                         cx,
                     ))
-                    .child(self.body_kind_option("raw", BodyKind::Raw, kind, cx))
-                    .child(self.body_kind_option("JSON ✓", BodyKind::Json, kind, cx))
+                    .child(self.body_kind_option("raw", BodyKind::Raw, kind, window, cx))
+                    .child(self.body_kind_option("JSON ✓", BodyKind::Json, kind, window, cx))
                     .when(is_json, |row| {
                         row.child(
                             div()
@@ -383,7 +411,13 @@ impl BodyPane {
             } else if is_multipart {
                 self.render_multipart_body(request_body, multipart_omitted, multipart_error)
             } else {
-                self.render_text_body(body, kind, method, effective_url, effective_headers, cx)
+                self.render_text_body(
+                    body,
+                    kind,
+                    (method, effective_url, effective_headers),
+                    window,
+                    cx,
+                )
             })
             .into_any_element()
     }
@@ -392,11 +426,11 @@ impl BodyPane {
         &self,
         body: String,
         kind: BodyKind,
-        method: HttpMethod,
-        effective_url: String,
-        effective_headers: Vec<EffectiveHeader>,
+        request_projection: (HttpMethod, String, Vec<EffectiveHeader>),
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
+        let (method, effective_url, effective_headers) = request_projection;
         let is_json = kind == BodyKind::Json;
         let is_raw = kind == BodyKind::Raw;
         let body_len = body.chars().count();
@@ -476,19 +510,43 @@ impl BodyPane {
                                             .when(!is_raw, |actions| {
                                                 actions.child(
                                                     div()
+                                                        .id("body-sample-json")
                                                         .debug_selector(|| {
                                                             "body-sample-json".into()
                                                         })
+                                                        .track_focus(&self.sample_focus_handle)
+                                                        .key_context("KeyboardButton")
+                                                        .role(Role::Button)
+                                                        .aria_label("Use sample JSON")
                                                         .px_2()
                                                         .py_1()
                                                         .rounded_md()
                                                         .bg(rgb(INFO_SOFT))
                                                         .text_color(rgb(INFO))
                                                         .cursor_pointer()
+                                                        .when(
+                                                            self.sample_focus_handle
+                                                                .is_focused(window),
+                                                            |button| {
+                                                                button
+                                                                    .border_1()
+                                                                    .border_color(rgb(ACCENT))
+                                                            },
+                                                        )
                                                         .child("Sample JSON")
+                                                        .on_action(cx.listener(
+                                                            |this,
+                                                             _: &ActivateControl,
+                                                             _,
+                                                             cx| {
+                                                                this.use_sample_json(cx)
+                                                            },
+                                                        ))
                                                         .on_mouse_up(
                                                             gpui::MouseButton::Left,
-                                                            cx.listener(|this, _, _, cx| {
+                                                            cx.listener(|this, _, window, cx| {
+                                                                this.sample_focus_handle
+                                                                    .focus(window, cx);
                                                                 this.use_sample_json(cx)
                                                             }),
                                                         ),
@@ -496,17 +554,36 @@ impl BodyPane {
                                             })
                                             .child(
                                                 div()
+                                                    .id("body-clear-button")
                                                     .debug_selector(|| "body-clear-button".into())
+                                                    .track_focus(&self.clear_focus_handle)
+                                                    .key_context("KeyboardButton")
+                                                    .role(Role::Button)
+                                                    .aria_label("Clear request body")
                                                     .px_2()
                                                     .py_1()
                                                     .rounded_md()
                                                     .bg(rgb(PANEL_ALT))
                                                     .text_color(rgb(SUBTEXT))
                                                     .cursor_pointer()
+                                                    .when(
+                                                        self.clear_focus_handle.is_focused(window),
+                                                        |button| {
+                                                            button
+                                                                .border_1()
+                                                                .border_color(rgb(ACCENT))
+                                                        },
+                                                    )
                                                     .child("Clear")
+                                                    .on_action(cx.listener(
+                                                        |this, _: &ActivateControl, _, cx| {
+                                                            this.clear_body(cx)
+                                                        },
+                                                    ))
                                                     .on_mouse_up(
                                                         gpui::MouseButton::Left,
-                                                        cx.listener(|this, _, _, cx| {
+                                                        cx.listener(|this, _, window, cx| {
+                                                            this.clear_focus_handle.focus(window, cx);
                                                             this.clear_body(cx)
                                                         }),
                                                     ),
@@ -947,9 +1024,14 @@ impl BodyPane {
         label: &'static str,
         option: BodyKind,
         selected: BodyKind,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = option == selected;
+        let index = body_kind_index(option);
+        let focus_handle = self.kind_focus_handles[index].clone();
+        let mouse_focus_handle = focus_handle.clone();
+        let focused = focus_handle.is_focused(window);
         let debug_selector = match option {
             BodyKind::None => "body-kind-none",
             BodyKind::Multipart => "body-kind-form-data",
@@ -958,7 +1040,13 @@ impl BodyPane {
             BodyKind::Json => "body-kind-json",
         };
         let element = div()
+            .id(debug_selector)
             .debug_selector(move || debug_selector.into())
+            .track_focus(&focus_handle)
+            .key_context("KeyboardButton BodyKind")
+            .role(Role::RadioButton)
+            .aria_label(label)
+            .aria_selected(active)
             .h(px(28.0))
             .px_2()
             .flex()
@@ -976,23 +1064,66 @@ impl BodyPane {
                 FontWeight::NORMAL
             })
             .text_color(rgb(if active { ACCENT_INK } else { SUBTEXT }))
+            .when(focused, |option| option.border_2().border_color(rgb(INFO)))
             .child(
                 div()
                     .text_color(rgb(if active { ACCENT_VIVID } else { MUTED }))
                     .child(if active { "●" } else { "○" }),
             )
             .child(label);
-        element.cursor_pointer().on_mouse_up(
-            gpui::MouseButton::Left,
-            cx.listener(move |this, _, _, cx| this.set_body_kind(option, cx)),
-        )
+        element
+            .cursor_pointer()
+            .on_action(
+                cx.listener(move |this, _: &ActivateControl, _, cx| this.set_body_kind(option, cx)),
+            )
+            .on_action(cx.listener(move |this, _: &NextBodyKind, window, cx| {
+                this.select_relative_body_kind(option, 1, window, cx)
+            }))
+            .on_action(cx.listener(move |this, _: &PreviousBodyKind, window, cx| {
+                this.select_relative_body_kind(option, -1, window, cx)
+            }))
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(move |this, _, window, cx| {
+                    mouse_focus_handle.focus(window, cx);
+                    this.set_body_kind(option, cx);
+                }),
+            )
+    }
+
+    fn select_relative_body_kind(
+        &mut self,
+        kind: BodyKind,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let next = (body_kind_index(kind) as isize + delta).rem_euclid(5) as usize;
+        let kind = BODY_KINDS[next];
+        self.kind_focus_handles[next].focus(window, cx);
+        self.set_body_kind(kind, cx);
     }
 }
 
 impl Render for BodyPane {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.render_body_editor(cx)
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_body_editor(window, cx)
     }
+}
+
+const BODY_KINDS: [BodyKind; 5] = [
+    BodyKind::None,
+    BodyKind::Multipart,
+    BodyKind::UrlEncoded,
+    BodyKind::Raw,
+    BodyKind::Json,
+];
+
+fn body_kind_index(kind: BodyKind) -> usize {
+    BODY_KINDS
+        .iter()
+        .position(|candidate| *candidate == kind)
+        .expect("all body kinds are represented in keyboard order")
 }
 
 fn body_type_from_kind(kind: BodyKind) -> BodyType {

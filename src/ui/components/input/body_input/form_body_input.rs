@@ -1,12 +1,15 @@
 use super::{
     Backspace, Copy, Cut, Delete, End, Enter, Escape, FormDataEntry, FormDataFile, Home, Left,
-    Paste, Right, SelectAll, SelectLeft, SelectRight, ShiftTab, Tab,
+    Paste, Redo, Right, SelectAll, SelectLeft, SelectRight, SelectWordLeft, SelectWordRight,
+    ShiftTab, Tab, Undo, WordLeft, WordRight,
 };
 use crate::ui::{
     components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
     },
+    components::common::keyboard::ActivateControl,
     components::common::scrollbar::{scrollbar_geometry, ScrollbarGeometry},
+    components::input::edit_history::{next_word_boundary, previous_word_boundary, EditHistory},
     theme::{
         ACCENT_SOFT, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
     },
@@ -16,7 +19,7 @@ use gpui::{
     ClipboardItem, Context, CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle,
     Focusable, GlobalElementId, InteractiveElement, IntoElement, KeyDownEvent, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels,
-    Point, Render, ScrollHandle, ShapedLine, SharedString, StatefulInteractiveElement, Style,
+    Point, Render, Role, ScrollHandle, ShapedLine, SharedString, StatefulInteractiveElement, Style,
     Styled, TextAlign, TextRun, Window,
 };
 use std::{ops::Range, path::PathBuf};
@@ -30,6 +33,19 @@ const FORM_DATA_MAX_VISIBLE_ROWS: usize = 6;
 #[derive(Clone, Debug)]
 pub(super) enum FormBodyInputEvent {
     Changed(Vec<FormDataEntry>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FormEditSnapshot {
+    entries: Vec<FormDataEntry>,
+    editing_key_index: Option<usize>,
+    editing_value_index: Option<usize>,
+    temp_key_value: String,
+    temp_value_value: String,
+    key_selection: Range<usize>,
+    key_selection_reversed: bool,
+    value_selection: Range<usize>,
+    value_selection_reversed: bool,
 }
 
 /// Stateful URL-encoded/multipart body editor. It owns row editing mechanics and file-picker state;
@@ -54,6 +70,12 @@ pub(super) struct FormBodyInput {
     form_value_last_layout: Option<ShapedLine>,
     form_value_last_bounds: Option<Bounds<Pixels>>,
     context_menu_position: Option<Point<Pixels>>,
+    edit_history: EditHistory<FormEditSnapshot>,
+    row_toggle_focus_handles: Vec<FocusHandle>,
+    row_type_focus_handles: Vec<FocusHandle>,
+    row_file_focus_handles: Vec<FocusHandle>,
+    row_delete_focus_handles: Vec<FocusHandle>,
+    add_row_focus_handle: FocusHandle,
 }
 
 impl EventEmitter<FormBodyInputEvent> for FormBodyInput {}
@@ -67,7 +89,7 @@ impl Focusable for FormBodyInput {
 impl FormBodyInput {
     pub(super) fn new(cx: &mut Context<Self>) -> Self {
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             form_data_allows_files: false,
             form_data_scroll: ScrollHandle::new(),
             form_data_entries: vec![FormDataEntry::text("", "", true)],
@@ -86,6 +108,12 @@ impl FormBodyInput {
             form_value_last_layout: None,
             form_value_last_bounds: None,
             context_menu_position: None,
+            edit_history: EditHistory::default(),
+            row_toggle_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
+            row_type_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
+            row_file_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
+            row_delete_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
+            add_row_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
         }
     }
 
@@ -112,8 +140,10 @@ impl FormBodyInput {
     }
 
     pub(super) fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
+        self.record_edit();
         self.form_data_entries
             .push(FormDataEntry::text("", "", true));
+        self.ensure_control_focus_handles(cx);
         self.form_data_scroll.scroll_to_bottom();
         self.emit_form_data_changed(cx);
         cx.notify();
@@ -121,20 +151,25 @@ impl FormBodyInput {
 
     pub(super) fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         if index < self.form_data_entries.len() {
+            self.record_edit();
             self.form_data_entries.remove(index);
+            self.remove_control_focus_handles(index);
             self.editing_key_index = adjusted_editing_index(self.editing_key_index, index);
             self.editing_value_index = adjusted_editing_index(self.editing_value_index, index);
             if self.form_data_entries.is_empty() {
                 self.form_data_entries
                     .push(FormDataEntry::text("", "", true));
             }
+            self.ensure_control_focus_handles(cx);
             self.emit_form_data_changed(cx);
             cx.notify();
         }
     }
 
     pub(super) fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(entry) = self.form_data_entries.get_mut(index) {
+        if index < self.form_data_entries.len() {
+            self.record_edit();
+            let entry = &mut self.form_data_entries[index];
             entry.enabled = !entry.enabled;
             self.emit_form_data_changed(cx);
             cx.notify();
@@ -179,9 +214,11 @@ impl FormBodyInput {
         if !self.form_data_allows_files {
             return;
         }
-        let Some(entry) = self.form_data_entries.get_mut(index) else {
+        if index >= self.form_data_entries.len() {
             return;
-        };
+        }
+        self.record_edit();
+        let entry = &mut self.form_data_entries[index];
         if let Some(file) = entry.file.take() {
             entry.value = file.path.display().to_string();
         } else {
@@ -222,7 +259,9 @@ impl FormBodyInput {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if let Some(entry) = this.form_data_entries.get_mut(index) {
+                if index < this.form_data_entries.len() {
+                    this.record_edit();
+                    let entry = &mut this.form_data_entries[index];
                     let content_type = mime_guess::from_path(&path).first_raw().map(str::to_string);
                     entry.file = Some(FormDataFile {
                         file_name: path
@@ -244,11 +283,13 @@ impl FormBodyInput {
         entries: Vec<FormDataEntry>,
         cx: &mut Context<Self>,
     ) {
+        self.record_edit();
         self.form_data_entries = entries;
         if self.form_data_entries.is_empty() {
             self.form_data_entries
                 .push(FormDataEntry::text("", "", true));
         }
+        self.ensure_control_focus_handles(cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
@@ -259,6 +300,7 @@ impl FormBodyInput {
         mut entries: Vec<FormDataEntry>,
         cx: &mut Context<Self>,
     ) {
+        self.edit_history.clear();
         if entries.is_empty() {
             entries.push(FormDataEntry::text("", "", true));
         }
@@ -268,9 +310,11 @@ impl FormBodyInput {
             self.editing_value_index = None;
             cx.notify();
         }
+        self.ensure_control_focus_handles(cx);
     }
 
     pub(super) fn start_editing_key(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         // 首先完成任何现有的编辑
         if self.editing_value_index.is_some() {
             self.finish_value_editing_only(cx);
@@ -290,6 +334,7 @@ impl FormBodyInput {
     }
 
     pub(super) fn start_editing_value(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         // 首先完成任何现有的编辑
         if self.editing_key_index.is_some() {
             self.finish_key_editing_only(cx);
@@ -312,6 +357,7 @@ impl FormBodyInput {
     }
 
     pub(super) fn finish_editing(&mut self, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.editing_key_index = None;
         self.editing_value_index = None;
         self.temp_key_value.clear();
@@ -336,6 +382,7 @@ impl FormBodyInput {
     }
 
     pub(super) fn cancel_editing(&mut self, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.editing_key_index = None;
         self.editing_value_index = None;
         self.temp_key_value.clear();
@@ -344,13 +391,19 @@ impl FormBodyInput {
     }
 
     pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
+        if self.form_data_entries == [FormDataEntry::text("", "", true)] {
+            return;
+        }
+        self.record_edit();
         self.form_data_entries = vec![FormDataEntry::text("", "", true)];
+        self.ensure_control_focus_handles(cx);
         self.cancel_editing(cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
 
     fn backspace(&mut self, _: &Backspace, _: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
         if let Some(_index) = self.editing_key_index {
             if self.form_key_selected_range.is_empty() {
                 // 没有选择，删除光标前的一个字符
@@ -359,6 +412,7 @@ impl FormBodyInput {
                     let prev = self.form_key_previous_boundary(cursor);
                     self.temp_key_value.replace_range(prev..cursor, "");
                     self.form_key_selected_range = prev..prev;
+                    self.form_key_selection_reversed = false;
                 }
             } else {
                 // 有选择，删除选中的文本
@@ -366,6 +420,7 @@ impl FormBodyInput {
                     .replace_range(self.form_key_selected_range.clone(), "");
                 let start = self.form_key_selected_range.start;
                 self.form_key_selected_range = start..start;
+                self.form_key_selection_reversed = false;
             }
             self.persist_active_form_edit(cx);
             cx.notify();
@@ -376,21 +431,59 @@ impl FormBodyInput {
                     let prev = self.form_value_previous_boundary(cursor);
                     self.temp_value_value.replace_range(prev..cursor, "");
                     self.form_value_selected_range = prev..prev;
+                    self.form_value_selection_reversed = false;
                 }
             } else {
                 self.temp_value_value
                     .replace_range(self.form_value_selected_range.clone(), "");
                 let start = self.form_value_selected_range.start;
                 self.form_value_selected_range = start..start;
+                self.form_value_selection_reversed = false;
             }
             self.persist_active_form_edit(cx);
             cx.notify();
         }
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
-    fn delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
-        // 对于简单的文本输入，delete 和 backspace 行为相同
-        self.backspace(&Backspace, window, cx);
+    fn delete(&mut self, _: &Delete, _: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
+        if self.editing_key_index.is_some() {
+            if self.form_key_selected_range.is_empty() {
+                let cursor = self.form_key_cursor_offset();
+                let next = self.form_key_next_boundary(cursor);
+                self.temp_key_value.replace_range(cursor..next, "");
+                self.form_key_selected_range = cursor..cursor;
+            } else {
+                let start = self.form_key_selected_range.start;
+                self.temp_key_value
+                    .replace_range(self.form_key_selected_range.clone(), "");
+                self.form_key_selected_range = start..start;
+            }
+            self.form_key_selection_reversed = false;
+            self.persist_active_form_edit(cx);
+            cx.notify();
+        } else if self.editing_value_index.is_some() {
+            if self.form_value_selected_range.is_empty() {
+                let cursor = self.form_value_cursor_offset();
+                let next = self.form_value_next_boundary(cursor);
+                self.temp_value_value.replace_range(cursor..next, "");
+                self.form_value_selected_range = cursor..cursor;
+            } else {
+                let start = self.form_value_selected_range.start;
+                self.temp_value_value
+                    .replace_range(self.form_value_selected_range.clone(), "");
+                self.form_value_selected_range = start..start;
+            }
+            self.form_value_selection_reversed = false;
+            self.persist_active_form_edit(cx);
+            cx.notify();
+        }
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
     fn enter(&mut self, _: &Enter, _: &mut Window, cx: &mut Context<Self>) {
@@ -409,7 +502,7 @@ impl FormBodyInput {
         }
     }
 
-    fn tab(&mut self, _: &Tab, _: &mut Window, cx: &mut Context<Self>) {
+    fn tab(&mut self, _: &Tab, window: &mut Window, cx: &mut Context<Self>) {
         // Tab 键在 FormData 条目之间导航
         if let Some(index) = self.editing_key_index {
             // 从 key 切换到 value - start_editing_value 会自动完成 key 编辑
@@ -422,10 +515,12 @@ impl FormBodyInput {
                 self.add_form_data_entry(cx);
                 self.start_editing_key(self.form_data_entries.len() - 1, cx);
             }
+        } else {
+            window.focus_next(cx);
         }
     }
 
-    fn shift_tab(&mut self, _: &ShiftTab, _: &mut Window, cx: &mut Context<Self>) {
+    fn shift_tab(&mut self, _: &ShiftTab, window: &mut Window, cx: &mut Context<Self>) {
         // Shift+Tab 键反向导航
         if let Some(index) = self.editing_value_index {
             // 从 value 切换到 key - start_editing_key 会自动完成 value 编辑
@@ -435,6 +530,8 @@ impl FormBodyInput {
             if index > 0 {
                 self.start_editing_value(index - 1, cx);
             }
+        } else {
+            window.focus_prev(cx);
         }
     }
 
@@ -482,6 +579,29 @@ impl FormBodyInput {
         }
     }
 
+    fn word_left(&mut self, _: &WordLeft, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            let offset =
+                previous_word_boundary(&self.temp_key_value, self.form_key_cursor_offset());
+            self.form_key_move_to(offset, cx);
+        } else if self.editing_value_index.is_some() {
+            let offset =
+                previous_word_boundary(&self.temp_value_value, self.form_value_cursor_offset());
+            self.form_value_move_to(offset, cx);
+        }
+    }
+
+    fn word_right(&mut self, _: &WordRight, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            let offset = next_word_boundary(&self.temp_key_value, self.form_key_cursor_offset());
+            self.form_key_move_to(offset, cx);
+        } else if self.editing_value_index.is_some() {
+            let offset =
+                next_word_boundary(&self.temp_value_value, self.form_value_cursor_offset());
+            self.form_value_move_to(offset, cx);
+        }
+    }
+
     fn select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
         if self.editing_key_index.is_some() {
             self.form_key_select_to(
@@ -510,6 +630,29 @@ impl FormBodyInput {
         }
     }
 
+    fn select_word_left(&mut self, _: &SelectWordLeft, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            let offset =
+                previous_word_boundary(&self.temp_key_value, self.form_key_cursor_offset());
+            self.form_key_select_to(offset, cx);
+        } else if self.editing_value_index.is_some() {
+            let offset =
+                previous_word_boundary(&self.temp_value_value, self.form_value_cursor_offset());
+            self.form_value_select_to(offset, cx);
+        }
+    }
+
+    fn select_word_right(&mut self, _: &SelectWordRight, _: &mut Window, cx: &mut Context<Self>) {
+        if self.editing_key_index.is_some() {
+            let offset = next_word_boundary(&self.temp_key_value, self.form_key_cursor_offset());
+            self.form_key_select_to(offset, cx);
+        } else if self.editing_value_index.is_some() {
+            let offset =
+                next_word_boundary(&self.temp_value_value, self.form_value_cursor_offset());
+            self.form_value_select_to(offset, cx);
+        }
+    }
+
     fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
         if self.editing_key_index.is_some() {
             self.form_key_move_to(0, cx);
@@ -520,13 +663,27 @@ impl FormBodyInput {
         }
     }
 
+    fn undo(&mut self, _: &Undo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(previous) = self.edit_history.undo(current) {
+            self.restore_snapshot(previous, cx);
+        }
+    }
+
+    fn redo(&mut self, _: &Redo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(next) = self.edit_history.redo(current) {
+            self.restore_snapshot(next, cx);
+        }
+    }
+
     fn form_paste(&mut self, _: &Paste, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
             let single_line = text
                 .chars()
                 .filter(|character| !matches!(character, '\r' | '\n'))
                 .collect::<String>();
-            self.replace_form_selection(&single_line, cx);
+            self.replace_form_selection(&single_line, false, cx);
         }
     }
 
@@ -552,11 +709,17 @@ impl FormBodyInput {
             || (self.editing_value_index.is_some() && !self.form_value_selected_range.is_empty());
         if has_selection {
             self.form_copy(&Copy, window, cx);
-            self.replace_form_selection("", cx);
+            self.replace_form_selection("", false, cx);
         }
     }
 
-    fn replace_form_selection(&mut self, text: &str, cx: &mut Context<Self>) {
+    fn replace_form_selection(
+        &mut self,
+        text: &str,
+        coalesce_typing: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let before = self.snapshot();
         if self.editing_key_index.is_some() {
             let range = self.form_key_selected_range.clone();
             self.temp_key_value.replace_range(range.clone(), text);
@@ -573,6 +736,13 @@ impl FormBodyInput {
             self.form_value_selection_reversed = false;
             self.persist_active_form_edit(cx);
             cx.notify();
+        }
+        if self.snapshot() != before {
+            if coalesce_typing {
+                self.edit_history.record_typing(before);
+            } else {
+                self.edit_history.record(before);
+            }
         }
     }
 
@@ -604,7 +774,7 @@ impl FormBodyInput {
             // Accept the complete text payload rather than treating byte length as character
             // length; special keys are still excluded because they have no printable key_char.
             if !key_char.is_empty() && !key_char.chars().any(char::is_control) {
-                self.replace_form_selection(key_char, cx);
+                self.replace_form_selection(key_char, true, cx);
             }
         }
     }
@@ -619,12 +789,14 @@ impl FormBodyInput {
     }
 
     fn form_key_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.form_key_selected_range = offset..offset;
         self.form_key_selection_reversed = false;
         cx.notify();
     }
 
     fn form_key_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         if self.form_key_selection_reversed {
             self.form_key_selected_range.start = offset;
         } else {
@@ -664,12 +836,14 @@ impl FormBodyInput {
     }
 
     fn form_value_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.form_value_selected_range = offset..offset;
         self.form_value_selection_reversed = false;
         cx.notify();
     }
 
     fn form_value_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         if self.form_value_selection_reversed {
             self.form_value_selected_range.start = offset;
         } else {
@@ -697,6 +871,84 @@ impl FormBodyInput {
             .grapheme_indices(true)
             .find_map(|(idx, _)| (idx > offset).then_some(idx))
             .unwrap_or(self.temp_value_value.len())
+    }
+
+    fn snapshot(&self) -> FormEditSnapshot {
+        FormEditSnapshot {
+            entries: self.form_data_entries.clone(),
+            editing_key_index: self.editing_key_index,
+            editing_value_index: self.editing_value_index,
+            temp_key_value: self.temp_key_value.clone(),
+            temp_value_value: self.temp_value_value.clone(),
+            key_selection: self.form_key_selected_range.clone(),
+            key_selection_reversed: self.form_key_selection_reversed,
+            value_selection: self.form_value_selected_range.clone(),
+            value_selection_reversed: self.form_value_selection_reversed,
+        }
+    }
+
+    fn record_edit(&mut self) {
+        self.edit_history.record(self.snapshot());
+    }
+
+    fn restore_snapshot(&mut self, snapshot: FormEditSnapshot, cx: &mut Context<Self>) {
+        self.form_data_entries = snapshot.entries;
+        self.editing_key_index = snapshot.editing_key_index;
+        self.editing_value_index = snapshot.editing_value_index;
+        self.temp_key_value = snapshot.temp_key_value;
+        self.temp_value_value = snapshot.temp_value_value;
+        self.form_key_selected_range = snapshot.key_selection;
+        self.form_key_selection_reversed = snapshot.key_selection_reversed;
+        self.form_value_selected_range = snapshot.value_selection;
+        self.form_value_selection_reversed = snapshot.value_selection_reversed;
+        self.context_menu_position = None;
+        self.ensure_control_focus_handles(cx);
+        self.emit_form_data_changed(cx);
+        cx.notify();
+    }
+
+    fn ensure_control_focus_handles(&mut self, cx: &mut Context<Self>) {
+        let target = self.form_data_entries.len();
+        while self.row_toggle_focus_handles.len() < target {
+            self.row_toggle_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+            self.row_type_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+            self.row_file_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+            self.row_delete_focus_handles
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+        }
+        self.row_toggle_focus_handles.truncate(target);
+        self.row_type_focus_handles.truncate(target);
+        self.row_file_focus_handles.truncate(target);
+        self.row_delete_focus_handles.truncate(target);
+    }
+
+    fn remove_control_focus_handles(&mut self, index: usize) {
+        if index < self.row_toggle_focus_handles.len() {
+            self.row_toggle_focus_handles.remove(index);
+            self.row_type_focus_handles.remove(index);
+            self.row_file_focus_handles.remove(index);
+            self.row_delete_focus_handles.remove(index);
+        }
+    }
+
+    fn focus_after_row_removal(
+        &self,
+        removed_index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(focus) = self
+            .row_toggle_focus_handles
+            .get(removed_index)
+            .or_else(|| self.row_toggle_focus_handles.last())
+        {
+            focus.focus(window, cx);
+        } else {
+            self.add_row_focus_handle.focus(window, cx);
+        }
     }
 
     // FormData key mouse event handlers
@@ -874,6 +1126,8 @@ impl FormBodyInput {
     ) {
         match action {
             EditContextAction::Dismiss => {}
+            EditContextAction::Undo => self.undo(&Undo, window, cx),
+            EditContextAction::Redo => self.redo(&Redo, window, cx),
             EditContextAction::Cut => self.form_cut(&Cut, window, cx),
             EditContextAction::Copy => self.form_copy(&Copy, window, cx),
             EditContextAction::Paste => self.form_paste(&Paste, window, cx),
@@ -1098,6 +1352,10 @@ impl Render for FormBodyInput {
         let form_data_entries = self.form_data_entries.clone();
         let form_data_allows_files = self.form_data_allows_files;
         let context_menu_position = self.context_menu_position;
+        let row_toggle_focus_handles = self.row_toggle_focus_handles.clone();
+        let row_type_focus_handles = self.row_type_focus_handles.clone();
+        let row_file_focus_handles = self.row_file_focus_handles.clone();
+        let row_delete_focus_handles = self.row_delete_focus_handles.clone();
         let form_data_scrollbar = form_data_scrollbar_geometry(
             form_data_entries.len(),
             self.form_data_scroll.offset().y.as_f32(),
@@ -1111,7 +1369,14 @@ impl Render for FormBodyInput {
             .flex_col()
             .gap_0()
             .bg(rgb(PANEL))
+            .border_1()
+            .border_color(if self.focus_handle.is_focused(window) {
+                rgb(INFO)
+            } else {
+                rgb(LINE)
+            })
             .track_focus(&self.focus_handle(cx))
+            .key_context("BodyInput")
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
             .on_action(cx.listener(Self::enter))
@@ -1120,14 +1385,20 @@ impl Render for FormBodyInput {
             .on_action(cx.listener(Self::shift_tab))
             .on_action(cx.listener(Self::left))
             .on_action(cx.listener(Self::right))
+            .on_action(cx.listener(Self::word_left))
+            .on_action(cx.listener(Self::word_right))
             .on_action(cx.listener(Self::select_left))
             .on_action(cx.listener(Self::select_right))
+            .on_action(cx.listener(Self::select_word_left))
+            .on_action(cx.listener(Self::select_word_right))
             .on_action(cx.listener(Self::select_all))
             .on_action(cx.listener(Self::home))
             .on_action(cx.listener(Self::end))
             .on_action(cx.listener(Self::form_paste))
             .on_action(cx.listener(Self::form_cut))
             .on_action(cx.listener(Self::form_copy))
+            .on_action(cx.listener(Self::undo))
+            .on_action(cx.listener(Self::redo))
             .on_key_down(cx.listener(Self::on_key_down))
             .child(
                 div()
@@ -1245,6 +1516,18 @@ impl Render for FormBodyInput {
                                             })
                                         });
                                     let entry_enabled = entry.enabled;
+                                    let toggle_focus = row_toggle_focus_handles[index].clone();
+                                    let mouse_toggle_focus = toggle_focus.clone();
+                                    let toggle_focused = toggle_focus.is_focused(window);
+                                    let type_focus = row_type_focus_handles[index].clone();
+                                    let mouse_type_focus = type_focus.clone();
+                                    let type_focused = type_focus.is_focused(window);
+                                    let file_focus = row_file_focus_handles[index].clone();
+                                    let mouse_file_focus = file_focus.clone();
+                                    let file_focused = file_focus.is_focused(window);
+                                    let delete_focus = row_delete_focus_handles[index].clone();
+                                    let mouse_delete_focus = delete_focus.clone();
+                                    let delete_focused = delete_focus.is_focused(window);
 
                                     div()
                                         .debug_selector(move || format!("body-form-row-{index}"))
@@ -1257,9 +1540,19 @@ impl Render for FormBodyInput {
                                         .child(
                                             // Checkbox
                                             div()
+                                                .id(("body-form-toggle", index))
                                                 .debug_selector(move || {
                                                     format!("body-form-toggle-{index}")
                                                 })
+                                                .track_focus(&toggle_focus)
+                                                .key_context("KeyboardButton")
+                                                .role(Role::CheckBox)
+                                                .aria_label(format!(
+                                                    "{} form body row {}",
+                                                    if entry_enabled { "Disable" } else { "Enable" },
+                                                    index + 1
+                                                ))
+                                                .aria_selected(entry_enabled)
                                                 .size(px(18.0))
                                                 .flex()
                                                 .items_center()
@@ -1277,11 +1570,23 @@ impl Render for FormBodyInput {
                                                 .font_weight(gpui::FontWeight::BOLD)
                                                 .text_size(px(10.0))
                                                 .cursor_pointer()
+                                                .when(toggle_focused, |control| {
+                                                    control.border_2().border_color(rgb(ACCENT_SOFT))
+                                                })
                                                 .child(if entry_enabled { "✓" } else { "" })
+                                                .on_action(cx.listener(
+                                                    move |this,
+                                                          _: &ActivateControl,
+                                                          _,
+                                                          cx| {
+                                                        this.toggle_form_data_entry(index, cx);
+                                                    },
+                                                ))
                                                 .on_mouse_up(
                                                     gpui::MouseButton::Left,
                                                     cx.listener(
-                                                        move |this, _event, _window, cx| {
+                                                        move |this, _event, window, cx| {
+                                                            mouse_toggle_focus.focus(window, cx);
                                                             this.toggle_form_data_entry(index, cx);
                                                         },
                                                     ),
@@ -1378,9 +1683,18 @@ impl Render for FormBodyInput {
                                         .when(form_data_allows_files, |row| {
                                             row.child(
                                                 div()
+                                                    .id(("body-form-type", index))
                                                     .debug_selector(move || {
                                                         format!("body-form-type-{index}")
                                                     })
+                                                    .track_focus(&type_focus)
+                                                    .key_context("KeyboardButton")
+                                                    .role(Role::Button)
+                                                    .aria_label(format!(
+                                                        "Use {} value for form row {}",
+                                                        if entry_is_file { "text" } else { "file" },
+                                                        index + 1
+                                                    ))
                                                     .w(px(64.0))
                                                     .px_2()
                                                     .py_2()
@@ -1408,14 +1722,28 @@ impl Render for FormBodyInput {
                                                         0x0047_5569
                                                     }))
                                                     .cursor_pointer()
+                                                    .when(type_focused, |control| {
+                                                        control.border_2().border_color(rgb(INFO))
+                                                    })
                                                     .child(if entry_is_file {
                                                         "File"
                                                     } else {
                                                         "Text"
                                                     })
+                                                    .on_action(cx.listener(
+                                                        move |this,
+                                                              _: &ActivateControl,
+                                                              _,
+                                                              cx| {
+                                                            this.toggle_form_data_value_kind(
+                                                                index, cx,
+                                                            );
+                                                        },
+                                                    ))
                                                     .on_mouse_up(
                                                         gpui::MouseButton::Left,
-                                                        cx.listener(move |this, _, _, cx| {
+                                                        cx.listener(move |this, _, window, cx| {
+                                                            mouse_type_focus.focus(window, cx);
                                                             this.toggle_form_data_value_kind(
                                                                 index, cx,
                                                             );
@@ -1426,6 +1754,7 @@ impl Render for FormBodyInput {
                                         .child(
                                             // Value input - 可点击编辑
                                             div()
+                                                .id(("body-form-value", index))
                                                 .debug_selector(move || {
                                                     format!("body-form-value-{index}")
                                                 })
@@ -1515,6 +1844,16 @@ impl Render for FormBodyInput {
                                                     .debug_selector(move || {
                                                         format!("body-form-file-{index}")
                                                     })
+                                                    .track_focus(&file_focus)
+                                                    .key_context("KeyboardButton")
+                                                    .role(Role::Button)
+                                                    .aria_label(format!(
+                                                        "Choose file for form row {}",
+                                                        index + 1
+                                                    ))
+                                                    .when(file_focused, |control| {
+                                                        control.border_2().border_color(rgb(INFO))
+                                                    })
                                                     .flex()
                                                     .flex_col()
                                                     .justify_center()
@@ -1555,9 +1894,20 @@ impl Render for FormBodyInput {
                                                             )
                                                         },
                                                     )
+                                                    .on_action(cx.listener(
+                                                        move |this,
+                                                              _: &ActivateControl,
+                                                              window,
+                                                              cx| {
+                                                            this.choose_form_data_file(
+                                                                index, window, cx,
+                                                            );
+                                                        },
+                                                    ))
                                                     .on_mouse_up(
                                                         gpui::MouseButton::Left,
                                                         cx.listener(move |this, _, window, cx| {
+                                                            mouse_file_focus.focus(window, cx);
                                                             this.choose_form_data_file(
                                                                 index, window, cx,
                                                             );
@@ -1626,9 +1976,17 @@ impl Render for FormBodyInput {
                                         .child(
                                             // Delete button
                                             div()
+                                                .id(("body-form-delete", index))
                                                 .debug_selector(move || {
                                                     format!("body-form-delete-{index}")
                                                 })
+                                                .track_focus(&delete_focus)
+                                                .key_context("KeyboardButton")
+                                                .role(Role::Button)
+                                                .aria_label(format!(
+                                                    "Delete form body row {}",
+                                                    index + 1
+                                                ))
                                                 .w(px(44.0))
                                                 .h(px(30.0))
                                                 .flex_none()
@@ -1642,13 +2000,31 @@ impl Render for FormBodyInput {
                                                 .rounded_md()
                                                 .cursor_pointer()
                                                 .hover(|style| style.bg(rgb(ACCENT_SOFT)))
+                                                .when(delete_focused, |control| {
+                                                    control.border_2().border_color(rgb(INFO))
+                                                })
                                                 .child("×")
                                                 .text_size(px(15.0))
+                                                .on_action(cx.listener(
+                                                    move |this,
+                                                          _: &ActivateControl,
+                                                          window,
+                                                          cx| {
+                                                        this.remove_form_data_entry(index, cx);
+                                                        this.focus_after_row_removal(
+                                                            index, window, cx,
+                                                        );
+                                                    },
+                                                ))
                                                 .on_mouse_up(
                                                     gpui::MouseButton::Left,
                                                     cx.listener(
-                                                        move |this, _event, _window, cx| {
+                                                        move |this, _event, window, cx| {
+                                                            mouse_delete_focus.focus(window, cx);
                                                             this.remove_form_data_entry(index, cx);
+                                                            this.focus_after_row_removal(
+                                                                index, window, cx,
+                                                            );
                                                         },
                                                     ),
                                                 ),
@@ -1684,7 +2060,12 @@ impl Render for FormBodyInput {
             )
             .child(
                 div()
+                    .id("body-form-add-row")
                     .debug_selector(|| "body-form-add-row".into())
+                    .track_focus(&self.add_row_focus_handle)
+                    .key_context("KeyboardButton")
+                    .role(Role::Button)
+                    .aria_label("Add form body row")
                     .h(px(34.0))
                     .mx_2()
                     .mb_2()
@@ -1700,6 +2081,9 @@ impl Render for FormBodyInput {
                     .rounded_md()
                     .cursor_pointer()
                     .hover(|style| style.bg(rgb(PANEL_ALT)))
+                    .when(self.add_row_focus_handle.is_focused(window), |button| {
+                        button.border_2().border_color(rgb(INFO))
+                    })
                     .child("+ Add form field")
                     .child(
                         div()
@@ -1710,9 +2094,15 @@ impl Render for FormBodyInput {
                     .font_family("Helvetica Neue")
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .text_size(px(11.0))
+                    .on_action(cx.listener(
+                        |this, _: &ActivateControl, _window, cx| {
+                            this.add_form_data_entry(cx);
+                        },
+                    ))
                     .on_mouse_up(
                         gpui::MouseButton::Left,
-                        cx.listener(|this, _event, _window, cx| {
+                        cx.listener(|this, _event, window, cx| {
+                            this.add_row_focus_handle.focus(window, cx);
                             this.add_form_data_entry(cx);
                         }),
                     ),

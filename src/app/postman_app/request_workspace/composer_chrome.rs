@@ -1,27 +1,50 @@
 use super::composer::RequestComposer;
 use crate::{
-    app::{AuthorizationKind, RequestPane},
+    app::{ActivateControl, AuthorizationKind, RequestPane},
     ui::theme::{
-        ACCENT, ACCENT_INK, ACCENT_VIVID, ERROR, FONT_HEADING, FONT_UI, INFO, INFO_SOFT, LINE,
-        MUTED, PANEL, PANEL_ALT, TEXT,
+        ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, ERROR, FONT_HEADING, FONT_UI, INFO,
+        INFO_SOFT, LINE, MUTED, PANEL, PANEL_ALT, TEXT,
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Styled,
+    actions, div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Role, StatefulInteractiveElement, Styled, Window,
 };
+
+actions!(request_pane_tabs, [NextRequestPane, PreviousRequestPane]);
+
+pub(super) fn setup_request_pane_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("right", NextRequestPane, Some("RequestPaneTab")),
+        KeyBinding::new("down", NextRequestPane, Some("RequestPaneTab")),
+        KeyBinding::new("left", PreviousRequestPane, Some("RequestPaneTab")),
+        KeyBinding::new("up", PreviousRequestPane, Some("RequestPaneTab")),
+    ]
+}
 
 impl RequestComposer {
     pub(super) fn request_tab(
         &self,
         pane: RequestPane,
         label: impl Into<String>,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self.view_model.read(cx).request_pane() == pane;
         let selector = request_pane_selector(pane);
+        let label = label.into();
+        let accessible_label = format!("{label} request pane");
+        let focus_handle = self.request_pane_focus_handles[request_pane_index(pane)].clone();
+        let mouse_focus_handle = focus_handle.clone();
+        let focused = focus_handle.is_focused(window);
         div()
+            .id(selector)
             .debug_selector(move || selector.into())
+            .track_focus(&focus_handle)
+            .key_context("KeyboardButton RequestPaneTab")
+            .role(Role::Tab)
+            .aria_label(accessible_label)
+            .aria_selected(active)
             .h_full()
             .flex()
             .items_center()
@@ -36,14 +59,52 @@ impl RequestComposer {
             })
             .text_color(rgb(if active { TEXT } else { MUTED }))
             .hover(|style| style.text_color(rgb(TEXT)))
-            .child(label.into())
+            .when(focused, |tab| {
+                tab.bg(rgb(ACCENT_SOFT))
+                    .border_1()
+                    .border_color(rgb(ACCENT))
+            })
+            .child(label)
+            .on_action(
+                cx.listener(move |this, _: &ActivateControl, _, cx| {
+                    this.set_request_pane(pane, cx)
+                }),
+            )
+            .on_action(cx.listener(move |this, _: &NextRequestPane, window, cx| {
+                this.activate_relative_request_pane(pane, 1, window, cx)
+            }))
+            .on_action(
+                cx.listener(move |this, _: &PreviousRequestPane, window, cx| {
+                    this.activate_relative_request_pane(pane, -1, window, cx)
+                }),
+            )
             .on_mouse_up(
                 gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| this.set_request_pane(pane, cx)),
+                cx.listener(move |this, _, window, cx| {
+                    mouse_focus_handle.focus(window, cx);
+                    this.set_request_pane(pane, cx);
+                }),
             )
     }
 
-    pub(super) fn render_request_head(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn activate_relative_request_pane(
+        &mut self,
+        pane: RequestPane,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let next = (request_pane_index(pane) as isize + delta).rem_euclid(7) as usize;
+        let pane = REQUEST_PANES[next];
+        self.request_pane_focus_handles[next].focus(window, cx);
+        self.set_request_pane(pane, cx);
+    }
+
+    pub(super) fn render_request_head(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let (is_sending, url_query_count, request_id, in_flight_count) = {
             let view_model = self.view_model.read(cx);
             (
@@ -109,7 +170,16 @@ impl RequestComposer {
             })
             .child(
                 div()
+                    .id("send-button")
                     .debug_selector(|| "send-button".into())
+                    .track_focus(&self.send_focus_handle)
+                    .key_context("KeyboardButton")
+                    .role(Role::Button)
+                    .aria_label(if is_sending {
+                        "Cancel active request"
+                    } else {
+                        "Send active request"
+                    })
                     .w(px(110.0))
                     .h_full()
                     .flex_none()
@@ -130,6 +200,9 @@ impl RequestComposer {
                             style.bg(rgb(ACCENT)).text_color(rgb(PANEL))
                         }
                     })
+                    .when(self.send_focus_handle.is_focused(window), |button| {
+                        button.border_2().border_color(rgb(INFO))
+                    })
                     .child(
                         div()
                             .when(is_sending, |label| {
@@ -137,11 +210,18 @@ impl RequestComposer {
                             })
                             .child(if is_sending { "Cancel" } else { "Send" }),
                     )
+                    .on_action(
+                        cx.listener(|this, _: &ActivateControl, _window, cx| this.click_send(cx)),
+                    )
                     .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
             )
     }
 
-    pub(super) fn render_request_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_request_menu(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let (header_count, authorization_kind, has_authorization, has_body, has_script, has_tests) = {
             let view_model = self.view_model.read(cx);
             (
@@ -173,7 +253,7 @@ impl RequestComposer {
             .bg(rgb(PANEL_ALT))
             .border_b_1()
             .border_color(rgb(LINE))
-            .child(self.request_tab(RequestPane::Params, "Params", cx))
+            .child(self.request_tab(RequestPane::Params, "Params", window, cx))
             .child(self.request_tab(
                 RequestPane::Authorization,
                 format!(
@@ -184,30 +264,52 @@ impl RequestComposer {
                     },
                     if has_authorization { " ●" } else { "" }
                 ),
+                window,
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Headers,
                 format!("Headers ({header_count})"),
+                window,
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Body,
                 if has_body { "Body ●" } else { "Body" },
+                window,
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Scripts,
                 if has_script { "Scripts ●" } else { "Scripts" },
+                window,
                 cx,
             ))
             .child(self.request_tab(
                 RequestPane::Tests,
                 if has_tests { "Tests ●" } else { "Tests" },
+                window,
                 cx,
             ))
-            .child(self.request_tab(RequestPane::Options, "Options", cx))
+            .child(self.request_tab(RequestPane::Options, "Options", window, cx))
     }
+}
+
+const REQUEST_PANES: [RequestPane; 7] = [
+    RequestPane::Params,
+    RequestPane::Authorization,
+    RequestPane::Headers,
+    RequestPane::Body,
+    RequestPane::Scripts,
+    RequestPane::Tests,
+    RequestPane::Options,
+];
+
+fn request_pane_index(pane: RequestPane) -> usize {
+    REQUEST_PANES
+        .iter()
+        .position(|candidate| *candidate == pane)
+        .expect("all request panes are represented in keyboard order")
 }
 fn request_pane_selector(pane: RequestPane) -> &'static str {
     match pane {

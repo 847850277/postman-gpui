@@ -1,4 +1,4 @@
-use crate::app::{HistoryStorageStatus, WorkspaceViewModel};
+use crate::app::{ActivateControl, HistoryStorageStatus, WorkspaceViewModel};
 use crate::models::HistoryEntry;
 use crate::ui::components::input::header_input::{HeaderInput, HeaderInputEvent};
 use crate::ui::theme::{
@@ -7,8 +7,8 @@ use crate::ui::theme::{
 };
 use gpui::{
     actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Render,
-    Role, StatefulInteractiveElement, Styled, Subscription, Window,
+    FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, MouseButton,
+    ParentElement, Render, Role, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -30,7 +30,9 @@ fn setup_history_list_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("space", ActivateHistoryItem, Some("HistoryItem")),
         KeyBinding::new("tab", FocusFirstHistoryItem, Some("HistorySearch")),
         KeyBinding::new("tab", FocusNextHistoryItem, Some("HistoryItem")),
+        KeyBinding::new("down", FocusNextHistoryItem, Some("HistoryItem")),
         KeyBinding::new("shift-tab", FocusPreviousHistoryItem, Some("HistoryItem")),
+        KeyBinding::new("up", FocusPreviousHistoryItem, Some("HistoryItem")),
     ]
 }
 
@@ -49,6 +51,8 @@ pub struct HistoryList {
     item_focus_handles: HashMap<String, FocusHandle>,
     search_query: String,
     search_input: Entity<HeaderInput>,
+    refresh_focus_handle: FocusHandle,
+    clear_focus_handle: FocusHandle,
     _search_subscription: Subscription,
     _view_model_subscription: Subscription,
 }
@@ -72,6 +76,8 @@ impl HistoryList {
             item_focus_handles: HashMap::new(),
             search_query: String::new(),
             search_input,
+            refresh_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            clear_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _search_subscription: search_subscription,
             _view_model_subscription: view_model_subscription,
         }
@@ -111,6 +117,13 @@ impl HistoryList {
                 .searchable_text()
                 .to_lowercase()
                 .contains(query)
+    }
+
+    pub(super) fn focus_search(&self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_input
+            .read(cx)
+            .focus_handle(cx)
+            .focus(window, cx);
     }
 
     /// Mouse, Enter, and Space all resolve the currently rendered row through this command.
@@ -252,6 +265,11 @@ impl Render for HistoryList {
             .collect();
         let has_history = !entries.is_empty();
         let has_visible_entries = !visible_entries.is_empty();
+        let search_focused = self
+            .search_input
+            .read(cx)
+            .focus_handle(cx)
+            .is_focused(window);
         let (storage_selector, storage_text, storage_color) =
             match self.view_model.read(cx).history_storage_status() {
                 HistoryStorageStatus::Loading { stage } => (
@@ -312,7 +330,12 @@ impl Render for HistoryList {
                             .gap(px(6.0))
                             .child(
                                 div()
+                                    .id("history-refresh-button")
                                     .debug_selector(|| "history-refresh-button".into())
+                                    .track_focus(&self.refresh_focus_handle)
+                                    .key_context("KeyboardButton")
+                                    .role(Role::Button)
+                                    .aria_label("Refresh History")
                                     .h(px(24.0))
                                     .px(px(7.0))
                                     .flex()
@@ -326,9 +349,18 @@ impl Render for HistoryList {
                                     .text_size(px(11.0))
                                     .text_color(rgb(MUTED))
                                     .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(TEXT)))
+                                    .when(self.refresh_focus_handle.is_focused(window), |button| {
+                                        button.border_color(rgb(HISTORY_SELECTED_BORDER))
+                                    })
+                                    .on_action(cx.listener(
+                                        |_this, _: &ActivateControl, _window, cx| {
+                                            cx.emit(HistoryListEvent::RefreshRequested);
+                                        },
+                                    ))
                                     .on_mouse_up(
                                         gpui::MouseButton::Left,
-                                        cx.listener(|_this, _event, _window, cx| {
+                                        cx.listener(|this, _event, window, cx| {
+                                            this.refresh_focus_handle.focus(window, cx);
                                             cx.emit(HistoryListEvent::RefreshRequested);
                                         }),
                                     )
@@ -336,7 +368,12 @@ impl Render for HistoryList {
                             )
                             .child(
                                 div()
+                                    .id("history-clear-button")
                                     .debug_selector(|| "history-clear-button".into())
+                                    .track_focus(&self.clear_focus_handle)
+                                    .key_context("KeyboardButton")
+                                    .role(Role::Button)
+                                    .aria_label("Clear History")
                                     .h(px(24.0))
                                     .px(px(7.0))
                                     .flex()
@@ -350,9 +387,18 @@ impl Render for HistoryList {
                                     .text_size(px(11.0))
                                     .text_color(rgb(MUTED))
                                     .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(ERROR)))
+                                    .when(self.clear_focus_handle.is_focused(window), |button| {
+                                        button.border_color(rgb(HISTORY_SELECTED_BORDER))
+                                    })
+                                    .on_action(cx.listener(
+                                        |_this, _: &ActivateControl, _window, cx| {
+                                            cx.emit(HistoryListEvent::ClearRequested);
+                                        },
+                                    ))
                                     .on_mouse_up(
                                         gpui::MouseButton::Left,
-                                        cx.listener(|_this, _event, _window, cx| {
+                                        cx.listener(|this, _event, window, cx| {
+                                            this.clear_focus_handle.focus(window, cx);
                                             cx.emit(HistoryListEvent::ClearRequested);
                                         }),
                                     )
@@ -383,7 +429,11 @@ impl Render for HistoryList {
                     .rounded(px(8.0))
                     .bg(rgb(PANEL_ALT))
                     .border_1()
-                    .border_color(rgb(LINE))
+                    .border_color(rgb(if search_focused {
+                        HISTORY_SELECTED_BORDER
+                    } else {
+                        LINE
+                    }))
                     .on_action(cx.listener(Self::focus_first_item))
                     .child(
                         div()

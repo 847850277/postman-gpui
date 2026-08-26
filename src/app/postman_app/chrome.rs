@@ -1,14 +1,22 @@
 use super::PostmanApp;
-use crate::ui::theme::{
-    ACCENT_DARK, ACCENT_SOFT, ACCENT_VIVID, FONT_HEADING, FONT_UI, INFO, INFO_SOFT, LINE, PANEL,
-    PANEL_ALT, SUBTEXT, TEXT,
+use crate::{
+    app::{ActivateControl, NewRequest, ToggleShortcutHelp},
+    ui::theme::{
+        ACCENT, ACCENT_DARK, ACCENT_SOFT, ACCENT_VIVID, FONT_HEADING, FONT_UI, INFO, INFO_SOFT,
+        LINE, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+    },
 };
 use gpui::{
-    div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Styled,
+    div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, Role, StatefulInteractiveElement, Styled, Window,
 };
 
 impl PostmanApp {
-    pub(super) fn render_top_header(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_top_header(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let cookie_count = self.view_model.read(cx).cookie_count();
         let cookie_jar_open = self.cookie_jar_open;
         div()
@@ -41,6 +49,10 @@ impl PostmanApp {
                 div()
                     .id("cookie-jar-trigger")
                     .debug_selector(|| "cookie-jar-trigger".into())
+                    .track_focus(&self.cookie_trigger_focus)
+                    .key_context("KeyboardButton OverlayTrigger")
+                    .role(Role::Button)
+                    .aria_label(format!("Cookie Jar, {cookie_count} stored"))
                     .h(px(34.0))
                     .px_3()
                     .flex()
@@ -56,16 +68,67 @@ impl PostmanApp {
                     .text_color(rgb(INFO))
                     .cursor_pointer()
                     .hover(|style| style.border_color(rgb(INFO)).bg(rgb(PANEL_ALT)))
+                    .when(self.cookie_trigger_focus.is_focused(window), |button| {
+                        button.border_1().border_color(rgb(ACCENT))
+                    })
                     .child("◫")
                     .child(format!("Cookie Jar · {cookie_count} stored"))
+                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
+                        this.toggle_cookie_jar(window, cx)
+                    }))
                     .on_mouse_up(
                         gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.toggle_cookie_jar(cx)),
+                        cx.listener(|this, _, window, cx| {
+                            this.cookie_trigger_focus.focus(window, cx);
+                            this.toggle_cookie_jar(window, cx);
+                        }),
+                    ),
+            )
+            .child(
+                div()
+                    .id("shortcut-help-button")
+                    .debug_selector(|| "shortcut-help-button".into())
+                    .track_focus(&self.shortcut_help_button_focus)
+                    .key_context("KeyboardButton")
+                    .role(Role::Button)
+                    .aria_label("Keyboard shortcuts")
+                    .ml_2()
+                    .size(px(34.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(rgb(LINE))
+                    .bg(rgb(PANEL_ALT))
+                    .font_family(FONT_UI)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(rgb(SUBTEXT))
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                    .when(
+                        self.shortcut_help_button_focus.is_focused(window),
+                        |button| button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT)),
+                    )
+                    .child("⌘")
+                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
+                        this.toggle_shortcut_help(&ToggleShortcutHelp, window, cx)
+                    }))
+                    .on_mouse_up(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, window, cx| {
+                            this.shortcut_help_button_focus.focus(window, cx);
+                            this.toggle_shortcut_help(&ToggleShortcutHelp, window, cx);
+                        }),
                     ),
             )
     }
 
-    pub(super) fn render_left_rail(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_left_rail(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let passive_slots = ["↻", "◫", "◇", "⌘", "⚙", "?"];
         div()
             .debug_selector(|| "left-rail".into())
@@ -85,6 +148,10 @@ impl PostmanApp {
                 div()
                     .id(("rail-slot", 0usize))
                     .debug_selector(|| "rail-new-request".into())
+                    .track_focus(&self.new_request_focus)
+                    .key_context("KeyboardButton")
+                    .role(Role::Button)
+                    .aria_label("New request")
                     .size(px(40.0))
                     .flex()
                     .items_center()
@@ -97,10 +164,19 @@ impl PostmanApp {
                     .font_weight(FontWeight::SEMIBOLD)
                     .cursor_pointer()
                     .hover(|style| style.bg(rgb(0x00ff_e4d5)))
+                    .when(self.new_request_focus.is_focused(window), |button| {
+                        button.border_1().border_color(rgb(ACCENT))
+                    })
                     .child("+")
+                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
+                        this.new_request_command(&NewRequest, window, cx)
+                    }))
                     .on_mouse_up(
                         gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.new_request(cx)),
+                        cx.listener(|this, _, window, cx| {
+                            this.new_request_focus.focus(window, cx);
+                            this.new_request_command(&NewRequest, window, cx);
+                        }),
                     ),
             )
             .children(passive_slots.into_iter().enumerate().map(|(index, label)| {

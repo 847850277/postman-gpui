@@ -10,7 +10,10 @@ use std::ops::Range;
 use unicode_segmentation::*;
 
 use crate::ui::components::common::edit_context_menu::{
-    edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
+    edit_context_menu, EditContextAction, EDITABLE_ACTIONS, MASKED_EDITABLE_ACTIONS,
+};
+use crate::ui::components::input::edit_history::{
+    next_word_boundary, previous_word_boundary, EditHistory, TextEditSnapshot,
 };
 use crate::ui::theme::{FONT_MONO, INFO, LINE, PANEL, TEXT};
 
@@ -24,15 +27,24 @@ actions!(
         Delete,
         Left,
         Right,
+        WordLeft,
+        WordRight,
         SelectLeft,
         SelectRight,
+        SelectWordLeft,
+        SelectWordRight,
         SelectAll,
         Home,
         End,
         Paste,
         Cut,
         Copy,
+        Undo,
+        Redo,
         Submit,
+        FocusNext,
+        FocusPrevious,
+        Dismiss,
     ]
 );
 
@@ -56,12 +68,13 @@ pub struct HeaderInput {
     embedded: bool,
     font_family: &'static str,
     context_menu_position: Option<Point<Pixels>>,
+    edit_history: EditHistory<TextEditSnapshot>,
 }
 
 impl HeaderInput {
     pub fn new(cx: &mut Context<Self>) -> Self {
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             content: "".into(),
             placeholder: "Enter value...".into(),
             selected_range: 0..0,
@@ -74,6 +87,7 @@ impl HeaderInput {
             embedded: false,
             font_family: FONT_MONO,
             context_menu_position: None,
+            edit_history: EditHistory::default(),
         }
     }
 
@@ -111,6 +125,7 @@ impl HeaderInput {
     pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let new_content: SharedString = content.into().into();
         if self.content != new_content {
+            self.record_edit();
             self.replace_projected_content(new_content.clone());
             cx.emit(HeaderInputEvent::ValueChanged(new_content.to_string()));
             cx.notify();
@@ -120,6 +135,7 @@ impl HeaderInput {
     /// Projects a ViewModel value into the editor buffer without producing a user edit event.
     pub fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let new_content: SharedString = content.into().into();
+        self.edit_history.clear();
         if self.content != new_content {
             self.replace_projected_content(new_content);
             cx.notify();
@@ -135,6 +151,10 @@ impl HeaderInput {
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        if self.content.is_empty() {
+            return;
+        }
+        self.record_edit();
         self.content = "".into();
         self.selected_range = 0..0;
         self.selection_reversed = false;
@@ -159,12 +179,41 @@ impl HeaderInput {
         }
     }
 
+    fn word_left(&mut self, _: &WordLeft, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = if self.selected_range.is_empty() {
+            previous_word_boundary(&self.content, self.cursor_offset())
+        } else {
+            self.selected_range.start
+        };
+        self.move_to(offset, cx);
+    }
+
+    fn word_right(&mut self, _: &WordRight, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = if self.selected_range.is_empty() {
+            next_word_boundary(&self.content, self.cursor_offset())
+        } else {
+            self.selected_range.end
+        };
+        self.move_to(offset, cx);
+    }
+
     fn select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
         self.select_to(self.previous_boundary(self.cursor_offset()), cx);
     }
 
     fn select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
         self.select_to(self.next_boundary(self.cursor_offset()), cx);
+    }
+
+    fn select_word_left(&mut self, _: &SelectWordLeft, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(
+            previous_word_boundary(&self.content, self.cursor_offset()),
+            cx,
+        );
+    }
+
+    fn select_word_right(&mut self, _: &SelectWordRight, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_to(next_word_boundary(&self.content, self.cursor_offset()), cx);
     }
 
     fn select_all(&mut self, _: &SelectAll, _: &mut Window, cx: &mut Context<Self>) {
@@ -181,30 +230,62 @@ impl HeaderInput {
     }
 
     fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
         if self.selected_range.is_empty() {
             self.select_to(self.previous_boundary(self.cursor_offset()), cx);
         }
-        self.replace_text_in_range(None, "", window, cx);
+        self.replace_text_in_range_internal(None, "", false, false, window, cx);
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
     fn delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
         if self.selected_range.is_empty() {
             self.select_to(self.next_boundary(self.cursor_offset()), cx);
         }
-        self.replace_text_in_range(None, "", window, cx);
+        self.replace_text_in_range_internal(None, "", false, false, window, cx);
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
     fn submit(&mut self, _: &Submit, _: &mut Window, cx: &mut Context<Self>) {
         cx.emit(HeaderInputEvent::SubmitRequested);
     }
 
+    fn focus_next(&mut self, _: &FocusNext, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_next(cx);
+    }
+
+    fn focus_previous(&mut self, _: &FocusPrevious, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_prev(cx);
+    }
+
+    fn dismiss(&mut self, _: &Dismiss, _: &mut Window, cx: &mut Context<Self>) {
+        if self.context_menu_position.take().is_some() {
+            cx.notify();
+        }
+    }
+
     fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.replace_text_in_range(None, &text.replace("\n", ""), window, cx);
+            self.replace_text_in_range_internal(
+                None,
+                &text.replace('\n', ""),
+                true,
+                false,
+                window,
+                cx,
+            );
         }
     }
 
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
+        if self.masked {
+            return;
+        }
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
@@ -213,11 +294,28 @@ impl HeaderInput {
     }
 
     fn cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
+        if self.masked {
+            return;
+        }
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
-            self.replace_text_in_range(None, "", window, cx);
+            self.replace_text_in_range_internal(None, "", true, false, window, cx);
+        }
+    }
+
+    fn undo(&mut self, _: &Undo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(previous) = self.edit_history.undo(current) {
+            self.restore_snapshot(previous, cx);
+        }
+    }
+
+    fn redo(&mut self, _: &Redo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(next) = self.edit_history.redo(current) {
+            self.restore_snapshot(next, cx);
         }
     }
 
@@ -268,6 +366,8 @@ impl HeaderInput {
         cx: &mut Context<Self>,
     ) {
         match action {
+            EditContextAction::Undo => self.undo(&Undo, window, cx),
+            EditContextAction::Redo => self.redo(&Redo, window, cx),
             EditContextAction::Cut => self.cut(&Cut, window, cx),
             EditContextAction::Copy => self.copy(&Copy, window, cx),
             EditContextAction::Paste => self.paste(&Paste, window, cx),
@@ -280,7 +380,34 @@ impl HeaderInput {
 
     // Helper methods
     fn move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.selected_range = offset..offset;
+        self.selection_reversed = false;
+        cx.notify();
+    }
+
+    fn snapshot(&self) -> TextEditSnapshot {
+        TextEditSnapshot {
+            text: self.content.to_string(),
+            selection: self.selected_range.clone(),
+            selection_reversed: self.selection_reversed,
+        }
+    }
+
+    fn record_edit(&mut self) {
+        self.edit_history.record(self.snapshot());
+    }
+
+    fn record_typing(&mut self) {
+        self.edit_history.record_typing(self.snapshot());
+    }
+
+    fn restore_snapshot(&mut self, snapshot: TextEditSnapshot, cx: &mut Context<Self>) {
+        self.content = snapshot.text.into();
+        self.selected_range = snapshot.selection;
+        self.selection_reversed = snapshot.selection_reversed;
+        self.marked_range = None;
+        cx.emit(HeaderInputEvent::ValueChanged(self.content.to_string()));
         cx.notify();
     }
 
@@ -313,6 +440,7 @@ impl HeaderInput {
     }
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         if self.selection_reversed {
             self.selected_range.start = offset;
         } else {
@@ -457,24 +585,10 @@ impl EntityInputHandler for HeaderInput {
         &mut self,
         range_utf16: Option<Range<usize>>,
         new_text: &str,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let range = range_utf16
-            .as_ref()
-            .map(|range_utf16| self.range_from_utf16(range_utf16))
-            .or(self.marked_range.clone())
-            .unwrap_or(self.selected_range.clone());
-
-        self.content =
-            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
-                .into();
-        self.selected_range = range.start + new_text.len()..range.start + new_text.len();
-        self.marked_range.take();
-
-        // 发送值变化事件
-        cx.emit(HeaderInputEvent::ValueChanged(self.content.to_string()));
-        cx.notify();
+        self.replace_text_in_range_internal(range_utf16, new_text, true, true, window, cx);
     }
 
     fn replace_and_mark_text_in_range(
@@ -491,14 +605,18 @@ impl EntityInputHandler for HeaderInput {
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
 
-        self.content =
-            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
-                .into();
+        let replacement =
+            self.content[0..range.start].to_owned() + new_text + &self.content[range.end..];
+        if replacement == self.content.as_ref() {
+            return;
+        }
+        self.record_typing();
+        self.content = replacement.into();
         self.marked_range = Some(range.start..range.start + new_text.len());
         self.selected_range = new_selected_range_utf16
             .as_ref()
             .map(|range_utf16| self.range_from_utf16(range_utf16))
-            .map(|new_range| new_range.start + range.start..new_range.end + range.end)
+            .map(|new_range| new_range.start + range.start..new_range.end + range.start)
             .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
 
         cx.emit(HeaderInputEvent::ValueChanged(self.content.to_string()));
@@ -545,6 +663,42 @@ impl EntityInputHandler for HeaderInput {
         let display_index = last_layout.index_for_x(point.x - line_point.x)?;
         let utf8_index = self.content_offset_for_display_offset(display_index);
         Some(self.offset_to_utf16(utf8_index))
+    }
+}
+
+impl HeaderInput {
+    fn replace_text_in_range_internal(
+        &mut self,
+        range_utf16: Option<Range<usize>>,
+        new_text: &str,
+        record_history: bool,
+        coalesce_typing: bool,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let range = range_utf16
+            .as_ref()
+            .map(|range_utf16| self.range_from_utf16(range_utf16))
+            .or(self.marked_range.clone())
+            .unwrap_or(self.selected_range.clone());
+        let replacement =
+            self.content[0..range.start].to_owned() + new_text + &self.content[range.end..];
+        if replacement == self.content.as_ref() {
+            return;
+        }
+        if record_history {
+            if coalesce_typing {
+                self.record_typing();
+            } else {
+                self.record_edit();
+            }
+        }
+        self.content = replacement.into();
+        self.selected_range = range.start + new_text.len()..range.start + new_text.len();
+        self.selection_reversed = false;
+        self.marked_range.take();
+        cx.emit(HeaderInputEvent::ValueChanged(self.content.to_string()));
+        cx.notify();
     }
 }
 
@@ -756,19 +910,29 @@ impl Render for HeaderInput {
             .text_color(rgb(TEXT))
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
+            .key_context("HeaderInput")
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
             .on_action(cx.listener(Self::left))
             .on_action(cx.listener(Self::right))
+            .on_action(cx.listener(Self::word_left))
+            .on_action(cx.listener(Self::word_right))
             .on_action(cx.listener(Self::select_left))
             .on_action(cx.listener(Self::select_right))
+            .on_action(cx.listener(Self::select_word_left))
+            .on_action(cx.listener(Self::select_word_right))
             .on_action(cx.listener(Self::select_all))
             .on_action(cx.listener(Self::home))
             .on_action(cx.listener(Self::end))
             .on_action(cx.listener(Self::paste))
             .on_action(cx.listener(Self::cut))
             .on_action(cx.listener(Self::copy))
+            .on_action(cx.listener(Self::undo))
+            .on_action(cx.listener(Self::redo))
             .on_action(cx.listener(Self::submit))
+            .on_action(cx.listener(Self::focus_next))
+            .on_action(cx.listener(Self::focus_previous))
+            .on_action(cx.listener(Self::dismiss))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
@@ -781,7 +945,11 @@ impl Render for HeaderInput {
                 root.child(edit_context_menu(
                     position,
                     "header-edit-menu",
-                    EDITABLE_ACTIONS,
+                    if self.masked {
+                        MASKED_EDITABLE_ACTIONS
+                    } else {
+                        EDITABLE_ACTIONS
+                    },
                     Self::handle_context_menu_action,
                     window,
                     cx,
@@ -797,23 +965,45 @@ fn masked_content(content: &str) -> String {
 // 导出KeyBinding设置函数，供主应用使用
 pub fn setup_header_input_key_bindings() -> Vec<KeyBinding> {
     vec![
-        KeyBinding::new("backspace", Backspace, None),
-        KeyBinding::new("delete", Delete, None),
-        KeyBinding::new("left", Left, None),
-        KeyBinding::new("right", Right, None),
-        KeyBinding::new("shift-left", SelectLeft, None),
-        KeyBinding::new("shift-right", SelectRight, None),
-        KeyBinding::new("cmd-a", SelectAll, None),
-        KeyBinding::new("ctrl-a", SelectAll, None),
-        KeyBinding::new("cmd-v", Paste, None),
-        KeyBinding::new("ctrl-v", Paste, None),
-        KeyBinding::new("cmd-c", Copy, None),
-        KeyBinding::new("ctrl-c", Copy, None),
-        KeyBinding::new("cmd-x", Cut, None),
-        KeyBinding::new("ctrl-x", Cut, None),
-        KeyBinding::new("home", Home, None),
-        KeyBinding::new("end", End, None),
-        KeyBinding::new("enter", Submit, None),
+        KeyBinding::new("backspace", Backspace, Some("HeaderInput")),
+        KeyBinding::new("delete", Delete, Some("HeaderInput")),
+        KeyBinding::new("left", Left, Some("HeaderInput")),
+        KeyBinding::new("right", Right, Some("HeaderInput")),
+        KeyBinding::new("alt-left", WordLeft, Some("HeaderInput")),
+        KeyBinding::new("ctrl-left", WordLeft, Some("HeaderInput")),
+        KeyBinding::new("alt-right", WordRight, Some("HeaderInput")),
+        KeyBinding::new("ctrl-right", WordRight, Some("HeaderInput")),
+        KeyBinding::new("shift-left", SelectLeft, Some("HeaderInput")),
+        KeyBinding::new("shift-right", SelectRight, Some("HeaderInput")),
+        KeyBinding::new("alt-shift-left", SelectWordLeft, Some("HeaderInput")),
+        KeyBinding::new("ctrl-shift-left", SelectWordLeft, Some("HeaderInput")),
+        KeyBinding::new("alt-shift-right", SelectWordRight, Some("HeaderInput")),
+        KeyBinding::new("ctrl-shift-right", SelectWordRight, Some("HeaderInput")),
+        KeyBinding::new("cmd-a", SelectAll, Some("HeaderInput")),
+        KeyBinding::new("ctrl-a", SelectAll, Some("HeaderInput")),
+        KeyBinding::new("cmd-v", Paste, Some("HeaderInput")),
+        KeyBinding::new("ctrl-v", Paste, Some("HeaderInput")),
+        KeyBinding::new("cmd-c", Copy, Some("HeaderInput")),
+        KeyBinding::new("ctrl-c", Copy, Some("HeaderInput")),
+        KeyBinding::new("cmd-x", Cut, Some("HeaderInput")),
+        KeyBinding::new("ctrl-x", Cut, Some("HeaderInput")),
+        KeyBinding::new("cmd-z", Undo, Some("HeaderInput")),
+        KeyBinding::new("ctrl-z", Undo, Some("HeaderInput")),
+        KeyBinding::new("cmd-shift-z", Redo, Some("HeaderInput")),
+        KeyBinding::new("ctrl-shift-z", Redo, Some("HeaderInput")),
+        KeyBinding::new("ctrl-y", Redo, Some("HeaderInput")),
+        KeyBinding::new("home", Home, Some("HeaderInput")),
+        KeyBinding::new("end", End, Some("HeaderInput")),
+        KeyBinding::new("cmd-left", Home, Some("HeaderInput")),
+        KeyBinding::new("cmd-right", End, Some("HeaderInput")),
+        KeyBinding::new("enter", Submit, Some("HeaderInput")),
+        KeyBinding::new("tab", FocusNext, Some("HeaderInput && !HistorySearch")),
+        KeyBinding::new(
+            "shift-tab",
+            FocusPrevious,
+            Some("HeaderInput && !HistorySearch"),
+        ),
+        KeyBinding::new("escape", Dismiss, Some("HeaderInput")),
     ]
 }
 

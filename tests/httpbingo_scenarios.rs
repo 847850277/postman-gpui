@@ -20,6 +20,7 @@ use postman_gpui::{
         HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
         DEFAULT_HISTORY_RETENTION_LIMIT,
     },
+    utils::formatter::format_response_body,
 };
 use std::path::{Path, PathBuf};
 use ui::{
@@ -1174,6 +1175,145 @@ fn httpbingo_multi_tab_requests_remain_isolated_across_mouse_keyboard_send_and_c
         .unwrap_or_else(|failure| panic!("Issue #79 multi-tab workflow failed:\n{failure}"));
 }
 
+#[gpui::test]
+fn httpbingo_keyboard_only_lifecycle_sends_copies_replays_switches_and_closes(
+    test_cx: &mut TestAppContext,
+) {
+    run_keyboard_only_lifecycle(test_cx)
+        .unwrap_or_else(|failure| panic!("Issue #141 keyboard-only workflow failed:\n{failure}"));
+}
+
+fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), String> {
+    let history_database = SqliteHistoryFixture::new()?;
+    let app_history_path = history_database.app_path();
+    let workspace = test_cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
+        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    });
+    cx.run_until_parked();
+
+    let first_url = format!("{HTTPBINGO_BASE_URL}/get?issue=141&request=keyboard-a");
+    cx.simulate_keystrokes("ctrl-l ctrl-a");
+    cx.simulate_input(&first_url);
+    cx.simulate_keystrokes("ctrl-enter");
+    cx.run_until_parked();
+    let first_body = match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+        ResponseState::Success {
+            status: 200, body, ..
+        } => body,
+        state => return Err(format!("first keyboard Send failed: {state:#?}")),
+    };
+
+    // Start at the focused URL and use only Tab plus selection/copy shortcuts. The exact visible
+    // Response projection proves that the read-only response surface is in the documented order.
+    let expected_visible_body = format_response_body(&first_body);
+    cx.write_to_clipboard(ClipboardItem::new_string(
+        "keyboard-copy-not-reached".to_string(),
+    ));
+    let mut response_was_copied = false;
+    for _ in 0..96 {
+        cx.simulate_keystrokes("tab ctrl-a ctrl-c");
+        if cx.read_from_clipboard().and_then(|item| item.text())
+            == Some(expected_visible_body.clone())
+        {
+            response_was_copied = true;
+            break;
+        }
+    }
+    if !response_was_copied {
+        return Err("Tab order never reached selectable Response content for Copy".to_string());
+    }
+
+    cx.simulate_keystrokes("ctrl-t");
+    let new_tab_state = workspace.read_with(cx, |workspace, _| {
+        (workspace.tab_count(), workspace.active_tab_index())
+    });
+    if new_tab_state != (2, 1) {
+        return Err(format!(
+            "keyboard New Request did not activate Tab B: {new_tab_state:#?}"
+        ));
+    }
+    let second_url = format!("{HTTPBINGO_BASE_URL}/get?issue=141&request=keyboard-b");
+    cx.simulate_keystrokes("ctrl-l ctrl-a");
+    cx.simulate_input(&second_url);
+    let projected_second_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    if projected_second_url != second_url {
+        return Err(format!(
+            "keyboard URL input did not construct Tab B: {projected_second_url:?}"
+        ));
+    }
+    cx.simulate_keystrokes("ctrl-enter");
+    cx.run_until_parked();
+    let second_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    if !matches!(second_response, ResponseState::Success { status: 200, .. }) {
+        return Err(format!(
+            "second keyboard Send did not complete with HTTP 200: {second_response:#?}"
+        ));
+    }
+
+    cx.simulate_keystrokes("ctrl-tab");
+    let first_projection = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.active_tab_index(),
+            workspace.url().to_string(),
+            workspace.response().clone(),
+        )
+    });
+    if first_projection.0 != 0
+        || first_projection.1 != first_url
+        || !matches!(
+            first_projection.2,
+            ResponseState::Success { status: 200, .. }
+        )
+    {
+        return Err(format!(
+            "Ctrl+Tab did not restore the first completed request: {first_projection:#?}"
+        ));
+    }
+    cx.simulate_keystrokes("ctrl-tab");
+
+    cx.simulate_keystrokes("ctrl-shift-f tab enter");
+    let historical = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.url().to_string(),
+            workspace.response().clone(),
+            workspace.history_len(),
+        )
+    });
+    if historical.0 != second_url
+        || !matches!(historical.1, ResponseState::Historical { .. })
+        || historical.2 != 2
+    {
+        return Err(format!(
+            "keyboard History selection did not replay the newest response: {historical:#?}"
+        ));
+    }
+
+    cx.simulate_keystrokes("ctrl-w");
+    let after_close = workspace.read_with(cx, |workspace, _| {
+        (
+            workspace.tab_count(),
+            workspace.active_tab_index(),
+            workspace.url().to_string(),
+            workspace.history_len(),
+        )
+    });
+    if after_close != (1, 0, first_url, 2) {
+        return Err(format!(
+            "keyboard close did not preserve Tab A and shared History: {after_close:#?}"
+        ));
+    }
+
+    let stored = history_database.load_authoritative(&workspace, cx)?;
+    if stored.len() != 2 || stored.iter().any(|entry| entry.status != Some(200)) {
+        return Err(format!(
+            "keyboard lifecycle did not persist two successful exchanges: {stored:#?}"
+        ));
+    }
+    Ok(())
+}
+
 fn active_request_projection(
     workspace: &Entity<WorkspaceViewModel>,
     cx: &mut VisualTestContext,
@@ -1348,8 +1488,9 @@ fn run_multi_tab_workflow(
     assert_requests_equivalent(&history_after_a[0].request, &persisted_a.request)
         .map_err(|error| format!("Tab A SQLite History mismatch: {error}"))?;
 
-    cx.simulate_keystrokes("tab");
-    cx.simulate_keystrokes("enter");
+    // Send is now a real tab stop and correctly owns focus after pointer activation. Cycle the
+    // active request through the application command instead of relying on stale tab focus.
+    cx.simulate_keystrokes("ctrl-tab");
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
         .map_err(|error| format!("keyboard did not return to Tab B before Send: {error}"))?;
     click(cx, "send-button")?;

@@ -11,6 +11,11 @@ Postman GPUI is a simple graphical user interface application for making HTTP re
 - **Request History**: Click any history item to load the complete request (URL, parameters, headers, and body) back into the form
 - Reusable UI components for a consistent user experience.
 
+The application supports keyboard-only request workflows, standard cross-platform text editing,
+and a built-in shortcut reference. See the
+[Keyboard, Selection, and Clipboard contract](docs/keyboard-shortcuts.md) for the complete shortcut
+matrix and focus order.
+
 ## Request History Feature
 
 The history list in the left sidebar displays the newest 50 completed HTTP exchanges from the

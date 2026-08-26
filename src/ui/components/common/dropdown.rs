@@ -1,7 +1,8 @@
 use gpui::{
-    anchored, canvas, deferred, div, point, prelude::FluentBuilder, px, rgb, Anchor, ClickEvent,
-    Context, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    actions, anchored, canvas, deferred, div, point, prelude::FluentBuilder, px, rgb, Anchor,
+    ClickEvent, Context, ElementId, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Render, Role, StatefulInteractiveElement, Styled,
+    Window,
 };
 
 use crate::{
@@ -15,6 +16,28 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum DropdownEvent {
     SelectionChanged(String),
+}
+
+actions!(
+    dropdown,
+    [
+        ToggleDropdown,
+        SelectPreviousOption,
+        SelectNextOption,
+        CloseDropdown,
+    ]
+);
+
+pub fn setup_dropdown_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("enter", ToggleDropdown, Some("Dropdown")),
+        KeyBinding::new("space", ToggleDropdown, Some("Dropdown")),
+        KeyBinding::new("up", SelectPreviousOption, Some("Dropdown")),
+        KeyBinding::new("left", SelectPreviousOption, Some("Dropdown")),
+        KeyBinding::new("down", SelectNextOption, Some("Dropdown")),
+        KeyBinding::new("right", SelectNextOption, Some("Dropdown")),
+        KeyBinding::new("escape", CloseDropdown, Some("Dropdown")),
+    ]
 }
 
 pub struct Dropdown {
@@ -55,7 +78,7 @@ impl Dropdown {
     pub fn new(id: impl Into<ElementId>, cx: &mut Context<Self>) -> Self {
         Self {
             id: id.into(),
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             selected_value: String::new(),
             options: Vec::new(),
             is_open: false,
@@ -100,9 +123,52 @@ impl Dropdown {
         }
     }
 
-    fn toggle_dropdown(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
+    fn toggle_dropdown(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.focus_handle.focus(window, cx);
         self.is_open = !self.is_open;
         cx.notify();
+    }
+
+    fn toggle_with_keyboard(&mut self, _: &ToggleDropdown, _: &mut Window, cx: &mut Context<Self>) {
+        self.is_open = !self.is_open;
+        cx.notify();
+    }
+
+    fn select_relative(&mut self, delta: isize, cx: &mut Context<Self>) {
+        if self.options.is_empty() {
+            return;
+        }
+        let current = self
+            .options
+            .iter()
+            .position(|option| option == &self.selected_value)
+            .unwrap_or(0);
+        let next = (current as isize + delta).rem_euclid(self.options.len() as isize) as usize;
+        let option = self.options[next].clone();
+        self.selected_value.clone_from(&option);
+        self.is_open = true;
+        cx.emit(DropdownEvent::SelectionChanged(option));
+        cx.notify();
+    }
+
+    fn select_previous(
+        &mut self,
+        _: &SelectPreviousOption,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.select_relative(-1, cx);
+    }
+
+    fn select_next(&mut self, _: &SelectNextOption, _: &mut Window, cx: &mut Context<Self>) {
+        self.select_relative(1, cx);
+    }
+
+    fn close_with_keyboard(&mut self, _: &CloseDropdown, _: &mut Window, cx: &mut Context<Self>) {
+        if self.is_open {
+            self.is_open = false;
+            cx.notify();
+        }
     }
 
     fn select_option(
@@ -118,7 +184,7 @@ impl Dropdown {
         cx.notify();
     }
 
-    fn render_dropdown_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_dropdown_button(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let display_text = if self.selected_value.is_empty() {
             self.placeholder
                 .as_ref()
@@ -142,7 +208,7 @@ impl Dropdown {
             .px(px(13.0))
             .bg(rgb(method_soft))
             .border_1()
-            .border_color(if self.is_open {
+            .border_color(if self.is_open || self.focus_handle.is_focused(window) {
                 rgb(method_color)
             } else {
                 rgb(method_border)
@@ -281,7 +347,7 @@ impl Focusable for Dropdown {
 }
 
 impl Render for Dropdown {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dropdown = cx.entity().clone();
 
         div()
@@ -290,7 +356,15 @@ impl Render for Dropdown {
             .w_full()
             .h_full()
             .track_focus(&self.focus_handle)
-            .child(self.render_dropdown_button(cx))
+            .key_context("Dropdown")
+            .role(Role::ComboBox)
+            .aria_label("HTTP method")
+            .aria_expanded(self.is_open)
+            .on_action(cx.listener(Self::toggle_with_keyboard))
+            .on_action(cx.listener(Self::select_previous))
+            .on_action(cx.listener(Self::select_next))
+            .on_action(cx.listener(Self::close_with_keyboard))
+            .child(self.render_dropdown_button(window, cx))
             .child(
                 canvas(
                     move |bounds, _, cx| {
