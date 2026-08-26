@@ -84,6 +84,13 @@ class ReleaseConfigurationTests(unittest.TestCase):
             {"tag": "v0.1.0-rc.1", "version": "0.1.0", "prerelease": "true"},
         )
 
+    def test_linux_smoke_install_uses_an_absolute_deb_path(self) -> None:
+        workflow = (release.ROOT / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('deb=$(realpath "$deb")', workflow)
+        self.assertIn('sudo apt-get install --yes "$deb"', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

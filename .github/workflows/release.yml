@@ -265,6 +265,8 @@ jobs:
           appimage=$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)
           deb=$(find dist -maxdepth 1 -type f -name '*.deb' -print -quit)
           test -n "$appimage" && test -x "$appimage" && test -n "$deb"
+          appimage=$(realpath "$appimage")
+          deb=$(realpath "$deb")
           file "$appimage" | grep -q 'ELF 64-bit'
           dpkg-deb --info "$deb"
           "$appimage" --verify-runtime-assets
