@@ -14,7 +14,7 @@ use headers::render_response_headers;
 
 use crate::{
     app::{ActivateControl, CookieJarEntry, ResponseState, WorkspaceViewModel},
-    models::HistoricalResponseBody,
+    models::{HistoricalResponseBody, RedirectHop},
     ui::components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
@@ -1209,10 +1209,11 @@ impl Element for MultiLineTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (state, is_httpbingo, response_cookies, jar_count) = {
+        let (state, redirect_chain, is_httpbingo, response_cookies, jar_count) = {
             let view_model = self.view_model.read(cx);
             (
                 view_model.response().clone(),
+                view_model.redirect_chain().to_vec(),
                 view_model.effective_url().contains("httpbingo.org"),
                 response_cookie_evidence(view_model),
                 view_model.cookie_count(),
@@ -1275,6 +1276,12 @@ impl Render for ResponseViewer {
             ResponseState::Error { message } if message.starts_with("Request timed out after")
         );
         let is_cancelled = matches!(&state, ResponseState::Cancelled);
+        let redirect_response_count = redirect_chain
+            .iter()
+            .filter(|hop| (300..400).contains(&hop.status))
+            .count();
+        let has_redirect_chain = !redirect_chain.is_empty();
+        let redirect_chain_is_partial = matches!(&state, ResponseState::Error { .. });
 
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
@@ -1365,6 +1372,21 @@ impl Render for ResponseViewer {
                                         .text_size(px(10.0))
                                         .text_color(rgb(INFO))
                                         .child("Historical"),
+                                )
+                            })
+                            .when(has_redirect_chain, |row| {
+                                row.child(
+                                    div()
+                                        .debug_selector(|| "response-redirect-count".into())
+                                        .px_2()
+                                        .py_1()
+                                        .rounded(px(6.0))
+                                        .bg(rgb(INFO_SOFT))
+                                        .font_family(FONT_MONO)
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_size(px(10.0))
+                                        .text_color(rgb(INFO))
+                                        .child(format!("Redirects ({redirect_response_count})")),
                                 )
                             })
                             .when(has_completed_response, |row| {
@@ -1545,6 +1567,12 @@ impl Render for ResponseViewer {
                         }),
                 )
             })
+            .when(has_redirect_chain, |root| {
+                root.child(render_redirect_chain(
+                    &redirect_chain,
+                    redirect_chain_is_partial,
+                ))
+            })
             .child(match state {
                 ResponseState::NotSent => div()
                     .w_full()
@@ -1687,6 +1715,96 @@ impl Render for ResponseViewer {
                 ))
             })
     }
+}
+
+fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoElement {
+    let redirect_count = chain
+        .iter()
+        .filter(|hop| (300..400).contains(&hop.status))
+        .count();
+    div()
+        .id("redirect-chain-scroll")
+        .debug_selector(|| "redirect-chain".into())
+        .max_h(px(164.0))
+        .flex_none()
+        .overflow_y_scroll()
+        .bg(rgb(PANEL_ALT))
+        .border_b_1()
+        .border_color(rgb(LINE))
+        .font_family(FONT_MONO)
+        .child(
+            div()
+                .debug_selector(|| "redirect-chain-count".into())
+                .h(px(30.0))
+                .px_4()
+                .flex()
+                .items_center()
+                .gap_2()
+                .border_b_1()
+                .border_color(rgb(LINE))
+                .font_family(FONT_UI)
+                .font_weight(FontWeight::BOLD)
+                .text_size(px(10.0))
+                .text_color(rgb(if partial { ERROR } else { INFO }))
+                .when(partial, |header| {
+                    header.child(
+                        div()
+                            .debug_selector(|| "redirect-chain-partial".into())
+                            .child("incomplete"),
+                    )
+                })
+                .child(if partial {
+                    format!("Partial redirect chain · {redirect_count} observed")
+                } else {
+                    format!("Redirect chain · {redirect_count} observed")
+                }),
+        )
+        .children(chain.iter().enumerate().map(|(index, hop)| {
+            let row_selector = format!("redirect-hop-{index}");
+            let status_selector = format!("redirect-hop-status-{index}");
+            let location_selector = format!("redirect-hop-location-{index}");
+            let is_terminal = !(300..400).contains(&hop.status);
+            div()
+                .debug_selector(move || row_selector.clone())
+                .min_h(px(34.0))
+                .px_4()
+                .py_1()
+                .flex()
+                .items_center()
+                .gap_3()
+                .border_b_1()
+                .border_color(rgb(LINE))
+                .text_size(px(10.0))
+                .child(
+                    div()
+                        .debug_selector(move || status_selector.clone())
+                        .w(px(36.0))
+                        .flex_none()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(if is_terminal { OK } else { INFO }))
+                        .child(hop.status.to_string()),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .flex_1()
+                        .text_color(rgb(TEXT))
+                        .child(hop.url.clone()),
+                )
+                .child(match &hop.location {
+                    Some(location) => div()
+                        .debug_selector(move || location_selector.clone())
+                        .w(px(280.0))
+                        .flex_none()
+                        .text_color(rgb(SUBTEXT))
+                        .child(format!("Location: {location}")),
+                    None => div()
+                        .w(px(280.0))
+                        .flex_none()
+                        .text_color(rgb(OK))
+                        .child("terminal response"),
+                })
+        }))
 }
 
 fn status_label(status: u16) -> String {

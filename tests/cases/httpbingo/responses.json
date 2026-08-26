@@ -63,7 +63,18 @@
           "body_json_contains": {
             "method": "GET",
             "url": "https://httpbingo.org/anything/redirected"
-          }
+          },
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
+              "location": "/anything/redirected"
+            },
+            {
+              "status": 200,
+              "url": "/anything/redirected"
+            }
+          ]
         },
         "history_len": 1
       }

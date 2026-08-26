@@ -5,8 +5,9 @@ mod common;
 mod ui;
 
 use common::scenario::{
-    assert_requests_equivalent, assert_response_state, expected_editor_intent, expected_request,
-    load_suites, resolve_scenario_fixture_path, validate_body_row_contract, DraftSpec,
+    assert_redirect_chain, assert_requests_equivalent, assert_response_state,
+    expected_editor_intent, expected_request, expected_request_options, load_suites,
+    resolve_scenario_fixture_path, response_redirect_chain, validate_body_row_contract, DraftSpec,
     KeyValueSpec, MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
@@ -15,7 +16,7 @@ use postman_gpui::{
         AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, RequestPane, ResponseState,
         WorkspaceViewModel,
     },
-    models::{HistoryEntry, HttpMethod, Request, RequestBody, RequestEditorIntent},
+    models::{HistoryEntry, HttpMethod, RedirectPolicy, Request, RequestBody, RequestEditorIntent},
     persistence::{
         HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
         DEFAULT_HISTORY_RETENTION_LIMIT,
@@ -2368,7 +2369,9 @@ fn run_application_scenario(
 
     let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
     let expected_intent = expected_editor_intent(&scenario.draft)?;
-    let expected_persisted = persisted_history_projection(&expected, expected_intent)?;
+    let expected_options = expected_request_options(&scenario.draft)?;
+    let mut expected_persisted = persisted_history_projection(&expected, expected_intent)?;
+    expected_persisted.request_options = expected_options;
     let history_database = SqliteHistoryFixture::new()?;
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
@@ -2558,6 +2561,58 @@ fn run_application_scenario(
         }
     }
 
+    if scenario.draft.redirect_policy.is_some() || scenario.draft.max_redirect_hops.is_some() {
+        click(cx, "request-pane-options")?;
+        for selector in [
+            "redirect-configuration",
+            "redirect-policy-follow",
+            "redirect-policy-do-not-follow",
+            "redirect-max-hops-input",
+            "redirect-max-hops-decrease",
+            "redirect-max-hops-increase",
+            "effective-redirect-preview",
+            "redirect-options-contract",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "redirect options contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+        let policy_selector = match expected_options.redirect_policy {
+            RedirectPolicy::Follow => "redirect-policy-follow",
+            RedirectPolicy::DoNotFollow => "redirect-policy-do-not-follow",
+        };
+        click(cx, policy_selector)?;
+        replace_text(
+            cx,
+            "redirect-max-hops-input",
+            &expected_options.max_redirect_hops.to_string(),
+        )?;
+        let configured = workspace.read_with(cx, |workspace, _| {
+            (workspace.redirect_policy(), workspace.max_redirect_hops())
+        });
+        if configured
+            != (
+                expected_options.redirect_policy,
+                expected_options.max_redirect_hops,
+            )
+        {
+            return Err(format!(
+                "redirect options were not saved to the active request\n  expected: {expected_options:#?}\n  actual:   {configured:#?}"
+            ));
+        }
+        let active_selector = match expected_options.redirect_policy {
+            RedirectPolicy::Follow => "redirect-policy-follow-active",
+            RedirectPolicy::DoNotFollow => "redirect-policy-do-not-follow-active",
+        };
+        if cx.debug_bounds(active_selector).is_none() {
+            return Err(format!(
+                "active redirect policy surface `{active_selector}` is not rendered"
+            ));
+        }
+    }
+
     let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
     if assembled_url != expected.url {
         return Err(format!(
@@ -2607,6 +2662,46 @@ fn run_application_scenario(
 
     let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
     assert_response_state(&response, &scenario.expect.response)?;
+    let actual_redirect_chain =
+        workspace.read_with(cx, |workspace, _| workspace.redirect_chain().to_vec());
+    let expected_redirect_chain = response_redirect_chain(&scenario.expect.response);
+    assert_redirect_chain(
+        &actual_redirect_chain,
+        expected_redirect_chain,
+        Some(HTTPBINGO_BASE_URL),
+    )?;
+    if !expected_redirect_chain.is_empty() {
+        for selector in [
+            "response-redirect-count",
+            "redirect-chain",
+            "redirect-chain-count",
+        ] {
+            if cx.debug_bounds(selector).is_none() {
+                return Err(format!(
+                    "redirect response contract element `{selector}` is not rendered"
+                ));
+            }
+        }
+        for index in 0..expected_redirect_chain.len() {
+            let selectors = match index {
+                0 => ["redirect-hop-0", "redirect-hop-status-0"],
+                1 => ["redirect-hop-1", "redirect-hop-status-1"],
+                2 => ["redirect-hop-2", "redirect-hop-status-2"],
+                3 => ["redirect-hop-3", "redirect-hop-status-3"],
+                _ => continue,
+            };
+            for selector in selectors {
+                if cx.debug_bounds(selector).is_none() {
+                    return Err(format!("redirect chain row `{selector}` is not rendered"));
+                }
+            }
+        }
+        if matches!(&scenario.expect.response, ResponseSpec::Error { .. })
+            && cx.debug_bounds("redirect-chain-partial").is_none()
+        {
+            return Err("redirect limit failure does not mark its partial chain".to_string());
+        }
+    }
     assert_disabled_headers_absent_from_echo(&response, &scenario.draft.headers)?;
     assert_disabled_url_encoded_rows_absent_from_echo(&response, &scenario.draft)?;
     assert_disabled_multipart_parts_absent_from_echo(&response, &scenario.draft)?;
@@ -2704,7 +2799,13 @@ fn run_application_scenario(
         (true, Some(actual)) => {
             assert_requests_equivalent(&actual.request, &expected_persisted.request).map_err(
                 |error| format!("request recorded by the real application is incorrect: {error}"),
-            )?
+            )?;
+            if actual.request_options != expected_options {
+                return Err(format!(
+                    "request options recorded by the real application are incorrect\n  expected: {expected_options:#?}\n  actual:   {:#?}",
+                    actual.request_options
+                ));
+            }
         }
         (true, None) => return Err("request history is missing the completed request".to_string()),
         (false, Some(actual)) => {

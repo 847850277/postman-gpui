@@ -6,9 +6,7 @@ use std::str::FromStr;
 pub const DEFAULT_MAX_REDIRECT_HOPS: u32 = 10;
 pub const MAX_REDIRECT_HOPS: u32 = 100;
 
-/// Redirect behavior is part of replay intent even though the current transport exposes only the
-/// default in the UI. Issue #68 can wire these model values into per-request execution without a
-/// persistence-format change.
+/// Redirect behavior is part of replay intent and is configured independently for every request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedirectPolicy {
     Follow,

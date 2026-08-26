@@ -1,8 +1,12 @@
+use crate::models::RedirectHop;
+
+#[derive(Debug)]
 pub struct HttpResponse {
     pub status_code: u16,
     pub headers: Vec<(String, String)>,
     pub body: String,
     stored_cookies: Vec<(String, String)>,
+    redirect_chain: Vec<RedirectHop>,
 }
 
 impl HttpResponse {
@@ -12,11 +16,17 @@ impl HttpResponse {
             headers,
             body,
             stored_cookies: Vec::new(),
+            redirect_chain: Vec::new(),
         }
     }
 
     pub(crate) fn with_stored_cookies(mut self, stored_cookies: Vec<(String, String)>) -> Self {
         self.stored_cookies = stored_cookies;
+        self
+    }
+
+    pub(crate) fn with_redirect_chain(mut self, redirect_chain: Vec<RedirectHop>) -> Self {
+        self.redirect_chain = redirect_chain;
         self
     }
 
@@ -34,6 +44,10 @@ impl HttpResponse {
 
     pub(crate) fn stored_cookies(&self) -> &[(String, String)] {
         &self.stored_cookies
+    }
+
+    pub fn redirect_chain(&self) -> &[RedirectHop] {
+        &self.redirect_chain
     }
 
     pub fn from_raw_response(raw_response: &str) -> Result<Self, &'static str> {

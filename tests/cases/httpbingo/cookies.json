@@ -22,7 +22,18 @@
             "cookies": {
               "session": "cookie-e2e-demo"
             }
-          }
+          },
+          "redirect_chain": [
+            {
+              "status": 302,
+              "url": "/cookies/set?session=cookie-e2e-demo",
+              "location": "/cookies"
+            },
+            {
+              "status": 200,
+              "url": "/cookies"
+            }
+          ]
         },
         "history_len": 1
       }

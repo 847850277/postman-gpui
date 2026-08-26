@@ -4,7 +4,8 @@ use crate::{
     http::executor::RequestResult,
     models::{
         HistoricalResponse, HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart,
-        MultipartValue, Request, RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
+        MultipartValue, RedirectHop, RedirectPolicy, Request, RequestBody, RequestEditorIntent,
+        RequestHistory, RequestOptions, DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
     },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -473,7 +474,7 @@ pub struct PendingRequest {
     send_id: SendId,
     request: Request,
     editor_intent: Option<RequestEditorIntent>,
-    timeout_ms: Option<u64>,
+    request_options: RequestOptions,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -496,7 +497,12 @@ impl PendingRequest {
 
     /// Per-request deadline captured at Send. `None` means the deadline is disabled.
     pub fn timeout_ms(&self) -> Option<u64> {
-        self.timeout_ms
+        self.request_options.timeout_ms
+    }
+
+    /// Complete wire policy captured when Send was pressed.
+    pub fn request_options(&self) -> RequestOptions {
+        self.request_options
     }
 
     fn was_cancelled(&self) -> bool {
@@ -527,8 +533,11 @@ pub struct RequestViewModel {
     pre_request_script: String,
     tests_script: String,
     timeout_ms: u64,
+    redirect_policy: RedirectPolicy,
+    max_redirect_hops: u32,
     request_pane: RequestPane,
     response: ResponseState,
+    redirect_chain: Vec<RedirectHop>,
     response_stored_cookies: Vec<CookieJarEntry>,
     pending_send_id: Option<SendId>,
     pending_cancellation: Option<Arc<AtomicBool>>,
@@ -559,8 +568,11 @@ impl RequestViewModel {
             pre_request_script: String::new(),
             tests_script: String::new(),
             timeout_ms: 0,
+            redirect_policy: RedirectPolicy::Follow,
+            max_redirect_hops: DEFAULT_MAX_REDIRECT_HOPS,
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
+            redirect_chain: Vec::new(),
             response_stored_cookies: Vec::new(),
             pending_send_id: None,
             pending_cancellation: None,
@@ -743,12 +755,26 @@ impl RequestViewModel {
         self.timeout_ms
     }
 
+    pub fn redirect_policy(&self) -> RedirectPolicy {
+        self.redirect_policy
+    }
+
+    pub fn max_redirect_hops(&self) -> u32 {
+        self.max_redirect_hops
+    }
+
     pub fn request_pane(&self) -> RequestPane {
         self.request_pane
     }
 
     pub fn response(&self) -> &ResponseState {
         &self.response
+    }
+
+    /// Redirect responses observed while producing the active response. Followed chains end in
+    /// the terminal response; no-follow and limit failures contain only the redirects observed.
+    pub fn redirect_chain(&self) -> &[RedirectHop] {
+        &self.redirect_chain
     }
 
     /// Non-sensitive cookies first stored while producing the active response. This includes
@@ -909,6 +935,21 @@ impl RequestViewModel {
     pub fn set_timeout_ms(&mut self, timeout_ms: u64) {
         if self.timeout_ms != timeout_ms {
             self.timeout_ms = timeout_ms;
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_redirect_policy(&mut self, redirect_policy: RedirectPolicy) {
+        if self.redirect_policy != redirect_policy {
+            self.redirect_policy = redirect_policy;
+            self.dirty = true;
+        }
+    }
+
+    pub fn set_max_redirect_hops(&mut self, max_redirect_hops: u32) {
+        let max_redirect_hops = max_redirect_hops.clamp(1, MAX_REDIRECT_HOPS);
+        if self.max_redirect_hops != max_redirect_hops {
+            self.max_redirect_hops = max_redirect_hops;
             self.dirty = true;
         }
     }
@@ -1190,8 +1231,11 @@ impl RequestViewModel {
         self.basic_username.clear();
         self.basic_password.clear();
         self.timeout_ms = 0;
+        self.redirect_policy = RedirectPolicy::Follow;
+        self.max_redirect_hops = DEFAULT_MAX_REDIRECT_HOPS;
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
+        self.redirect_chain.clear();
         self.response_stored_cookies.clear();
         self.dirty = false;
     }
@@ -1210,6 +1254,8 @@ impl RequestViewModel {
         self.pre_request_script.clear();
         self.tests_script.clear();
         self.timeout_ms = 0;
+        self.redirect_policy = RedirectPolicy::Follow;
+        self.max_redirect_hops = DEFAULT_MAX_REDIRECT_HOPS;
 
         let authorization = request
             .headers
@@ -1250,6 +1296,7 @@ impl RequestViewModel {
             RequestPane::Body
         };
         self.response = ResponseState::NotSent;
+        self.redirect_chain.clear();
         self.response_stored_cookies.clear();
         self.dirty = false;
     }
@@ -1257,6 +1304,8 @@ impl RequestViewModel {
     fn load_history_entry(&mut self, entry: &HistoryEntry, replay_request: &Request) {
         self.load_request(replay_request);
         self.timeout_ms = entry.request_options.timeout_ms.unwrap_or(0);
+        self.redirect_policy = entry.request_options.redirect_policy;
+        self.max_redirect_hops = entry.request_options.max_redirect_hops;
         if let Some(intent) = &entry.editor_intent {
             self.body_draft = RequestBodyDraft::from_editor_intent(intent);
             self.request_pane = RequestPane::Body;
@@ -1271,6 +1320,7 @@ impl RequestViewModel {
                 response,
             },
         );
+        self.redirect_chain.clear();
         // Persisted History deliberately contains no cookie-jar evidence.
         self.response_stored_cookies.clear();
     }
@@ -1283,6 +1333,7 @@ impl RequestViewModel {
         self.pending_send_id = Some(send_id);
         self.pending_cancellation = Some(cancelled);
         self.response = ResponseState::Loading;
+        self.redirect_chain.clear();
         self.response_stored_cookies.clear();
         request
     }
@@ -1302,7 +1353,10 @@ impl RequestViewModel {
         match result {
             Ok(result) => {
                 let draft_is_unchanged = self.build_request() == pending.request
-                    && self.timeout_ms == pending.timeout_ms.unwrap_or(0);
+                    && self.timeout_ms == pending.request_options.timeout_ms.unwrap_or(0)
+                    && self.redirect_policy == pending.request_options.redirect_policy
+                    && self.max_redirect_hops == pending.request_options.max_redirect_hops;
+                self.redirect_chain = result.redirect_chain;
                 self.response = ResponseState::Success {
                     status: result.status,
                     body: result.body,
@@ -1315,6 +1369,7 @@ impl RequestViewModel {
                 }
             }
             Err(error) => {
+                self.redirect_chain = error.redirect_chain().to_vec();
                 self.response_stored_cookies.clear();
                 self.response = ResponseState::Error {
                     message: error.to_string(),
@@ -1333,6 +1388,7 @@ impl RequestViewModel {
             cancelled.store(true, Ordering::Release);
         }
         self.response = ResponseState::Cancelled;
+        self.redirect_chain.clear();
         true
     }
 
@@ -1757,14 +1813,18 @@ impl WorkspaceViewModel {
         let cancelled = Arc::new(AtomicBool::new(false));
         let tab = &mut self.tabs[self.active_tab];
         let editor_intent = tab.body_draft.editor_intent();
-        let timeout_ms = (tab.timeout_ms > 0).then_some(tab.timeout_ms);
+        let request_options = RequestOptions {
+            timeout_ms: (tab.timeout_ms > 0).then_some(tab.timeout_ms),
+            redirect_policy: tab.redirect_policy,
+            max_redirect_hops: tab.max_redirect_hops,
+        };
         let request = tab.begin_send(send_id, cancelled.clone());
         let pending = PendingRequest {
             tab_id: tab.tab_id,
             send_id,
             request,
             editor_intent,
-            timeout_ms,
+            request_options,
             cancelled,
         };
         tracing::info!(
@@ -1894,10 +1954,7 @@ impl WorkspaceViewModel {
                     response.elapsed_ms,
                     response.original_size,
                     pending.editor_intent.clone(),
-                    RequestOptions {
-                        timeout_ms: pending.timeout_ms,
-                        ..RequestOptions::default()
-                    },
+                    pending.request_options,
                 )
                 .with_historical_response(response)
             });
@@ -1962,6 +2019,7 @@ impl WorkspaceViewModel {
                 .is_some_and(|entry_id| !retained_ids.contains(entry_id))
             {
                 tab.response = ResponseState::NotSent;
+                tab.redirect_chain.clear();
                 tab.response_stored_cookies.clear();
             }
         }
@@ -2519,6 +2577,7 @@ mod tests {
                 body: r#"{"ok":true}"#.into(),
                 elapsed_ms: 7,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
         assert!(matches!(
@@ -3067,6 +3126,7 @@ mod tests {
                 body: String::new(),
                 elapsed_ms: 2,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
 
@@ -3095,6 +3155,7 @@ mod tests {
                 body: "I'm a teapot!".into(),
                 elapsed_ms: 7,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
 
@@ -3132,6 +3193,7 @@ mod tests {
                 body: final_body.into(),
                 elapsed_ms: 11,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
 
@@ -3169,6 +3231,7 @@ mod tests {
                 body: body.into(),
                 elapsed_ms: 13,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
 
@@ -3219,6 +3282,7 @@ mod tests {
                 body: r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into(),
                 elapsed_ms: 8,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
         let response_before_clear = workspace.response().clone();
@@ -3263,6 +3327,7 @@ mod tests {
                 body: "first response".to_string(),
                 elapsed_ms: 10,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
 
@@ -3365,6 +3430,8 @@ mod tests {
         let mut workspace = WorkspaceViewModel::new();
         workspace.set_url("https://example.com/slow");
         workspace.set_timeout_ms(1_250);
+        workspace.set_redirect_policy(RedirectPolicy::DoNotFollow);
+        workspace.set_max_redirect_hops(7);
         let pending = workspace.begin_send();
 
         assert!(complete_and_confirm_history(
@@ -3374,11 +3441,91 @@ mod tests {
         ));
         let entry = workspace.history()[0].clone();
         assert_eq!(entry.request_options.timeout_ms, Some(1_250));
+        assert_eq!(
+            entry.request_options.redirect_policy,
+            RedirectPolicy::DoNotFollow
+        );
+        assert_eq!(entry.request_options.max_redirect_hops, 7);
 
         workspace.new_request();
         assert_eq!(workspace.timeout_ms(), 0);
+        assert_eq!(workspace.redirect_policy(), RedirectPolicy::Follow);
+        assert_eq!(workspace.max_redirect_hops(), DEFAULT_MAX_REDIRECT_HOPS);
         workspace.load_history_entry(&entry);
         assert_eq!(workspace.timeout_ms(), 1_250);
+        assert_eq!(workspace.redirect_policy(), RedirectPolicy::DoNotFollow);
+        assert_eq!(workspace.max_redirect_hops(), 7);
+    }
+
+    #[test]
+    fn redirect_policy_and_chain_are_captured_by_send_identity() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/redirect/1");
+        workspace.set_max_redirect_hops(3);
+        let pending = workspace.begin_send();
+        assert_eq!(
+            pending.request_options(),
+            RequestOptions {
+                timeout_ms: None,
+                redirect_policy: RedirectPolicy::Follow,
+                max_redirect_hops: 3,
+            }
+        );
+
+        workspace.set_redirect_policy(RedirectPolicy::DoNotFollow);
+        workspace.set_max_redirect_hops(9);
+        let chain = vec![
+            RedirectHop::new(302, "https://example.com/redirect/1", Some("/terminal")),
+            RedirectHop::terminal(200, "https://example.com/terminal"),
+        ];
+        let mut result = RequestResult::success("done".into());
+        result.redirect_chain = chain.clone();
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(result)
+        ));
+
+        assert_eq!(workspace.redirect_chain(), chain);
+        assert!(
+            workspace.is_dirty(),
+            "edits made during Send must remain dirty"
+        );
+        assert_eq!(workspace.history()[0].request_options.max_redirect_hops, 3);
+        assert_eq!(
+            workspace.history()[0].request_options.redirect_policy,
+            RedirectPolicy::Follow
+        );
+    }
+
+    #[test]
+    fn redirect_limit_failure_exposes_partial_chain_without_history() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://example.com/redirect/3");
+        workspace.set_max_redirect_hops(2);
+        let pending = workspace.begin_send();
+        let chain = vec![
+            RedirectHop::new(302, "https://example.com/redirect/3", Some("/redirect/2")),
+            RedirectHop::new(302, "https://example.com/redirect/2", Some("/redirect/1")),
+        ];
+
+        assert!(workspace.complete_send(
+            pending,
+            Err(AppError::RedirectLimitExceeded {
+                max_hops: 2,
+                chain: chain.clone(),
+            })
+        ));
+        assert!(matches!(
+            workspace.response(),
+            ResponseState::Error { message }
+                if message == "Redirect limit exceeded after 2 hops."
+        ));
+        assert_eq!(workspace.redirect_chain(), chain);
+        assert_eq!(workspace.history_len(), 0);
+
+        workspace.new_request();
+        assert!(workspace.redirect_chain().is_empty());
     }
 
     #[test]
@@ -3520,6 +3667,7 @@ mod tests {
                 body: "new response".into(),
                 elapsed_ms: 5,
                 stored_cookies: Vec::new(),
+                redirect_chain: Vec::new(),
             })
         ));
         assert!(matches!(

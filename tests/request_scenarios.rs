@@ -3,12 +3,12 @@
 mod common;
 
 use common::scenario::{
-    expected_editor_intent, expected_request, load_suite, load_suites,
-    resolve_scenario_fixture_path, run_scenario, validate_body_row_contract, ResponseSpec,
-    ScenarioFile, ScenarioTarget,
+    expected_editor_intent, expected_request, expected_request_options, load_suite, load_suites,
+    resolve_scenario_fixture_path, response_redirect_chain, run_scenario,
+    validate_body_row_contract, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
 use postman_gpui::models::{
-    HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RequestBody,
+    HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RedirectPolicy, RequestBody,
     RequestEditorIntent,
 };
 use std::{
@@ -140,6 +140,7 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
         body_contains,
         body_json_contains,
         headers_contain,
+        ..
     } = &head.expect.response
     else {
         panic!("HEAD must expect a successful empty-body response");
@@ -155,6 +156,7 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
         body_contains,
         body_json_contains,
         headers_contain,
+        ..
     } = &options.expect.response
     else {
         panic!("OPTIONS must expect a successful empty-body response");
@@ -203,6 +205,7 @@ fn response_headers_scenario_requires_exact_case_insensitive_header_evidence() {
         body_contains,
         body_json_contains,
         headers_contain,
+        ..
     } = &scenario.expect.response
     else {
         panic!("Issue #76 must expect a completed HTTP response");
@@ -291,6 +294,7 @@ fn compression_scenarios_define_decoded_json_and_provider_capability_contracts()
             body_contains,
             body_json_contains,
             headers_contain,
+            ..
         } = &scenario.expect.response
         else {
             panic!("Issue #67 scenario `{name}` should be a completed HTTP response");
@@ -330,6 +334,7 @@ fn json_response_scenario_asserts_only_the_stable_nested_subset() {
         body_contains,
         body_json_contains,
         headers_contain,
+        ..
     } = &scenario.expect.response
     else {
         panic!("Issue #63 must expect a completed HTTP response");
@@ -387,6 +392,7 @@ fn cookie_scenarios_define_the_stable_set_and_cleared_echo_contracts() {
         body_json_contains,
         body_contains,
         headers_contain,
+        ..
     } = &stored.expect.response
     else {
         panic!("the cookie-setting redirect must complete successfully");
@@ -413,6 +419,7 @@ fn cookie_scenarios_define_the_stable_set_and_cleared_echo_contracts() {
         body_json_contains,
         body_contains,
         headers_contain,
+        ..
     } = &cleared.expect.response
     else {
         panic!("the after-clear verification must complete successfully");
@@ -461,7 +468,7 @@ fn delayed_request_scenarios_keep_completion_cancellation_and_timeout_distinct()
     assert_eq!(timed_out.expect.history_len, 0);
     assert!(matches!(
         &timed_out.expect.response,
-        ResponseSpec::Error { contains }
+        ResponseSpec::Error { contains, .. }
             if contains == "Request timed out after 1,000 ms"
     ));
 
@@ -677,6 +684,81 @@ fn multipart_schema_rejects_unknown_part_fields_and_non_multipart_usage() {
     let error = load_suite(wrong_kind)
         .expect_err("typed multipart parts must be rejected outside multipart bodies");
     assert!(error.contains("multipart_parts"));
+}
+
+#[test]
+fn redirect_policy_scenarios_define_follow_no_follow_and_limit_contracts() {
+    let files = scenario_files();
+    let file = files
+        .iter()
+        .find(|file| {
+            file.path
+                .ends_with("tests/cases/httpbingo/redirect_policy.json")
+        })
+        .expect("Issue #68 redirect-policy scenario file should exist");
+    assert_eq!(file.suite.target, ScenarioTarget::Httpbingo);
+    assert_eq!(file.suite.cases.len(), 4);
+
+    let relative = file
+        .suite
+        .cases
+        .iter()
+        .find(|scenario| scenario.draft.path == "/relative-redirect/3")
+        .expect("relative redirect chain should be covered");
+    let relative_options = expected_request_options(&relative.draft).unwrap();
+    assert_eq!(relative_options.redirect_policy, RedirectPolicy::Follow);
+    assert_eq!(relative_options.max_redirect_hops, 5);
+    assert_eq!(response_redirect_chain(&relative.expect.response).len(), 4);
+    assert_eq!(relative.expect.history_len, 1);
+
+    let no_follow = file
+        .suite
+        .cases
+        .iter()
+        .find(|scenario| {
+            scenario
+                .draft
+                .path
+                .starts_with("/redirect-to?url=%2Fanything%2Fstop")
+        })
+        .expect("no-follow redirect-to should be covered");
+    assert_eq!(
+        expected_request_options(&no_follow.draft)
+            .unwrap()
+            .redirect_policy,
+        RedirectPolicy::DoNotFollow
+    );
+    assert!(matches!(
+        no_follow.expect.response,
+        ResponseSpec::Success { status: 302, .. }
+    ));
+    assert_eq!(response_redirect_chain(&no_follow.expect.response).len(), 1);
+
+    let limited = file
+        .suite
+        .cases
+        .iter()
+        .find(|scenario| scenario.draft.path == "/absolute-redirect/3")
+        .expect("absolute redirect limit should be covered");
+    assert_eq!(
+        expected_request_options(&limited.draft)
+            .unwrap()
+            .max_redirect_hops,
+        2
+    );
+    assert!(matches!(
+        &limited.expect.response,
+        ResponseSpec::Error { contains, .. }
+            if contains == "Redirect limit exceeded after 2 hops."
+    ));
+    assert_eq!(response_redirect_chain(&limited.expect.response).len(), 2);
+    assert_eq!(limited.expect.history_len, 0);
+
+    assert!(file
+        .suite
+        .cases
+        .iter()
+        .any(|scenario| scenario.draft.path == "/redirect/1"));
 }
 
 #[test]

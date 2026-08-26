@@ -6,8 +6,9 @@ use postman_gpui::{
     },
     http::executor::RequestExecutor,
     models::{
-        HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, Request, RequestBody,
-        RequestEditorIntent,
+        HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RedirectHop,
+        RedirectPolicy, Request, RequestBody, RequestEditorIntent, RequestOptions,
+        DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
     },
 };
 use serde::Deserialize;
@@ -59,6 +60,10 @@ pub struct DraftSpec {
     pub path: String,
     #[serde(default)]
     pub timeout_ms: Option<u64>,
+    #[serde(default)]
+    pub redirect_policy: Option<String>,
+    #[serde(default)]
+    pub max_redirect_hops: Option<u32>,
     #[serde(default)]
     pub params: Vec<KeyValueSpec>,
     #[serde(default)]
@@ -235,6 +240,15 @@ pub struct RequestSpec {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RedirectHopSpec {
+    pub status: u16,
+    pub url: String,
+    #[serde(default)]
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ResponseSpec {
     Success {
@@ -245,9 +259,13 @@ pub enum ResponseSpec {
         body_json_contains: Option<Value>,
         #[serde(default)]
         headers_contain: Vec<(String, String)>,
+        #[serde(default)]
+        redirect_chain: Vec<RedirectHopSpec>,
     },
     Error {
         contains: String,
+        #[serde(default)]
+        redirect_chain: Vec<RedirectHopSpec>,
     },
     Cancelled,
 }
@@ -264,6 +282,9 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
     for scenario in &suite.cases {
         validate_body_row_contract(&scenario.draft)
             .map_err(|error| format!("scenario `{}` draft is invalid: {error}", scenario.name))?;
+        expected_request_options(&scenario.draft).map_err(|error| {
+            format!("scenario `{}` options are invalid: {error}", scenario.name)
+        })?;
         expected_body(&scenario.expect.request).map_err(|error| {
             format!(
                 "scenario `{}` expected request is invalid: {error}",
@@ -525,7 +546,7 @@ fn execute_scenario(
     let pending = workspace.begin_send();
     let sent = vec![pending.request().clone()];
     let executor = RequestExecutor::new();
-    let task = executor.spawn_with_timeout(pending.request().clone(), pending.timeout_ms());
+    let task = executor.spawn_with_options(pending.request().clone(), pending.request_options());
     if matches!(&scenario.expect.response, ResponseSpec::Cancelled) {
         workspace.cancel_send(pending.send_id());
         task.abort_handle().abort();
@@ -546,6 +567,11 @@ fn execute_scenario(
         }
     }
     assert_response_state(workspace.response(), &scenario.expect.response)?;
+    assert_redirect_chain(
+        workspace.redirect_chain(),
+        response_redirect_chain(&scenario.expect.response),
+        server_url,
+    )?;
 
     let history_len = usize::from(completion.history_entry().is_some());
     if history_len != scenario.expect.history_len {
@@ -562,6 +588,16 @@ fn execute_scenario(
             .ok_or_else(|| "completed History persistence candidate is missing".to_string())?;
         assert_requests_equivalent(actual, &expected)
             .map_err(|error| format!("latest history entry is incorrect: {error}"))?;
+        let actual_options = completion
+            .history_entry()
+            .map(|entry| entry.request_options)
+            .ok_or_else(|| "completed History options are missing".to_string())?;
+        let expected_options = expected_request_options(&scenario.draft)?;
+        if actual_options != expected_options {
+            return Err(format!(
+                "latest History request options are incorrect\n  expected: {expected_options:#?}\n  actual:   {actual_options:#?}"
+            ));
+        }
     }
 
     Ok(())
@@ -610,6 +646,9 @@ fn apply_draft(
     workspace.set_method(parse_method(&draft.method)?);
     workspace.set_url(absolute_url(server_url, &draft.path)?);
     workspace.set_timeout_ms(draft.timeout_ms.unwrap_or(0));
+    let request_options = expected_request_options(draft)?;
+    workspace.set_redirect_policy(request_options.redirect_policy);
+    workspace.set_max_redirect_hops(request_options.max_redirect_hops);
 
     for _ in 0..draft.precreate_param_rows {
         workspace.commit_row_draft(RequestPane::Params);
@@ -775,6 +814,29 @@ pub fn expected_request(spec: &RequestSpec, server_url: Option<&str>) -> Result<
     })
 }
 
+pub fn expected_request_options(draft: &DraftSpec) -> Result<RequestOptions, String> {
+    let redirect_policy = match draft.redirect_policy.as_deref() {
+        None | Some("follow") => RedirectPolicy::Follow,
+        Some("do_not_follow") => RedirectPolicy::DoNotFollow,
+        Some(value) => {
+            return Err(format!(
+                "invalid redirect policy `{value}` (expected `follow` or `do_not_follow`)"
+            ))
+        }
+    };
+    let max_redirect_hops = draft.max_redirect_hops.unwrap_or(DEFAULT_MAX_REDIRECT_HOPS);
+    if !(1..=MAX_REDIRECT_HOPS).contains(&max_redirect_hops) {
+        return Err(format!(
+            "max_redirect_hops must be between 1 and {MAX_REDIRECT_HOPS}, got {max_redirect_hops}"
+        ));
+    }
+    Ok(RequestOptions {
+        timeout_ms: draft.timeout_ms.filter(|timeout_ms| *timeout_ms > 0),
+        redirect_policy,
+        max_redirect_hops,
+    })
+}
+
 fn expected_body(spec: &RequestSpec) -> Result<RequestBody, String> {
     if !spec.multipart_parts.is_empty() {
         if !spec
@@ -886,6 +948,7 @@ pub fn assert_response_state(
                 body_contains,
                 body_json_contains,
                 headers_contain,
+                ..
             },
         ) => {
             if actual_status != status {
@@ -918,7 +981,7 @@ pub fn assert_response_state(
             }
             Ok(())
         }
-        (ResponseState::Error { message }, ResponseSpec::Error { contains })
+        (ResponseState::Error { message }, ResponseSpec::Error { contains, .. })
             if message.contains(contains) =>
         {
             Ok(())
@@ -928,6 +991,41 @@ pub fn assert_response_state(
             "response mismatch\n  expected: {expected:#?}\n  actual:   {actual:#?}"
         )),
     }
+}
+
+pub fn response_redirect_chain(response: &ResponseSpec) -> &[RedirectHopSpec] {
+    match response {
+        ResponseSpec::Success { redirect_chain, .. }
+        | ResponseSpec::Error { redirect_chain, .. } => redirect_chain,
+        ResponseSpec::Cancelled => &[],
+    }
+}
+
+pub fn assert_redirect_chain(
+    actual: &[RedirectHop],
+    expected: &[RedirectHopSpec],
+    server_url: Option<&str>,
+) -> Result<(), String> {
+    if actual.len() != expected.len() {
+        return Err(format!(
+            "redirect chain length mismatch: expected {}, actual {}\n  expected: {expected:#?}\n  actual:   {actual:#?}",
+            expected.len(),
+            actual.len()
+        ));
+    }
+    for (index, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+        let expected_url = absolute_url(server_url, &expected.url)?;
+        if actual.status != expected.status
+            || actual.url != expected_url
+            || actual.location != expected.location
+        {
+            return Err(format!(
+                "redirect hop {index} mismatch\n  expected: status={} url={expected_url:?} location={:?}\n  actual:   {actual:#?}",
+                expected.status, expected.location
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn assert_json_contains(actual: &Value, expected: &Value, path: &str) -> Result<(), String> {
