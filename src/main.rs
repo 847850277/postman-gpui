@@ -6,7 +6,7 @@ use gpui::{
 };
 use postman_gpui::{
     app::PostmanApp,
-    assets::fonts::{load_embedded_fonts, verify_embedded_fonts},
+    assets::fonts::{load_embedded_fonts, runtime_asset_application, verify_embedded_fonts},
 };
 
 // 定义退出动作
@@ -30,7 +30,7 @@ fn main() {
         .init();
 
     let application = if verify_runtime_assets {
-        gpui_platform::headless()
+        runtime_asset_application()
     } else {
         gpui_platform::application()
     };

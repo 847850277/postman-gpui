@@ -11,6 +11,24 @@ static JETBRAINS_MONO: &[u8] =
 
 const EMBEDDED_FONT_FAMILIES: [&str; 3] = ["Space Grotesk", "Manrope", "JetBrains Mono"];
 
+/// Creates a no-window application with a real text backend for package verification.
+///
+/// GPUI's Windows headless platform deliberately uses `NoopTextSystem`, so DirectWrite font
+/// registration can only be verified through the normal platform initialization. Linux headless
+/// mode retains the Cosmic Text backend when the Wayland/X11 features are enabled, and macOS
+/// retains its font-kit backend.
+pub fn runtime_asset_application() -> gpui::Application {
+    #[cfg(target_os = "windows")]
+    {
+        gpui_platform::application()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        gpui_platform::headless()
+    }
+}
+
 /// Registers the bundled UI fonts before any windows are created.
 pub fn load_embedded_fonts(cx: &App) -> anyhow::Result<()> {
     cx.text_system().add_fonts(vec![

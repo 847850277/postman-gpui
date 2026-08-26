@@ -13,7 +13,7 @@ categories = ["development-tools"]
 
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["font-kit"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["font-kit", "wayland", "x11"] }
 anyhow = "1.0.75" 
 base64 = "0.22"
 tokio = { version = "1", features = ["full"] }

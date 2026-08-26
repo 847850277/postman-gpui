@@ -463,6 +463,27 @@ def verify_release(tag: str) -> dict[str, str]:
     manifest_version = str(package["version"])
     prerelease, version = parse_release_tag(tag, manifest_version)
 
+    platform_dependency = next(
+        (
+            dependency
+            for dependency in package.get("dependencies", [])
+            if dependency.get("name") == "gpui_platform"
+        ),
+        None,
+    )
+    required_platform_features = {"font-kit", "wayland", "x11"}
+    configured_platform_features = set(
+        platform_dependency.get("features", []) if platform_dependency else []
+    )
+    missing_platform_features = sorted(
+        required_platform_features.difference(configured_platform_features)
+    )
+    if missing_platform_features:
+        raise ReleaseError(
+            "gpui_platform is missing release features: "
+            + ", ".join(missing_platform_features)
+        )
+
     required_files = [
         *ICON_PATHS,
         *FONT_ASSETS,
