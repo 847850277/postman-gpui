@@ -15,12 +15,13 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window,
 };
 
-const SHORTCUTS: [(&str, &str); 8] = [
+const SHORTCUTS: [(&str, &str); 9] = [
     ("Send / cancel active request", "⌘/Ctrl + Enter"),
     ("New request tab", "⌘/Ctrl + T"),
     ("Close active request tab", "⌘/Ctrl + W"),
     ("Focus request URL", "⌘/Ctrl + L"),
     ("Focus History search", "⌘/Ctrl + Shift + F"),
+    ("Search requests and history", "⌘/Ctrl + K"),
     ("Next request tab", "Ctrl + Tab"),
     ("Previous request tab", "Ctrl + Shift + Tab"),
     ("Open / close this help", "⌘/Ctrl + /"),

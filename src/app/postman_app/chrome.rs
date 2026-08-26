@@ -45,6 +45,8 @@ impl PostmanApp {
                     ),
             )
             .child(div().flex_1())
+            .child(self.render_global_search(window, cx))
+            .child(div().flex_1())
             .child(
                 div()
                     .id("cookie-jar-trigger")

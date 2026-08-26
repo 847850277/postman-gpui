@@ -180,9 +180,9 @@ fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut T
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
-    // The Cookie Jar trigger is the first rendered tab stop. Opening it moves focus directly into
-    // the overlay; Escape returns focus to the trigger instead of leaving an orphaned handle.
-    cx.simulate_keystrokes("tab enter");
+    // Global search is the first header tab stop and Cookie Jar is the next. Opening the overlay
+    // moves focus into it; Escape returns focus to the trigger instead of orphaning the handle.
+    cx.simulate_keystrokes("tab tab enter");
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
     cx.simulate_keystrokes("tab escape");
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
