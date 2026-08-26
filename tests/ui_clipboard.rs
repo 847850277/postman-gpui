@@ -283,3 +283,45 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
         "menukey=menuvalue"
     );
 }
+
+#[gpui::test]
+fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
+    cx: &mut TestAppContext,
+) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    click(cx, "request-pane-authorization").unwrap();
+    click(cx, "auth-kind-basic").unwrap();
+    cx.write_to_clipboard(ClipboardItem::new_string("pässword-🔐".to_string()));
+    click(cx, "basic-auth-password-input").unwrap();
+    cx.simulate_keystrokes("ctrl-v");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        "pässword-🔐"
+    );
+
+    cx.write_to_clipboard(ClipboardItem::new_string("clipboard sentinel".to_string()));
+    cx.simulate_keystrokes("ctrl-a ctrl-c ctrl-x");
+    assert_eq!(clipboard_text(cx), "clipboard sentinel");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        "pässword-🔐"
+    );
+
+    right_click(cx, "basic-auth-password-input").unwrap();
+    assert!(cx.debug_bounds("header-edit-menu-copy").is_none());
+    assert!(cx.debug_bounds("header-edit-menu-cut").is_none());
+    cx.simulate_keystrokes("escape ctrl-z");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        ""
+    );
+    cx.simulate_keystrokes("ctrl-y");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        "pässword-🔐"
+    );
+}

@@ -1,5 +1,5 @@
 use crate::{
-    app::{AuthorizationKind, WorkspaceViewModel},
+    app::{ActivateControl, AuthorizationKind, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
@@ -9,9 +9,24 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
+    FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
+
+actions!(
+    authorization_kind,
+    [NextAuthorizationKind, PreviousAuthorizationKind]
+);
+
+fn setup_authorization_kind_key_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new("right", NextAuthorizationKind, Some("AuthorizationKind")),
+        KeyBinding::new("down", NextAuthorizationKind, Some("AuthorizationKind")),
+        KeyBinding::new("left", PreviousAuthorizationKind, Some("AuthorizationKind")),
+        KeyBinding::new("up", PreviousAuthorizationKind, Some("AuthorizationKind")),
+    ]
+}
 
 /// Authorization controls own cursor, masking, and subscription state; credentials remain in the
 /// shared WorkspaceViewModel.
@@ -20,6 +35,7 @@ pub(in crate::app::postman_app::request_workspace) struct AuthorizationPane {
     authorization_input: Entity<HeaderInput>,
     basic_username_input: Entity<HeaderInput>,
     basic_password_input: Entity<HeaderInput>,
+    kind_focus_handles: Vec<FocusHandle>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -28,6 +44,7 @@ impl AuthorizationPane {
         view_model: Entity<WorkspaceViewModel>,
         cx: &mut Context<Self>,
     ) -> Self {
+        cx.bind_keys(setup_authorization_kind_key_bindings());
         let authorization_input =
             cx.new(|cx| HeaderInput::new(cx).with_placeholder("Token or Bearer token"));
         let basic_username_input = cx.new(|cx| {
@@ -51,6 +68,9 @@ impl AuthorizationPane {
             authorization_input,
             basic_username_input,
             basic_password_input,
+            kind_focus_handles: (0..2)
+                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
+                .collect(),
             _subscriptions: subscriptions,
         };
         pane.project_active_request(cx);
@@ -129,7 +149,11 @@ impl AuthorizationPane {
         cx.notify();
     }
 
-    fn render_authorization_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_authorization_editor(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let (
             authorization_kind,
             normalized_token,
@@ -537,6 +561,7 @@ impl AuthorizationPane {
                         "Bearer Token",
                         "auth-kind-bearer",
                         authorization_kind == AuthorizationKind::Bearer,
+                        window,
                         cx,
                     ))
                     .child(self.render_authorization_kind_button(
@@ -544,6 +569,7 @@ impl AuthorizationPane {
                         "Basic Auth",
                         "auth-kind-basic",
                         authorization_kind == AuthorizationKind::Basic,
+                        window,
                         cx,
                     )),
             )
@@ -578,10 +604,24 @@ impl AuthorizationPane {
         label: &'static str,
         selector: &'static str,
         selected: bool,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        let index = match kind {
+            AuthorizationKind::Bearer => 0,
+            AuthorizationKind::Basic => 1,
+        };
+        let focus_handle = self.kind_focus_handles[index].clone();
+        let mouse_focus_handle = focus_handle.clone();
+        let focused = focus_handle.is_focused(window);
         div()
+            .id(selector)
             .debug_selector(move || selector.into())
+            .track_focus(&focus_handle)
+            .key_context("KeyboardButton AuthorizationKind")
+            .role(Role::RadioButton)
+            .aria_label(label)
+            .aria_selected(selected)
             .h(px(30.0))
             .px_3()
             .flex()
@@ -596,11 +636,49 @@ impl AuthorizationPane {
             .text_color(rgb(if selected { ACCENT_DARK } else { MUTED }))
             .cursor_pointer()
             .hover(|style| style.border_color(rgb(ACCENT)).text_color(rgb(ACCENT_DARK)))
+            .when(focused, |button| button.border_2().border_color(rgb(INFO)))
             .child(label)
+            .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
+                this.set_authorization_kind(kind, cx)
+            }))
+            .on_action(
+                cx.listener(move |this, _: &NextAuthorizationKind, window, cx| {
+                    this.select_relative_authorization_kind(kind, 1, window, cx)
+                }),
+            )
+            .on_action(
+                cx.listener(move |this, _: &PreviousAuthorizationKind, window, cx| {
+                    this.select_relative_authorization_kind(kind, -1, window, cx)
+                }),
+            )
             .on_mouse_up(
                 gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| this.set_authorization_kind(kind, cx)),
+                cx.listener(move |this, _, window, cx| {
+                    mouse_focus_handle.focus(window, cx);
+                    this.set_authorization_kind(kind, cx);
+                }),
             )
+    }
+
+    fn select_relative_authorization_kind(
+        &mut self,
+        kind: AuthorizationKind,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let index = match kind {
+            AuthorizationKind::Bearer => 0,
+            AuthorizationKind::Basic => 1,
+        };
+        let next = (index as isize + delta).rem_euclid(2) as usize;
+        let kind = if next == 0 {
+            AuthorizationKind::Bearer
+        } else {
+            AuthorizationKind::Basic
+        };
+        self.kind_focus_handles[next].focus(window, cx);
+        self.set_authorization_kind(kind, cx);
     }
 
     fn render_basic_auth_field(
@@ -668,7 +746,7 @@ impl AuthorizationPane {
 }
 
 impl Render for AuthorizationPane {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.render_authorization_editor(cx)
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_authorization_editor(window, cx)
     }
 }

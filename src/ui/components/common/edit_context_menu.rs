@@ -7,6 +7,8 @@ use crate::ui::theme::{FONT_UI, LINE, MUTED, PANEL, PANEL_ALT, SUBTEXT, TEXT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditContextAction {
+    Undo,
+    Redo,
     Cut,
     Copy,
     Paste,
@@ -17,6 +19,8 @@ pub enum EditContextAction {
 impl EditContextAction {
     fn label(self) -> &'static str {
         match self {
+            Self::Undo => "Undo",
+            Self::Redo => "Redo",
             Self::Cut => "Cut",
             Self::Copy => "Copy",
             Self::Paste => "Paste",
@@ -27,6 +31,8 @@ impl EditContextAction {
 
     fn shortcut(self) -> &'static str {
         match self {
+            Self::Undo => "⌘Z / Ctrl+Z",
+            Self::Redo => "⌘⇧Z / Ctrl+Y",
             Self::Cut => "⌘X / Ctrl+X",
             Self::Copy => "⌘C / Ctrl+C",
             Self::Paste => "⌘V / Ctrl+V",
@@ -37,6 +43,8 @@ impl EditContextAction {
 
     fn selector(self) -> &'static str {
         match self {
+            Self::Undo => "undo",
+            Self::Redo => "redo",
             Self::Cut => "cut",
             Self::Copy => "copy",
             Self::Paste => "paste",
@@ -47,8 +55,19 @@ impl EditContextAction {
 }
 
 pub const EDITABLE_ACTIONS: &[EditContextAction] = &[
+    EditContextAction::Undo,
+    EditContextAction::Redo,
     EditContextAction::Cut,
     EditContextAction::Copy,
+    EditContextAction::Paste,
+    EditContextAction::SelectAll,
+];
+
+/// Password-like fields can be changed and selected, but their plaintext is never copied or cut
+/// into the system clipboard.
+pub const MASKED_EDITABLE_ACTIONS: &[EditContextAction] = &[
+    EditContextAction::Undo,
+    EditContextAction::Redo,
     EditContextAction::Paste,
     EditContextAction::SelectAll,
 ];

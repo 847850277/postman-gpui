@@ -1,6 +1,10 @@
 use super::{
-    Backspace, Copy, Cut, Delete, Down, End, Enter, Home, Left, Paste, Right, SelectAll,
-    SelectDown, SelectLeft, SelectRight, SelectUp, Up,
+    Backspace, Copy, Cut, Delete, Down, End, Enter, Escape, Home, Left, Paste, Redo, Right,
+    SelectAll, SelectDown, SelectLeft, SelectRight, SelectUp, SelectWordLeft, SelectWordRight,
+    ShiftTab, Tab, Undo, Up, WordLeft, WordRight,
+};
+use crate::ui::components::input::edit_history::{
+    next_word_boundary, previous_word_boundary, EditHistory, TextEditSnapshot,
 };
 use crate::ui::{
     components::common::edit_context_menu::{
@@ -36,6 +40,7 @@ pub(super) struct TextBodyInput {
     json_last_bounds: Option<Bounds<Pixels>>,
     json_is_selecting: bool,
     context_menu_position: Option<Point<Pixels>>,
+    edit_history: EditHistory<TextEditSnapshot>,
 }
 
 impl EventEmitter<TextBodyInputEvent> for TextBodyInput {}
@@ -92,7 +97,7 @@ impl EntityInputHandler for TextBodyInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.json_replace_text_in_range(range_utf16, new_text, window, cx);
+        self.json_replace_text_in_range_internal(range_utf16, new_text, true, true, window, cx);
     }
 
     fn replace_and_mark_text_in_range(
@@ -109,14 +114,19 @@ impl EntityInputHandler for TextBodyInput {
             .or(self.json_marked_range.clone())
             .unwrap_or(self.json_selected_range.clone());
 
-        self.json_content = self.json_content[0..range.start].to_owned()
+        let replacement = self.json_content[0..range.start].to_owned()
             + new_text
             + &self.json_content[range.end..];
+        if replacement == self.json_content {
+            return;
+        }
+        self.record_typing();
+        self.json_content = replacement;
         self.json_marked_range = Some(range.start..range.start + new_text.len());
         self.json_selected_range = new_selected_range_utf16
             .as_ref()
             .map(|range_utf16| self.json_range_from_utf16(range_utf16))
-            .map(|new_range| new_range.start + range.start..new_range.end + range.end)
+            .map(|new_range| new_range.start + range.start..new_range.end + range.start)
             .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
 
         cx.emit(TextBodyInputEvent::ValueChanged(self.json_content.clone()));
@@ -159,7 +169,7 @@ impl EntityInputHandler for TextBodyInput {
 impl TextBodyInput {
     pub(super) fn new(cx: &mut Context<Self>) -> Self {
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             json_content: String::new(),
             json_selected_range: 0..0,
             json_selection_reversed: false,
@@ -168,6 +178,7 @@ impl TextBodyInput {
             json_last_bounds: None,
             json_is_selecting: false,
             context_menu_position: None,
+            edit_history: EditHistory::default(),
         }
     }
 
@@ -178,6 +189,7 @@ impl TextBodyInput {
     pub(super) fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let content = content.into();
         if self.json_content != content {
+            self.record_edit();
             self.json_content = content;
             cx.emit(TextBodyInputEvent::ValueChanged(self.json_content.clone()));
             cx.notify();
@@ -186,6 +198,7 @@ impl TextBodyInput {
 
     pub(super) fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         let content = content.into();
+        self.edit_history.clear();
         if self.json_content != content {
             self.json_content = content;
             let cursor = clamp_to_char_boundary(&self.json_content, self.json_selected_range.start);
@@ -197,6 +210,10 @@ impl TextBodyInput {
     }
 
     pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
+        if self.json_content.is_empty() {
+            return;
+        }
+        self.record_edit();
         self.json_content.clear();
         self.json_selected_range = 0..0;
         self.json_selection_reversed = false;
@@ -221,6 +238,24 @@ impl TextBodyInput {
         }
     }
 
+    fn json_word_left(&mut self, _: &WordLeft, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = if self.json_selected_range.is_empty() {
+            previous_word_boundary(&self.json_content, self.json_cursor_offset())
+        } else {
+            self.json_selected_range.start
+        };
+        self.json_move_to(offset, cx);
+    }
+
+    fn json_word_right(&mut self, _: &WordRight, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = if self.json_selected_range.is_empty() {
+            next_word_boundary(&self.json_content, self.json_cursor_offset())
+        } else {
+            self.json_selected_range.end
+        };
+        self.json_move_to(offset, cx);
+    }
+
     fn json_up(&mut self, _: &Up, _: &mut Window, cx: &mut Context<Self>) {
         let new_offset = self.json_offset_for_line_up(self.json_cursor_offset());
         self.json_move_to(new_offset, cx);
@@ -237,6 +272,30 @@ impl TextBodyInput {
 
     fn json_select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
         self.json_select_to(self.json_next_boundary(self.json_cursor_offset()), cx);
+    }
+
+    fn json_select_word_left(
+        &mut self,
+        _: &SelectWordLeft,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.json_select_to(
+            previous_word_boundary(&self.json_content, self.json_cursor_offset()),
+            cx,
+        );
+    }
+
+    fn json_select_word_right(
+        &mut self,
+        _: &SelectWordRight,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.json_select_to(
+            next_word_boundary(&self.json_content, self.json_cursor_offset()),
+            cx,
+        );
     }
 
     fn json_select_up(&mut self, _: &SelectUp, _: &mut Window, cx: &mut Context<Self>) {
@@ -265,26 +324,48 @@ impl TextBodyInput {
     }
 
     fn json_backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
         if self.json_selected_range.is_empty() {
             self.json_select_to(self.json_previous_boundary(self.json_cursor_offset()), cx);
         }
-        self.json_replace_text_in_range(None, "", window, cx);
+        self.json_replace_text_in_range_internal(None, "", false, false, window, cx);
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
     fn json_delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
+        let before = self.snapshot();
         if self.json_selected_range.is_empty() {
             self.json_select_to(self.json_next_boundary(self.json_cursor_offset()), cx);
         }
-        self.json_replace_text_in_range(None, "", window, cx);
+        self.json_replace_text_in_range_internal(None, "", false, false, window, cx);
+        if self.snapshot() != before {
+            self.edit_history.record(before);
+        }
     }
 
     fn json_enter(&mut self, _: &Enter, window: &mut Window, cx: &mut Context<Self>) {
-        self.json_replace_text_in_range(None, "\n", window, cx);
+        self.json_replace_text_in_range_internal(None, "\n", true, false, window, cx);
+    }
+
+    fn focus_next(&mut self, _: &Tab, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_next(cx);
+    }
+
+    fn focus_previous(&mut self, _: &ShiftTab, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_prev(cx);
+    }
+
+    fn dismiss(&mut self, _: &Escape, _: &mut Window, cx: &mut Context<Self>) {
+        if self.context_menu_position.take().is_some() {
+            cx.notify();
+        }
     }
 
     fn json_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.json_replace_text_in_range(None, &text, window, cx);
+            self.json_replace_text_in_range_internal(None, &text, true, false, window, cx);
         }
     }
 
@@ -301,13 +382,54 @@ impl TextBodyInput {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.json_content[self.json_selected_range.clone()].to_string(),
             ));
-            self.json_replace_text_in_range(None, "", window, cx);
+            self.json_replace_text_in_range_internal(None, "", true, false, window, cx);
+        }
+    }
+
+    fn json_undo(&mut self, _: &Undo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(previous) = self.edit_history.undo(current) {
+            self.restore_snapshot(previous, cx);
+        }
+    }
+
+    fn json_redo(&mut self, _: &Redo, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.snapshot();
+        if let Some(next) = self.edit_history.redo(current) {
+            self.restore_snapshot(next, cx);
         }
     }
 
     // JSON input helper methods
     fn json_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         self.json_selected_range = offset..offset;
+        self.json_selection_reversed = false;
+        cx.notify();
+    }
+
+    fn snapshot(&self) -> TextEditSnapshot {
+        TextEditSnapshot {
+            text: self.json_content.clone(),
+            selection: self.json_selected_range.clone(),
+            selection_reversed: self.json_selection_reversed,
+        }
+    }
+
+    fn record_edit(&mut self) {
+        self.edit_history.record(self.snapshot());
+    }
+
+    fn record_typing(&mut self) {
+        self.edit_history.record_typing(self.snapshot());
+    }
+
+    fn restore_snapshot(&mut self, snapshot: TextEditSnapshot, cx: &mut Context<Self>) {
+        self.json_content = snapshot.text;
+        self.json_selected_range = snapshot.selection;
+        self.json_selection_reversed = snapshot.selection_reversed;
+        self.json_marked_range = None;
+        cx.emit(TextBodyInputEvent::ValueChanged(self.json_content.clone()));
         cx.notify();
     }
 
@@ -320,6 +442,7 @@ impl TextBodyInput {
     }
 
     fn json_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.edit_history.break_typing_group();
         if self.json_selection_reversed {
             self.json_selected_range.start = offset;
         } else {
@@ -396,10 +519,12 @@ impl TextBodyInput {
         self.json_offset_from_utf16(range_utf16.start)..self.json_offset_from_utf16(range_utf16.end)
     }
 
-    fn json_replace_text_in_range(
+    fn json_replace_text_in_range_internal(
         &mut self,
         range_utf16: Option<Range<usize>>,
         new_text: &str,
+        record_history: bool,
+        coalesce_typing: bool,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -409,9 +534,21 @@ impl TextBodyInput {
             .or(self.json_marked_range.clone())
             .unwrap_or(self.json_selected_range.clone());
 
-        self.json_content = self.json_content[0..range.start].to_owned()
+        let replacement = self.json_content[0..range.start].to_owned()
             + new_text
             + &self.json_content[range.end..];
+        if replacement == self.json_content {
+            return;
+        }
+        if record_history {
+            if coalesce_typing {
+                self.record_typing();
+            } else {
+                self.record_edit();
+            }
+        }
+
+        self.json_content = replacement;
         self.json_selected_range = range.start + new_text.len()..range.start + new_text.len();
         self.json_marked_range.take();
 
@@ -513,6 +650,8 @@ impl TextBodyInput {
     ) {
         match action {
             EditContextAction::Dismiss => {}
+            EditContextAction::Undo => self.json_undo(&Undo, window, cx),
+            EditContextAction::Redo => self.json_redo(&Redo, window, cx),
             EditContextAction::Cut => self.json_cut(&Cut, window, cx),
             EditContextAction::Copy => self.json_copy(&Copy, window, cx),
             EditContextAction::Paste => self.json_paste(&Paste, window, cx),
@@ -890,14 +1029,19 @@ impl Render for TextBodyInput {
                 .text_color(rgb(CODE_TEXT))
                 .cursor(CursorStyle::IBeam)
                 .track_focus(&self.focus_handle(cx))
+                .key_context("BodyInput")
                 .on_action(cx.listener(Self::json_backspace))
                 .on_action(cx.listener(Self::json_delete))
                 .on_action(cx.listener(Self::json_left))
                 .on_action(cx.listener(Self::json_right))
+                .on_action(cx.listener(Self::json_word_left))
+                .on_action(cx.listener(Self::json_word_right))
                 .on_action(cx.listener(Self::json_up))
                 .on_action(cx.listener(Self::json_down))
                 .on_action(cx.listener(Self::json_select_left))
                 .on_action(cx.listener(Self::json_select_right))
+                .on_action(cx.listener(Self::json_select_word_left))
+                .on_action(cx.listener(Self::json_select_word_right))
                 .on_action(cx.listener(Self::json_select_up))
                 .on_action(cx.listener(Self::json_select_down))
                 .on_action(cx.listener(Self::json_select_all))
@@ -906,7 +1050,12 @@ impl Render for TextBodyInput {
                 .on_action(cx.listener(Self::json_paste))
                 .on_action(cx.listener(Self::json_cut))
                 .on_action(cx.listener(Self::json_copy))
+                .on_action(cx.listener(Self::json_undo))
+                .on_action(cx.listener(Self::json_redo))
                 .on_action(cx.listener(Self::json_enter))
+                .on_action(cx.listener(Self::focus_next))
+                .on_action(cx.listener(Self::focus_previous))
+                .on_action(cx.listener(Self::dismiss))
                 .on_mouse_down(MouseButton::Left, cx.listener(Self::json_on_mouse_down))
                 .on_mouse_down(
                     MouseButton::Right,

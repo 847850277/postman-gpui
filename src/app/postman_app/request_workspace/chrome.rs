@@ -1,7 +1,10 @@
 use super::RequestWorkspace;
-use crate::ui::theme::{
-    method_color, ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL,
-    PANEL_ALT, SUBTEXT,
+use crate::{
+    app::ActivateControl,
+    ui::theme::{
+        method_color, ACCENT, ACCENT_DARK, ACCENT_SOFT, FONT_HEADING, FONT_UI, LINE, MUTED, PANEL,
+        PANEL_ALT, SUBTEXT,
+    },
 };
 use gpui::{
     actions, div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement,
@@ -15,7 +18,9 @@ actions!(
     [
         ActivateRequestTab,
         FocusNextRequestTab,
-        FocusPreviousRequestTab
+        FocusPreviousRequestTab,
+        ActivateNextRequestTab,
+        ActivatePreviousRequestTab
     ]
 );
 
@@ -25,6 +30,10 @@ pub(super) fn setup_request_tab_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("space", ActivateRequestTab, Some("RequestTab")),
         KeyBinding::new("tab", FocusNextRequestTab, Some("RequestTab")),
         KeyBinding::new("shift-tab", FocusPreviousRequestTab, Some("RequestTab")),
+        KeyBinding::new("right", ActivateNextRequestTab, Some("RequestTab")),
+        KeyBinding::new("down", ActivateNextRequestTab, Some("RequestTab")),
+        KeyBinding::new("left", ActivatePreviousRequestTab, Some("RequestTab")),
+        KeyBinding::new("up", ActivatePreviousRequestTab, Some("RequestTab")),
     ]
 }
 
@@ -59,6 +68,8 @@ impl RequestWorkspace {
             .collect::<HashSet<_>>();
         self.tab_focus_handles
             .retain(|tab_id, _| retained_tab_ids.contains(tab_id));
+        self.tab_close_focus_handles
+            .retain(|tab_id, _| retained_tab_ids.contains(tab_id));
 
         let tab_elements = tabs
             .into_iter()
@@ -73,6 +84,15 @@ impl RequestWorkspace {
                 let mouse_tab_id = tab_id;
                 let keyboard_tab_id = tab_id;
                 let close_tab_id = tab_id;
+                let keyboard_close_tab_id = tab_id;
+                let close_focus_handle = self
+                    .tab_close_focus_handles
+                    .entry(tab_id)
+                    .or_insert_with(|| cx.focus_handle())
+                    .clone();
+                let mouse_close_focus_handle = close_focus_handle.clone();
+                let close_focused = close_focus_handle.is_focused(window);
+                let close_label = format!("Close {title} request tab");
 
                 div()
                     .id(format!("request-tab-id-{tab_id}"))
@@ -115,7 +135,12 @@ impl RequestWorkspace {
                     })
                     .child(
                         div()
+                            .id(("request-tab-close", index))
                             .debug_selector(move || format!("close-tab-{index}"))
+                            .track_focus(&close_focus_handle)
+                            .key_context("KeyboardButton")
+                            .role(Role::Button)
+                            .aria_label(close_label)
                             .size(px(20.0))
                             .flex()
                             .items_center()
@@ -123,11 +148,20 @@ impl RequestWorkspace {
                             .rounded_md()
                             .text_color(rgb(MUTED))
                             .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                            .when(close_focused, |button| {
+                                button.border_1().border_color(rgb(ACCENT))
+                            })
                             .child("×")
+                            .on_action(cx.listener(move |this, _: &ActivateControl, window, cx| {
+                                cx.stop_propagation();
+                                this.close_request_tab(keyboard_close_tab_id, cx);
+                                this.focus_active_request_tab(window, cx);
+                            }))
                             .on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, window, cx| {
                                     cx.stop_propagation();
+                                    mouse_close_focus_handle.focus(window, cx);
                                     this.close_request_tab(close_tab_id, cx);
                                     this.focus_active_request_tab(window, cx);
                                 }),
@@ -140,6 +174,8 @@ impl RequestWorkspace {
                     )
                     .on_action(cx.listener(Self::focus_next_request_tab))
                     .on_action(cx.listener(Self::focus_previous_request_tab))
+                    .on_action(cx.listener(Self::activate_next_request_tab))
+                    .on_action(cx.listener(Self::activate_previous_request_tab))
                     .on_mouse_up(
                         MouseButton::Left,
                         cx.listener(move |this, _, window, cx| {
@@ -165,7 +201,12 @@ impl RequestWorkspace {
             .children(tab_elements)
             .child(
                 div()
+                    .id("new-tab-button")
                     .debug_selector(|| "new-tab-button".into())
+                    .track_focus(&self.new_tab_focus_handle)
+                    .key_context("KeyboardButton")
+                    .role(Role::Button)
+                    .aria_label("New request tab")
                     .size(px(32.0))
                     .flex()
                     .items_center()
@@ -178,7 +219,14 @@ impl RequestWorkspace {
                     .font_weight(FontWeight::SEMIBOLD)
                     .cursor_pointer()
                     .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                    .when(self.new_tab_focus_handle.is_focused(window), |button| {
+                        button.border_1().border_color(rgb(ACCENT))
+                    })
                     .child("+")
+                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
+                        this.new_request(cx);
+                        this.focus_active_request_tab(window, cx);
+                    }))
                     .on_mouse_up(
                         MouseButton::Left,
                         cx.listener(|this, _, window, cx| {
@@ -205,5 +253,56 @@ impl RequestWorkspace {
         cx: &mut Context<Self>,
     ) {
         window.focus_prev(cx);
+    }
+
+    fn activate_next_request_tab(
+        &mut self,
+        _: &ActivateNextRequestTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.activate_focused_relative_request(1, window, cx);
+    }
+
+    fn activate_previous_request_tab(
+        &mut self,
+        _: &ActivatePreviousRequestTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.activate_focused_relative_request(-1, window, cx);
+    }
+
+    fn activate_focused_relative_request(
+        &mut self,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (tab_ids, active_index) = {
+            let view_model = self.view_model.read(cx);
+            (
+                view_model
+                    .tabs()
+                    .iter()
+                    .map(|tab| tab.tab_id())
+                    .collect::<Vec<_>>(),
+                view_model.active_tab_index(),
+            )
+        };
+        if tab_ids.is_empty() {
+            return;
+        }
+        let current_index = tab_ids
+            .iter()
+            .position(|tab_id| {
+                self.tab_focus_handles
+                    .get(tab_id)
+                    .is_some_and(|focus| focus.is_focused(window))
+            })
+            .unwrap_or(active_index);
+        let next = (current_index as isize + delta).rem_euclid(tab_ids.len() as isize) as usize;
+        self.activate_request_tab(tab_ids[next], cx);
+        self.focus_active_request_tab(window, cx);
     }
 }

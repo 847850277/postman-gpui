@@ -4,7 +4,9 @@ use gpui::{
 };
 
 use crate::models::HttpMethod;
-use crate::ui::components::common::dropdown::{Dropdown, DropdownEvent};
+use crate::ui::components::common::dropdown::{
+    setup_dropdown_key_bindings, Dropdown, DropdownEvent,
+};
 use crate::ui::theme::{FONT_HEADING, PANEL};
 
 #[derive(Debug, Clone)]
@@ -19,6 +21,7 @@ pub struct MethodSelector {
 
 impl MethodSelector {
     pub fn new(cx: &mut Context<Self>) -> Self {
+        cx.bind_keys(setup_dropdown_key_bindings());
         let dropdown = cx.new(|cx| {
             Dropdown::new("method-dropdown", cx)
                 .with_options(

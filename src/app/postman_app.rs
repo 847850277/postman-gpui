@@ -1,7 +1,7 @@
 use crate::{
     app::{
-        request_runner::RequestRunner, spawn_history_operation_and_reload, HistoryStorageStage,
-        WorkspaceViewModel,
+        request_runner::RequestRunner, setup_application_key_bindings,
+        spawn_history_operation_and_reload, HistoryStorageStage, WorkspaceViewModel,
     },
     persistence::{
         HistoryRepositoryWorker, SqliteHistoryRepository, DEFAULT_HISTORY_RETENTION_LIMIT,
@@ -9,8 +9,9 @@ use crate::{
     ui::theme::{BG, FONT_UI, LINE, PANEL, TEXT},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Subscription, Window,
+    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, WeakFocusHandle,
+    Window,
 };
 use std::{fs, path::PathBuf, sync::Arc};
 use uuid::Uuid;
@@ -18,6 +19,7 @@ use uuid::Uuid;
 mod chrome;
 mod history_panel;
 mod request_workspace;
+mod shortcuts;
 
 use history_panel::{HistoryList, HistoryListEvent};
 use request_workspace::{CookiePane, CookiePaneEvent, RequestWorkspace, RequestWorkspaceEvent};
@@ -33,6 +35,13 @@ pub struct PostmanApp {
     _temporary_history_database: Option<TemporaryHistoryDatabase>,
     cookie_pane: Entity<CookiePane>,
     cookie_jar_open: bool,
+    shortcut_help_open: bool,
+    shortcut_help_return_focus: Option<WeakFocusHandle>,
+    app_focus_handle: FocusHandle,
+    shortcut_help_focus: FocusHandle,
+    cookie_trigger_focus: FocusHandle,
+    new_request_focus: FocusHandle,
+    shortcut_help_button_focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -66,6 +75,7 @@ impl PostmanApp {
         temporary_history_database: Option<TemporaryHistoryDatabase>,
         cx: &mut Context<Self>,
     ) -> Self {
+        cx.bind_keys(setup_application_key_bindings());
         let history_worker = repository
             .and_then(HistoryRepositoryWorker::start)
             .map(Arc::new);
@@ -102,6 +112,13 @@ impl PostmanApp {
             _temporary_history_database: temporary_history_database,
             cookie_pane,
             cookie_jar_open: false,
+            shortcut_help_open: false,
+            shortcut_help_return_focus: None,
+            app_focus_handle: cx.focus_handle(),
+            shortcut_help_focus: cx.focus_handle().tab_index(0).tab_stop(true),
+            cookie_trigger_focus: cx.focus_handle().tab_index(0).tab_stop(true),
+            new_request_focus: cx.focus_handle().tab_index(0).tab_stop(true),
+            shortcut_help_button_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         if let Some(worker) = app.history_worker.clone() {
@@ -172,8 +189,14 @@ impl PostmanApp {
         }
     }
 
-    pub(super) fn toggle_cookie_jar(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn toggle_cookie_jar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.cookie_jar_open = !self.cookie_jar_open;
+        if self.cookie_jar_open {
+            self.cookie_pane
+                .update(cx, |pane, cx| pane.focus_first(window, cx));
+        } else {
+            self.cookie_trigger_focus.focus(window, cx);
+        }
         cx.notify();
     }
 
@@ -273,7 +296,10 @@ impl Drop for TemporaryHistoryDatabase {
 }
 
 impl Render for PostmanApp {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if window.focused(cx).is_none() {
+            self.app_focus_handle.focus(window, cx);
+        }
         div()
             .id("main-container")
             .relative()
@@ -284,13 +310,26 @@ impl Render for PostmanApp {
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
             .font_family(FONT_UI)
-            .child(self.render_top_header(cx))
+            .track_focus(&self.app_focus_handle)
+            .key_context("PostmanApp")
+            .on_action(cx.listener(Self::send_or_cancel))
+            .on_action(cx.listener(Self::focus_next_control))
+            .on_action(cx.listener(Self::focus_previous_control))
+            .on_action(cx.listener(Self::new_request_command))
+            .on_action(cx.listener(Self::close_request_command))
+            .on_action(cx.listener(Self::focus_url))
+            .on_action(cx.listener(Self::focus_history_search))
+            .on_action(cx.listener(Self::activate_next_request))
+            .on_action(cx.listener(Self::activate_previous_request))
+            .on_action(cx.listener(Self::toggle_shortcut_help))
+            .on_action(cx.listener(Self::dismiss_overlay))
+            .child(self.render_top_header(window, cx))
             .child(
                 div()
                     .flex_1()
                     .min_h_0()
                     .flex()
-                    .child(self.render_left_rail(cx))
+                    .child(self.render_left_rail(window, cx))
                     .child(self.history_list.clone())
                     .child(self.request_workspace.clone()),
             )
@@ -310,6 +349,9 @@ impl Render for PostmanApp {
                         .overflow_hidden()
                         .child(self.cookie_pane.clone()),
                 )
+            })
+            .when(self.shortcut_help_open, |root| {
+                root.child(self.render_shortcut_help(cx))
             })
     }
 }

@@ -1,4 +1,5 @@
 use super::{
+    composer_chrome::setup_request_pane_key_bindings,
     layout::adaptive_request_panel_height,
     panes::{
         AuthorizationPane, BodyPane, KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
@@ -18,8 +19,8 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    div, px, rgb, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Debug)]
@@ -43,6 +44,8 @@ pub(super) struct RequestComposer {
     script_pane: Entity<ScriptPane>,
     tests_pane: Entity<ScriptPane>,
     options_pane: Entity<OptionsPane>,
+    pub(super) request_pane_focus_handles: Vec<FocusHandle>,
+    pub(super) send_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -53,6 +56,7 @@ impl RequestComposer {
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
+        cx.bind_keys(setup_request_pane_key_bindings());
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
@@ -87,6 +91,10 @@ impl RequestComposer {
             script_pane,
             tests_pane,
             options_pane,
+            request_pane_focus_handles: (0..7)
+                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
+                .collect(),
+            send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         composer.project_active_request(cx);
@@ -204,7 +212,7 @@ impl RequestComposer {
         cx.notify();
     }
 
-    fn click_send(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn click_send(&mut self, cx: &mut Context<Self>) {
         if let Some(send_id) = self.view_model.read(cx).active_send_id() {
             self.cancel_send(send_id, cx);
             return;
@@ -214,6 +222,14 @@ impl RequestComposer {
         self.authorization_pane
             .update(cx, AuthorizationPane::project_active_request);
         cx.emit(RequestComposerEvent::Execute(pending));
+    }
+
+    pub(super) fn send_or_cancel(&mut self, cx: &mut Context<Self>) {
+        self.click_send(cx);
+    }
+
+    pub(super) fn focus_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.url_input.read(cx).focus_handle(cx).focus(window, cx);
     }
 
     fn cancel_send(&mut self, send_id: SendId, cx: &mut Context<Self>) {
@@ -282,7 +298,7 @@ impl RequestComposer {
             .border_color(rgb(LINE))
             .rounded(px(14.0))
             .overflow_hidden()
-            .child(self.render_request_menu(cx))
+            .child(self.render_request_menu(window, cx))
             .child(editor)
     }
 }
@@ -294,7 +310,7 @@ impl Render for RequestComposer {
             .flex()
             .flex_col()
             .gap_3()
-            .child(self.render_request_head(cx))
+            .child(self.render_request_head(window, cx))
             .child(self.render_request_panel(window, cx))
     }
 }

@@ -13,7 +13,7 @@ mod headers;
 use headers::render_response_headers;
 
 use crate::{
-    app::{CookieJarEntry, ResponseState, WorkspaceViewModel},
+    app::{ActivateControl, CookieJarEntry, ResponseState, WorkspaceViewModel},
     models::HistoricalResponseBody,
     ui::components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
@@ -35,16 +35,24 @@ actions!(
         CopyResponseBody,
         ActivateResponsePaneTab,
         FocusNextResponsePaneTab,
-        FocusPreviousResponsePaneTab
+        FocusPreviousResponsePaneTab,
+        ActivateNextResponsePane,
+        ActivatePreviousResponsePane,
+        DismissResponseContextMenu
     ]
 );
 
 pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
     vec![
-        KeyBinding::new("cmd-c", Copy, None),
-        KeyBinding::new("ctrl-c", Copy, None),
-        KeyBinding::new("cmd-a", SelectAll, None),
-        KeyBinding::new("ctrl-a", SelectAll, None),
+        KeyBinding::new("cmd-c", Copy, Some("ResponseContent")),
+        KeyBinding::new("ctrl-c", Copy, Some("ResponseContent")),
+        KeyBinding::new("cmd-a", SelectAll, Some("ResponseContent")),
+        KeyBinding::new("ctrl-a", SelectAll, Some("ResponseContent")),
+        KeyBinding::new(
+            "escape",
+            DismissResponseContextMenu,
+            Some("ResponseContent"),
+        ),
         KeyBinding::new("enter", CopyResponseBody, Some("ResponseCopyButton")),
         KeyBinding::new("space", CopyResponseBody, Some("ResponseCopyButton")),
         KeyBinding::new("enter", ActivateResponsePaneTab, Some("ResponsePaneTab")),
@@ -55,6 +63,14 @@ pub fn setup_response_viewer_key_bindings() -> Vec<KeyBinding> {
             FocusPreviousResponsePaneTab,
             Some("ResponsePaneTab"),
         ),
+        KeyBinding::new("right", ActivateNextResponsePane, Some("ResponsePaneTab")),
+        KeyBinding::new("down", ActivateNextResponsePane, Some("ResponsePaneTab")),
+        KeyBinding::new(
+            "left",
+            ActivatePreviousResponsePane,
+            Some("ResponsePaneTab"),
+        ),
+        KeyBinding::new("up", ActivatePreviousResponsePane, Some("ResponsePaneTab")),
     ]
 }
 
@@ -63,6 +79,19 @@ enum ResponsePane {
     Body,
     Headers,
     Cookies,
+}
+
+const RESPONSE_PANES: [ResponsePane; 3] = [
+    ResponsePane::Body,
+    ResponsePane::Headers,
+    ResponsePane::Cookies,
+];
+
+fn response_pane_index(pane: ResponsePane) -> usize {
+    RESPONSE_PANES
+        .iter()
+        .position(|candidate| *candidate == pane)
+        .expect("all response panes are represented in keyboard order")
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -87,6 +116,7 @@ pub struct ResponseViewer {
     headers_tab_focus_handle: FocusHandle,
     cookies_tab_focus_handle: FocusHandle,
     copy_focus_handle: FocusHandle,
+    open_cookie_focus_handle: FocusHandle,
     copied_feedback: bool,
     copy_generation: u64,
     selected_range: Range<usize>,
@@ -116,11 +146,12 @@ impl ResponseViewer {
         Self {
             view_model,
             pane: ResponsePane::Body,
-            focus_handle: cx.focus_handle(),
+            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             body_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             headers_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             cookies_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             copy_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            open_cookie_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             copied_feedback: false,
             copy_generation: 0,
             selected_range: 0..0,
@@ -308,6 +339,8 @@ impl ResponseViewer {
             .on_action(cx.listener(Self::activate_response_pane_tab))
             .on_action(cx.listener(Self::focus_next_response_pane_tab))
             .on_action(cx.listener(Self::focus_previous_response_pane_tab))
+            .on_action(cx.listener(Self::activate_next_response_pane))
+            .on_action(cx.listener(Self::activate_previous_response_pane))
             .child(
                 div()
                     .debug_selector(move || state_selector.into())
@@ -375,10 +408,62 @@ impl ResponseViewer {
         window.focus_prev(cx);
     }
 
+    fn activate_next_response_pane(
+        &mut self,
+        _: &ActivateNextResponsePane,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.activate_relative_response_pane(1, window, cx);
+    }
+
+    fn activate_previous_response_pane(
+        &mut self,
+        _: &ActivatePreviousResponsePane,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.activate_relative_response_pane(-1, window, cx);
+    }
+
+    fn activate_relative_response_pane(
+        &mut self,
+        delta: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let pane_count = if matches!(
+            self.view_model.read(cx).response(),
+            ResponseState::Success { .. }
+        ) {
+            RESPONSE_PANES.len()
+        } else {
+            RESPONSE_PANES.len() - 1
+        };
+        let current = RESPONSE_PANES[..pane_count]
+            .iter()
+            .position(|pane| self.pane_focus_handle(*pane).is_focused(window))
+            .unwrap_or_else(|| response_pane_index(self.pane));
+        let next = (current as isize + delta).rem_euclid(pane_count as isize) as usize;
+        let pane = RESPONSE_PANES[next];
+        self.pane_focus_handle(pane).focus(window, cx);
+        self.select_pane(pane, cx);
+    }
+
     fn open_cookie_jar(
         &mut self,
         _event: &MouseUpEvent,
-        _window: &mut Window,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_cookie_focus_handle.focus(window, cx);
+        cx.emit(ResponseViewerEvent::OpenCookieJar);
+    }
+
+    fn open_cookie_jar_with_keyboard(
+        &mut self,
+        _: &ActivateControl,
+        _: &mut Window,
         cx: &mut Context<Self>,
     ) {
         cx.emit(ResponseViewerEvent::OpenCookieJar);
@@ -465,6 +550,17 @@ impl ResponseViewer {
         cx.notify();
     }
 
+    fn dismiss_context_menu(
+        &mut self,
+        _: &DismissResponseContextMenu,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.context_menu_position.take().is_some() {
+            cx.notify();
+        }
+    }
+
     fn handle_context_menu_action(
         &mut self,
         action: EditContextAction,
@@ -474,7 +570,11 @@ impl ResponseViewer {
         match action {
             EditContextAction::Copy => self.copy(&Copy, window, cx),
             EditContextAction::SelectAll => self.select_all(&SelectAll, window, cx),
-            EditContextAction::Cut | EditContextAction::Paste | EditContextAction::Dismiss => {}
+            EditContextAction::Undo
+            | EditContextAction::Redo
+            | EditContextAction::Cut
+            | EditContextAction::Paste
+            | EditContextAction::Dismiss => {}
         }
         self.context_menu_position = None;
         cx.notify();
@@ -530,6 +630,7 @@ impl ResponseViewer {
     fn render_selectable_content(
         &self,
         _content: &str,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         div()
@@ -537,6 +638,13 @@ impl ResponseViewer {
             .debug_selector(|| "response-content".into())
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
+            .key_context("ResponseContent")
+            .border_1()
+            .border_color(if self.focus_handle.is_focused(window) {
+                rgb(INFO)
+            } else {
+                rgb(CODE_BG)
+            })
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
@@ -544,6 +652,7 @@ impl ResponseViewer {
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .on_action(cx.listener(Self::copy))
             .on_action(cx.listener(Self::select_all))
+            .on_action(cx.listener(Self::dismiss_context_menu))
             .cursor_text()
             .w_full()
             .h_full()
@@ -563,6 +672,7 @@ impl ResponseViewer {
         &self,
         cookies: Vec<ResponseCookieEvidence>,
         jar_count: usize,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let cookie_count = cookies.len();
@@ -615,6 +725,10 @@ impl ResponseViewer {
                         div()
                             .id("response-open-cookie-jar")
                             .debug_selector(|| "response-open-cookie-jar".into())
+                            .track_focus(&self.open_cookie_focus_handle)
+                            .key_context("KeyboardButton OverlayTrigger")
+                            .role(Role::Button)
+                            .aria_label("Open Cookie Jar")
                             .h(px(30.0))
                             .px_3()
                             .flex_none()
@@ -631,8 +745,12 @@ impl ResponseViewer {
                             .text_color(rgb(INFO))
                             .cursor_pointer()
                             .hover(|style| style.bg(rgb(INFO_SOFT)))
+                            .when(self.open_cookie_focus_handle.is_focused(window), |button| {
+                                button.border_2().border_color(rgb(ACCENT))
+                            })
                             .child("↗")
                             .child("Open Cookie Jar")
+                            .on_action(cx.listener(Self::open_cookie_jar_with_keyboard))
                             .on_mouse_up(MouseButton::Left, cx.listener(Self::open_cookie_jar)),
                     ),
             )
@@ -1472,12 +1590,12 @@ impl Render for ResponseViewer {
                     .debug_selector(|| "response-cancelled-content".into())
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content("Request cancelled by user", cx)),
+                    .child(self.render_selectable_content("Request cancelled by user", window, cx)),
                 ResponseState::Success { body, headers, .. } => match pane {
                     ResponsePane::Body => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_selectable_content(&body, cx)),
+                        .child(self.render_selectable_content(&body, window, cx)),
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
@@ -1485,7 +1603,7 @@ impl Render for ResponseViewer {
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_cookie_content(response_cookies, jar_count, cx)),
+                        .child(self.render_cookie_content(response_cookies, jar_count, window, cx)),
                 },
                 ResponseState::Historical { response, .. } => match pane {
                     ResponsePane::Body => match response.body {
@@ -1493,11 +1611,15 @@ impl Render for ResponseViewer {
                             .debug_selector(|| "response-historical-empty".into())
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content("Empty response body", cx)),
+                            .child(self.render_selectable_content(
+                                "Empty response body",
+                                window,
+                                cx,
+                            )),
                         HistoricalResponseBody::Text(body) => div()
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content(&body, cx)),
+                            .child(self.render_selectable_content(&body, window, cx)),
                         HistoricalResponseBody::TruncatedText(body) => div()
                             .flex()
                             .flex_col()
@@ -1520,13 +1642,13 @@ impl Render for ResponseViewer {
                                 div()
                                     .flex_1()
                                     .min_h_0()
-                                    .child(self.render_selectable_content(&body, cx)),
+                                    .child(self.render_selectable_content(&body, window, cx)),
                             ),
                         HistoricalResponseBody::Unsupported => div()
                             .debug_selector(|| "response-historical-body-not-stored".into())
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content("Body not stored", cx)),
+                            .child(self.render_selectable_content("Body not stored", window, cx)),
                     },
                     ResponsePane::Headers => div()
                         .flex_1()
@@ -1535,7 +1657,7 @@ impl Render for ResponseViewer {
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_selectable_content("Body not stored", cx)),
+                        .child(self.render_selectable_content("Body not stored", window, cx)),
                 },
                 ResponseState::HistoricalUnavailable { .. } => div()
                     .debug_selector(|| "response-historical-unavailable".into())
@@ -1543,6 +1665,7 @@ impl Render for ResponseViewer {
                     .min_h_0()
                     .child(self.render_selectable_content(
                         "This older History entry did not store a response.",
+                        window,
                         cx,
                     )),
                 ResponseState::Error { message } => div()
@@ -1551,7 +1674,7 @@ impl Render for ResponseViewer {
                     })
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content(&message, cx)),
+                    .child(self.render_selectable_content(&message, window, cx)),
             })
             .when_some(context_menu_position, |root, position| {
                 root.child(edit_context_menu(
