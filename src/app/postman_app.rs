@@ -1,22 +1,25 @@
 use crate::{
     app::{
         request_runner::RequestRunner, setup_application_key_bindings,
-        spawn_history_operation_and_reload, HistoryStorageStage, WorkspaceViewModel,
+        setup_global_search_key_bindings, spawn_history_operation_and_reload, HistoryStorageStage,
+        WorkspaceViewModel,
     },
     persistence::{
         HistoryRepositoryWorker, SqliteHistoryRepository, DEFAULT_HISTORY_RETENTION_LIMIT,
     },
+    ui::components::input::header_input::HeaderInput,
     ui::theme::{BG, FONT_UI, LINE, PANEL, TEXT},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, WeakFocusHandle,
-    Window,
+    div, prelude::FluentBuilder, px, rgb, AppContext, Bounds, Context, Entity, FocusHandle,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, Styled, Subscription,
+    WeakFocusHandle, Window,
 };
 use std::{fs, path::PathBuf, sync::Arc};
 use uuid::Uuid;
 
 mod chrome;
+mod global_search;
 mod history_panel;
 mod request_workspace;
 mod shortcuts;
@@ -34,6 +37,12 @@ pub struct PostmanApp {
     history_worker: Option<Arc<HistoryRepositoryWorker>>,
     _temporary_history_database: Option<TemporaryHistoryDatabase>,
     cookie_pane: Entity<CookiePane>,
+    global_search_input: Entity<HeaderInput>,
+    global_search_query: String,
+    global_search_selected_index: usize,
+    global_search_return_focus: Option<WeakFocusHandle>,
+    global_search_bounds: Bounds<Pixels>,
+    global_search_clear_focus: FocusHandle,
     cookie_jar_open: bool,
     shortcut_help_open: bool,
     shortcut_help_return_focus: Option<WeakFocusHandle>,
@@ -97,10 +106,19 @@ impl PostmanApp {
         let request_runner = cx.new(move |_| RequestRunner::new(runner_history_worker));
         let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), cx));
         let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
+        let global_search_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Search requests and history")
+                .with_embedded_chrome(true)
+                .with_font_family(FONT_UI)
+        });
+        cx.bind_keys(setup_global_search_key_bindings());
         let subscriptions = vec![
             cx.subscribe(&request_workspace, Self::on_request_workspace_event),
             cx.subscribe(&history_list, Self::on_history_selected),
             cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
+            cx.subscribe(&global_search_input, Self::on_global_search_input_event),
+            cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
         let app = Self {
@@ -111,6 +129,12 @@ impl PostmanApp {
             history_worker,
             _temporary_history_database: temporary_history_database,
             cookie_pane,
+            global_search_input,
+            global_search_query: String::new(),
+            global_search_selected_index: 0,
+            global_search_return_focus: None,
+            global_search_bounds: Bounds::default(),
+            global_search_clear_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             cookie_jar_open: false,
             shortcut_help_open: false,
             shortcut_help_return_focus: None,
@@ -319,6 +343,11 @@ impl Render for PostmanApp {
             .on_action(cx.listener(Self::close_request_command))
             .on_action(cx.listener(Self::focus_url))
             .on_action(cx.listener(Self::focus_history_search))
+            .on_action(cx.listener(Self::focus_global_search))
+            .on_action(cx.listener(Self::select_next_global_search_result))
+            .on_action(cx.listener(Self::select_previous_global_search_result))
+            .on_action(cx.listener(Self::activate_global_search_result))
+            .on_action(cx.listener(Self::dismiss_global_search))
             .on_action(cx.listener(Self::activate_next_request))
             .on_action(cx.listener(Self::activate_previous_request))
             .on_action(cx.listener(Self::toggle_shortcut_help))

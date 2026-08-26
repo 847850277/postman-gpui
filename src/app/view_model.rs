@@ -404,6 +404,51 @@ impl fmt::Display for RequestTabId {
     }
 }
 
+/// One open-request match in the application-wide search projection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GlobalSearchRequestResult {
+    pub tab_id: RequestTabId,
+    pub display_name: String,
+    pub method: HttpMethod,
+    pub url: String,
+}
+
+/// One persisted History match in the application-wide search projection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GlobalSearchHistoryResult {
+    pub entry_id: String,
+    pub display_name: String,
+    pub method: HttpMethod,
+    pub url: String,
+    pub status: Option<u16>,
+    pub response_size: Option<usize>,
+}
+
+/// Deterministic, grouped search results derived from `WorkspaceViewModel` state.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GlobalSearchResults {
+    requests: Vec<GlobalSearchRequestResult>,
+    history: Vec<GlobalSearchHistoryResult>,
+}
+
+impl GlobalSearchResults {
+    pub fn requests(&self) -> &[GlobalSearchRequestResult] {
+        &self.requests
+    }
+
+    pub fn history(&self) -> &[GlobalSearchHistoryResult] {
+        &self.history
+    }
+
+    pub fn len(&self) -> usize {
+        self.requests.len() + self.history.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.requests.is_empty() && self.history.is_empty()
+    }
+}
+
 /// Monotonic identity for one send attempt.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SendId(u64);
@@ -1623,6 +1668,56 @@ impl WorkspaceViewModel {
             .is_some_and(|index| self.select_tab(index))
     }
 
+    /// Search open request tabs and the latest authoritative History query result.
+    ///
+    /// Ordering is inherited from the two source collections: request tabs stay in tab order and
+    /// History stays newest-first. Matching here keeps the application shell from growing a
+    /// second request/history data model.
+    pub fn global_search_results(&self, query: &str) -> GlobalSearchResults {
+        let query = query.trim().to_lowercase();
+        if query.is_empty() {
+            return GlobalSearchResults::default();
+        }
+
+        let matches = |display_name: &str, method: HttpMethod, url: &str| {
+            display_name.to_lowercase().contains(&query)
+                || method.to_string().to_lowercase().contains(&query)
+                || url.to_lowercase().contains(&query)
+        };
+
+        let requests = self
+            .tabs
+            .iter()
+            .filter_map(|request| {
+                let display_name = request.tab_title();
+                matches(&display_name, request.method, &request.url).then(|| {
+                    GlobalSearchRequestResult {
+                        tab_id: request.tab_id,
+                        display_name,
+                        method: request.method,
+                        url: request.url.clone(),
+                    }
+                })
+            })
+            .collect();
+        let history = self
+            .history
+            .entries()
+            .iter()
+            .filter(|entry| matches(&entry.name, entry.request.method, &entry.request.url))
+            .map(|entry| GlobalSearchHistoryResult {
+                entry_id: entry.id.clone(),
+                display_name: entry.name.clone(),
+                method: entry.request.method,
+                url: entry.request.url.clone(),
+                status: entry.status,
+                response_size: entry.response_size,
+            })
+            .collect();
+
+        GlobalSearchResults { requests, history }
+    }
+
     pub fn new_request(&mut self) {
         let tab_id = RequestTabId(self.next_tab_id);
         self.next_tab_id += 1;
@@ -2154,6 +2249,59 @@ mod tests {
             workspace.replace_history_query_result(entries, 0);
         }
         response_applied
+    }
+
+    #[test]
+    fn global_search_projects_grouped_case_insensitive_results_in_source_order() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace.set_url("https://alpha.example/users");
+        workspace.new_request();
+        workspace.set_method(HttpMethod::POST);
+        workspace.set_url("https://beta.example/orders");
+
+        let newest = HistoryEntry::completed(
+            Request::new(HttpMethod::DELETE, "https://archive.example/shared/newest"),
+            "Shared audit request".into(),
+            204,
+            3,
+            0,
+        );
+        let older = HistoryEntry::completed(
+            Request::new(HttpMethod::GET, "https://archive.example/shared/older"),
+            "Shared lookup request".into(),
+            200,
+            5,
+            12,
+        );
+        workspace.replace_history_query_result(vec![newest.clone(), older.clone()], 0);
+
+        let method_matches = workspace.global_search_results("  pOsT ");
+        assert_eq!(method_matches.requests().len(), 1);
+        assert_eq!(
+            method_matches.requests()[0].tab_id,
+            workspace.tabs()[1].tab_id()
+        );
+        assert!(method_matches.history().is_empty());
+
+        let name_matches = workspace.global_search_results("SHARED");
+        assert!(name_matches.requests().is_empty());
+        assert_eq!(
+            name_matches
+                .history()
+                .iter()
+                .map(|result| result.entry_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![newest.id.as_str(), older.id.as_str()]
+        );
+
+        let url_matches = workspace.global_search_results("alpha.EXAMPLE");
+        assert_eq!(url_matches.requests().len(), 1);
+        assert_eq!(url_matches.requests()[0].url, "https://alpha.example/users");
+        assert!(url_matches.history().is_empty());
+
+        assert!(workspace.global_search_results("  ").is_empty());
+        workspace.close_tab(0);
+        assert!(workspace.global_search_results("alpha.example").is_empty());
     }
 
     #[test]
