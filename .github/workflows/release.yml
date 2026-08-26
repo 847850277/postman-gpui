@@ -1,0 +1,371 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PACKAGER_VERSION: "0.11.8"
+  RUST_TOOLCHAIN: "1.97.0"
+
+jobs:
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Test release tooling
+        run: python -m unittest discover -s scripts/tests
+
+      - name: Validate tag, metadata, assets, and documentation
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: python scripts/release.py verify --tag "$RELEASE_TAG" --github-output
+
+      - name: Require macOS signing and notarization for final releases
+        if: steps.metadata.outputs.prerelease == 'false'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_TEAM_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("$name")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "Final releases require macOS signing/notarization secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+  package:
+    name: Package ${{ matrix.name }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS universal
+            os: macos-latest
+            artifact: postman-gpui-macos-universal
+          - name: Windows x86_64
+            os: windows-latest
+            artifact: postman-gpui-windows-x86_64
+          - name: Linux x86_64
+            os: ubuntu-22.04
+            artifact: postman-gpui-linux-x86_64
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+
+      - name: Cache Cargo dependencies and release output
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            release-${{ runner.os }}-
+
+      - name: Cache cargo-packager
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/cargo-packager*
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-packager-${{ runner.os }}-${{ env.CARGO_PACKAGER_VERSION }}
+
+      - name: Install Linux build and packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential clang cmake file libasound2-dev libfontconfig1-dev libfuse2 \
+            libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev patchelf pkg-config
+
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis --yes --no-progress
+
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "postman-gpui-signing.pfx"
+          [IO.File]::WriteAllBytes(
+            $certificatePath,
+            [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          )
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password | Out-Null
+          Remove-Item $certificatePath -Force
+
+      - name: Install cargo-packager
+        shell: bash
+        run: cargo install cargo-packager --version "$CARGO_PACKAGER_VERSION" --locked
+
+      - name: Build and package universal macOS application
+        if: runner.os == 'macOS'
+        run: python scripts/release.py package --platform macos --universal-macos --formats app,dmg
+
+      - name: Build and package Windows installer
+        if: runner.os == 'Windows'
+        run: >-
+          python scripts/release.py package --platform windows
+          --target x86_64-pc-windows-msvc --formats nsis
+
+      - name: Build and package Linux application
+        if: runner.os == 'Linux'
+        run: >-
+          python scripts/release.py package --platform linux
+          --target x86_64-unknown-linux-gnu --formats appimage,deb
+
+      - name: Validate macOS package structure and signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          app_bundle=$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)
+          dmg=$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          app_zip=$(find dist -maxdepth 1 -type f -name '*.app.zip' -print -quit)
+          test -n "$app_bundle" && test -n "$dmg" && test -n "$app_zip"
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$app_bundle/Contents/Info.plist")" = "io.github.847850277.postman-gpui"
+          test "$(find "$app_bundle/Contents/Resources/licenses" -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+          lipo "$app_bundle/Contents/MacOS/postman-gpui" -verify_arch x86_64 arm64
+          "$app_bundle/Contents/MacOS/postman-gpui" --verify-runtime-assets
+          hdiutil verify "$dmg"
+          if [[ -n "$APPLE_SIGNING_IDENTITY" ]]; then
+            codesign --verify --deep --strict "$app_bundle"
+            codesign --verify --strict "$dmg"
+          fi
+          if [[ -n "$APPLE_ID" ]]; then
+            xcrun stapler validate "$app_bundle"
+          fi
+          printf 'tag=%s\ntarget=universal-apple-darwin\nsigned=%s\nnotarized=%s\n' \
+            "${{ needs.validate.outputs.tag }}" \
+            "$([[ -n "$APPLE_SIGNING_IDENTITY" ]] && echo true || echo false)" \
+            "$([[ -n "$APPLE_ID" ]] && echo true || echo false)" \
+            > dist/BUILD-INFO-macos.txt
+
+      - name: Validate Windows installer and signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer was not generated" }
+          $signed = "false"
+          if ($env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            $signature = Get-AuthenticodeSignature $installer.FullName
+            if ($signature.Status -ne "Valid") {
+              throw "Installer signature is not valid: $($signature.Status)"
+            }
+            $signed = "true"
+          }
+          $installDirectory = Join-Path $env:LOCALAPPDATA "Postman GPUI"
+          try {
+            $installProcess = Start-Process $installer.FullName -ArgumentList "/S" -Wait -PassThru
+            if ($installProcess.ExitCode -ne 0) {
+              throw "Silent install failed with exit code $($installProcess.ExitCode)"
+            }
+            $installedApplication = Join-Path $installDirectory "postman-gpui.exe"
+            if (-not (Test-Path $installedApplication)) {
+              throw "Installed application was not found at $installedApplication"
+            }
+            $assetCheck = Start-Process $installedApplication -ArgumentList "--verify-runtime-assets" -Wait -PassThru
+            if ($assetCheck.ExitCode -ne 0) {
+              throw "Installed application asset check failed with exit code $($assetCheck.ExitCode)"
+            }
+            $licenseFiles = Get-ChildItem (Join-Path $installDirectory "licenses") -File
+            if ($licenseFiles.Count -ne 4) {
+              throw "Installed application did not contain all font license files"
+            }
+          } finally {
+            $uninstaller = Join-Path $installDirectory "uninstall.exe"
+            if (Test-Path $uninstaller) {
+              $uninstallProcess = Start-Process $uninstaller -ArgumentList "/S" -Wait -PassThru
+              if ($uninstallProcess.ExitCode -ne 0) {
+                throw "Silent uninstall failed with exit code $($uninstallProcess.ExitCode)"
+              }
+            }
+          }
+          for ($attempt = 0; $attempt -lt 10 -and (Test-Path $installDirectory); $attempt++) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (Test-Path $installDirectory) {
+            throw "Silent uninstall left the application directory behind"
+          }
+          @(
+            "tag=${{ needs.validate.outputs.tag }}"
+            "target=x86_64-pc-windows-msvc"
+            "signed=$signed"
+          ) | Set-Content -Encoding utf8 dist/BUILD-INFO-windows.txt
+
+      - name: Validate Linux packages
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          appimage=$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          deb=$(find dist -maxdepth 1 -type f -name '*.deb' -print -quit)
+          test -n "$appimage" && test -x "$appimage" && test -n "$deb"
+          file "$appimage" | grep -q 'ELF 64-bit'
+          dpkg-deb --info "$deb"
+          "$appimage" --verify-runtime-assets
+          sudo apt-get install --yes "$deb"
+          /usr/bin/postman-gpui --verify-runtime-assets
+          test "$(find /usr/lib/postman-gpui/licenses -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+          sudo apt-get remove --yes postman-gpui
+          test ! -e /usr/bin/postman-gpui
+          test ! -e /usr/lib/postman-gpui
+          printf 'tag=%s\ntarget=x86_64-unknown-linux-gnu\nsigned=false\n' \
+            "${{ needs.validate.outputs.tag }}" \
+            > dist/BUILD-INFO-linux.txt
+
+      - name: Upload native packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+            dist/BUILD-INFO-*.txt
+
+  publish:
+    name: Publish GitHub Release
+    needs: [validate, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all native packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: postman-gpui-*
+          path: dist
+          merge-multiple: true
+
+      - name: Reject partial release output
+        shell: bash
+        run: |
+          test -n "$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name '*.app.zip' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test "$(find dist -maxdepth 1 -type f -name 'BUILD-INFO-*.txt' | wc -l | tr -d ' ')" = "3"
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Publish or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+        shell: bash
+        run: |
+          notes="Cross-platform packages for Postman GPUI ${RELEASE_TAG}. Verify downloads with SHA256SUMS. Downloads, atomic save-as, and streaming progress remain pending in #69."
+          if ! grep -q '^signed=true$' dist/BUILD-INFO-macos.txt; then
+            notes+=$'\n\nThe macOS release candidate is unsigned and can trigger Gatekeeper.'
+          elif ! grep -q '^notarized=true$' dist/BUILD-INFO-macos.txt; then
+            notes+=$'\n\nThe macOS release candidate is signed but not notarized and can trigger Gatekeeper.'
+          fi
+          if ! grep -q '^signed=true$' dist/BUILD-INFO-windows.txt; then
+            notes+=$'\n\nThe Windows installer is unsigned and can trigger SmartScreen.'
+          fi
+
+          release_api="repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+          if release_id=$(gh api "$release_api" --jq .id 2>/dev/null); then
+            gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            arguments=(
+              "$RELEASE_TAG"
+              dist/*
+              --draft
+              --repo "$GITHUB_REPOSITORY"
+              --title "Postman GPUI $RELEASE_TAG"
+              --verify-tag
+              --generate-notes
+              --notes "$notes"
+            )
+            if [[ "$PRERELEASE" == "true" ]]; then
+              arguments+=(--prerelease)
+            fi
+            gh release create "${arguments[@]}"
+            release_id=$(gh api "$release_api" --jq .id)
+          fi
+
+          # The release remains a draft until every native package and checksum has uploaded.
+          # Publishing this final state change prevents users from seeing a partial first release.
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F draft=false \
+            -F prerelease="$PRERELEASE" \
+            >/dev/null

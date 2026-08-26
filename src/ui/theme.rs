@@ -23,12 +23,11 @@ pub const CODE_BG: u32 = PANEL;
 pub const CODE_PANEL: u32 = PANEL_ALT;
 pub const CODE_TEXT: u32 = 0x0024_3d34;
 
-// The Pencil design uses Space Grotesk / Manrope / JetBrains Mono. They are not
-// bundled with the app yet, so use installed macOS metric-compatible families to
-// avoid invisible text when a requested family cannot be resolved.
-pub const FONT_HEADING: &str = "Avenir Next";
-pub const FONT_UI: &str = "Helvetica Neue";
-pub const FONT_MONO: &str = "Menlo";
+// These OFL-licensed families are embedded in the executable and registered at startup, so the
+// Pencil typography contract does not depend on fonts installed by the host operating system.
+pub const FONT_HEADING: &str = "Space Grotesk";
+pub const FONT_UI: &str = "Manrope";
+pub const FONT_MONO: &str = "JetBrains Mono";
 
 pub fn method_color(method: HttpMethod) -> u32 {
     match method {

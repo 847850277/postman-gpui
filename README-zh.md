@@ -1,197 +1,89 @@
 # Postman GPUI
 
-Postman GPUI 是一个受 Postman 启发的简单图形用户界面应用程序，用于发送 HTTP 请求。该应用程序允许用户以用户友好的方式创建、管理和发送 HTTP 请求并查看响应。
+Postman GPUI 是一个使用 Rust 和 GPUI 构建的原生跨平台 HTTP 客户端，重点提供快速的
+请求/响应操作、完善的键盘编辑体验以及本地优先的请求历史。
 
-## 功能特性
+[English](README.md)
 
-- 输入请求详细信息，包括 URL、HTTP 方法、请求头和请求体
-- 查看服务器响应，包括状态码和响应体
-- 请求历史：点击历史项可将完整请求加载回表单
-- 可重用的 UI 组件，提供一致的用户体验
-- 完整的键盘快捷键支持
-- 专业的 JSON 编辑器，支持多行编辑和语法高亮
-- 现代化的用户界面，基于 GPUI 框架构建
+![Postman GPUI](image.png)
 
-## SQLite 请求历史
+## 功能
 
-左侧 History 只展示 SQLite 查询返回的最新 50 条已完成 HTTP 交换。SQLite 是唯一可写和
-权威的数据源；取消、超时及未产生 HTTP 响应的传输失败不会写入 History。恢复时只加载经过
-脱敏的可回放请求，不恢复 Cookie、响应、标签页或未发送草稿。
+- 支持 GET、POST、PUT、PATCH、DELETE、HEAD 和 OPTIONS
+- 支持查询参数、自定义请求头、Basic/Bearer 认证和 Cookie
+- 支持 JSON、Raw、URL-encoded、Multipart 请求体及文件上传
+- 支持重定向策略、响应解压、超时和取消
+- 展示响应状态、响应头和格式化响应体，并支持快速复制
+- 支持多标签页、全局搜索和可回放的 SQLite 历史记录
+- 支持跨平台键盘操作、文本选择和剪贴板行为
 
-Authorization、Cookie、API Key 等已知凭据位置会在进入数据库前移除；用户编写的请求体和
-未命中敏感名称规则的查询参数属于明确的回放数据。完整规则见
-[SQLite Request History contract](docs/history-persistence.md)。
+## 安装
 
-## 项目结构
+从 [GitHub Releases](https://github.com/847850277/postman-gpui/releases) 下载对应平台的安装包：
 
-```text
-postman-gpui
-├── src
-│   ├── main.rs          # 应用程序入口点
-│   ├── lib.rs           # 库接口
-│   ├── app              # 应用程序逻辑
-│   │   ├── mod.rs
-│   │   └── postman_app.rs
-│   ├── ui               # 用户界面组件
-│   │   ├── mod.rs
-│   │   └── components
-│   │       ├── mod.rs
-│   │       ├── method_selector.rs  # HTTP 方法下拉选择器
-│   │       ├── url_input.rs        # URL 输入框，带验证功能
-│   │       ├── header_input.rs     # 请求头键值对输入组件
-│   │       ├── body_input.rs       # 请求体编辑器，支持 JSON
-│   │       ├── body_editor.rs      # 请求体编辑器容器
-│   │       └── dropdown.rs         # 可重用下拉组件
-│   ├── http             # HTTP 功能
-│   │   ├── mod.rs
-│   │   ├── client.rs    # HTTP 客户端实现
-│   │   ├── request.rs   # HTTP 请求模型
-│   │   └── response.rs  # HTTP 响应模型
-│   ├── models           # 数据模型
-│   │   ├── mod.rs
-│   │   ├── history.rs    # 已发送请求历史
-│   │   └── request.rs    # HTTP 请求模型
-│   ├── assets           # 应用程序资源
-│   │   └── mod.rs
-│   └── utils            # 工具函数
-│       ├── mod.rs
-│       └── helpers.rs   # 辅助工具
-├── examples             # 示例用法和演示
-│   ├── advanced_dropdown_example.rs
-│   ├── basic_request.rs
-│   ├── deferred_anchored_example.rs
-│   └── text_input_demo.rs
-├── assets               # 静态资源
-│   └── fonts           # 字体文件
-├── postman-gpui/       # 附加示例
-│   └── examples/
-│       └── basic_request.rs
-├── Cargo.toml          # Cargo 配置文件
-├── Cargo.lock          # Cargo 锁定文件
-├── README.md           # 项目文档（英文）
-├── README-zh.md        # 项目文档（中文）
-├── todo.md             # 开发待办事项
-└── test_server.py      # 开发用测试 HTTP 服务器
-```
+| 平台 | 首版安装包 | 支持范围 |
+| --- | --- | --- |
+| macOS | 通用架构 `.dmg` 或打包后的 `.app` | Intel 与 Apple 芯片，macOS 10.15.7+ |
+| Windows | NSIS `.exe` 安装程序 | Windows 10+，x86_64 |
+| Linux | `.AppImage` 或 `.deb` | x86_64，支持 Vulkan 的 Wayland/X11 桌面 |
 
-## 开始使用
+各平台依赖、预发布未签名提示和 Linux 运行库见[安装指南](docs/installation.md)。
 
-1. 克隆仓库：
+## 从源码运行
 
-   ```bash
-   git clone https://github.com/yourusername/postman-gpui.git
-   cd postman-gpui
-   ```
-
-2. 构建项目：
-
-   ```bash
-   cargo build
-   ```
-
-3. 运行应用程序：
-
-   ```bash
-   cargo run
-   ```
-
-## 使用方法
-
-- 打开应用程序，在 URL 输入框中输入所需的 URL
-- 使用方法选择器选择 HTTP 方法（GET、POST 等）
-- 使用请求头编辑器添加任何必要的请求头
-- 如果需要，输入请求体（支持 JSON 格式）
-- 点击"发送"按钮发送请求，并在响应面板中查看响应
-
-## 截图
-
-![alt text](image.png)
-
-## 主要组件功能
-
-### URL 输入框 (UrlInput)
-
-- 支持完整的键盘导航和编辑
-- URL 验证和自动补全
-- 历史记录支持
-
-### 方法选择器 (MethodSelector)
-
-- 支持所有标准 HTTP 方法
-- 现代化下拉界面
-- 键盘快捷键支持
-
-### 请求头编辑器 (HeaderInput)
-
-- 键值对输入支持
-- 自动补全常用请求头
-- 完整的文本编辑功能
-
-### 请求体编辑器 (BodyInput)
-
-- 多行文本编辑
-- JSON 格式支持
-- 语法高亮（等宽字体）
-- 完整的键盘快捷键：
-  - `Cmd+A`: 全选
-  - `Cmd+C/V/X`: 复制/粘贴/剪切
-  - `方向键`: 光标导航
-  - `Shift+方向键`: 文本选择
-  - `Home/End`: 行首/行尾
-  - `Enter`: 换行
-  - `Tab`: 缩进
-
-## 技术特性
-
-- **现代 Rust 架构**: 使用最新的 Rust 特性和最佳实践
-- **GPUI 框架**: 基于高性能的 GPUI 图形框架
-- **组件化设计**: 可重用的 UI 组件架构
-- **事件驱动**: 响应式事件系统
-- **类型安全**: 完整的类型安全保证
-- **异步支持**: 非阻塞 HTTP 请求处理
-
-## 开发指南
-
-### 构建要求
-
-- Rust 1.70+
-- macOS/Linux/Windows
-- GPUI 依赖项
-
-### 开发命令
+仓库通过 `rust-toolchain.toml` 固定 Rust 版本：
 
 ```bash
-# 检查代码
-cargo check
-
-# 运行测试
-cargo test
-
-# 格式化代码
-cargo fmt
-
-# 代码检查
-cargo clippy
+git clone https://github.com/847850277/postman-gpui.git
+cd postman-gpui
+cargo run --locked
 ```
 
-## 贡献
+Linux 需要先安装[安装指南](docs/installation.md#linux)列出的 GPUI 开发依赖。
 
-欢迎贡献！请为任何改进或错误修复开启 issue 或提交 pull request。
+在本机生成对应平台的安装包：
 
-### 贡献指南
+```bash
+cargo install cargo-packager --version 0.11.8 --locked
+python3 scripts/release.py package
+```
 
-1. Fork 这个仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启一个 Pull Request
+在 macOS 上生成 Intel 与 Apple 芯片通用安装包：
+
+```bash
+python3 scripts/release.py package --universal-macos
+```
+
+## 验证
+
+```bash
+cargo fmt -- --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets --all-features
+cargo httpbingo-scenarios
+python3 -m unittest discover -s scripts/tests
+```
+
+## 首版范围
+
+v0.1.0 功能范围由 [#50](https://github.com/847850277/postman-gpui/issues/50) 跟踪。
+二进制下载、响应保存和流式进度暂时保留在
+[#69](https://github.com/847850277/postman-gpui/issues/69)；等未来 CLI、性能测试可复用的 HTTP
+核心架构明确后再继续实现，它们不阻塞首版发布。
+
+发布相关资料：
+
+- [CHANGELOG](CHANGELOG.md)
+- [输入实时同步验收映射](docs/autofill-contract.md)
+- [发布操作手册](docs/releasing.md)
+- [跨平台冒烟测试清单](docs/release-smoke-test.md)
+
+## 本地数据与隐私
+
+已完成请求的历史记录保存在操作系统本地应用数据目录下的
+`postman-gpui/request-history.sqlite3`。已知凭据和 Cookie 在持久化前会被移除；取消请求和传输失败
+不会写入历史。
 
 ## 许可证
 
-该项目采用 MIT 许可证。有关更多详细信息，请参阅 LICENSE 文件。
-
-## 致谢
-
-- 感谢 GPUI 团队提供出色的 GUI 框架
-- 感谢 Rust 社区的支持和贡献
-- 灵感来源于 Postman 的优秀设计
+[MIT](LICENSE)

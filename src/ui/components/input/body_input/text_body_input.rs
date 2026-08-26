@@ -10,7 +10,7 @@ use crate::ui::{
     components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, EDITABLE_ACTIONS,
     },
-    theme::{CODE_BG, CODE_TEXT, INFO, LINE},
+    theme::{CODE_BG, CODE_TEXT, FONT_MONO, INFO, LINE},
 };
 use gpui::{
     div, fill, hsla, point, prelude::FluentBuilder, px, relative, rgb, rgba, size, App, Bounds,
@@ -1024,7 +1024,7 @@ impl Render for TextBodyInput {
                     rgb(LINE)
                 })
                 .rounded_lg()
-                .font_family("Menlo")
+                .font_family(FONT_MONO)
                 .text_size(px(13.0))
                 .text_color(rgb(CODE_TEXT))
                 .cursor(CursorStyle::IBeam)

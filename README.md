@@ -1,131 +1,90 @@
 # Postman GPUI
 
-Postman GPUI is a simple graphical user interface application for making HTTP requests, inspired by Postman. This application allows users to create, manage, and send HTTP requests and view the responses in a user-friendly manner.
+Postman GPUI is a native, cross-platform HTTP client built with Rust and GPUI. It focuses on a
+fast request/response workflow, keyboard-friendly editing, and local-first request history.
+
+[中文说明](README-zh.md)
+
+![Postman GPUI](image.png)
 
 ## Features
 
-- Input request details including URL, HTTP method, headers, and body.
-- **Multiple body types**: JSON, Form Data (URL-encoded), and Raw text
-- **Form Data Support**: Built-in form-data editor with key-value pairs and automatic `Content-Type` header
-- View responses from the server, including status codes and response bodies.
-- **Request History**: Click any history item to load the complete request (URL, parameters, headers, and body) back into the form
-- Reusable UI components for a consistent user experience.
+- GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS requests
+- Query parameters, custom headers, Basic/Bearer authorization, and cookies
+- JSON, raw, URL-encoded, and multipart request bodies with file upload
+- Redirect policy, response decompression, timeout, and cancellation controls
+- Response status, headers, formatted body, and quick copy
+- Multi-tab requests, global search, and replayable SQLite history
+- Cross-platform keyboard, selection, and clipboard behavior
 
-The application supports keyboard-only request workflows, standard cross-platform text editing,
-and a built-in shortcut reference. See the
-[Keyboard, Selection, and Clipboard contract](docs/keyboard-shortcuts.md) for the complete shortcut
-matrix and focus order.
+## Install
 
-## Request History Feature
+Download the package for your operating system from
+[GitHub Releases](https://github.com/847850277/postman-gpui/releases):
 
-The history list in the left sidebar displays the newest 50 completed HTTP exchanges from the
-bundled SQLite database. SQLite is the only History source; cancelled and transport-failed requests
-are not recorded. Simply **click on any history item** to:
-- Load the complete URL (including query parameters)
-- Load the HTTP method
-- Load non-sensitive headers
-- Load the request body
+| Platform | First-release package | Supported target |
+| --- | --- | --- |
+| macOS | Universal `.dmg` or zipped `.app` | Intel and Apple silicon, macOS 10.15.7+ |
+| Windows | NSIS installer `.exe` | Windows 10+, x86_64 |
+| Linux | `.AppImage` or `.deb` | x86_64, Vulkan-capable Wayland or X11 desktop |
 
-Known credentials and cookies are removed before persistence. User-authored request bodies and
-non-sensitive query values remain replay data. See the
-[SQLite Request History contract](docs/history-persistence.md) for lifecycle, security, and failure
-behavior.
+See [Installation](docs/installation.md) for platform requirements, unsigned prerelease warnings,
+and Linux runtime packages.
 
+## Build from source
 
+The repository pins Rust in `rust-toolchain.toml`.
 
-
-## Project Structure
-
-```
-postman-gpui
-├── src
-│   ├── main.rs          # Entry point of the application
-│   ├── lib.rs           # Library interface
-│   ├── app              # Application logic
-│   │   ├── mod.rs
-│   │   └── postman_app.rs
-│   ├── ui               # User interface components
-│   │   ├── mod.rs
-│   │   └── components
-│   │       ├── mod.rs
-│   │       ├── method_selector.rs  # HTTP method dropdown selector
-│   │       ├── url_input.rs        # URL input field with validation
-│   │       ├── header_input.rs     # Header key-value input component
-│   │       ├── body_input.rs       # Request body editor with JSON support
-│   │       ├── body_editor.rs      # Body editor container
-│   │       └── dropdown.rs         # Reusable dropdown component
-│   ├── http             # HTTP functionalities
-│   │   ├── mod.rs
-│   │   ├── client.rs    # HTTP client implementation
-│   │   ├── request.rs   # HTTP request models
-│   │   └── response.rs  # HTTP response models
-│   ├── models           # Data models
-│   │   ├── mod.rs
-│   │   ├── history.rs    # Sent-request history
-│   │   └── request.rs    # HTTP request model
-│   ├── assets           # Application assets
-│   │   └── mod.rs
-│   └── utils            # Utility functions
-│       ├── mod.rs
-│       └── helpers.rs   # Helper utilities
-├── examples             # Example usage and demos
-│   ├── advanced_dropdown_example.rs
-│   ├── basic_request.rs
-│   ├── deferred_anchored_example.rs
-│   └── text_input_demo.rs
-├── assets               # Static assets
-│   └── fonts           # Font files
-├── postman-gpui/       # Additional examples
-│   └── examples/
-│       └── basic_request.rs
-├── Cargo.toml          # Cargo configuration
-├── Cargo.lock          # Cargo lock file
-├── README.md           # Project documentation (English)
-├── README-zh.md        # Project documentation (Chinese)
-├── todo.md             # Development todos
-└── test_server.py      # Test HTTP server for development
+```bash
+git clone https://github.com/847850277/postman-gpui.git
+cd postman-gpui
+cargo run --locked
 ```
 
-## Getting Started
+Linux needs the GPUI development libraries listed in the
+[installation guide](docs/installation.md#linux).
 
-1. Clone the repository:
+To create native packages locally, install the pinned packager and run the release helper:
 
-   ```bash
-   git clone https://github.com/yourusername/postman-gpui.git
-   cd postman-gpui
-   ```
+```bash
+cargo install cargo-packager --version 0.11.8 --locked
+python3 scripts/release.py package
+```
 
-2. Build the project:
+On macOS, build a universal package with:
 
-   ```bash
-   cargo build
-   ```
+```bash
+python3 scripts/release.py package --universal-macos
+```
 
-3. Run the application:
+## Verify
 
-   ```bash
-   cargo run
-   ```
+```bash
+cargo fmt -- --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets --all-features
+cargo httpbingo-scenarios
+python3 -m unittest discover -s scripts/tests
+```
 
-## Usage
+## Release scope
 
-- Open the application and enter the desired URL in the URL input field.
-- Select the HTTP method (GET, POST, etc.) using the method selector.
-- Add any necessary headers using the headers editor.
-- **For POST requests**: Select the body type (JSON, Form Data, or Raw):
-  - **JSON**: Enter JSON formatted data
-  - **Form Data**: Use the built-in editor to add key-value pairs (Content-Type header is automatically added)
-  - **Raw**: Enter any raw text data
-- Click the "Send" button to make the request and view the response in the response panel.
+The v0.1.0 scope is tracked by
+[#50](https://github.com/847850277/postman-gpui/issues/50). Binary downloads, file-backed response
+saving, and streaming response progress remain intentionally pending in
+[#69](https://github.com/847850277/postman-gpui/issues/69) while the reusable HTTP-core architecture
+for future CLI and performance-testing use cases is designed.
 
-## Screenshot
+See [CHANGELOG.md](CHANGELOG.md), the [live editor synchronization audit](docs/autofill-contract.md),
+the [release runbook](docs/releasing.md), and the
+[cross-platform smoke checklist](docs/release-smoke-test.md).
 
-![alt text](image.png)
+## Local data and privacy
 
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+Completed request history is stored in `postman-gpui/request-history.sqlite3` under the operating
+system's local application-data directory. Known credentials and cookies are removed before
+persistence. Cancelled requests and transport failures are not recorded.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+[MIT](LICENSE)

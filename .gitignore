@@ -33,5 +33,10 @@ pids
 # Build outputs
 /dist/
 /build/
+/postman-gpui-packager-*.json
+
+# Python
+__pycache__/
+*.py[cod]
 
 .idea

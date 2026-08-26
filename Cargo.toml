@@ -2,6 +2,14 @@
 name = "postman-gpui"
 version = "0.1.0"
 edition = "2021"
+authors = ["847850277"]
+description = "A native, cross-platform HTTP client built with Rust and GPUI"
+license = "MIT"
+repository = "https://github.com/847850277/postman-gpui"
+homepage = "https://github.com/847850277/postman-gpui"
+readme = "README.md"
+keywords = ["http", "api", "client", "gpui"]
+categories = ["development-tools"]
 
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
@@ -21,6 +29,9 @@ serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1", features = ["v4"] }
+
+[build-dependencies]
+embed-resource = "3.0"
 
 [dev-dependencies]
 brotli = "8"

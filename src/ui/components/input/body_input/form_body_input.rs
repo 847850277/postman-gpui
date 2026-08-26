@@ -11,7 +11,8 @@ use crate::ui::{
     components::common::scrollbar::{scrollbar_geometry, ScrollbarGeometry},
     components::input::edit_history::{next_word_boundary, previous_word_boundary, EditHistory},
     theme::{
-        ACCENT_SOFT, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL,
+        PANEL_ALT, SUBTEXT, TEXT,
     },
 };
 use gpui::{
@@ -1415,7 +1416,7 @@ impl Render for FormBodyInput {
                     .child(
                         div()
                             .w(px(18.0))
-                            .font_family("Helvetica Neue")
+                            .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
                             .text_color(rgb(SUBTEXT))
@@ -1424,7 +1425,7 @@ impl Render for FormBodyInput {
                     .child(
                         div()
                             .flex_1()
-                            .font_family("Helvetica Neue")
+                            .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
                             .text_color(rgb(SUBTEXT))
@@ -1434,7 +1435,7 @@ impl Render for FormBodyInput {
                         header.child(
                             div()
                                 .w(px(64.0))
-                                .font_family("Helvetica Neue")
+                                .font_family(FONT_UI)
                                 .font_weight(gpui::FontWeight::BOLD)
                                 .text_size(px(9.0))
                                 .text_color(rgb(SUBTEXT))
@@ -1444,7 +1445,7 @@ impl Render for FormBodyInput {
                     .child(
                         div()
                             .flex_1()
-                            .font_family("Helvetica Neue")
+                            .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
                             .text_color(rgb(SUBTEXT))
@@ -1453,7 +1454,7 @@ impl Render for FormBodyInput {
                     .child(
                         div()
                             .w(px(58.0))
-                            .font_family("Helvetica Neue")
+                            .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
                             .text_color(rgb(SUBTEXT))
@@ -1463,7 +1464,7 @@ impl Render for FormBodyInput {
                     .child(
                         div()
                             .w(px(44.0))
-                            .font_family("Helvetica Neue")
+                            .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
                             .text_color(rgb(SUBTEXT))
@@ -1566,7 +1567,7 @@ impl Render for FormBodyInput {
                                                 .rounded_sm()
                                                 .bg(rgb(if entry_enabled { INFO } else { PANEL }))
                                                 .text_color(rgb(PANEL))
-                                                .font_family("Helvetica Neue")
+                                                .font_family(FONT_UI)
                                                 .font_weight(gpui::FontWeight::BOLD)
                                                 .text_size(px(10.0))
                                                 .cursor_pointer()
@@ -1611,7 +1612,7 @@ impl Render for FormBodyInput {
                                                     },
                                                 )
                                                 .rounded_md()
-                                                .font_family("Menlo")
+                                                .font_family(FONT_MONO)
                                                 .text_size(px(12.0))
                                                 .cursor(CursorStyle::IBeam)
                                                 .when(
@@ -1771,7 +1772,7 @@ impl Render for FormBodyInput {
                                                     },
                                                 )
                                                 .rounded_md()
-                                                .font_family("Menlo")
+                                                .font_family(FONT_MONO)
                                                 .text_size(px(12.0))
                                                 .cursor(if entry_is_file {
                                                     CursorStyle::PointingHand
@@ -1887,7 +1888,7 @@ impl Render for FormBodyInput {
                                                                             "body-form-file-metadata-{index}"
                                                                         )
                                                                     })
-                                                                    .font_family("Helvetica Neue")
+                                                                    .font_family(FONT_UI)
                                                                     .text_size(px(8.0))
                                                                     .text_color(rgb(SUBTEXT))
                                                                     .child(content_type),
@@ -1958,7 +1959,7 @@ impl Render for FormBodyInput {
                                                         } else {
                                                             PANEL_ALT
                                                         }))
-                                                        .font_family("Helvetica Neue")
+                                                        .font_family(FONT_UI)
                                                         .font_weight(gpui::FontWeight::BOLD)
                                                         .text_size(px(7.0))
                                                         .text_color(rgb(if entry_enabled {
@@ -2091,7 +2092,7 @@ impl Render for FormBodyInput {
                             .text_color(rgb(SUBTEXT))
                             .child("one click = one row · no limit"),
                     )
-                    .font_family("Helvetica Neue")
+                    .font_family(FONT_UI)
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .text_size(px(11.0))
                     .on_action(cx.listener(

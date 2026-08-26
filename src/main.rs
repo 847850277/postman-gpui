@@ -1,8 +1,13 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use gpui::{
     actions, px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, WindowBounds,
     WindowOptions,
 };
-use postman_gpui::app::PostmanApp;
+use postman_gpui::{
+    app::PostmanApp,
+    assets::fonts::{load_embedded_fonts, verify_embedded_fonts},
+};
 
 // 定义退出动作
 actions!(postman, [Quit]);
@@ -13,6 +18,9 @@ fn quit(_: &Quit, cx: &mut App) {
 }
 
 fn main() {
+    let verify_runtime_assets = std::env::args_os()
+        .any(|argument| argument == std::ffi::OsStr::new("--verify-runtime-assets"));
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -21,7 +29,21 @@ fn main() {
         .with_target(true)
         .init();
 
-    gpui_platform::application().run(|cx: &mut App| {
+    let application = if verify_runtime_assets {
+        gpui_platform::headless()
+    } else {
+        gpui_platform::application()
+    };
+
+    application.run(move |cx: &mut App| {
+        load_embedded_fonts(cx).expect("failed to load embedded application fonts");
+        if verify_runtime_assets {
+            verify_embedded_fonts(cx).expect("failed to verify embedded application fonts");
+            tracing::info!("embedded runtime assets verified");
+            cx.quit();
+            return;
+        }
+
         // 激活应用（使菜单栏在前台显示）
         cx.activate(true);
 

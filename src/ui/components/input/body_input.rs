@@ -13,7 +13,7 @@ use gpui::{
 use std::path::PathBuf;
 use text_body_input::{TextBodyInput, TextBodyInputEvent};
 
-use crate::ui::theme::{CODE_BG, INFO, PANEL, TEXT};
+use crate::ui::theme::{CODE_BG, FONT_UI, INFO, PANEL, TEXT};
 
 mod form_body_input;
 mod text_body_input;
@@ -345,7 +345,7 @@ impl Render for BodyInput {
                         .child(
                             div()
                                 .cursor_pointer()
-                                .font_family("Helvetica Neue")
+                                .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Json, |div| {
                                     div.text_color(rgb(INFO))
@@ -364,7 +364,7 @@ impl Render for BodyInput {
                         .child(
                             div()
                                 .cursor_pointer()
-                                .font_family("Helvetica Neue")
+                                .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::FormData, |div| {
                                     div.text_color(rgb(INFO))
@@ -385,7 +385,7 @@ impl Render for BodyInput {
                         .child(
                             div()
                                 .cursor_pointer()
-                                .font_family("Helvetica Neue")
+                                .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Raw, |div| {
                                     div.text_color(rgb(INFO))
