@@ -2,7 +2,8 @@
 
 use gpui::App;
 use postman_gpui::assets::fonts::{
-    load_embedded_fonts, runtime_asset_application, verify_embedded_fonts,
+    load_embedded_fonts, runtime_asset_application, schedule_runtime_asset_exit,
+    verify_embedded_fonts,
 };
 
 fn main() {
@@ -11,6 +12,6 @@ fn main() {
         verify_embedded_fonts(cx).expect("native text backend did not resolve embedded fonts");
 
         println!("embedded runtime fonts loaded successfully");
-        cx.quit();
+        schedule_runtime_asset_exit(cx);
     });
 }

@@ -29,6 +29,19 @@ pub fn runtime_asset_application() -> gpui::Application {
     }
 }
 
+/// Schedules a successful verifier shutdown after the native event loop starts.
+///
+/// Linux invokes the application startup callback before entering its calloop event loop. Calling
+/// `App::quit` directly from that callback stops a loop that has not started yet, after which the
+/// newly started loop waits forever. A foreground task is first polled by the running event loop,
+/// so quitting from that task shuts every platform down normally.
+pub fn schedule_runtime_asset_exit(cx: &App) {
+    cx.spawn(async |cx| {
+        cx.update(|cx| cx.quit());
+    })
+    .detach();
+}
+
 /// Registers the bundled UI fonts before any windows are created.
 pub fn load_embedded_fonts(cx: &App) -> anyhow::Result<()> {
     cx.text_system().add_fonts(vec![

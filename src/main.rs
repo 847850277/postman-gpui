@@ -6,7 +6,10 @@ use gpui::{
 };
 use postman_gpui::{
     app::PostmanApp,
-    assets::fonts::{load_embedded_fonts, runtime_asset_application, verify_embedded_fonts},
+    assets::fonts::{
+        load_embedded_fonts, runtime_asset_application, schedule_runtime_asset_exit,
+        verify_embedded_fonts,
+    },
 };
 
 // 定义退出动作
@@ -40,7 +43,7 @@ fn main() {
         if verify_runtime_assets {
             verify_embedded_fonts(cx).expect("failed to verify embedded application fonts");
             tracing::info!("embedded runtime assets verified");
-            cx.quit();
+            schedule_runtime_asset_exit(cx);
             return;
         }
 
