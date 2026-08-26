@@ -25,8 +25,8 @@ pub const CODE_TEXT: u32 = 0x0024_3d34;
 
 // These OFL-licensed families are embedded in the executable and registered at startup, so the
 // Pencil typography contract does not depend on fonts installed by the host operating system.
-pub const FONT_HEADING: &str = "Space Grotesk";
-pub const FONT_UI: &str = "Manrope";
+pub const FONT_HEADING: &str = "Inter";
+pub const FONT_UI: &str = "Inter";
 pub const FONT_MONO: &str = "JetBrains Mono";
 
 pub fn method_color(method: HttpMethod) -> u32 {

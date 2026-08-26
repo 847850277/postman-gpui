@@ -48,7 +48,7 @@ class ReleaseConfigurationTests(unittest.TestCase):
                     self.assertEqual(config["targetTriple"], target)
                     self.assertIn(expected_section, config)
                     self.assertTrue(all(Path(icon).is_file() for icon in config["icons"]))
-                    self.assertEqual(len(config["resources"]), 4)
+                    self.assertEqual(len(config["resources"]), 3)
                     self.assertTrue(
                         all(
                             Path(resource["src"]).is_file()

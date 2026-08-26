@@ -22,8 +22,8 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 - Local SQLite request history with redaction, persistence recovery, search, and complete-request
   replay.
 - HTTPBingo application E2E scenarios and deterministic local request/UI regression suites.
-- Embedded Space Grotesk, Manrope, and JetBrains Mono fonts for consistent rendering on clean
-  macOS, Windows, and Linux installations.
+- Embedded static Inter UI weights and JetBrains Mono for consistent rendering on clean macOS,
+  Windows, and Linux installations.
 - Reproducible macOS, Windows, and Linux packaging and tag-driven GitHub Releases.
 
 ### Known limitations

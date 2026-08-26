@@ -3,13 +3,14 @@
 use gpui::App;
 use std::borrow::Cow;
 
-static SPACE_GROTESK: &[u8] =
-    include_bytes!("../../assets/fonts/space-grotesk/SpaceGrotesk[wght].ttf");
-static MANROPE: &[u8] = include_bytes!("../../assets/fonts/manrope/Manrope[wght].ttf");
+static INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/inter/Inter-Regular.ttf");
+static INTER_MEDIUM: &[u8] = include_bytes!("../../assets/fonts/inter/Inter-Medium.ttf");
+static INTER_SEMIBOLD: &[u8] = include_bytes!("../../assets/fonts/inter/Inter-SemiBold.ttf");
+static INTER_BOLD: &[u8] = include_bytes!("../../assets/fonts/inter/Inter-Bold.ttf");
 static JETBRAINS_MONO: &[u8] =
     include_bytes!("../../assets/fonts/jetbrains-mono/JetBrainsMono[wght].ttf");
 
-const EMBEDDED_FONT_FAMILIES: [&str; 3] = ["Space Grotesk", "Manrope", "JetBrains Mono"];
+const EMBEDDED_FONT_FAMILIES: [&str; 2] = ["Inter", "JetBrains Mono"];
 
 /// Creates a no-window application with a real text backend for package verification.
 ///
@@ -45,8 +46,10 @@ pub fn schedule_runtime_asset_exit(cx: &App) {
 /// Registers the bundled UI fonts before any windows are created.
 pub fn load_embedded_fonts(cx: &App) -> anyhow::Result<()> {
     cx.text_system().add_fonts(vec![
-        Cow::Borrowed(SPACE_GROTESK),
-        Cow::Borrowed(MANROPE),
+        Cow::Borrowed(INTER_REGULAR),
+        Cow::Borrowed(INTER_MEDIUM),
+        Cow::Borrowed(INTER_SEMIBOLD),
+        Cow::Borrowed(INTER_BOLD),
         Cow::Borrowed(JETBRAINS_MONO),
     ])
 }

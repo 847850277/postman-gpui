@@ -39,11 +39,17 @@ ICON_PATHS = (
 )
 
 FONT_ASSETS = {
-    ROOT / "assets/fonts/space-grotesk/SpaceGrotesk[wght].ttf": (
-        "acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72"
+    ROOT / "assets/fonts/inter/Inter-Regular.ttf": (
+        "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
     ),
-    ROOT / "assets/fonts/manrope/Manrope[wght].ttf": (
-        "d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40"
+    ROOT / "assets/fonts/inter/Inter-Medium.ttf": (
+        "97ad806f526e41546d46365bb3a393145f75b7b1568913db74549ad8b8dba872"
+    ),
+    ROOT / "assets/fonts/inter/Inter-SemiBold.ttf": (
+        "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3"
+    ),
+    ROOT / "assets/fonts/inter/Inter-Bold.ttf": (
+        "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f"
     ),
     ROOT / "assets/fonts/jetbrains-mono/JetBrainsMono[wght].ttf": (
         "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda"
@@ -51,15 +57,13 @@ FONT_ASSETS = {
 }
 
 FONT_LICENSES = (
-    ROOT / "assets/fonts/space-grotesk/OFL.txt",
-    ROOT / "assets/fonts/manrope/OFL.txt",
+    ROOT / "assets/fonts/inter/LICENSE.txt",
     ROOT / "assets/fonts/jetbrains-mono/OFL.txt",
     ROOT / "assets/fonts/README.md",
 )
 
 FONT_LICENSE_TARGETS = {
-    ROOT / "assets/fonts/space-grotesk/OFL.txt": "licenses/space-grotesk-OFL.txt",
-    ROOT / "assets/fonts/manrope/OFL.txt": "licenses/manrope-OFL.txt",
+    ROOT / "assets/fonts/inter/LICENSE.txt": "licenses/inter-OFL.txt",
     ROOT / "assets/fonts/jetbrains-mono/OFL.txt": "licenses/jetbrains-mono-OFL.txt",
     ROOT / "assets/fonts/README.md": "licenses/bundled-fonts.md",
 }

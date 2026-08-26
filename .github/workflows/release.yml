@@ -188,7 +188,7 @@ jobs:
           app_zip=$(find dist -maxdepth 1 -type f -name '*.app.zip' -print -quit)
           test -n "$app_bundle" && test -n "$dmg" && test -n "$app_zip"
           test "$(plutil -extract CFBundleIdentifier raw -o - "$app_bundle/Contents/Info.plist")" = "io.github.847850277.postman-gpui"
-          test "$(find "$app_bundle/Contents/Resources/licenses" -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+          test "$(find "$app_bundle/Contents/Resources/licenses" -maxdepth 1 -type f | wc -l | tr -d ' ')" = "3"
           lipo "$app_bundle/Contents/MacOS/postman-gpui" -verify_arch x86_64 arm64
           "$app_bundle/Contents/MacOS/postman-gpui" --verify-runtime-assets
           hdiutil verify "$dmg"
@@ -234,7 +234,7 @@ jobs:
               throw "Installed application asset check failed with exit code $($assetCheck.ExitCode)"
             }
             $licenseFiles = Get-ChildItem (Join-Path $installDirectory "licenses") -File
-            if ($licenseFiles.Count -ne 4) {
+            if ($licenseFiles.Count -ne 3) {
               throw "Installed application did not contain all font license files"
             }
           } finally {
@@ -272,7 +272,7 @@ jobs:
           "$appimage" --verify-runtime-assets
           sudo apt-get install --yes "$deb"
           /usr/bin/postman-gpui --verify-runtime-assets
-          test "$(find /usr/lib/postman-gpui/licenses -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+          test "$(find /usr/lib/postman-gpui/licenses -maxdepth 1 -type f | wc -l | tr -d ' ')" = "3"
           sudo apt-get remove --yes postman-gpui
           test ! -e /usr/bin/postman-gpui
           test ! -e /usr/lib/postman-gpui

@@ -7,8 +7,9 @@ Release candidates may be unsigned. Their release notes must state that explicit
 an operating-system security warning unless the artifact and its SHA-256 checksum came from this
 repository's release page.
 
-Space Grotesk, Manrope, and JetBrains Mono are embedded for consistent cross-platform text
-rendering. Their SIL Open Font License notices are installed in the package's `licenses` directory.
+Inter and JetBrains Mono are embedded for consistent cross-platform text rendering. Inter includes
+static Regular, Medium, SemiBold, and Bold weights. Their SIL Open Font License notices are
+installed in the package's `licenses` directory.
 
 ## macOS
 
