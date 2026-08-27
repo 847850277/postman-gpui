@@ -45,19 +45,19 @@ impl RequestWorkspace {
     ) -> impl IntoElement {
         let tabs: Vec<_> = {
             let view_model = self.view_model.read(cx);
-            let active_index = view_model.active_tab_index();
+            let active_tab_id = view_model.active_tab_id();
             view_model
-                .tabs()
-                .iter()
+                .request_tag_projections()
+                .into_iter()
                 .enumerate()
-                .map(|(index, request)| {
+                .map(|(index, tag)| {
                     (
                         index,
-                        request.tab_id(),
-                        request.method(),
-                        request.tab_title(),
-                        request.is_dirty(),
-                        Some(index) == active_index,
+                        tag.tab_id,
+                        tag.method,
+                        tag.display_name,
+                        tag.dirty,
+                        Some(tag.tab_id) == active_tab_id,
                     )
                 })
                 .collect()

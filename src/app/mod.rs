@@ -5,6 +5,7 @@ pub mod postman_app;
 mod request_lifecycle;
 mod request_runner;
 pub mod view_model;
+mod workspace_projections;
 
 pub(crate) use history_storage::spawn_history_operation_and_reload;
 pub(crate) use keyboard::{
@@ -17,10 +18,10 @@ pub(crate) use keyboard::{
 pub use postman_app::PostmanApp;
 pub use view_model::{
     AuthorizationKind, BodyKind, CookieJarEntry, EffectiveHeader, EffectiveHeaderSource,
-    GlobalSearchHistoryResult, GlobalSearchRequestResult, GlobalSearchResults, HistoryStorageStage,
-    HistoryStorageStatus, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PendingRequest,
-    RequestBodyDraft, RequestConstruction, RequestDraft, RequestDraftError, RequestPane,
-    RequestTabId, RequestViewModel, ResponseState, SendCompletion, SendId, SendProgress,
-    SendRejection, SendStart, SendTerminal, SendTerminalOutcome, SendTransition,
-    WorkspaceViewModel,
+    GlobalSearchHistoryResult, GlobalSearchRequestResult, GlobalSearchResults, HistoryReplayInput,
+    HistoryReplaySource, HistoryStorageStage, HistoryStorageStatus, KeyValueRow,
+    MultipartDraftPart, MultipartDraftValue, PendingRequest, RequestBodyDraft, RequestConstruction,
+    RequestDraft, RequestDraftError, RequestPane, RequestTabId, RequestTagProjection,
+    RequestViewModel, ResponseState, SendCompletion, SendId, SendProgress, SendRejection,
+    SendStart, SendTerminal, SendTerminalOutcome, SendTransition, WorkspaceViewModel,
 };
