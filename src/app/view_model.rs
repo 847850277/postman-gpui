@@ -1,3 +1,10 @@
+use super::request_lifecycle::{
+    BeginSendTransition, RequestSendLifecycle, RequestTabValue, RequestTabs,
+};
+pub use super::request_lifecycle::{
+    PendingRequest, RequestTabId, SendId, SendProgress, SendRejection, SendStart, SendTerminal,
+    SendTerminalOutcome, SendTransition,
+};
 pub use crate::models::{
     AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
     MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestConstruction, RequestDraft,
@@ -9,17 +16,10 @@ use crate::{
     http::executor::RequestResult,
     models::{
         HistoricalResponse, HistoryEntry, HttpMethod, MultipartPart, RedirectHop, RedirectPolicy,
-        Request, RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
+        Request, RequestBody, RequestEditorIntent, RequestHistory,
     },
 };
-use std::{
-    collections::HashMap,
-    fmt,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::{collections::HashMap, fmt};
 
 const MAX_HISTORY_URL_LENGTH: usize = 40;
 
@@ -76,17 +76,6 @@ impl ResponseState {
     }
 }
 
-/// Stable identity for a request tab. Async completions target this identity rather than
-/// whichever tab happens to be active when the server responds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct RequestTabId(u64);
-
-impl fmt::Display for RequestTabId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 /// One open-request match in the application-wide search projection.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GlobalSearchRequestResult {
@@ -132,66 +121,6 @@ impl GlobalSearchResults {
     }
 }
 
-/// Monotonic identity for one send attempt.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct SendId(u64);
-
-impl fmt::Display for SendId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl SendId {
-    /// Human-readable identity rendered while one send attempt owns the active lifecycle.
-    pub fn request_id(self) -> String {
-        format!("req-{:02}", self.0)
-    }
-}
-
-/// Immutable command emitted by the ViewModel for the application service to execute.
-#[derive(Clone, Debug)]
-pub struct PendingRequest {
-    tab_id: RequestTabId,
-    send_id: SendId,
-    request: Request,
-    editor_intent: Option<RequestEditorIntent>,
-    request_options: RequestOptions,
-    cancelled: Arc<AtomicBool>,
-}
-
-impl PendingRequest {
-    pub fn tab_id(&self) -> RequestTabId {
-        self.tab_id
-    }
-
-    pub fn send_id(&self) -> SendId {
-        self.send_id
-    }
-
-    pub fn request(&self) -> &Request {
-        &self.request
-    }
-
-    pub fn editor_intent(&self) -> Option<&RequestEditorIntent> {
-        self.editor_intent.as_ref()
-    }
-
-    /// Per-request deadline captured at Send. `None` means the deadline is disabled.
-    pub fn timeout_ms(&self) -> Option<u64> {
-        self.request_options.timeout_ms
-    }
-
-    /// Complete wire policy captured when Send was pressed.
-    pub fn request_options(&self) -> RequestOptions {
-        self.request_options
-    }
-
-    fn was_cancelled(&self) -> bool {
-        self.cancelled.load(Ordering::Acquire)
-    }
-}
-
 /// UI and request-lifecycle state for one tab.
 ///
 /// Editable request data and normalization live in [`RequestDraft`]. This adapter keeps tab,
@@ -205,8 +134,7 @@ pub struct RequestViewModel {
     response: ResponseState,
     redirect_chain: Vec<RedirectHop>,
     response_stored_cookies: Vec<CookieJarEntry>,
-    pending_send_id: Option<SendId>,
-    pending_cancellation: Option<Arc<AtomicBool>>,
+    send_lifecycle: RequestSendLifecycle,
     dirty: bool,
 }
 
@@ -225,8 +153,7 @@ impl RequestViewModel {
             response: ResponseState::NotSent,
             redirect_chain: Vec::new(),
             response_stored_cookies: Vec::new(),
-            pending_send_id: None,
-            pending_cancellation: None,
+            send_lifecycle: RequestSendLifecycle::default(),
             dirty: false,
         }
     }
@@ -407,7 +334,15 @@ impl RequestViewModel {
     }
 
     pub fn is_sending(&self) -> bool {
-        self.pending_send_id.is_some()
+        self.send_lifecycle.active_send_id().is_some()
+    }
+
+    pub fn send_progress(&self) -> Option<SendProgress> {
+        self.send_lifecycle.progress_state()
+    }
+
+    pub fn last_send_terminal(&self) -> Option<SendTerminal> {
+        self.send_lifecycle.last_terminal()
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -614,7 +549,7 @@ impl RequestViewModel {
     }
 
     pub fn new_request(&mut self) {
-        self.mark_pending_cancelled();
+        self.reset_send_lifecycle();
         self.draft = RequestDraft::new();
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
@@ -624,7 +559,7 @@ impl RequestViewModel {
     }
 
     pub fn load_request(&mut self, request: &Request) {
-        self.mark_pending_cancelled();
+        self.reset_send_lifecycle();
         self.draft = RequestDraft::from_request(request);
         self.pre_request_script.clear();
         self.tests_script.clear();
@@ -661,15 +596,29 @@ impl RequestViewModel {
         self.response_stored_cookies.clear();
     }
 
-    fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> RequestConstruction {
+    fn begin_send(&mut self, send_id: SendId) -> (RequestConstruction, BeginSendTransition) {
         self.draft.normalize_for_send();
         let construction = self.draft.construct();
-        self.pending_send_id = Some(send_id);
-        self.pending_cancellation = Some(cancelled);
+        let transition = self.send_lifecycle.begin(send_id);
+        self.project_send_started();
+        (construction, transition)
+    }
+
+    fn retry_send(
+        &mut self,
+        send_id: SendId,
+    ) -> Result<(RequestConstruction, BeginSendTransition), SendRejection> {
+        let transition = self.send_lifecycle.retry(send_id)?;
+        self.draft.normalize_for_send();
+        let construction = self.draft.construct();
+        self.project_send_started();
+        Ok((construction, transition))
+    }
+
+    fn project_send_started(&mut self) {
         self.response = ResponseState::Loading;
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
-        construction
     }
 
     fn complete_send(
@@ -677,18 +626,21 @@ impl RequestViewModel {
         pending: &PendingRequest,
         result: Result<RequestResult, AppError>,
         stored_cookies: Vec<CookieJarEntry>,
-    ) -> bool {
-        if self.pending_send_id != Some(pending.send_id) {
-            return false;
+    ) -> SendTransition {
+        let outcome = match &result {
+            Ok(_) => SendTerminalOutcome::Completed,
+            Err(AppError::Timeout { .. }) => SendTerminalOutcome::TimedOut,
+            Err(_) => SendTerminalOutcome::Failed,
+        };
+        let transition = self.send_lifecycle.complete(pending.send_id(), outcome);
+        if !transition.is_applied() {
+            return transition;
         }
-
-        self.pending_send_id = None;
-        self.pending_cancellation = None;
         match result {
             Ok(result) => {
                 let construction = self.draft.construct();
-                let draft_is_unchanged = construction.request() == &pending.request
-                    && construction.request_options() == pending.request_options;
+                let draft_is_unchanged = construction.request() == pending.request()
+                    && construction.request_options() == pending.request_options();
                 self.redirect_chain = result.redirect_chain;
                 self.response = ResponseState::Success {
                     status: result.status,
@@ -709,27 +661,28 @@ impl RequestViewModel {
                 };
             }
         }
-        true
+        transition
     }
 
-    fn cancel_send(&mut self, send_id: SendId) -> bool {
-        if self.pending_send_id != Some(send_id) {
-            return false;
-        }
-        self.pending_send_id = None;
-        if let Some(cancelled) = self.pending_cancellation.take() {
-            cancelled.store(true, Ordering::Release);
-        }
-        self.response = ResponseState::Cancelled;
-        self.redirect_chain.clear();
-        true
+    fn record_send_progress(&mut self, send_id: SendId, progress: SendProgress) -> SendTransition {
+        self.send_lifecycle.progress(send_id, progress)
     }
 
-    fn mark_pending_cancelled(&mut self) {
-        self.pending_send_id = None;
-        if let Some(cancelled) = self.pending_cancellation.take() {
-            cancelled.store(true, Ordering::Release);
+    fn cancel_send(&mut self, send_id: SendId) -> SendTransition {
+        let transition = self.send_lifecycle.cancel(send_id);
+        if transition.is_applied() {
+            self.response = ResponseState::Cancelled;
+            self.redirect_chain.clear();
         }
+        transition
+    }
+
+    fn abandon_pending_send(&mut self) -> Option<SendId> {
+        self.send_lifecycle.abandon()
+    }
+
+    fn reset_send_lifecycle(&mut self) -> Option<SendId> {
+        self.send_lifecycle.reset()
     }
 
     pub fn tab_title(&self) -> String {
@@ -752,6 +705,26 @@ impl RequestViewModel {
     #[cfg(test)]
     fn build_request(&self) -> Request {
         self.request_construction().request().clone()
+    }
+}
+
+impl RequestTabValue for RequestViewModel {
+    fn tab_id(&self) -> RequestTabId {
+        self.tab_id
+    }
+
+    fn assign_tab_id(&mut self, tab_id: RequestTabId) {
+        self.tab_id = tab_id;
+    }
+
+    fn reset_for_replacement(&mut self) -> Option<SendId> {
+        let abandoned_send_id = self.send_lifecycle.active_send_id();
+        self.new_request();
+        abandoned_send_id
+    }
+
+    fn prepare_for_close(&mut self) -> Option<SendId> {
+        self.abandon_pending_send()
     }
 }
 
@@ -799,17 +772,21 @@ pub enum HistoryStorageStatus {
     },
 }
 
-/// Result of applying one HTTP completion to request/response state. A completed exchange yields
-/// a History candidate, but the ViewModel never adds it to the visible database query result.
+/// Result of routing one HTTP completion to request/response state. Only an accepted completion
+/// yields a History candidate; the ViewModel never adds it to the visible database query result.
 #[derive(Debug)]
 pub struct SendCompletion {
-    response_applied: bool,
+    transition: SendTransition,
     history_entry: Option<HistoryEntry>,
 }
 
 impl SendCompletion {
     pub fn response_applied(&self) -> bool {
-        self.response_applied
+        self.transition.is_applied()
+    }
+
+    pub fn transition(&self) -> SendTransition {
+        self.transition
     }
 
     pub fn history_entry(&self) -> Option<&HistoryEntry> {
@@ -817,14 +794,13 @@ impl SendCompletion {
     }
 
     pub fn into_parts(self) -> (bool, Option<HistoryEntry>) {
-        (self.response_applied, self.history_entry)
+        (self.transition.is_applied(), self.history_entry)
     }
 }
 
 /// Application-level ViewModel. It owns request tabs and the latest SQLite History query result.
 pub struct WorkspaceViewModel {
-    tabs: Vec<RequestViewModel>,
-    active_tab_id: Option<RequestTabId>,
+    tabs: RequestTabs<RequestViewModel>,
     history: RequestHistory,
     /// Current-process complete Requests keyed by SQLite-confirmed History IDs. This is not a
     /// second History store: it has no ordering or metadata, is never rendered independently,
@@ -834,7 +810,6 @@ pub struct WorkspaceViewModel {
     history_storage_status: HistoryStorageStatus,
     cookie_jar: Vec<CookieJarEntry>,
     last_cookie_clear_count: Option<usize>,
-    next_tab_id: u64,
     next_send_id: u64,
 }
 
@@ -843,11 +818,9 @@ impl WorkspaceViewModel {
         Self::with_request(RequestViewModel::new())
     }
 
-    pub fn with_request(mut request: RequestViewModel) -> Self {
-        request.tab_id = RequestTabId(1);
+    pub fn with_request(request: RequestViewModel) -> Self {
         Self {
-            tabs: vec![request],
-            active_tab_id: Some(RequestTabId(1)),
+            tabs: RequestTabs::with_initial(request),
             history: RequestHistory::new(),
             runtime_replay_requests: HashMap::new(),
             history_storage_status: HistoryStorageStatus::Loading {
@@ -855,13 +828,12 @@ impl WorkspaceViewModel {
             },
             cookie_jar: Vec::new(),
             last_cookie_clear_count: None,
-            next_tab_id: 2,
             next_send_id: 1,
         }
     }
 
     pub fn tabs(&self) -> &[RequestViewModel] {
-        &self.tabs
+        self.tabs.values()
     }
 
     pub fn tab_count(&self) -> usize {
@@ -874,8 +846,7 @@ impl WorkspaceViewModel {
     /// an absent or stale active-tab selection explicit instead of turning it into an indexing
     /// panic or silently choosing another tab.
     pub fn active_tab_id(&self) -> Option<RequestTabId> {
-        self.active_tab_id
-            .filter(|tab_id| self.request_for_tab(*tab_id).is_some())
+        self.tabs.active_tab_id()
     }
 
     pub fn active_tab_index(&self) -> Option<usize> {
@@ -884,28 +855,26 @@ impl WorkspaceViewModel {
     }
 
     pub fn tab_index(&self, tab_id: RequestTabId) -> Option<usize> {
-        self.tabs.iter().position(|tab| tab.tab_id == tab_id)
+        self.tabs.index_of(tab_id)
     }
 
     /// The active request, if the selected stable identity still belongs to this workspace.
     pub fn active_request(&self) -> Option<&RequestViewModel> {
-        self.active_tab_id
-            .and_then(|tab_id| self.request_for_tab(tab_id))
+        self.tabs.active()
     }
 
     /// Mutable access to the active request. Callers must choose this API explicitly instead of
     /// obtaining a mutable request through workspace deref coercion.
     pub fn active_request_mut(&mut self) -> Option<&mut RequestViewModel> {
-        let tab_id = self.active_tab_id?;
-        self.request_for_tab_mut(tab_id)
+        self.tabs.active_mut()
     }
 
     pub fn request_for_tab(&self, tab_id: RequestTabId) -> Option<&RequestViewModel> {
-        self.tabs.iter().find(|tab| tab.tab_id == tab_id)
+        self.tabs.get(tab_id)
     }
 
     pub fn request_for_tab_mut(&mut self, tab_id: RequestTabId) -> Option<&mut RequestViewModel> {
-        self.tabs.iter_mut().find(|tab| tab.tab_id == tab_id)
+        self.tabs.get_mut(tab_id)
     }
 
     pub fn update_active_request<R>(
@@ -924,19 +893,11 @@ impl WorkspaceViewModel {
     }
 
     pub fn select_tab(&mut self, index: usize) -> bool {
-        let Some(tab_id) = self.tabs.get(index).map(RequestViewModel::tab_id) else {
-            return false;
-        };
-        if self.active_tab_id == Some(tab_id) {
-            return false;
-        }
-        self.active_tab_id = Some(tab_id);
-        true
+        self.tabs.select_index(index)
     }
 
     pub fn select_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
-        self.tab_index(tab_id)
-            .is_some_and(|index| self.select_tab(index))
+        self.tabs.select_id(tab_id)
     }
 
     /// Search open request tabs and the latest authoritative History query result.
@@ -958,6 +919,7 @@ impl WorkspaceViewModel {
 
         let requests = self
             .tabs
+            .values()
             .iter()
             .filter_map(|request| {
                 let display_name = request.tab_title();
@@ -990,36 +952,11 @@ impl WorkspaceViewModel {
     }
 
     pub fn new_request(&mut self) {
-        let tab_id = RequestTabId(self.next_tab_id);
-        self.next_tab_id += 1;
-        self.tabs.push(RequestViewModel::for_tab(tab_id));
-        self.active_tab_id = Some(tab_id);
+        self.tabs.push(RequestViewModel::new());
     }
 
     pub fn close_tab(&mut self, index: usize) -> bool {
-        if index >= self.tabs.len() {
-            return false;
-        }
-
-        if self.tabs.len() == 1 {
-            self.tabs[0].new_request();
-            self.active_tab_id = Some(self.tabs[0].tab_id);
-            return true;
-        }
-
-        let closing_tab_id = self.tabs[index].tab_id;
-        self.tabs[index].mark_pending_cancelled();
-        self.tabs.remove(index);
-        if self.active_tab_id == Some(closing_tab_id) {
-            let next_index = index.min(self.tabs.len() - 1);
-            self.active_tab_id = Some(self.tabs[next_index].tab_id);
-        } else if self
-            .active_tab_id
-            .is_some_and(|tab_id| self.tab_index(tab_id).is_none())
-        {
-            self.active_tab_id = None;
-        }
-        true
+        self.tabs.close(index).changed()
     }
 
     pub fn close_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
@@ -1031,30 +968,75 @@ impl WorkspaceViewModel {
         let tab_id = self.active_tab_id()?;
         let send_id = SendId(self.next_send_id);
         self.next_send_id += 1;
-        let cancelled = Arc::new(AtomicBool::new(false));
         let tab = self.request_for_tab_mut(tab_id)?;
-        let construction = tab.begin_send(send_id, cancelled.clone());
-        let (request, _, editor_intent, request_options) = construction.into_parts();
-        let pending = PendingRequest {
-            tab_id: tab.tab_id,
+        let (construction, transition) = tab.begin_send(send_id);
+        Some(Self::pending_from_send_start(
+            tab_id,
             send_id,
+            construction,
+            transition,
+        ))
+    }
+
+    /// Starts an explicit retry for the latest terminal attempt on `tab_id`.
+    ///
+    /// This only creates a lifecycle command. Transport execution and retry policy remain owned
+    /// by the application service that receives the returned command.
+    pub fn retry_send_for_tab(
+        &mut self,
+        tab_id: RequestTabId,
+    ) -> Result<PendingRequest, SendRejection> {
+        let send_id = SendId(self.next_send_id);
+        self.next_send_id += 1;
+        let tab = self
+            .request_for_tab_mut(tab_id)
+            .ok_or(SendRejection::TabNotFound { tab_id, send_id })?;
+        let (construction, transition) = tab.retry_send(send_id)?;
+        Ok(Self::pending_from_send_start(
+            tab_id,
+            send_id,
+            construction,
+            transition,
+        ))
+    }
+
+    fn pending_from_send_start(
+        tab_id: RequestTabId,
+        send_id: SendId,
+        construction: RequestConstruction,
+        transition: BeginSendTransition,
+    ) -> PendingRequest {
+        let (request, _, editor_intent, request_options) = construction.into_parts();
+        let pending = PendingRequest::new(
+            tab_id,
+            send_id,
+            transition.start,
             request,
             editor_intent,
             request_options,
-            cancelled,
-        };
+            transition.cancellation,
+        );
+        if let Some(superseded) = transition.superseded {
+            tracing::debug!(
+                send_id = %send_id,
+                superseded_send_id = %superseded,
+                tab_id = %tab_id,
+                "request send superseded an earlier attempt"
+            );
+        }
         tracing::info!(
-            send_id = %pending.send_id,
-            tab_id = %pending.tab_id,
-            method = %pending.request.method,
-            url = %display_url_for_log(&pending.request.url),
+            send_id = %pending.send_id(),
+            tab_id = %pending.tab_id(),
+            method = %pending.request().method,
+            url = %display_url_for_log(&pending.request().url),
             "request started"
         );
-        Some(pending)
+        pending
     }
 
     pub fn active_send_id(&self) -> Option<SendId> {
-        self.active_request().and_then(|tab| tab.pending_send_id)
+        self.active_request()
+            .and_then(|tab| tab.send_lifecycle.active_send_id())
     }
 
     pub fn active_request_id(&self) -> Option<String> {
@@ -1064,13 +1046,16 @@ impl WorkspaceViewModel {
     /// Number of request tabs whose active send has not reached a terminal state.
     pub fn in_flight_count(&self) -> usize {
         self.tabs
+            .values()
             .iter()
-            .filter(|tab| tab.pending_send_id.is_some())
+            .filter(|tab| tab.is_sending())
             .count()
     }
 
     pub fn send_id_for_tab(&self, index: usize) -> Option<SendId> {
-        self.tabs.get(index).and_then(|tab| tab.pending_send_id)
+        self.tabs
+            .get_at(index)
+            .and_then(|tab| tab.send_lifecycle.active_send_id())
     }
 
     pub fn send_id_for_tab_id(&self, tab_id: RequestTabId) -> Option<SendId> {
@@ -1079,15 +1064,32 @@ impl WorkspaceViewModel {
     }
 
     pub fn cancel_send(&mut self, send_id: SendId) -> bool {
-        let cancelled = self
+        let transition = self
             .tabs
+            .values_mut()
             .iter_mut()
-            .find(|tab| tab.pending_send_id == Some(send_id))
-            .is_some_and(|tab| tab.cancel_send(send_id));
-        if cancelled {
+            .find(|tab| tab.send_lifecycle.active_send_id() == Some(send_id))
+            .map_or(
+                SendTransition::Rejected(SendRejection::NoActiveSend { send_id }),
+                |tab| tab.cancel_send(send_id),
+            );
+        if transition.is_applied() {
             tracing::info!(send_id = %send_id, "request cancelled");
         }
-        cancelled
+        transition.is_applied()
+    }
+
+    /// Routes progress by both stable identities. Stale events never fall back to the active tab.
+    pub fn record_send_progress(
+        &mut self,
+        tab_id: RequestTabId,
+        send_id: SendId,
+        progress: SendProgress,
+    ) -> SendTransition {
+        self.request_for_tab_mut(tab_id).map_or(
+            SendTransition::Rejected(SendRejection::TabNotFound { tab_id, send_id }),
+            |tab| tab.record_send_progress(send_id, progress),
+        )
     }
 
     /// Applies response state but deliberately does not mutate visible History. Application hosts
@@ -1124,58 +1126,66 @@ impl WorkspaceViewModel {
                 response.elapsed_ms,
             )
         });
-        match &result {
-            Ok(response) if !was_cancelled => {
+        let successful_log = result
+            .as_ref()
+            .ok()
+            .map(|response| (response.status, response.elapsed_ms));
+        let failure_log = result.as_ref().err().map(ToString::to_string);
+        let stored_cookies = stored_cookies
+            .into_iter()
+            .map(|(origin, name)| CookieJarEntry { origin, name })
+            .collect();
+        let transition = self.request_for_tab_mut(pending.tab_id()).map_or(
+            SendTransition::Rejected(SendRejection::TabNotFound {
+                tab_id: pending.tab_id(),
+                send_id: pending.send_id(),
+            }),
+            |tab| tab.complete_send(&pending, result, stored_cookies),
+        );
+        match (transition.is_applied(), successful_log, failure_log) {
+            (true, Some((status, elapsed_ms)), _) => {
                 tracing::info!(
-                    send_id = %pending.send_id,
-                    tab_id = %pending.tab_id,
-                    status = response.status,
-                    elapsed_ms = response.elapsed_ms,
+                    send_id = %pending.send_id(),
+                    tab_id = %pending.tab_id(),
+                    status,
+                    elapsed_ms,
                     "request completed"
                 );
             }
-            Err(error) if !was_cancelled => {
+            (true, _, Some(error)) => {
                 tracing::warn!(
-                    send_id = %pending.send_id,
-                    tab_id = %pending.tab_id,
-                    error = %error,
+                    send_id = %pending.send_id(),
+                    tab_id = %pending.tab_id(),
+                    error,
                     "request failed"
                 );
             }
             _ => {
                 tracing::debug!(
-                    send_id = %pending.send_id,
-                    tab_id = %pending.tab_id,
+                    send_id = %pending.send_id(),
+                    tab_id = %pending.tab_id(),
                     cancelled = was_cancelled,
+                    rejection = ?transition.rejection(),
                     "ignored stale request completion"
                 );
             }
         }
-        let stored_cookies = stored_cookies
-            .into_iter()
-            .map(|(origin, name)| CookieJarEntry { origin, name })
-            .collect();
-        let applied = self
-            .tabs
-            .iter_mut()
-            .find(|tab| tab.tab_id == pending.tab_id)
-            .is_some_and(|tab| tab.complete_send(&pending, result, stored_cookies));
         let history_entry = completed_response
-            .filter(|_| !was_cancelled)
+            .filter(|_| transition.is_applied() && !was_cancelled)
             .map(|response| {
                 HistoryEntry::completed_with_intent_and_options(
-                    pending.request.clone(),
-                    history_label(&pending.request.url),
+                    pending.request().clone(),
+                    history_label(&pending.request().url),
                     response.status,
                     response.elapsed_ms,
                     response.original_size,
-                    pending.editor_intent.clone(),
-                    pending.request_options,
+                    pending.editor_intent().cloned(),
+                    pending.request_options(),
                 )
                 .with_historical_response(response)
             });
         SendCompletion {
-            response_applied: applied,
+            transition,
             history_entry,
         }
     }
@@ -1231,7 +1241,7 @@ impl WorkspaceViewModel {
             .collect::<std::collections::HashSet<_>>();
         self.runtime_replay_requests
             .retain(|entry_id, _| retained_ids.contains(entry_id.as_str()));
-        for tab in &mut self.tabs {
+        for tab in self.tabs.values_mut() {
             if tab
                 .response
                 .historical_entry_id()
@@ -1331,7 +1341,7 @@ fn history_label(url: &str) -> String {
 mod tests {
     use super::*;
     use crate::{
-        models::{MultipartEditorPart, MultipartValue, DEFAULT_MAX_REDIRECT_HOPS},
+        models::{MultipartEditorPart, MultipartValue, RequestOptions, DEFAULT_MAX_REDIRECT_HOPS},
         persistence::VersionedHistorySnapshot,
     };
 
@@ -1853,7 +1863,7 @@ mod tests {
 
         vm.remove_header(content_type_index);
         vm.set_body_kind(BodyKind::UrlEncoded);
-        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
+        let (request, _) = vm.begin_send(SendId(1));
 
         assert!(!vm
             .headers()
@@ -1879,7 +1889,7 @@ mod tests {
             Some("Authorization: Bearer secret-token".to_string())
         );
 
-        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
+        let (request, _) = vm.begin_send(SendId(1));
 
         assert_eq!(vm.bearer_token(), "secret-token");
         assert!(request
@@ -1901,7 +1911,7 @@ mod tests {
         vm.set_timeout_ms(2_500);
 
         let preview = vm.request_construction();
-        let sent = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
+        let (sent, _) = vm.begin_send(SendId(1));
 
         assert_eq!(sent, preview);
         assert_eq!(vm.bearer_token(), "shared-token");
@@ -1944,7 +1954,7 @@ mod tests {
             vm.authorization_header_preview(),
             Some("Authorization: Basic c2NlbmFyaW8tdXNlcjpzY2VuYXJpby1wYXNz".to_string())
         );
-        let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
+        let (request, _) = vm.begin_send(SendId(1));
 
         let authorization_headers = request
             .request()
@@ -2329,7 +2339,7 @@ mod tests {
             .update_request_for_tab(tab_id, |request| request.set_url("https://kept.example"))
             .expect("the stable tab id must resolve");
 
-        workspace.active_tab_id = None;
+        workspace.tabs.clear_active_selection();
 
         assert_eq!(workspace.active_tab_id(), None);
         assert_eq!(workspace.active_tab_index(), None);
@@ -2652,6 +2662,39 @@ mod tests {
     }
 
     #[test]
+    fn replacing_the_only_tab_rejects_its_in_flight_completion() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://first.example/slow");
+        let tab_id = workspace.active_tab_id().unwrap();
+        let pending = workspace.begin_send().unwrap();
+
+        assert!(workspace.close_tab(0));
+        assert_eq!(workspace.active_tab_id(), Some(tab_id));
+        assert_eq!(workspace.tab_count(), 1);
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::NotSent
+        ));
+
+        let completion = workspace.complete_send_for_persistence(
+            pending,
+            Ok(RequestResult::success("too late".to_string())),
+        );
+        assert_eq!(
+            completion.transition(),
+            SendTransition::Rejected(SendRejection::NoActiveSend { send_id: SendId(1) })
+        );
+        assert!(completion.history_entry().is_none());
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::NotSent
+        ));
+    }
+
+    #[test]
     fn stale_completion_cannot_replace_a_newer_send() {
         let mut workspace = WorkspaceViewModel::new();
         workspace
@@ -2679,7 +2722,46 @@ mod tests {
             workspace.active_request().unwrap().response(),
             ResponseState::Success { body, .. } if body == "current"
         ));
-        assert_eq!(workspace.history_len(), 2);
+        assert_eq!(
+            workspace.history_len(),
+            1,
+            "the rejected older completion must not emit a History candidate"
+        );
+    }
+
+    #[test]
+    fn duplicate_completion_emits_neither_a_second_response_nor_history_candidate() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/duplicate");
+        let pending = workspace.begin_send().unwrap();
+        let duplicate = pending.clone();
+
+        let first = workspace.complete_send_for_persistence(
+            pending,
+            Ok(RequestResult::success("accepted".to_string())),
+        );
+        assert_eq!(first.transition(), SendTransition::Applied);
+        assert!(first.history_entry().is_some());
+
+        let duplicate = workspace.complete_send_for_persistence(
+            duplicate,
+            Ok(RequestResult::success("duplicate".to_string())),
+        );
+        assert_eq!(
+            duplicate.transition(),
+            SendTransition::Rejected(SendRejection::DuplicateTerminal {
+                send_id: SendId(1),
+                outcome: SendTerminalOutcome::Completed,
+            })
+        );
+        assert!(duplicate.history_entry().is_none());
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Success { body, .. } if body == "accepted"
+        ));
     }
 
     #[test]
@@ -2731,6 +2813,15 @@ mod tests {
         ));
         assert_eq!(workspace.active_request_id(), None);
         assert_eq!(workspace.in_flight_count(), 0);
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .last_send_terminal()
+                .unwrap()
+                .outcome(),
+            SendTerminalOutcome::Cancelled
+        );
         assert!(
             !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
         );
@@ -2763,7 +2854,65 @@ mod tests {
         ));
         assert_eq!(workspace.active_request_id(), None);
         assert_eq!(workspace.in_flight_count(), 0);
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .last_send_terminal()
+                .unwrap()
+                .outcome(),
+            SendTerminalOutcome::TimedOut
+        );
         assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
+    fn retry_carries_its_predecessor_and_rejects_stale_progress() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/retry");
+        let tab_id = workspace.active_tab_id().unwrap();
+        let first = workspace.begin_send().unwrap();
+        let first_send_id = first.send_id();
+        assert!(workspace.complete_send(first, Err(AppError::Timeout { timeout_ms: 50 })));
+
+        let retry = workspace.retry_send_for_tab(tab_id).unwrap();
+        assert_eq!(
+            retry.start(),
+            SendStart::Retry {
+                previous_send_id: first_send_id,
+            }
+        );
+        assert_eq!(retry.retry_of(), Some(first_send_id));
+        assert_eq!(
+            workspace.record_send_progress(
+                tab_id,
+                first_send_id,
+                SendProgress::Downloading { bytes_received: 12 },
+            ),
+            SendTransition::Rejected(SendRejection::StaleSend {
+                send_id: first_send_id,
+                active_send_id: retry.send_id(),
+            })
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().send_progress(),
+            Some(SendProgress::Started)
+        );
+        assert_eq!(
+            workspace.record_send_progress(
+                tab_id,
+                retry.send_id(),
+                SendProgress::WaitingForResponse,
+            ),
+            SendTransition::Applied
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().send_progress(),
+            Some(SendProgress::WaitingForResponse)
+        );
     }
 
     #[test]
