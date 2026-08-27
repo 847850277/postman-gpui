@@ -5,9 +5,11 @@
 
 mod history;
 mod offsets;
+mod read_only;
 mod state;
 
 pub use offsets::{TextOffset, TextOffsetError, TextOffsetUnit, TextRange};
+pub use read_only::ReadOnlyTextSelection;
 pub use state::{
     CompositionTransition, EditOutcome, EditTransaction, TextEditorError, TextEditorPolicy,
     TextEditorSnapshot, TextEditorState, TextLineMode, TextMovement, TextSelection, Utf16Selection,
