@@ -18,6 +18,6 @@ pub use view_model::{
     AuthorizationKind, BodyKind, CookieJarEntry, EffectiveHeader, EffectiveHeaderSource,
     GlobalSearchHistoryResult, GlobalSearchRequestResult, GlobalSearchResults, HistoryStorageStage,
     HistoryStorageStatus, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PendingRequest,
-    RequestBodyDraft, RequestPane, RequestTabId, RequestViewModel, ResponseState, SendCompletion,
-    SendId, WorkspaceViewModel,
+    RequestBodyDraft, RequestConstruction, RequestDraft, RequestDraftError, RequestPane,
+    RequestTabId, RequestViewModel, ResponseState, SendCompletion, SendId, WorkspaceViewModel,
 };

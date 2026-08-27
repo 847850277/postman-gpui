@@ -1,23 +1,10 @@
-use super::request::{MultipartValue, Request, RequestOptions};
+use super::request::{Request, RequestOptions};
+use super::request_draft::RequestEditorIntent;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// Maximum number of SQLite-backed History rows rendered by the application.
 const DEFAULT_MAX_HISTORY_ENTRIES: usize = 50;
-
-/// Editor-only state captured with a completed request. The effective `Request` remains the
-/// transport truth; this snapshot preserves disabled and incomplete multipart rows for replay.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestEditorIntent {
-    Multipart(Vec<MultipartEditorPart>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MultipartEditorPart {
-    pub enabled: bool,
-    pub name: String,
-    pub value: MultipartValue,
-}
 
 /// Persisted response body evidence attached to one immutable History row.
 ///

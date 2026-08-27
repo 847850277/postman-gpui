@@ -2,15 +2,18 @@
 
 pub mod history;
 pub mod request;
+pub mod request_draft;
 pub mod response;
 
 // Re-export commonly used types
-pub use history::{
-    HistoricalResponse, HistoricalResponseBody, HistoryEntry, MultipartEditorPart,
-    RequestEditorIntent, RequestHistory,
-};
+pub use history::{HistoricalResponse, HistoricalResponseBody, HistoryEntry, RequestHistory};
 pub use request::{
     HttpMethod, MultipartPart, MultipartValue, RedirectPolicy, Request, RequestBody,
     RequestOptions, DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
+};
+pub use request_draft::{
+    AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
+    MultipartDraftPart, MultipartDraftValue, MultipartEditorPart, RequestBodyDraft,
+    RequestConstruction, RequestDraft, RequestDraftError, RequestEditorIntent,
 };
 pub use response::RedirectHop;

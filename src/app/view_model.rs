@@ -1,18 +1,20 @@
+pub use crate::models::{
+    AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
+    MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestConstruction, RequestDraft,
+    RequestDraftError,
+};
 use crate::utils::log::display_url_for_log;
 use crate::{
     errors::AppError,
     http::executor::RequestResult,
     models::{
-        HistoricalResponse, HistoryEntry, HttpMethod, MultipartEditorPart, MultipartPart,
-        MultipartValue, RedirectHop, RedirectPolicy, Request, RequestBody, RequestEditorIntent,
-        RequestHistory, RequestOptions, DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
+        HistoricalResponse, HistoryEntry, HttpMethod, MultipartPart, RedirectHop, RedirectPolicy,
+        Request, RequestBody, RequestEditorIntent, RequestHistory, RequestOptions,
     },
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
     collections::HashMap,
     fmt,
-    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -31,325 +33,6 @@ pub enum RequestPane {
     Scripts,
     Tests,
     Options,
-}
-
-/// Authentication scheme managed by the Authorization editor.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AuthorizationKind {
-    Bearer,
-    Basic,
-}
-
-/// Body encoding selected in the editor. The editable payload and encoding are stored together
-/// in `RequestBodyDraft`; this enum is only a compact value for rendering controls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BodyKind {
-    None,
-    Json,
-    Raw,
-    UrlEncoded,
-    Multipart,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ContentTypeSource {
-    Unset,
-    Automatic,
-    User,
-}
-
-/// Explains where one header in the final request came from. The Body view consumes this
-/// projection instead of recreating request-building rules in the UI.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EffectiveHeaderSource {
-    Generated,
-    User,
-}
-
-/// One enabled header exactly as it will participate in the next Send.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EffectiveHeader {
-    pub name: String,
-    pub value: String,
-    pub source: EffectiveHeaderSource,
-}
-
-/// A row in the params/headers editor.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KeyValueRow {
-    pub enabled: bool,
-    pub key: String,
-    pub value: String,
-}
-
-impl KeyValueRow {
-    pub fn enabled(key: impl Into<String>, value: impl Into<String>) -> Self {
-        Self {
-            enabled: true,
-            key: key.into(),
-            value: value.into(),
-        }
-    }
-}
-
-/// Editable value for one multipart row. Unlike the transport `MultipartValue`, a file value may
-/// intentionally have an empty path while the user is still completing the row.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MultipartDraftValue {
-    Text(String),
-    File {
-        path: PathBuf,
-        file_name: Option<String>,
-        content_type: Option<String>,
-    },
-}
-
-/// One complete multipart editor row, including state that does not participate in the outgoing
-/// request yet.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MultipartDraftPart {
-    pub enabled: bool,
-    pub name: String,
-    pub value: MultipartDraftValue,
-}
-
-impl MultipartDraftPart {
-    pub fn text(name: impl Into<String>, value: impl Into<String>, enabled: bool) -> Self {
-        Self {
-            enabled,
-            name: name.into(),
-            value: MultipartDraftValue::Text(value.into()),
-        }
-    }
-
-    pub fn file(
-        name: impl Into<String>,
-        path: impl Into<PathBuf>,
-        file_name: Option<String>,
-        content_type: Option<String>,
-        enabled: bool,
-    ) -> Self {
-        Self {
-            enabled,
-            name: name.into(),
-            value: MultipartDraftValue::File {
-                path: path.into(),
-                file_name,
-                content_type,
-            },
-        }
-    }
-}
-
-/// Authoritative editable body state for one request tab.
-///
-/// Form variants intentionally retain disabled, blank, duplicate, ordered, and incomplete rows.
-/// `RequestBody` is derived only when the ViewModel builds an effective request.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum RequestBodyDraft {
-    #[default]
-    None,
-    Json(String),
-    Raw(String),
-    UrlEncoded(Vec<KeyValueRow>),
-    Multipart(Vec<MultipartDraftPart>),
-}
-
-impl RequestBodyDraft {
-    fn kind(&self) -> BodyKind {
-        match self {
-            Self::None => BodyKind::None,
-            Self::Json(_) => BodyKind::Json,
-            Self::Raw(_) => BodyKind::Raw,
-            Self::UrlEncoded(_) => BodyKind::UrlEncoded,
-            Self::Multipart(_) => BodyKind::Multipart,
-        }
-    }
-
-    fn empty_for(kind: BodyKind) -> Self {
-        match kind {
-            BodyKind::None => Self::None,
-            BodyKind::Json => Self::Json(String::new()),
-            BodyKind::Raw => Self::Raw(String::new()),
-            BodyKind::UrlEncoded => Self::UrlEncoded(blank_url_encoded_rows()),
-            BodyKind::Multipart => Self::Multipart(blank_multipart_parts()),
-        }
-    }
-
-    fn from_request_body(body: &RequestBody) -> Self {
-        match body {
-            RequestBody::None => Self::None,
-            RequestBody::Json(value) => Self::Json(value.clone()),
-            RequestBody::Raw(value) => Self::Raw(value.clone()),
-            RequestBody::UrlEncoded(value) => Self::UrlEncoded(parse_url_encoded_rows(value)),
-            RequestBody::Multipart(parts) => Self::Multipart(nonempty_multipart_parts(
-                parts
-                    .iter()
-                    .map(|part| MultipartDraftPart {
-                        enabled: true,
-                        name: part.name.clone(),
-                        value: match &part.value {
-                            MultipartValue::Text(value) => MultipartDraftValue::Text(value.clone()),
-                            MultipartValue::File {
-                                path,
-                                file_name,
-                                content_type,
-                            } => MultipartDraftValue::File {
-                                path: path.clone(),
-                                file_name: file_name.clone(),
-                                content_type: content_type.clone(),
-                            },
-                        },
-                    })
-                    .collect(),
-            )),
-        }
-    }
-
-    fn effective_body(&self) -> RequestBody {
-        match self {
-            Self::None => RequestBody::None,
-            Self::Json(value) => RequestBody::Json(value.clone()),
-            Self::Raw(value) => RequestBody::Raw(value.clone()),
-            Self::UrlEncoded(rows) => RequestBody::UrlEncoded(serialize_url_encoded_rows(rows)),
-            Self::Multipart(parts) => RequestBody::Multipart(
-                parts
-                    .iter()
-                    .filter(|part| part.enabled && !part.name.trim().is_empty())
-                    .filter_map(|part| {
-                        let value = match &part.value {
-                            MultipartDraftValue::Text(value) => MultipartValue::Text(value.clone()),
-                            MultipartDraftValue::File {
-                                path,
-                                file_name,
-                                content_type,
-                            } if !path.as_os_str().is_empty() => MultipartValue::File {
-                                path: path.clone(),
-                                file_name: file_name.clone(),
-                                content_type: content_type.clone(),
-                            },
-                            MultipartDraftValue::File { .. } => return None,
-                        };
-                        Some(MultipartPart {
-                            name: part.name.clone(),
-                            value,
-                        })
-                    })
-                    .collect(),
-            ),
-        }
-    }
-
-    fn editor_intent(&self) -> Option<RequestEditorIntent> {
-        match self {
-            Self::Multipart(parts) => Some(RequestEditorIntent::Multipart(
-                parts
-                    .iter()
-                    .map(|part| MultipartEditorPart {
-                        enabled: part.enabled,
-                        name: part.name.clone(),
-                        value: match &part.value {
-                            MultipartDraftValue::Text(value) => MultipartValue::Text(value.clone()),
-                            MultipartDraftValue::File {
-                                path,
-                                file_name,
-                                content_type,
-                            } => MultipartValue::File {
-                                path: path.clone(),
-                                file_name: file_name.clone(),
-                                content_type: content_type.clone(),
-                            },
-                        },
-                    })
-                    .collect(),
-            )),
-            Self::None | Self::Json(_) | Self::Raw(_) | Self::UrlEncoded(_) => None,
-        }
-    }
-
-    fn from_editor_intent(intent: &RequestEditorIntent) -> Self {
-        match intent {
-            RequestEditorIntent::Multipart(parts) => Self::Multipart(nonempty_multipart_parts(
-                parts
-                    .iter()
-                    .map(|part| MultipartDraftPart {
-                        enabled: part.enabled,
-                        name: part.name.clone(),
-                        value: match &part.value {
-                            MultipartValue::Text(value) => MultipartDraftValue::Text(value.clone()),
-                            MultipartValue::File {
-                                path,
-                                file_name,
-                                content_type,
-                            } => MultipartDraftValue::File {
-                                path: path.clone(),
-                                file_name: file_name.clone(),
-                                content_type: content_type.clone(),
-                            },
-                        },
-                    })
-                    .collect(),
-            )),
-        }
-    }
-
-    fn editor_text(&self) -> String {
-        match self {
-            Self::Json(value) | Self::Raw(value) => value.clone(),
-            Self::UrlEncoded(rows) => serialize_url_encoded_rows(rows),
-            Self::None | Self::Multipart(_) => String::new(),
-        }
-    }
-
-    fn converted_to(&self, kind: BodyKind) -> Self {
-        if self.kind() == kind {
-            return self.clone();
-        }
-
-        match kind {
-            BodyKind::None => Self::None,
-            BodyKind::Json => Self::Json(self.editor_text()),
-            BodyKind::Raw => Self::Raw(self.editor_text()),
-            BodyKind::UrlEncoded => match self {
-                Self::Multipart(parts) => Self::UrlEncoded(nonempty_url_encoded_rows(
-                    parts
-                        .iter()
-                        .map(|part| KeyValueRow {
-                            enabled: part.enabled,
-                            key: part.name.clone(),
-                            value: match &part.value {
-                                MultipartDraftValue::Text(value) => value.clone(),
-                                MultipartDraftValue::File { path, .. } => {
-                                    path.display().to_string()
-                                }
-                            },
-                        })
-                        .collect(),
-                )),
-                _ => Self::UrlEncoded(parse_url_encoded_rows(&self.editor_text())),
-            },
-            BodyKind::Multipart => match self {
-                Self::UrlEncoded(rows) => Self::Multipart(nonempty_multipart_parts(
-                    rows.iter()
-                        .map(|row| {
-                            MultipartDraftPart::text(
-                                row.key.clone(),
-                                row.value.clone(),
-                                row.enabled,
-                            )
-                        })
-                        .collect(),
-                )),
-                _ => Self::Multipart(parse_multipart_text_parts(&self.editor_text())),
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct KeyValueDraft {
-    key: String,
-    value: String,
 }
 
 /// State consumed by the response view.
@@ -509,31 +192,15 @@ impl PendingRequest {
     }
 }
 
-/// Source of truth for one request draft.
+/// UI and request-lifecycle state for one tab.
 ///
-/// GPUI entities live in the View. This type intentionally has no GPUI dependency, so
-/// request construction and response transitions can be tested in isolation.
-/// Completed sends are recorded on `WorkspaceViewModel`, not here.
+/// Editable request data and normalization live in [`RequestDraft`]. This adapter keeps tab,
+/// response, Send, and dirty/saved behavior separate from the pure construction layer.
 pub struct RequestViewModel {
     tab_id: RequestTabId,
-    method: HttpMethod,
-    url: String,
-    params: Vec<KeyValueRow>,
-    param_draft: KeyValueDraft,
-    headers: Vec<KeyValueRow>,
-    header_draft: KeyValueDraft,
-    body_draft: RequestBodyDraft,
-    content_type_source: ContentTypeSource,
-    accept_source: ContentTypeSource,
-    authorization_kind: AuthorizationKind,
-    bearer_token: String,
-    basic_username: String,
-    basic_password: String,
+    draft: RequestDraft,
     pre_request_script: String,
     tests_script: String,
-    timeout_ms: u64,
-    redirect_policy: RedirectPolicy,
-    max_redirect_hops: u32,
     request_pane: RequestPane,
     response: ResponseState,
     redirect_chain: Vec<RedirectHop>,
@@ -551,24 +218,9 @@ impl RequestViewModel {
     fn for_tab(tab_id: RequestTabId) -> Self {
         Self {
             tab_id,
-            method: HttpMethod::GET,
-            url: String::new(),
-            params: Vec::new(),
-            param_draft: KeyValueDraft::default(),
-            headers: Vec::new(),
-            header_draft: KeyValueDraft::default(),
-            body_draft: RequestBodyDraft::None,
-            content_type_source: ContentTypeSource::Unset,
-            accept_source: ContentTypeSource::Unset,
-            authorization_kind: AuthorizationKind::Bearer,
-            bearer_token: String::new(),
-            basic_username: String::new(),
-            basic_password: String::new(),
+            draft: RequestDraft::new(),
             pre_request_script: String::new(),
             tests_script: String::new(),
-            timeout_ms: 0,
-            redirect_policy: RedirectPolicy::Follow,
-            max_redirect_hops: DEFAULT_MAX_REDIRECT_HOPS,
             request_pane: RequestPane::Params,
             response: ResponseState::NotSent,
             redirect_chain: Vec::new(),
@@ -583,162 +235,133 @@ impl RequestViewModel {
         self.tab_id
     }
 
+    pub fn request_draft(&self) -> &RequestDraft {
+        &self.draft
+    }
+
+    /// The one normalized result shared by request previews and Send.
+    pub fn request_construction(&self) -> RequestConstruction {
+        self.draft.construct()
+    }
+
     pub fn method(&self) -> HttpMethod {
-        self.method
+        self.draft.method()
     }
 
     pub fn url(&self) -> &str {
-        &self.url
+        self.draft.url()
     }
 
     /// Returns the URL that will be sent. URL input and Params are kept synchronized, so request
     /// construction must not append the same query pairs a second time.
     pub fn effective_url(&self) -> String {
-        self.url.clone()
+        self.request_construction().request().url.clone()
     }
 
     /// Counts query pairs currently represented in the synchronized URL input.
     pub fn url_query_parameter_count(&self) -> usize {
-        query_parameter_count(&self.url)
+        self.draft.url_query_parameter_count()
     }
 
     /// Counts enabled Params rows, including a valid active draft that already participates in
     /// Send before the user presses Add or changes focus.
     pub fn enabled_param_count(&self) -> usize {
-        self.effective_params()
-            .iter()
-            .filter(|row| row.enabled && !row.key.trim().is_empty())
-            .count()
+        self.draft.enabled_param_count()
     }
 
     pub fn params(&self) -> &[KeyValueRow] {
-        &self.params
+        self.draft.params()
     }
 
     /// Number of rows rendered by the Params editor. The active row is always visible, even
     /// before it has been confirmed with Add, so each Add action increases this count by one.
     pub fn visible_param_row_count(&self) -> usize {
-        self.params.len() + 1
+        self.draft.visible_param_row_count()
     }
 
     pub fn headers(&self) -> &[KeyValueRow] {
-        &self.headers
+        self.draft.headers()
     }
 
     /// Returns the enabled headers produced by the same request-construction path used by Send.
     /// This is a read-only View projection; it never becomes a second header store.
     pub fn effective_headers(&self) -> Vec<EffectiveHeader> {
-        let mut generated_content_type = self.content_type_source == ContentTypeSource::Automatic;
-        let mut generated_accept = self.accept_source == ContentTypeSource::Automatic;
-
-        self.build_request()
-            .headers
-            .into_iter()
-            .map(|(name, value)| {
-                let generated =
-                    if generated_content_type && name.eq_ignore_ascii_case("content-type") {
-                        generated_content_type = false;
-                        true
-                    } else if generated_accept && name.eq_ignore_ascii_case("accept") {
-                        generated_accept = false;
-                        true
-                    } else {
-                        false
-                    };
-                EffectiveHeader {
-                    name,
-                    value,
-                    source: if generated {
-                        EffectiveHeaderSource::Generated
-                    } else {
-                        EffectiveHeaderSource::User
-                    },
-                }
-            })
-            .collect()
+        self.request_construction().effective_headers().to_vec()
     }
 
     /// Counts complete, enabled Header rows, including the active row that already participates
     /// in Send before the user presses Add or changes focus.
     pub fn enabled_header_count(&self) -> usize {
-        let saved = self
-            .headers
-            .iter()
-            .filter(|row| row.enabled && header_row_is_complete(row))
-            .count();
-        let active = usize::from(header_draft_is_complete(&self.header_draft));
-        saved + active
+        self.draft.enabled_header_count()
     }
 
     /// Number of rows rendered by the Headers editor. As with Params, one active row is always
     /// visible, so every Add Header action increases this count by exactly one.
     pub fn visible_header_row_count(&self) -> usize {
-        self.headers.len() + 1
+        self.draft.visible_header_row_count()
     }
 
     /// Returns the in-progress row shown by the Params or Headers editor. The draft belongs to
     /// the request tab, not to the text controls, and participates in request construction as
     /// soon as it is valid.
     pub fn row_draft(&self, pane: RequestPane) -> Option<(&str, &str)> {
-        let draft = match pane {
-            RequestPane::Params => &self.param_draft,
-            RequestPane::Headers => &self.header_draft,
+        match pane {
+            RequestPane::Params => Some(self.draft.param_row_draft()),
+            RequestPane::Headers => Some(self.draft.header_row_draft()),
             RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
-            | RequestPane::Options => return None,
-        };
-        Some((&draft.key, &draft.value))
+            | RequestPane::Options => None,
+        }
     }
 
     /// Returns the text projection used by previews and legacy scenario helpers. URL-encoded
     /// drafts are serialized from their effective rows; multipart drafts remain structured.
     pub fn body(&self) -> String {
-        self.body_draft.editor_text()
+        self.draft.body_text()
     }
 
     pub fn body_draft(&self) -> &RequestBodyDraft {
-        &self.body_draft
+        self.draft.body_draft()
     }
 
-    /// Derives the body that will be used by Send without mutating or normalizing the draft.
+    /// Derives the editor's effective body without applying HTTP-method gating.
     pub fn request_body(&self) -> RequestBody {
-        self.body_draft.effective_body()
+        self.draft.effective_body()
     }
 
     pub fn body_kind(&self) -> BodyKind {
-        self.body_draft.kind()
+        self.draft.body_kind()
     }
 
     pub fn bearer_token(&self) -> &str {
-        &self.bearer_token
+        self.draft.bearer_token()
     }
 
     /// Returns the canonical token that will participate in request construction without
     /// mutating the live editor value. The UI uses this projection to explain the same
     /// transformation that Send applies.
     pub fn normalized_bearer_token(&self) -> String {
-        normalize_bearer_token(&self.bearer_token)
+        self.draft.normalized_bearer_token()
     }
 
     /// Returns the complete managed header exactly as it will be sent. Keeping this projection
     /// next to request construction prevents the UI preview from becoming a second auth policy.
     pub fn authorization_header_preview(&self) -> Option<String> {
-        self.authorization_header_value()
-            .map(|value| format!("Authorization: {value}"))
+        self.draft.authorization_header_preview()
     }
 
     pub fn authorization_kind(&self) -> AuthorizationKind {
-        self.authorization_kind
+        self.draft.authorization_kind()
     }
 
     pub fn basic_username(&self) -> &str {
-        &self.basic_username
+        self.draft.basic_username()
     }
 
     pub fn basic_password(&self) -> &str {
-        &self.basic_password
+        self.draft.basic_password()
     }
 
     pub fn pre_request_script(&self) -> &str {
@@ -751,15 +374,15 @@ impl RequestViewModel {
 
     /// Request-level timeout in milliseconds. Zero explicitly disables the deadline.
     pub fn timeout_ms(&self) -> u64 {
-        self.timeout_ms
+        self.draft.timeout_ms()
     }
 
     pub fn redirect_policy(&self) -> RedirectPolicy {
-        self.redirect_policy
+        self.draft.redirect_policy()
     }
 
     pub fn max_redirect_hops(&self) -> u32 {
-        self.max_redirect_hops
+        self.draft.max_redirect_hops()
     }
 
     pub fn request_pane(&self) -> RequestPane {
@@ -791,128 +414,62 @@ impl RequestViewModel {
         self.dirty
     }
 
-    pub fn set_method(&mut self, method: HttpMethod) {
-        if self.method == method {
-            return;
+    fn edit_draft(&mut self, edit: impl FnOnce(&mut RequestDraft) -> bool) {
+        if edit(&mut self.draft) {
+            self.dirty = true;
         }
-        self.method = method;
-        self.dirty = true;
+    }
 
-        if method == HttpMethod::POST && matches!(self.body_draft, RequestBodyDraft::None) {
-            self.body_draft = RequestBodyDraft::Json(default_json_body());
-            self.sync_automatic_content_type();
-        } else {
-            self.sync_automatic_content_type();
-        }
-        self.sync_automatic_accept();
+    pub fn set_method(&mut self, method: HttpMethod) {
+        self.edit_draft(|draft| draft.set_method(method));
     }
 
     pub fn set_url(&mut self, url: impl Into<String>) {
-        let url = url.into();
-        if self.url == url {
-            return;
-        }
-        self.params = parse_query_params(&url);
-        self.param_draft = KeyValueDraft::default();
-        self.url = url;
-        self.dirty = true;
+        self.edit_draft(|draft| draft.set_url(url));
     }
 
     pub fn set_body(&mut self, body: impl Into<String>) {
-        let body = body.into();
-        let next = match &self.body_draft {
-            RequestBodyDraft::None => RequestBodyDraft::Raw(body),
-            RequestBodyDraft::Json(_) => RequestBodyDraft::Json(body),
-            RequestBodyDraft::Raw(_) => RequestBodyDraft::Raw(body),
-            RequestBodyDraft::UrlEncoded(_) => {
-                RequestBodyDraft::UrlEncoded(parse_url_encoded_rows(&body))
-            }
-            RequestBodyDraft::Multipart(_) => {
-                RequestBodyDraft::Multipart(parse_multipart_text_parts(&body))
-            }
-        };
-        if self.body_draft != next {
-            self.body_draft = next;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_body(body));
     }
 
     /// Clears the payload without guessing or changing its selected encoding.
     pub fn clear_body(&mut self) {
-        let next = RequestBodyDraft::empty_for(self.body_kind());
-        if self.body_draft != next {
-            self.body_draft = next;
-            self.dirty = true;
-        }
-        self.sync_automatic_content_type();
+        self.edit_draft(RequestDraft::clear_body);
     }
 
     pub fn set_body_kind(&mut self, body_kind: BodyKind) {
-        if self.body_kind() != body_kind {
-            self.body_draft = self.body_draft.converted_to(body_kind);
-            self.dirty = true;
-        }
-        self.sync_automatic_content_type();
+        self.edit_draft(|draft| draft.set_body_kind(body_kind));
     }
 
     pub fn set_url_encoded_rows(&mut self, rows: Vec<KeyValueRow>) {
-        let body_draft = RequestBodyDraft::UrlEncoded(nonempty_url_encoded_rows(rows));
-        if self.body_draft != body_draft {
-            self.body_draft = body_draft;
-            self.dirty = true;
-        }
-        self.sync_automatic_content_type();
+        self.edit_draft(|draft| draft.set_url_encoded_rows(rows));
     }
 
     pub fn set_multipart_draft_parts(&mut self, parts: Vec<MultipartDraftPart>) {
-        let body_draft = RequestBodyDraft::Multipart(nonempty_multipart_parts(parts));
-        if self.body_draft != body_draft {
-            self.body_draft = body_draft;
-            self.dirty = true;
-        }
-        self.sync_automatic_content_type();
+        self.edit_draft(|draft| draft.set_multipart_draft_parts(parts));
     }
 
     /// Loads an already-effective multipart body as enabled editor rows.
     pub fn set_multipart_parts(&mut self, parts: Vec<MultipartPart>) {
-        let draft = RequestBodyDraft::from_request_body(&RequestBody::Multipart(parts));
-        let RequestBodyDraft::Multipart(parts) = draft else {
-            unreachable!("multipart conversion must produce a multipart draft");
-        };
-        self.set_multipart_draft_parts(parts);
+        self.edit_draft(|draft| draft.set_multipart_parts(parts));
     }
 
     pub fn set_bearer_token(&mut self, token: impl Into<String>) {
         // Keep the editor text verbatim while the user is typing. Normalizing on every
         // keystroke would project `Bearer ` back as `Bearer` and swallow its space.
-        let token = token.into();
-        if self.bearer_token != token {
-            self.bearer_token = token;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_bearer_token(token));
     }
 
     pub fn set_authorization_kind(&mut self, kind: AuthorizationKind) {
-        if self.authorization_kind != kind {
-            self.authorization_kind = kind;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_authorization_kind(kind));
     }
 
     pub fn set_basic_username(&mut self, username: impl Into<String>) {
-        let username = username.into();
-        if self.basic_username != username {
-            self.basic_username = username;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_basic_username(username));
     }
 
     pub fn set_basic_password(&mut self, password: impl Into<String>) {
-        let password = password.into();
-        if self.basic_password != password {
-            self.basic_password = password;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_basic_password(password));
     }
 
     pub fn set_pre_request_script(&mut self, script: impl Into<String>) {
@@ -932,25 +489,15 @@ impl RequestViewModel {
     }
 
     pub fn set_timeout_ms(&mut self, timeout_ms: u64) {
-        if self.timeout_ms != timeout_ms {
-            self.timeout_ms = timeout_ms;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_timeout_ms(timeout_ms));
     }
 
     pub fn set_redirect_policy(&mut self, redirect_policy: RedirectPolicy) {
-        if self.redirect_policy != redirect_policy {
-            self.redirect_policy = redirect_policy;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_redirect_policy(redirect_policy));
     }
 
     pub fn set_max_redirect_hops(&mut self, max_redirect_hops: u32) {
-        let max_redirect_hops = max_redirect_hops.clamp(1, MAX_REDIRECT_HOPS);
-        if self.max_redirect_hops != max_redirect_hops {
-            self.max_redirect_hops = max_redirect_hops;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.set_max_redirect_hops(max_redirect_hops));
     }
 
     pub fn set_request_pane(&mut self, pane: RequestPane) {
@@ -958,55 +505,31 @@ impl RequestViewModel {
     }
 
     pub fn set_row_draft_key(&mut self, pane: RequestPane, key: impl Into<String>) {
-        let key = key.into();
         let changed = match pane {
-            RequestPane::Params if self.param_draft.key != key => {
-                self.param_draft.key = key;
-                true
-            }
-            RequestPane::Headers if self.header_draft.key != key => {
-                self.header_draft.key = key;
-                true
-            }
-            RequestPane::Params
-            | RequestPane::Headers
-            | RequestPane::Authorization
+            RequestPane::Params => self.draft.set_param_draft_key(key),
+            RequestPane::Headers => self.draft.set_header_draft_key(key),
+            RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
             | RequestPane::Options => false,
         };
         if changed {
-            if pane == RequestPane::Params {
-                self.sync_url_from_params();
-            }
             self.dirty = true;
         }
     }
 
     pub fn set_row_draft_value(&mut self, pane: RequestPane, value: impl Into<String>) {
-        let value = value.into();
         let changed = match pane {
-            RequestPane::Params if self.param_draft.value != value => {
-                self.param_draft.value = value;
-                true
-            }
-            RequestPane::Headers if self.header_draft.value != value => {
-                self.header_draft.value = value;
-                true
-            }
-            RequestPane::Params
-            | RequestPane::Headers
-            | RequestPane::Authorization
+            RequestPane::Params => self.draft.set_param_draft_value(value),
+            RequestPane::Headers => self.draft.set_header_draft_value(value),
+            RequestPane::Authorization
             | RequestPane::Body
             | RequestPane::Scripts
             | RequestPane::Tests
             | RequestPane::Options => false,
         };
         if changed {
-            if pane == RequestPane::Params {
-                self.sync_url_from_params();
-            }
             self.dirty = true;
         }
     }
@@ -1018,11 +541,7 @@ impl RequestViewModel {
     /// participates in Send as soon as it has a key, so adding another row is never required merely
     /// to persist input.
     pub fn append_param_row(&mut self) {
-        let draft = std::mem::take(&mut self.param_draft);
-        self.params
-            .push(KeyValueRow::enabled(draft.key, draft.value));
-        self.sync_url_from_params();
-        self.dirty = true;
+        self.edit_draft(RequestDraft::append_param_row);
     }
 
     /// Preserves the current Header row and appends one fresh Header name/value row.
@@ -1030,16 +549,7 @@ impl RequestViewModel {
     /// Empty rows are intentional and unlimited. Header controls are editing buffers only; once a
     /// preserved row is edited, every keystroke is written directly to that indexed ViewModel row.
     pub fn append_header_row(&mut self) {
-        let draft = std::mem::take(&mut self.header_draft);
-        if draft.key.eq_ignore_ascii_case("content-type") {
-            self.content_type_source = ContentTypeSource::User;
-        }
-        if draft.key.eq_ignore_ascii_case("accept") {
-            self.accept_source = ContentTypeSource::User;
-        }
-        self.headers
-            .push(KeyValueRow::enabled(draft.key, draft.value));
-        self.dirty = true;
+        self.edit_draft(RequestDraft::append_header_row);
     }
 
     /// Confirms the active row for the selected key/value editor.
@@ -1056,182 +566,56 @@ impl RequestViewModel {
     }
 
     pub fn upsert_param(&mut self, key: impl Into<String>, value: impl Into<String>) {
-        let key = key.into();
-        if key.trim().is_empty() {
-            return;
-        }
-        let value = value.into();
-        if let Some(row) = self.params.iter_mut().find(|row| row.key == key) {
-            row.value = value;
-            row.enabled = true;
-        } else {
-            self.params.push(KeyValueRow::enabled(key, value));
-        }
-        self.sync_url_from_params();
-        self.dirty = true;
+        self.edit_draft(|draft| draft.upsert_param(key, value));
     }
 
     /// Updates one persistent Params row. Text controls are only editing buffers; every keystroke
     /// is written here so Send never needs to scrape or manually commit the rendered controls.
     pub fn set_param_key(&mut self, index: usize, key: impl Into<String>) {
-        let key = key.into();
-        let Some(row) = self.params.get_mut(index) else {
-            return;
-        };
-        if row.key == key {
-            return;
-        }
-        row.key = key;
-        self.sync_url_from_params();
-        self.dirty = true;
+        self.edit_draft(|draft| draft.set_param_key(index, key));
     }
 
     pub fn set_param_value(&mut self, index: usize, value: impl Into<String>) {
-        let value = value.into();
-        let Some(row) = self.params.get_mut(index) else {
-            return;
-        };
-        if row.value == value {
-            return;
-        }
-        row.value = value;
-        self.sync_url_from_params();
-        self.dirty = true;
+        self.edit_draft(|draft| draft.set_param_value(index, value));
     }
 
     pub fn toggle_param(&mut self, index: usize) {
-        if let Some(row) = self.params.get_mut(index) {
-            row.enabled = !row.enabled;
-            self.sync_url_from_params();
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.toggle_param(index));
     }
 
     pub fn remove_param(&mut self, index: usize) {
-        if index < self.params.len() {
-            self.params.remove(index);
-            self.sync_url_from_params();
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.remove_param(index));
     }
 
     pub fn upsert_header(&mut self, key: impl Into<String>, value: impl Into<String>) {
-        let key = key.into();
-        let value = value.into();
-        if key.trim().is_empty() || value.trim().is_empty() {
-            return;
-        }
-        let is_content_type = key.eq_ignore_ascii_case("content-type");
-        let is_accept = key.eq_ignore_ascii_case("accept");
-        if let Some(row) = self
-            .headers
-            .iter_mut()
-            .find(|row| row.key.eq_ignore_ascii_case(&key))
-        {
-            row.value = value;
-            row.enabled = true;
-        } else {
-            self.headers.push(KeyValueRow::enabled(key, value));
-        }
-        if is_content_type {
-            self.content_type_source = ContentTypeSource::User;
-        }
-        if is_accept {
-            self.accept_source = ContentTypeSource::User;
-        }
-        self.dirty = true;
+        self.edit_draft(|draft| draft.upsert_header(key, value));
     }
 
     /// Updates one persistent Header row. Duplicate names remain independent because Header rows
     /// model ordered request fields rather than a key-addressed map.
     pub fn set_header_key(&mut self, index: usize, key: impl Into<String>) {
-        let key = key.into();
-        let Some(row) = self.headers.get_mut(index) else {
-            return;
-        };
-        if row.key == key {
-            return;
-        }
-        if row.key.eq_ignore_ascii_case("content-type") || key.eq_ignore_ascii_case("content-type")
-        {
-            self.content_type_source = ContentTypeSource::User;
-        }
-        if row.key.eq_ignore_ascii_case("accept") || key.eq_ignore_ascii_case("accept") {
-            self.accept_source = ContentTypeSource::User;
-        }
-        row.key = key;
-        self.dirty = true;
+        self.edit_draft(|draft| draft.set_header_key(index, key));
     }
 
     pub fn set_header_value(&mut self, index: usize, value: impl Into<String>) {
-        let value = value.into();
-        let Some(row) = self.headers.get_mut(index) else {
-            return;
-        };
-        if row.value == value {
-            return;
-        }
-        if row.key.eq_ignore_ascii_case("content-type") {
-            self.content_type_source = ContentTypeSource::User;
-        }
-        if row.key.eq_ignore_ascii_case("accept") {
-            self.accept_source = ContentTypeSource::User;
-        }
-        row.value = value;
-        self.dirty = true;
+        self.edit_draft(|draft| draft.set_header_value(index, value));
     }
 
     pub fn clear_header_draft(&mut self) {
-        if self.header_draft != KeyValueDraft::default() {
-            self.header_draft = KeyValueDraft::default();
-            self.dirty = true;
-        }
+        self.edit_draft(RequestDraft::clear_header_draft);
     }
 
     pub fn toggle_header(&mut self, index: usize) {
-        if let Some(row) = self.headers.get_mut(index) {
-            if row.key.eq_ignore_ascii_case("content-type") {
-                self.content_type_source = ContentTypeSource::User;
-            }
-            if row.key.eq_ignore_ascii_case("accept") {
-                self.accept_source = ContentTypeSource::User;
-            }
-            row.enabled = !row.enabled;
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.toggle_header(index));
     }
 
     pub fn remove_header(&mut self, index: usize) {
-        if index < self.headers.len() {
-            if self.headers[index].key.eq_ignore_ascii_case("content-type") {
-                self.content_type_source = ContentTypeSource::User;
-            }
-            if self.headers[index].key.eq_ignore_ascii_case("accept") {
-                self.accept_source = ContentTypeSource::User;
-            }
-            self.headers.remove(index);
-            self.dirty = true;
-        }
+        self.edit_draft(|draft| draft.remove_header(index));
     }
 
     pub fn new_request(&mut self) {
         self.mark_pending_cancelled();
-        self.method = HttpMethod::GET;
-        self.url.clear();
-        self.params.clear();
-        self.param_draft = KeyValueDraft::default();
-        self.headers.clear();
-        self.header_draft = KeyValueDraft::default();
-        self.body_draft = RequestBodyDraft::None;
-        self.content_type_source = ContentTypeSource::Unset;
-        self.accept_source = ContentTypeSource::Unset;
-        self.authorization_kind = AuthorizationKind::Bearer;
-        self.bearer_token.clear();
-        self.basic_username.clear();
-        self.basic_password.clear();
-        self.timeout_ms = 0;
-        self.redirect_policy = RedirectPolicy::Follow;
-        self.max_redirect_hops = DEFAULT_MAX_REDIRECT_HOPS;
+        self.draft = RequestDraft::new();
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
         self.redirect_chain.clear();
@@ -1241,54 +625,9 @@ impl RequestViewModel {
 
     pub fn load_request(&mut self, request: &Request) {
         self.mark_pending_cancelled();
-        self.method = request.method;
-        self.url = request.url.clone();
-        self.params = parse_query_params(&request.url);
-        self.param_draft = KeyValueDraft::default();
-        self.header_draft = KeyValueDraft::default();
-        self.authorization_kind = AuthorizationKind::Bearer;
-        self.bearer_token.clear();
-        self.basic_username.clear();
-        self.basic_password.clear();
+        self.draft = RequestDraft::from_request(request);
         self.pre_request_script.clear();
         self.tests_script.clear();
-        self.timeout_ms = 0;
-        self.redirect_policy = RedirectPolicy::Follow;
-        self.max_redirect_hops = DEFAULT_MAX_REDIRECT_HOPS;
-
-        let authorization = request
-            .headers
-            .iter()
-            .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
-            .map(|(_, value)| value.as_str());
-        let manages_authorization = if let Some(value) = authorization {
-            if let Some((username, password)) = decode_basic_credentials(value) {
-                self.authorization_kind = AuthorizationKind::Basic;
-                self.basic_username = username;
-                self.basic_password = password;
-                true
-            } else if let Some(token) = bearer_token_from_header(value) {
-                self.bearer_token = token;
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        self.headers = request
-            .headers
-            .iter()
-            .filter(|(key, _)| {
-                !(manages_authorization && key.eq_ignore_ascii_case("authorization"))
-            })
-            .map(|(key, value)| KeyValueRow::enabled(key, value))
-            .collect();
-        self.body_draft = RequestBodyDraft::from_request_body(&request.body);
-        // A loaded request is an exact saved draft. Its managed headers, including an
-        // intentional absence, must not be replaced by automatic defaults.
-        self.content_type_source = ContentTypeSource::User;
-        self.accept_source = ContentTypeSource::User;
         self.request_pane = if request.body.is_empty() {
             RequestPane::Headers
         } else {
@@ -1302,11 +641,9 @@ impl RequestViewModel {
 
     fn load_history_entry(&mut self, entry: &HistoryEntry, replay_request: &Request) {
         self.load_request(replay_request);
-        self.timeout_ms = entry.request_options.timeout_ms.unwrap_or(0);
-        self.redirect_policy = entry.request_options.redirect_policy;
-        self.max_redirect_hops = entry.request_options.max_redirect_hops;
+        self.draft.set_request_options(entry.request_options);
         if let Some(intent) = &entry.editor_intent {
-            self.body_draft = RequestBodyDraft::from_editor_intent(intent);
+            self.draft.restore_editor_intent(intent);
             self.request_pane = RequestPane::Body;
             self.dirty = false;
         }
@@ -1324,17 +661,15 @@ impl RequestViewModel {
         self.response_stored_cookies.clear();
     }
 
-    fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> Request {
-        if self.authorization_kind == AuthorizationKind::Bearer {
-            self.bearer_token = normalize_bearer_token(&self.bearer_token);
-        }
-        let request = self.build_request();
+    fn begin_send(&mut self, send_id: SendId, cancelled: Arc<AtomicBool>) -> RequestConstruction {
+        self.draft.normalize_for_send();
+        let construction = self.draft.construct();
         self.pending_send_id = Some(send_id);
         self.pending_cancellation = Some(cancelled);
         self.response = ResponseState::Loading;
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
-        request
+        construction
     }
 
     fn complete_send(
@@ -1351,10 +686,9 @@ impl RequestViewModel {
         self.pending_cancellation = None;
         match result {
             Ok(result) => {
-                let draft_is_unchanged = self.build_request() == pending.request
-                    && self.timeout_ms == pending.request_options.timeout_ms.unwrap_or(0)
-                    && self.redirect_policy == pending.request_options.redirect_policy
-                    && self.max_redirect_hops == pending.request_options.max_redirect_hops;
+                let construction = self.draft.construct();
+                let draft_is_unchanged = construction.request() == &pending.request
+                    && construction.request_options() == pending.request_options;
                 self.redirect_chain = result.redirect_chain;
                 self.response = ResponseState::Success {
                     status: result.status,
@@ -1399,14 +733,14 @@ impl RequestViewModel {
     }
 
     pub fn tab_title(&self) -> String {
-        if self.url.trim().is_empty() {
+        if self.url().trim().is_empty() {
             return "Untitled request".to_string();
         }
         let without_scheme = self
-            .url
+            .url()
             .split_once("://")
             .map(|(_, value)| value)
-            .unwrap_or(&self.url);
+            .unwrap_or(self.url());
         let title: String = without_scheme.chars().take(28).collect();
         if without_scheme.chars().count() > 28 {
             format!("{title}…")
@@ -1415,176 +749,9 @@ impl RequestViewModel {
         }
     }
 
+    #[cfg(test)]
     fn build_request(&self) -> Request {
-        let mut request = Request::new(self.method, self.effective_url());
-        request.headers = self
-            .headers
-            .iter()
-            .filter(|row| row.enabled && header_row_is_complete(row))
-            .map(|row| (row.key.clone(), row.value.clone()))
-            .collect();
-
-        let draft_key = self.header_draft.key.trim();
-        let draft_value = self.header_draft.value.trim();
-        if header_draft_is_complete(&self.header_draft) {
-            request.add_header(draft_key, draft_value);
-        }
-
-        let authorization = self.authorization_header_value();
-        if let Some(value) = authorization {
-            // Authorization is managed by this editor mode. Remove every manually-entered
-            // variant first so the transport cannot emit two competing credentials.
-            request
-                .headers
-                .retain(|(key, _)| !key.eq_ignore_ascii_case("authorization"));
-            request.add_header("Authorization", value);
-        }
-
-        if self.method.allows_body() {
-            if self.content_type_source != ContentTypeSource::User
-                && !request
-                    .headers
-                    .iter()
-                    .any(|(key, _)| key.eq_ignore_ascii_case("content-type"))
-            {
-                if let Some(value) = content_type_for(self.body_kind()) {
-                    request.add_header("Content-Type", value);
-                }
-            }
-            request.body = self.request_body();
-        }
-        if self.method == HttpMethod::POST
-            && self.accept_source != ContentTypeSource::User
-            && !request
-                .headers
-                .iter()
-                .any(|(key, _)| key.eq_ignore_ascii_case("accept"))
-        {
-            request.add_header("Accept", "application/json");
-        }
-        request
-    }
-
-    fn authorization_header_value(&self) -> Option<String> {
-        match self.authorization_kind {
-            AuthorizationKind::Bearer => {
-                let token = self.normalized_bearer_token();
-                (!token.is_empty()).then(|| format!("Bearer {token}"))
-            }
-            AuthorizationKind::Basic
-                if !self.basic_username.is_empty() || !self.basic_password.is_empty() =>
-            {
-                Some(basic_authorization_value(
-                    &self.basic_username,
-                    &self.basic_password,
-                ))
-            }
-            AuthorizationKind::Basic => None,
-        }
-    }
-
-    fn sync_automatic_content_type(&mut self) {
-        if self.content_type_source == ContentTypeSource::User {
-            return;
-        }
-
-        let desired = if self.method.allows_body() {
-            content_type_for(self.body_kind())
-        } else {
-            None
-        };
-        let content_type_index = self
-            .headers
-            .iter()
-            .position(|row| row.key.eq_ignore_ascii_case("content-type"));
-
-        match (self.content_type_source, content_type_index, desired) {
-            (ContentTypeSource::User, _, _) => unreachable!("handled above"),
-            (ContentTypeSource::Unset, Some(_), _) => {
-                // This can only come from a loaded or legacy draft; preserve it.
-                self.content_type_source = ContentTypeSource::User;
-            }
-            (_, Some(index), Some(value)) => {
-                let row = &mut self.headers[index];
-                if row.value != value || !row.enabled {
-                    row.value = value.to_string();
-                    row.enabled = true;
-                    self.dirty = true;
-                }
-                self.content_type_source = ContentTypeSource::Automatic;
-            }
-            (_, None, Some(value)) => {
-                self.headers
-                    .push(KeyValueRow::enabled("Content-Type", value));
-                self.content_type_source = ContentTypeSource::Automatic;
-                self.dirty = true;
-            }
-            (ContentTypeSource::Automatic, Some(index), None) => {
-                self.headers.remove(index);
-                self.content_type_source = ContentTypeSource::Unset;
-                self.dirty = true;
-            }
-            (_, None, None) => {
-                self.content_type_source = ContentTypeSource::Unset;
-            }
-        }
-    }
-
-    fn sync_automatic_accept(&mut self) {
-        if self.accept_source == ContentTypeSource::User {
-            return;
-        }
-
-        let desired = (self.method == HttpMethod::POST).then_some("application/json");
-        let accept_index = self
-            .headers
-            .iter()
-            .position(|row| row.key.eq_ignore_ascii_case("accept"));
-
-        match (self.accept_source, accept_index, desired) {
-            (ContentTypeSource::User, _, _) => unreachable!("handled above"),
-            (ContentTypeSource::Unset, Some(_), _) => {
-                // An existing value predates automatic management and is therefore user-owned.
-                self.accept_source = ContentTypeSource::User;
-            }
-            (_, Some(index), Some(value)) => {
-                let row = &mut self.headers[index];
-                if row.value != value || !row.enabled {
-                    row.value = value.to_string();
-                    row.enabled = true;
-                    self.dirty = true;
-                }
-                self.accept_source = ContentTypeSource::Automatic;
-            }
-            (_, None, Some(value)) => {
-                self.headers.push(KeyValueRow::enabled("Accept", value));
-                self.accept_source = ContentTypeSource::Automatic;
-                self.dirty = true;
-            }
-            (ContentTypeSource::Automatic, Some(index), None) => {
-                self.headers.remove(index);
-                self.accept_source = ContentTypeSource::Unset;
-                self.dirty = true;
-            }
-            (_, None, None) => {
-                self.accept_source = ContentTypeSource::Unset;
-            }
-        }
-    }
-
-    fn effective_params(&self) -> Vec<KeyValueRow> {
-        let mut params = self.params.clone();
-        if !self.param_draft.key.trim().is_empty() {
-            params.push(KeyValueRow::enabled(
-                self.param_draft.key.clone(),
-                self.param_draft.value.clone(),
-            ));
-        }
-        params
-    }
-
-    fn sync_url_from_params(&mut self) {
-        self.url = apply_query_params(&self.url, &self.effective_params());
+        self.request_construction().request().clone()
     }
 }
 
@@ -1794,12 +961,12 @@ impl WorkspaceViewModel {
             .iter()
             .filter_map(|request| {
                 let display_name = request.tab_title();
-                matches(&display_name, request.method, &request.url).then(|| {
+                matches(&display_name, request.method(), request.url()).then(|| {
                     GlobalSearchRequestResult {
                         tab_id: request.tab_id,
                         display_name,
-                        method: request.method,
-                        url: request.url.clone(),
+                        method: request.method(),
+                        url: request.url().to_string(),
                     }
                 })
             })
@@ -1866,13 +1033,8 @@ impl WorkspaceViewModel {
         self.next_send_id += 1;
         let cancelled = Arc::new(AtomicBool::new(false));
         let tab = self.request_for_tab_mut(tab_id)?;
-        let editor_intent = tab.body_draft.editor_intent();
-        let request_options = RequestOptions {
-            timeout_ms: (tab.timeout_ms > 0).then_some(tab.timeout_ms),
-            redirect_policy: tab.redirect_policy,
-            max_redirect_hops: tab.max_redirect_hops,
-        };
-        let request = tab.begin_send(send_id, cancelled.clone());
+        let construction = tab.begin_send(send_id, cancelled.clone());
+        let (request, _, editor_intent, request_options) = construction.into_parts();
         let pending = PendingRequest {
             tab_id: tab.tab_id,
             send_id,
@@ -2035,7 +1197,7 @@ impl WorkspaceViewModel {
 
     pub fn request_editor_intent(&self) -> Option<RequestEditorIntent> {
         self.active_request()
-            .and_then(|tab| tab.body_draft.editor_intent())
+            .and_then(|tab| tab.request_draft().editor_intent())
     }
 
     pub fn history(&self) -> &[HistoryEntry] {
@@ -2154,57 +1316,6 @@ impl Default for RequestViewModel {
     }
 }
 
-fn query_parameter_count(url: &str) -> usize {
-    let Some((_, query_and_fragment)) = url.split_once('?') else {
-        return 0;
-    };
-    let query = query_and_fragment
-        .split_once('#')
-        .map(|(query, _)| query)
-        .unwrap_or(query_and_fragment);
-    form_urlencoded::parse(query.as_bytes()).count()
-}
-
-fn parse_query_params(url: &str) -> Vec<KeyValueRow> {
-    let Some((_, query_and_fragment)) = url.split_once('?') else {
-        return Vec::new();
-    };
-    let query = query_and_fragment
-        .split_once('#')
-        .map(|(query, _)| query)
-        .unwrap_or(query_and_fragment);
-
-    form_urlencoded::parse(query.as_bytes())
-        .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
-        .collect()
-}
-
-fn apply_query_params(url: &str, params: &[KeyValueRow]) -> String {
-    let mut serializer = form_urlencoded::Serializer::new(String::new());
-    for row in params {
-        if row.enabled && !row.key.trim().is_empty() {
-            serializer.append_pair(&row.key, &row.value);
-        }
-    }
-    let (url_without_fragment, fragment) = url
-        .split_once('#')
-        .map(|(base, fragment)| (base, Some(fragment)))
-        .unwrap_or((url, None));
-    let base_url = url_without_fragment
-        .split_once('?')
-        .map(|(base, _)| base)
-        .unwrap_or(url_without_fragment);
-    let query = serializer.finish();
-    let fragment = fragment
-        .map(|fragment| format!("#{fragment}"))
-        .unwrap_or_default();
-    if query.is_empty() {
-        format!("{base_url}{fragment}")
-    } else {
-        format!("{base_url}?{query}{fragment}")
-    }
-}
-
 fn history_label(url: &str) -> String {
     if url.chars().count() > MAX_HISTORY_URL_LENGTH {
         format!(
@@ -2216,121 +1327,13 @@ fn history_label(url: &str) -> String {
     }
 }
 
-fn normalize_bearer_token(value: &str) -> String {
-    let value = value.trim();
-    let mut segments = value.splitn(2, char::is_whitespace);
-    let first = segments.next().unwrap_or_default();
-    if first.eq_ignore_ascii_case("bearer") {
-        segments.next().unwrap_or_default().trim().to_string()
-    } else {
-        value.to_string()
-    }
-}
-
-fn bearer_token_from_header(value: &str) -> Option<String> {
-    let value = value.trim();
-    let (scheme, token) = value.split_once(' ')?;
-    scheme
-        .eq_ignore_ascii_case("bearer")
-        .then(|| token.trim().to_string())
-}
-
-fn basic_authorization_value(username: &str, password: &str) -> String {
-    let credentials = STANDARD.encode(format!("{username}:{password}"));
-    format!("Basic {credentials}")
-}
-
-fn decode_basic_credentials(value: &str) -> Option<(String, String)> {
-    let (scheme, credentials) = value.trim().split_once(' ')?;
-    if !scheme.eq_ignore_ascii_case("basic") {
-        return None;
-    }
-    let decoded = String::from_utf8(STANDARD.decode(credentials.trim()).ok()?).ok()?;
-    let (username, password) = decoded.split_once(':')?;
-    Some((username.to_string(), password.to_string()))
-}
-
-fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
-    match body_kind {
-        BodyKind::None | BodyKind::Raw | BodyKind::Multipart => None,
-        BodyKind::Json => Some("application/json"),
-        BodyKind::UrlEncoded => Some("application/x-www-form-urlencoded"),
-    }
-}
-
-fn blank_url_encoded_rows() -> Vec<KeyValueRow> {
-    vec![KeyValueRow::enabled("", "")]
-}
-
-fn nonempty_url_encoded_rows(mut rows: Vec<KeyValueRow>) -> Vec<KeyValueRow> {
-    if rows.is_empty() {
-        rows = blank_url_encoded_rows();
-    }
-    rows
-}
-
-fn parse_url_encoded_rows(body: &str) -> Vec<KeyValueRow> {
-    nonempty_url_encoded_rows(
-        form_urlencoded::parse(body.as_bytes())
-            .map(|(key, value)| KeyValueRow::enabled(key.into_owned(), value.into_owned()))
-            .collect(),
-    )
-}
-
-fn serialize_url_encoded_rows(rows: &[KeyValueRow]) -> String {
-    let mut serializer = form_urlencoded::Serializer::new(String::new());
-    for row in rows
-        .iter()
-        .filter(|row| row.enabled && !row.key.trim().is_empty())
-    {
-        serializer.append_pair(&row.key, &row.value);
-    }
-    serializer.finish()
-}
-
-fn blank_multipart_parts() -> Vec<MultipartDraftPart> {
-    vec![MultipartDraftPart::text("", "", true)]
-}
-
-fn nonempty_multipart_parts(mut parts: Vec<MultipartDraftPart>) -> Vec<MultipartDraftPart> {
-    if parts.is_empty() {
-        parts = blank_multipart_parts();
-    }
-    parts
-}
-
-fn parse_multipart_text_parts(body: &str) -> Vec<MultipartDraftPart> {
-    nonempty_multipart_parts(
-        form_urlencoded::parse(body.as_bytes())
-            .map(|(name, value)| {
-                MultipartDraftPart::text(name.into_owned(), value.into_owned(), true)
-            })
-            .collect(),
-    )
-}
-
-fn default_json_body() -> String {
-    r#"{
-  "message": "Hello, World!",
-  "data": {
-    "key": "value"
-  }
-}"#
-    .to_string()
-}
-
-fn header_row_is_complete(row: &KeyValueRow) -> bool {
-    !row.key.trim().is_empty() && !row.value.trim().is_empty()
-}
-
-fn header_draft_is_complete(draft: &KeyValueDraft) -> bool {
-    !draft.key.trim().is_empty() && !draft.value.trim().is_empty()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::persistence::VersionedHistorySnapshot;
+    use crate::{
+        models::{MultipartEditorPart, MultipartValue, DEFAULT_MAX_REDIRECT_HOPS},
+        persistence::VersionedHistorySnapshot,
+    };
 
     /// Unit-test stand-in for the application lifecycle: complete the response, cross the
     /// sanitized snapshot boundary, then replace History as if SQLite had returned the rows.
@@ -2857,6 +1860,7 @@ mod tests {
             .iter()
             .any(|row| row.key.eq_ignore_ascii_case("content-type")));
         assert!(!request
+            .request()
             .headers
             .iter()
             .any(|(key, _)| key.eq_ignore_ascii_case("content-type")));
@@ -2879,10 +1883,28 @@ mod tests {
 
         assert_eq!(vm.bearer_token(), "secret-token");
         assert!(request
+            .request()
             .headers
             .iter()
             .any(|(key, value)| key.eq_ignore_ascii_case("authorization")
                 && value == "Bearer secret-token"));
+    }
+
+    #[test]
+    fn preview_and_send_consume_the_same_normalized_construction() {
+        let mut vm = RequestViewModel::new();
+        vm.set_url("https://example.com/preview-send");
+        vm.set_method(HttpMethod::POST);
+        vm.set_body(r#"{"same":true}"#);
+        vm.upsert_header("X-Trace", "kept");
+        vm.set_bearer_token("  BEARER   shared-token  ");
+        vm.set_timeout_ms(2_500);
+
+        let preview = vm.request_construction();
+        let sent = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
+
+        assert_eq!(sent, preview);
+        assert_eq!(vm.bearer_token(), "shared-token");
     }
 
     #[test]
@@ -2925,6 +1947,7 @@ mod tests {
         let request = vm.begin_send(SendId(1), Arc::new(AtomicBool::new(false)));
 
         let authorization_headers = request
+            .request()
             .headers
             .iter()
             .filter(|(key, _)| key.eq_ignore_ascii_case("authorization"))
