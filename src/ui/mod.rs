@@ -6,4 +6,5 @@
 
 pub mod components;
 pub mod text_editor;
+pub(crate) mod text_layout;
 pub mod theme;

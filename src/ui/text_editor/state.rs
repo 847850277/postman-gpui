@@ -94,6 +94,10 @@ pub struct TextSelection {
 }
 
 impl TextSelection {
+    pub const fn new(anchor: TextOffset, cursor: TextOffset) -> Self {
+        Self { anchor, cursor }
+    }
+
     pub const fn collapsed(offset: TextOffset) -> Self {
         Self {
             anchor: offset,

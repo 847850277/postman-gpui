@@ -1,12 +1,12 @@
 use gpui::{
-    actions, div, fill, point, prelude::FluentBuilder, px, rgb, rgba, App, Bounds, ClipboardItem,
-    Context, CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    FontWeight, GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId,
-    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels,
-    Point, Render, Role, ShapedLine, SharedString, StatefulInteractiveElement, Style, Styled,
-    Subscription, TextAlign, TextRun, Window,
+    actions, div, point, prelude::FluentBuilder, px, rgb, App, Bounds, ClipboardItem, Context,
+    CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable, FontWeight,
+    GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
+    Role, SharedString, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign,
+    TextRun, Window,
 };
-use std::{collections::BTreeMap, ops::Range, time::Duration};
+use std::{collections::BTreeMap, time::Duration};
 
 mod headers;
 
@@ -18,6 +18,8 @@ use crate::{
     ui::components::common::edit_context_menu::{
         edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
     },
+    ui::text_editor::{ReadOnlyTextSelection, TextOffset},
+    ui::text_layout::{line_ranges, MultilineTextLayout},
     ui::theme::{
         ACCENT, ACCENT_SOFT, CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO,
         INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -94,6 +96,33 @@ fn response_pane_index(pane: ResponsePane) -> usize {
         .expect("all response panes are represented in keyboard order")
 }
 
+fn response_text_projection(state: &ResponseState, pane: ResponsePane) -> Option<String> {
+    match (state, pane) {
+        (ResponseState::Success { body, .. }, ResponsePane::Body) => {
+            Some(format_response_body(body))
+        }
+        (ResponseState::Historical { response, .. }, ResponsePane::Body) => Some(
+            response
+                .body
+                .preview()
+                .map(format_response_body)
+                .unwrap_or_else(|| match &response.body {
+                    HistoricalResponseBody::Empty => "Empty response body".to_string(),
+                    HistoricalResponseBody::Unsupported => "Body not stored".to_string(),
+                    HistoricalResponseBody::Text(_) | HistoricalResponseBody::TruncatedText(_) => {
+                        unreachable!()
+                    }
+                }),
+        ),
+        (ResponseState::HistoricalUnavailable { .. }, _) => {
+            Some("This older History entry did not store a response.".to_string())
+        }
+        (ResponseState::Error { message }, _) => Some(message.clone()),
+        (ResponseState::Cancelled, _) => Some("Request cancelled by user".to_string()),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ResponseCookieEvidence {
     name: String,
@@ -119,11 +148,8 @@ pub struct ResponseViewer {
     open_cookie_focus_handle: FocusHandle,
     copied_feedback: bool,
     copy_generation: u64,
-    selected_range: Range<usize>,
-    selection_reversed: bool,
-    is_selecting: bool,
-    last_bounds: Option<Bounds<Pixels>>,
-    last_lines_layout: Vec<(ShapedLine, usize)>, // (shaped_line, char_offset)
+    selection: ReadOnlyTextSelection,
+    text_layout: Option<MultilineTextLayout>,
     context_menu_position: Option<Point<Pixels>>,
     _view_model_subscription: Subscription,
 }
@@ -154,11 +180,8 @@ impl ResponseViewer {
             open_cookie_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             copied_feedback: false,
             copy_generation: 0,
-            selected_range: 0..0,
-            selection_reversed: false,
-            is_selecting: false,
-            last_bounds: None,
-            last_lines_layout: Vec::new(),
+            selection: ReadOnlyTextSelection::new(),
+            text_layout: None,
             context_menu_position: None,
             _view_model_subscription: view_model_subscription,
         }
@@ -219,71 +242,6 @@ impl ResponseViewer {
         cx.stop_propagation();
         self.copy_focus_handle.focus(window, cx);
         self.copy_raw_response_body(cx);
-    }
-
-    fn get_content(&self, cx: &App) -> String {
-        let view_model = self.view_model.read(cx);
-        let Some(request) = view_model.active_request() else {
-            return String::new();
-        };
-        match (request.response(), self.pane) {
-            (ResponseState::Success { body, .. }, ResponsePane::Body) => format_response_body(body),
-            (ResponseState::Success { headers, .. }, ResponsePane::Headers) => headers
-                .iter()
-                .map(|(k, v)| format!("{k}: {v}"))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            (ResponseState::Success { .. }, ResponsePane::Cookies) => {
-                let cookies = response_cookie_evidence(view_model);
-                if cookies.is_empty() {
-                    format!(
-                        "No Set-Cookie received\nCookie Jar remains {} stored",
-                        view_model.cookie_count()
-                    )
-                } else {
-                    cookies
-                        .into_iter()
-                        .map(|cookie| {
-                            format!(
-                                "{}=[VALUE PROTECTED] · {} · {}",
-                                cookie.name,
-                                cookie.origin,
-                                if cookie.stored_now {
-                                    "stored"
-                                } else {
-                                    "cleared"
-                                }
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                }
-            }
-            (ResponseState::Historical { response, .. }, ResponsePane::Body) => response
-                .body
-                .preview()
-                .map(format_response_body)
-                .unwrap_or_else(|| match &response.body {
-                    HistoricalResponseBody::Empty => String::new(),
-                    HistoricalResponseBody::Unsupported => "Body not stored".to_string(),
-                    HistoricalResponseBody::Text(_) | HistoricalResponseBody::TruncatedText(_) => {
-                        unreachable!()
-                    }
-                }),
-            (ResponseState::Historical { response, .. }, ResponsePane::Headers) => response
-                .headers
-                .iter()
-                .map(|(name, value)| format!("{name}: {value}"))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            (ResponseState::Historical { .. }, ResponsePane::Cookies) => String::new(),
-            (ResponseState::HistoricalUnavailable { .. }, _) => {
-                "This older History entry did not store a response.".to_string()
-            }
-            (ResponseState::Error { message }, _) => message.clone(),
-            (ResponseState::Cancelled, _) => "Request cancelled by user".to_string(),
-            _ => String::new(),
-        }
     }
 
     fn pane_tab(
@@ -368,9 +326,8 @@ impl ResponseViewer {
 
     fn select_pane(&mut self, pane: ResponsePane, cx: &mut Context<Self>) {
         self.pane = pane;
-        self.selected_range = 0..0;
-        self.selection_reversed = false;
-        self.is_selecting = false;
+        self.selection.reset_selection();
+        self.text_layout = None;
         self.context_menu_position = None;
         cx.notify();
     }
@@ -476,50 +433,33 @@ impl ResponseViewer {
     }
 
     fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
-            let content = self.get_content(cx);
-            if !content.is_empty() {
-                let selected_text: String = content
-                    .chars()
-                    .skip(self.selected_range.start)
-                    .take(
-                        self.selected_range
-                            .end
-                            .saturating_sub(self.selected_range.start),
-                    )
-                    .collect();
-
-                if !selected_text.is_empty() {
-                    cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
-                }
-            }
+        if let Some(selected_text) = self.selection.selected_text_for_copy() {
+            cx.write_to_clipboard(ClipboardItem::new_string(selected_text.to_string()));
         }
     }
 
     fn select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
-        let content = self.get_content(cx);
-        self.selected_range = 0..content.chars().count();
-        cx.notify();
+        if self.selection.select_all() {
+            cx.notify();
+        }
     }
 
     fn on_mouse_down(
         &mut self,
         event: &MouseDownEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.context_menu_position = None;
-        self.is_selecting = true;
-        if event.modifiers.shift {
-            self.response_select_to(self.index_for_mouse_position(event.position, cx), cx);
-        } else {
-            self.response_move_to(self.index_for_mouse_position(event.position, cx), cx);
+        let menu_was_open = self.context_menu_position.take().is_some();
+        self.focus_handle.focus(window, cx);
+        let offset = self.offset_for_mouse_position(event.position);
+        let changed = self
+            .selection
+            .pointer_down(offset, event.modifiers.shift, event.click_count)
+            .unwrap_or(false);
+        if changed || menu_was_open {
+            cx.notify();
         }
-    }
-
-    fn response_move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
-        self.selected_range = offset..offset;
-        cx.notify();
     }
 
     fn on_mouse_up(
@@ -528,7 +468,7 @@ impl ResponseViewer {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        self.is_selecting = false;
+        self.selection.pointer_up();
     }
 
     fn on_mouse_move(
@@ -537,9 +477,11 @@ impl ResponseViewer {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.is_selecting {
-            let offset = self.index_for_mouse_position(event.position, cx);
-            self.response_select_to(offset, cx);
+        if self.selection.is_dragging() {
+            let offset = self.offset_for_mouse_position(event.position);
+            if self.selection.pointer_move(offset).unwrap_or(false) {
+                cx.notify();
+            }
         }
     }
 
@@ -550,7 +492,7 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        self.is_selecting = false;
+        self.selection.pointer_up();
         self.context_menu_position = Some(event.position);
         self.focus_handle.focus(window, cx);
         cx.notify();
@@ -562,7 +504,12 @@ impl ResponseViewer {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.context_menu_position.take().is_some() {
+        let changed = if self.context_menu_position.take().is_some() {
+            true
+        } else {
+            self.selection.clear_selection()
+        };
+        if changed {
             cx.notify();
         }
     }
@@ -586,56 +533,20 @@ impl ResponseViewer {
         cx.notify();
     }
 
-    fn response_select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
-        if self.selection_reversed {
-            self.selected_range.start = offset;
-        } else {
-            self.selected_range.end = offset;
-        }
-
-        if self.selected_range.end < self.selected_range.start {
-            self.selection_reversed = !self.selection_reversed;
-            self.selected_range = self.selected_range.end..self.selected_range.start;
-        }
-        cx.notify();
-    }
-
-    fn index_for_mouse_position(&self, position: Point<Pixels>, cx: &App) -> usize {
-        let content = self.get_content(cx);
-        if content.is_empty() {
-            return 0;
-        }
-
-        let Some(bounds) = self.last_bounds.as_ref() else {
-            return 0;
-        };
-
-        if position.y < bounds.top() {
-            return 0;
-        }
-        if position.y > bounds.bottom() {
-            return content.chars().count();
-        }
-
-        if self.last_lines_layout.is_empty() {
-            return 0;
-        }
-
-        let line_height = bounds.size.height / self.last_lines_layout.len() as f32;
-        let mut line_index = ((position.y - bounds.top()) / line_height).floor() as usize;
-        line_index = line_index.min(self.last_lines_layout.len().saturating_sub(1));
-
-        let (shaped_line, line_char_offset) = &self.last_lines_layout[line_index];
-        let x_in_line = position.x - bounds.left();
-        let offset_in_line = shaped_line.closest_index_for_x(x_in_line);
-
-        let absolute_offset = line_char_offset.saturating_add(offset_in_line);
-        absolute_offset.min(content.chars().count())
+    fn offset_for_mouse_position(&self, position: Point<Pixels>) -> TextOffset {
+        let fallback = self.selection.selection().cursor().utf8();
+        let utf8 = self
+            .text_layout
+            .as_ref()
+            .map(|layout| layout.hit_test_utf8(self.selection.text(), position, fallback))
+            .unwrap_or(fallback);
+        self.selection
+            .offset_from_utf8(utf8)
+            .expect("shared response layout must return a UTF-8 boundary")
     }
 
     fn render_selectable_content(
         &self,
-        _content: &str,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
@@ -669,7 +580,7 @@ impl ResponseViewer {
             .font_family(FONT_MONO)
             .text_size(px(13.0))
             .overflow_scroll()
-            .child(MultiLineTextElement {
+            .child(ResponseTextElement {
                 viewer: cx.entity().clone(),
             })
     }
@@ -944,18 +855,19 @@ fn response_origin(url: &str) -> String {
     format!("{scheme}://{authority}")
 }
 
-// Custom text element for rendering multi-line response content with selection
-struct MultiLineTextElement {
+/// GPUI adapter for the immutable response projection. Text, selection, hit-testing, copy ranges,
+/// and painted highlights all use the same UTF-8 byte-based contracts.
+struct ResponseTextElement {
     viewer: Entity<ResponseViewer>,
 }
 
-struct PrepaintState {
-    lines: Vec<(ShapedLine, usize)>,
+struct ResponseTextPrepaintState {
+    layout: MultilineTextLayout,
     selections: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
 }
 
-impl IntoElement for MultiLineTextElement {
+impl IntoElement for ResponseTextElement {
     type Element = Self;
 
     fn into_element(self) -> Self::Element {
@@ -963,9 +875,9 @@ impl IntoElement for MultiLineTextElement {
     }
 }
 
-impl Element for MultiLineTextElement {
+impl Element for ResponseTextElement {
     type RequestLayoutState = ();
-    type PrepaintState = PrepaintState;
+    type PrepaintState = ResponseTextPrepaintState;
 
     fn id(&self) -> Option<ElementId> {
         None
@@ -986,8 +898,7 @@ impl Element for MultiLineTextElement {
         style.size.width = gpui::relative(1.).into();
 
         let viewer = self.viewer.read(cx);
-        let content = viewer.get_content(cx);
-        let line_count = content.lines().count().max(1);
+        let line_count = line_ranges(viewer.selection.text()).len();
         let line_height = window.line_height();
         style.size.height = (line_height * line_count as f32).into();
 
@@ -1003,182 +914,47 @@ impl Element for MultiLineTextElement {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
-        let viewer = self.viewer.read(cx);
-        let content = viewer.get_content(cx);
-        let selected_range = viewer.selected_range.clone();
+        let (content, selected_range) = {
+            let viewer = self.viewer.read(cx);
+            (
+                viewer.selection.text().to_string(),
+                viewer.selection.selected_range(),
+            )
+        };
 
         let style = window.text_style();
-        let font_size = px(13.0);
+        let font_size = style.font_size.to_pixels(window.rem_size());
         let line_height = window.line_height();
-
-        let lines: Vec<&str> = content.lines().collect();
-        let mut shaped_lines = Vec::new();
-        let mut char_offset = 0;
-
-        for line in &lines {
-            let run = TextRun {
-                len: line.len(),
-                font: style.font(),
-                color: style.color,
-                background_color: None,
-                underline: None,
-                strikethrough: None,
-            };
-
-            let shaped_line = window.text_system().shape_line(
-                (*line).to_string().into(),
-                font_size,
-                &[run],
-                None,
-            );
-
-            shaped_lines.push((shaped_line, char_offset));
-            char_offset += line.chars().count() + 1;
-        }
-
-        let mut selections = Vec::new();
-        let mut cursor = None;
-
-        if selected_range.is_empty() && !content.is_empty() {
-            let cursor_char = selected_range.start;
-            let mut current_offset = 0;
-
-            for (line_idx, (_shaped_line, _)) in shaped_lines.iter().enumerate() {
-                let line_len = if line_idx < lines.len() {
-                    lines[line_idx].chars().count()
-                } else {
-                    0
+        let ranges = line_ranges(&content);
+        let lines = ranges
+            .iter()
+            .map(|range| {
+                let display: SharedString = content[range.start..range.end].to_string().into();
+                let run = TextRun {
+                    len: display.len(),
+                    font: style.font(),
+                    color: style.color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
                 };
-
-                if cursor_char >= current_offset && cursor_char <= current_offset + line_len {
-                    let local_pos = cursor_char - current_offset;
-                    let x_pos = if local_pos == 0 {
-                        px(0.0)
-                    } else {
-                        let line_text: String = lines[line_idx].chars().take(local_pos).collect();
-                        let temp_run = TextRun {
-                            len: line_text.len(),
-                            font: style.font(),
-                            color: style.color,
-                            background_color: None,
-                            underline: None,
-                            strikethrough: None,
-                        };
-                        let temp_line = window.text_system().shape_line(
-                            line_text.into(),
-                            font_size,
-                            &[temp_run],
-                            None,
-                        );
-                        temp_line.x_for_index(temp_line.len())
-                    };
-
-                    cursor = Some(fill(
-                        Bounds::new(
-                            point(
-                                bounds.left() + x_pos,
-                                bounds.top() + line_height * line_idx as f32,
-                            ),
-                            gpui::size(px(2.), line_height),
-                        ),
-                        rgb(INFO),
-                    ));
-                    break;
-                }
-
-                current_offset += line_len + 1;
-            }
-        } else if !selected_range.is_empty() && !content.is_empty() {
-            let mut current_offset = 0;
-
-            for (line_idx, (shaped_line, _)) in shaped_lines.iter().enumerate() {
-                let line_len = if line_idx < lines.len() {
-                    lines[line_idx].chars().count()
-                } else {
-                    0
-                };
-
-                let line_start = current_offset;
-                let line_end = current_offset + line_len;
-
-                if selected_range.end > line_start && selected_range.start < line_end {
-                    let sel_start = selected_range.start.max(line_start).min(line_end);
-                    let sel_end = selected_range.end.max(line_start).min(line_end);
-
-                    let local_start = sel_start - line_start;
-                    let local_end = sel_end - line_start;
-
-                    let start_x = if local_start == 0 {
-                        px(0.0)
-                    } else {
-                        let text_before: String =
-                            lines[line_idx].chars().take(local_start).collect();
-                        let temp_run = TextRun {
-                            len: text_before.len(),
-                            font: style.font(),
-                            color: style.color,
-                            background_color: None,
-                            underline: None,
-                            strikethrough: None,
-                        };
-                        let temp_line = window.text_system().shape_line(
-                            text_before.into(),
-                            font_size,
-                            &[temp_run],
-                            None,
-                        );
-                        temp_line.x_for_index(temp_line.len())
-                    };
-
-                    let end_x = if local_end == 0 {
-                        px(0.0)
-                    } else if local_end >= line_len {
-                        shaped_line.width
-                    } else {
-                        let text_before: String = lines[line_idx].chars().take(local_end).collect();
-                        let temp_run = TextRun {
-                            len: text_before.len(),
-                            font: style.font(),
-                            color: style.color,
-                            background_color: None,
-                            underline: None,
-                            strikethrough: None,
-                        };
-                        let temp_line = window.text_system().shape_line(
-                            text_before.into(),
-                            font_size,
-                            &[temp_run],
-                            None,
-                        );
-                        temp_line.x_for_index(temp_line.len())
-                    };
-
-                    selections.push(fill(
-                        Bounds::from_corners(
-                            point(
-                                bounds.left() + start_x,
-                                bounds.top() + line_height * line_idx as f32,
-                            ),
-                            point(
-                                bounds.left() + end_x,
-                                bounds.top() + line_height * (line_idx + 1) as f32,
-                            ),
-                        ),
-                        rgba(0x3366_ff55),
-                    ));
-                }
-
-                current_offset += line_len + 1;
-            }
-        }
+                window
+                    .text_system()
+                    .shape_line(display, font_size, &[run], None)
+            })
+            .collect();
+        let layout = MultilineTextLayout::new(lines, ranges, bounds, line_height);
+        let selections = layout.selection_quads(&content, selected_range);
+        let cursor = (selected_range.is_empty() && !content.is_empty())
+            .then(|| layout.cursor_quad(&content, selected_range.start().utf8(), rgb(INFO).into()))
+            .flatten();
 
         self.viewer.update(cx, |viewer, _cx| {
-            viewer.last_lines_layout = shaped_lines.clone();
-            viewer.last_bounds = Some(bounds);
+            viewer.text_layout = Some(layout.clone());
         });
 
-        PrepaintState {
-            lines: shaped_lines,
+        ResponseTextPrepaintState {
+            layout,
             selections,
             cursor,
         }
@@ -1188,30 +964,35 @@ impl Element for MultiLineTextElement {
         &mut self,
         _id: Option<&GlobalElementId>,
         _inspector_id: Option<&gpui::InspectorElementId>,
-        bounds: Bounds<Pixels>,
+        _bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,
     ) {
-        let line_height = window.line_height();
-
-        for selection in &prepaint.selections {
-            window.paint_quad(selection.clone());
+        for selection in prepaint.selections.drain(..) {
+            window.paint_quad(selection);
         }
 
-        if let Some(cursor) = &prepaint.cursor {
-            window.paint_quad(cursor.clone());
-        }
-
-        for (line_idx, (shaped_line, _)) in prepaint.lines.iter().enumerate() {
+        for (line_idx, shaped_line) in prepaint.layout.lines.iter().enumerate() {
             let origin = point(
-                bounds.origin.x,
-                bounds.origin.y + line_height * line_idx as f32,
+                prepaint.layout.bounds.origin.x,
+                prepaint.layout.bounds.origin.y + prepaint.layout.line_height * line_idx as f32,
             );
             shaped_line
-                .paint(origin, line_height, TextAlign::Left, None, window, cx)
+                .paint(
+                    origin,
+                    prepaint.layout.line_height,
+                    TextAlign::Left,
+                    None,
+                    window,
+                    cx,
+                )
                 .ok();
+        }
+
+        if let Some(cursor) = prepaint.cursor.take() {
+            window.paint_quad(cursor);
         }
     }
 }
@@ -1236,6 +1017,13 @@ impl Render for ResponseViewer {
         if matches!(&state, ResponseState::Historical { .. }) && self.pane == ResponsePane::Cookies
         {
             self.pane = ResponsePane::Body;
+            self.selection.reset_selection();
+            self.text_layout = None;
+            self.context_menu_position = None;
+        }
+        let projection = response_text_projection(&state, self.pane).unwrap_or_default();
+        if self.selection.project_text(projection) {
+            self.text_layout = None;
         }
         let pane = self.pane;
         let context_menu_position = self.context_menu_position;
@@ -1632,12 +1420,14 @@ impl Render for ResponseViewer {
                     .debug_selector(|| "response-cancelled-content".into())
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content("Request cancelled by user", window, cx)),
-                ResponseState::Success { body, headers, .. } => match pane {
+                    .child(self.render_selectable_content(window, cx)),
+                ResponseState::Success {
+                    body: _, headers, ..
+                } => match pane {
                     ResponsePane::Body => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_selectable_content(&body, window, cx)),
+                        .child(self.render_selectable_content(window, cx)),
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
@@ -1653,16 +1443,12 @@ impl Render for ResponseViewer {
                             .debug_selector(|| "response-historical-empty".into())
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content(
-                                "Empty response body",
-                                window,
-                                cx,
-                            )),
-                        HistoricalResponseBody::Text(body) => div()
+                            .child(self.render_selectable_content(window, cx)),
+                        HistoricalResponseBody::Text(_body) => div()
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content(&body, window, cx)),
-                        HistoricalResponseBody::TruncatedText(body) => div()
+                            .child(self.render_selectable_content(window, cx)),
+                        HistoricalResponseBody::TruncatedText(_body) => div()
                             .flex()
                             .flex_col()
                             .flex_1()
@@ -1684,13 +1470,13 @@ impl Render for ResponseViewer {
                                 div()
                                     .flex_1()
                                     .min_h_0()
-                                    .child(self.render_selectable_content(&body, window, cx)),
+                                    .child(self.render_selectable_content(window, cx)),
                             ),
                         HistoricalResponseBody::Unsupported => div()
                             .debug_selector(|| "response-historical-body-not-stored".into())
                             .flex_1()
                             .min_h_0()
-                            .child(self.render_selectable_content("Body not stored", window, cx)),
+                            .child(self.render_selectable_content(window, cx)),
                     },
                     ResponsePane::Headers => div()
                         .flex_1()
@@ -1699,24 +1485,20 @@ impl Render for ResponseViewer {
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_selectable_content("Body not stored", window, cx)),
+                        .child(self.render_selectable_content(window, cx)),
                 },
                 ResponseState::HistoricalUnavailable { .. } => div()
                     .debug_selector(|| "response-historical-unavailable".into())
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content(
-                        "This older History entry did not store a response.",
-                        window,
-                        cx,
-                    )),
-                ResponseState::Error { message } => div()
+                    .child(self.render_selectable_content(window, cx)),
+                ResponseState::Error { message: _ } => div()
                     .when(is_timeout, |content| {
                         content.debug_selector(|| "response-timeout-content".into())
                     })
                     .flex_1()
                     .min_h_0()
-                    .child(self.render_selectable_content(&message, window, cx)),
+                    .child(self.render_selectable_content(window, cx)),
             })
             .when_some(context_menu_position, |root, position| {
                 root.child(edit_context_menu(
@@ -1852,7 +1634,21 @@ fn format_bytes(bytes: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{response_origin, set_cookie_name, status_label};
+    use super::{
+        response_origin, response_text_projection, set_cookie_name, status_label, Copy,
+        DismissResponseContextMenu, ResponsePane, ResponseViewer, SelectAll,
+    };
+    use crate::{
+        app::{ResponseState, WorkspaceViewModel},
+        http::executor::RequestResult,
+        models::{HistoricalResponse, HistoricalResponseBody},
+        ui::text_editor::TextRange,
+        utils::formatter::format_response_body,
+    };
+    use gpui::{
+        point, px, AppContext, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
+        MouseUpEvent, ScrollDelta, ScrollWheelEvent, TestAppContext,
+    };
 
     #[test]
     fn unknown_success_reason_keeps_the_exact_http_status_visible() {
@@ -1869,5 +1665,311 @@ mod tests {
             response_origin("https://httpbingo.org/cookies?source=response"),
             "https://httpbingo.org"
         );
+    }
+
+    #[test]
+    fn response_projection_covers_formatted_raw_empty_and_unsupported_bodies() {
+        let json = r#"{"emoji":"😀","nested":{"value":"中"}}"#;
+        let success = ResponseState::Success {
+            status: 200,
+            body: json.to_string(),
+            headers: Vec::new(),
+            elapsed_ms: 1,
+        };
+        assert_eq!(
+            response_text_projection(&success, ResponsePane::Body),
+            Some(format_response_body(json))
+        );
+        assert_eq!(
+            response_text_projection(&success, ResponsePane::Headers),
+            None
+        );
+
+        let plain = "raw 😀 中\nsecond line";
+        let raw = ResponseState::Success {
+            status: 200,
+            body: plain.to_string(),
+            headers: Vec::new(),
+            elapsed_ms: 1,
+        };
+        assert_eq!(
+            response_text_projection(&raw, ResponsePane::Body),
+            Some(plain.to_string())
+        );
+
+        for (body, expected) in [
+            (HistoricalResponseBody::Empty, "Empty response body"),
+            (HistoricalResponseBody::Unsupported, "Body not stored"),
+        ] {
+            let historical = ResponseState::Historical {
+                entry_id: "history-1".to_string(),
+                response: HistoricalResponse {
+                    status: 200,
+                    headers: Vec::new(),
+                    body,
+                    media_type: None,
+                    elapsed_ms: 1,
+                    original_size: 0,
+                    persisted_size: 0,
+                },
+            };
+            assert_eq!(
+                response_text_projection(&historical, ResponsePane::Body),
+                Some(expected.to_string())
+            );
+        }
+    }
+
+    #[gpui::test]
+    fn response_unicode_drag_copy_word_select_all_and_clear_share_one_range(
+        cx: &mut TestAppContext,
+    ) {
+        let body = std::iter::once("A😀中 emoji".to_string())
+            .chain((0..60).map(|line| format!("line-{line:02}")))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let expected_body = body.clone();
+        let workspace = cx.new(|_| {
+            let mut workspace = WorkspaceViewModel::new();
+            workspace
+                .active_request_mut()
+                .expect("default request")
+                .set_url("https://example.test/response-selection");
+            let pending = workspace.begin_send().expect("send should start");
+            assert!(workspace.complete_send(pending, Ok(RequestResult::success(body))));
+            workspace
+        });
+        let (viewer, visual) =
+            cx.add_window_view(move |_, cx| ResponseViewer::new(workspace.clone(), cx));
+        visual.run_until_parked();
+
+        let word_utf8 = expected_body.find("emoji").unwrap() + 2;
+        let (drag_start, drag_end, word_position) = viewer.read_with(visual, |viewer, _| {
+            let layout = viewer
+                .text_layout
+                .as_ref()
+                .expect("response text should be painted");
+            let position_for_utf8 = |utf8: usize| {
+                let offset = viewer.selection.offset_from_utf8(utf8).unwrap();
+                layout
+                    .bounds_for_range(viewer.selection.text(), TextRange::collapsed(offset))
+                    .expect("offset should have layout geometry")
+                    .center()
+            };
+            (
+                position_for_utf8(1),
+                position_for_utf8("A😀中".len()),
+                position_for_utf8(word_utf8),
+            )
+        });
+
+        visual.update(|window, app| {
+            viewer.update(app, |viewer, cx| {
+                viewer.on_mouse_down(
+                    &MouseDownEvent {
+                        position: drag_start,
+                        modifiers: Modifiers::none(),
+                        button: MouseButton::Left,
+                        click_count: 1,
+                        first_mouse: false,
+                    },
+                    window,
+                    cx,
+                );
+                viewer.on_mouse_move(
+                    &MouseMoveEvent {
+                        position: drag_end,
+                        modifiers: Modifiers::none(),
+                        pressed_button: Some(MouseButton::Left),
+                    },
+                    window,
+                    cx,
+                );
+                viewer.on_mouse_up(
+                    &MouseUpEvent {
+                        position: drag_end,
+                        modifiers: Modifiers::none(),
+                        button: MouseButton::Left,
+                        click_count: 1,
+                    },
+                    window,
+                    cx,
+                );
+                viewer.copy(&Copy, window, cx);
+            });
+        });
+        assert_eq!(
+            viewer.read_with(visual, |viewer, _| viewer
+                .selection
+                .selected_text()
+                .to_string()),
+            "😀中"
+        );
+        assert_eq!(
+            visual
+                .read_from_clipboard()
+                .and_then(|item| item.text())
+                .as_deref(),
+            Some("😀中")
+        );
+        assert_eq!(
+            viewer.read_with(visual, |viewer, _| viewer
+                .text_layout
+                .as_ref()
+                .unwrap()
+                .selection_quads(viewer.selection.text(), viewer.selection.selected_range())
+                .len()),
+            1,
+            "the copied UTF-8 range must produce the visible highlight"
+        );
+
+        visual.update(|window, app| {
+            viewer.update(app, |viewer, cx| {
+                viewer.on_mouse_down(
+                    &MouseDownEvent {
+                        position: word_position,
+                        modifiers: Modifiers::none(),
+                        button: MouseButton::Left,
+                        click_count: 2,
+                        first_mouse: false,
+                    },
+                    window,
+                    cx,
+                );
+            });
+        });
+        assert_eq!(
+            viewer.read_with(visual, |viewer, _| viewer
+                .selection
+                .selected_text()
+                .to_string()),
+            "emoji"
+        );
+
+        visual.update(|window, app| {
+            viewer.update(app, |viewer, cx| {
+                viewer.select_all(&SelectAll, window, cx);
+                viewer.copy(&Copy, window, cx);
+            });
+        });
+        assert_eq!(
+            visual
+                .read_from_clipboard()
+                .and_then(|item| item.text())
+                .as_deref(),
+            Some(expected_body.as_str())
+        );
+        visual.update(|window, app| {
+            viewer.update(app, |viewer, cx| {
+                viewer.dismiss_context_menu(&DismissResponseContextMenu, window, cx);
+            });
+        });
+        assert!(viewer.read_with(visual, |viewer, _| viewer
+            .selection
+            .selected_range()
+            .is_empty()));
+    }
+
+    #[gpui::test]
+    fn response_selection_survives_scroll_and_off_viewport_drag(cx: &mut TestAppContext) {
+        let body = (0..80)
+            .map(|line| format!("行-{line:02}-😀"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let expected_body = body.clone();
+        let workspace = cx.new(|_| {
+            let mut workspace = WorkspaceViewModel::new();
+            workspace
+                .active_request_mut()
+                .expect("default request")
+                .set_url("https://example.test/response-scroll-selection");
+            let pending = workspace.begin_send().expect("send should start");
+            assert!(workspace.complete_send(pending, Ok(RequestResult::success(body))));
+            workspace
+        });
+        let (viewer, visual) =
+            cx.add_window_view(move |_, cx| ResponseViewer::new(workspace.clone(), cx));
+        visual.run_until_parked();
+
+        let (start, below_document) = viewer.read_with(visual, |viewer, _| {
+            let layout = viewer
+                .text_layout
+                .as_ref()
+                .expect("painted response layout");
+            let offset = viewer.selection.offset_from_utf8(0).unwrap();
+            let start = layout
+                .bounds_for_range(viewer.selection.text(), TextRange::collapsed(offset))
+                .unwrap()
+                .center();
+            (
+                start,
+                point(layout.bounds.left(), layout.bounds.bottom() + px(20.0)),
+            )
+        });
+        visual.update(|window, app| {
+            viewer.update(app, |viewer, cx| {
+                viewer.on_mouse_down(
+                    &MouseDownEvent {
+                        position: start,
+                        modifiers: Modifiers::none(),
+                        button: MouseButton::Left,
+                        click_count: 1,
+                        first_mouse: false,
+                    },
+                    window,
+                    cx,
+                );
+                viewer.on_mouse_move(
+                    &MouseMoveEvent {
+                        position: below_document,
+                        modifiers: Modifiers::none(),
+                        pressed_button: Some(MouseButton::Left),
+                    },
+                    window,
+                    cx,
+                );
+                viewer.on_mouse_up(
+                    &MouseUpEvent {
+                        position: below_document,
+                        modifiers: Modifiers::none(),
+                        button: MouseButton::Left,
+                        click_count: 1,
+                    },
+                    window,
+                    cx,
+                );
+            });
+        });
+        assert_eq!(
+            viewer.read_with(visual, |viewer, _| viewer
+                .selection
+                .selected_text()
+                .to_string()),
+            expected_body.clone()
+        );
+
+        let viewport = visual
+            .debug_bounds("response-content")
+            .expect("response viewport should be rendered");
+        visual.simulate_event(ScrollWheelEvent {
+            position: viewport.center(),
+            delta: ScrollDelta::Pixels(point(px(0.0), px(-400.0))),
+            ..Default::default()
+        });
+        visual.run_until_parked();
+        assert_eq!(
+            viewer.read_with(visual, |viewer, _| viewer
+                .selection
+                .selected_text()
+                .to_string()),
+            expected_body,
+            "scrolling and repainting must not change the canonical selection"
+        );
+        assert!(!viewer.read_with(visual, |viewer, _| viewer
+            .text_layout
+            .as_ref()
+            .unwrap()
+            .selection_quads(viewer.selection.text(), viewer.selection.selected_range())
+            .is_empty()));
     }
 }

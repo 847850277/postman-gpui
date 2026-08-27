@@ -3,56 +3,24 @@ use super::body_input::{
     SelectAll, SelectDown, SelectLeft, SelectRight, SelectUp, SelectWordLeft, SelectWordRight,
     ShiftTab, Tab, Undo, Up, WordLeft, WordRight,
 };
+#[cfg(test)]
+use crate::ui::text_layout::LineRange;
 use crate::ui::{
     text_editor::{
         EditOutcome, EditTransaction, TextEditorError, TextEditorPolicy, TextEditorState,
         TextMovement,
     },
+    text_layout::{floor_char_boundary, line_index_for_offset, line_ranges, MultilineTextLayout},
     theme::INFO,
 };
 use gpui::{
-    fill, hsla, point, px, relative, rgb, rgba, size, App, Bounds, ClipboardItem, Context, Element,
-    ElementId, ElementInputHandler, Entity, EntityInputHandler, FocusHandle, GlobalElementId,
-    IntoElement, LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
-    ScrollHandle, ShapedLine, SharedString, Style, TextAlign, TextRun, UTF16Selection, Window,
+    hsla, point, px, relative, rgb, App, Bounds, ClipboardItem, Context, Element, ElementId,
+    ElementInputHandler, Entity, EntityInputHandler, FocusHandle, GlobalElementId, IntoElement,
+    LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ScrollHandle,
+    SharedString, Style, TextAlign, TextRun, UTF16Selection, Window,
 };
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
-
-const NEWLINE_SELECTION_WIDTH: Pixels = px(4.0);
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct LineRange {
-    start: usize,
-    end: usize,
-    next_start: usize,
-}
-
-impl LineRange {
-    fn len(self) -> usize {
-        self.end - self.start
-    }
-}
-
-struct MultilineLayout {
-    lines: Vec<ShapedLine>,
-    ranges: Vec<LineRange>,
-    bounds: Bounds<Pixels>,
-    line_height: Pixels,
-}
-
-impl MultilineLayout {
-    fn matches(&self, text: &str, ranges: &[LineRange]) -> bool {
-        self.ranges == ranges
-            && self.lines.len() == ranges.len()
-            && (text.is_empty()
-                || self
-                    .lines
-                    .iter()
-                    .zip(ranges)
-                    .all(|(line, range)| line.text.as_ref() == &text[range.start..range.end]))
-    }
-}
 
 #[derive(Clone, Copy)]
 struct PreferredColumn {
@@ -71,7 +39,7 @@ enum VerticalDirection {
 pub(crate) struct MultilineInputState {
     editor: TextEditorState,
     placeholder: SharedString,
-    layout: Option<MultilineLayout>,
+    layout: Option<MultilineTextLayout>,
     scroll_handle: ScrollHandle,
     preferred_column: Option<PreferredColumn>,
     is_selecting: bool,
@@ -200,10 +168,7 @@ impl MultilineInputState {
         let current_range = ranges[current_line];
         let current_local =
             cursor.clamp(current_range.start, current_range.end) - current_range.start;
-        let layout = self
-            .layout
-            .as_ref()
-            .filter(|layout| layout.matches(text, &ranges));
+        let layout = self.layout.as_ref().filter(|layout| layout.matches(text));
 
         let preferred = self.preferred_column.unwrap_or_else(|| PreferredColumn {
             x: layout.map(|layout| layout.lines[current_line].x_for_index(current_local)),
@@ -270,37 +235,14 @@ impl MultilineInputState {
         let Some(layout) = self.layout.as_ref() else {
             return 0;
         };
-        let ranges = line_ranges(self.editor.text());
-        if !layout.matches(self.editor.text(), &ranges) {
-            return self.editor.selection().cursor().utf8();
-        }
-        if position.y < layout.bounds.top() {
-            return 0;
-        }
-        if position.y > layout.bounds.bottom() {
-            return self.editor.text().len();
-        }
-
-        let line_index = (((position.y - layout.bounds.top()) / layout.line_height).floor()
-            as usize)
-            .min(layout.lines.len().saturating_sub(1));
-        let range = ranges[line_index];
-        let local = if position.x <= layout.bounds.left() {
-            0
-        } else if position.x >= layout.bounds.right() {
-            range.len()
-        } else {
-            floor_char_boundary(
-                &self.editor.text()[range.start..range.end],
-                layout.lines[line_index]
-                    .closest_index_for_x(position.x - layout.bounds.left())
-                    .min(range.len()),
-            )
-        };
-        range.start + local
+        layout.hit_test_utf8(
+            self.editor.text(),
+            position,
+            self.editor.selection().cursor().utf8(),
+        )
     }
 
-    fn install_layout(&mut self, layout: MultilineLayout) -> bool {
+    fn install_layout(&mut self, layout: MultilineTextLayout) -> bool {
         self.layout = Some(layout);
         if !self.scroll_to_caret_requested {
             return false;
@@ -318,7 +260,7 @@ impl MultilineInputState {
             return false;
         }
         let ranges = line_ranges(self.editor.text());
-        if !layout.matches(self.editor.text(), &ranges) {
+        if !layout.matches(self.editor.text()) {
             return false;
         }
         let cursor = self.editor.selection().cursor().utf8();
@@ -823,39 +765,7 @@ pub(crate) fn bounds_for_range<H: MultilineInputHost>(
     let input = host.multiline_input();
     let layout = input.layout.as_ref()?;
     let range = input.editor.range_from_utf16(range_utf16).ok()?;
-    let ranges = line_ranges(input.editor.text());
-    if !layout.matches(input.editor.text(), &ranges) {
-        return None;
-    }
-    let start_line = line_index_for_offset(&ranges, range.start().utf8());
-    let end_line = line_index_for_offset(&ranges, range.end().utf8());
-    let start_range = ranges[start_line];
-    let end_range = ranges[end_line];
-    let start_local = range
-        .start()
-        .utf8()
-        .clamp(start_range.start, start_range.end)
-        - start_range.start;
-    let end_local = range.end().utf8().clamp(end_range.start, end_range.end) - end_range.start;
-    let top = layout.bounds.top() + layout.line_height * start_line as f32;
-    let bottom = layout.bounds.top() + layout.line_height * (end_line + 1) as f32;
-    if start_line == end_line {
-        Some(Bounds::from_corners(
-            point(
-                layout.bounds.left() + layout.lines[start_line].x_for_index(start_local),
-                top,
-            ),
-            point(
-                layout.bounds.left() + layout.lines[end_line].x_for_index(end_local),
-                bottom,
-            ),
-        ))
-    } else {
-        Some(Bounds::from_corners(
-            point(layout.bounds.left(), top),
-            point(layout.bounds.right(), bottom),
-        ))
-    }
+    layout.bounds_for_range(input.editor.text(), range)
 }
 
 pub(crate) fn character_index_for_point<H: MultilineInputHost>(
@@ -952,8 +862,7 @@ impl<H: MultilineInputHost> MultilineTextElement<H> {
 }
 
 pub(crate) struct PrepaintState {
-    lines: Vec<ShapedLine>,
-    ranges: Vec<LineRange>,
+    layout: MultilineTextLayout,
     cursor: Option<PaintQuad>,
     selection: Vec<PaintQuad>,
 }
@@ -1037,37 +946,21 @@ impl<H: MultilineInputHost> Element for MultilineTextElement<H> {
             .collect::<Vec<_>>();
 
         let line_height = window.line_height();
-        let selection = input.editor.selected_range().utf8();
+        let selection = input.editor.selected_range();
         let cursor = input.editor.selection().cursor().utf8();
-        let cursor_line = line_index_for_offset(&ranges, cursor);
-        let cursor_range = ranges[cursor_line];
-        let cursor_local = cursor.clamp(cursor_range.start, cursor_range.end) - cursor_range.start;
-        let cursor_quad = selection.is_empty().then(|| {
-            fill(
-                Bounds::new(
-                    point(
-                        bounds.left()
-                            + if content_empty {
-                                px(0.0)
-                            } else {
-                                lines[cursor_line].x_for_index(cursor_local)
-                            },
-                        bounds.top() + line_height * cursor_line as f32,
-                    ),
-                    size(px(2.0), line_height),
-                ),
-                rgb(INFO),
-            )
-        });
+        let layout = MultilineTextLayout::new(lines, ranges, bounds, line_height);
+        let cursor_quad = selection
+            .is_empty()
+            .then(|| layout.cursor_quad(text, cursor, rgb(INFO).into()))
+            .flatten();
         let selection_quads = if selection.is_empty() || content_empty {
             Vec::new()
         } else {
-            selection_quads(&ranges, &lines, selection, bounds, line_height)
+            layout.selection_quads(text, selection)
         };
 
         PrepaintState {
-            lines,
-            ranges,
+            layout,
             cursor: cursor_quad,
             selection: selection_quads,
         }
@@ -1092,11 +985,13 @@ impl<H: MultilineInputHost> Element for MultilineTextElement<H> {
         for selection in prepaint.selection.drain(..) {
             window.paint_quad(selection);
         }
-        let line_height = window.line_height();
-        for (index, line) in prepaint.lines.iter().enumerate() {
+        for (index, line) in prepaint.layout.lines.iter().enumerate() {
             let _ = line.paint(
-                point(bounds.left(), bounds.top() + line_height * index as f32),
-                line_height,
+                point(
+                    prepaint.layout.bounds.left(),
+                    prepaint.layout.bounds.top() + prepaint.layout.line_height * index as f32,
+                ),
+                prepaint.layout.line_height,
                 TextAlign::Left,
                 None,
                 window,
@@ -1109,60 +1004,13 @@ impl<H: MultilineInputHost> Element for MultilineTextElement<H> {
             }
         }
 
-        let layout = MultilineLayout {
-            lines: prepaint.lines.clone(),
-            ranges: prepaint.ranges.clone(),
-            bounds,
-            line_height,
-        };
+        let layout = prepaint.layout.clone();
         self.input.update(cx, |host, cx| {
             if host.multiline_input_mut().install_layout(layout) {
                 cx.notify();
             }
         });
     }
-}
-
-fn selection_quads(
-    ranges: &[LineRange],
-    lines: &[ShapedLine],
-    selection: Range<usize>,
-    bounds: Bounds<Pixels>,
-    line_height: Pixels,
-) -> Vec<PaintQuad> {
-    let start_line = line_index_for_offset(ranges, selection.start);
-    let end_line = line_index_for_offset(ranges, selection.end);
-    let mut quads = Vec::new();
-    for line_index in start_line..=end_line {
-        let range = ranges[line_index];
-        let local_start = if line_index == start_line {
-            selection.start.clamp(range.start, range.end) - range.start
-        } else {
-            0
-        };
-        let local_end = if line_index == end_line {
-            selection.end.clamp(range.start, range.end) - range.start
-        } else {
-            range.len()
-        };
-        let start_x = lines[line_index].x_for_index(local_start);
-        let mut end_x = lines[line_index].x_for_index(local_end);
-        if selection.end > range.end && range.next_start > range.end {
-            end_x += NEWLINE_SELECTION_WIDTH;
-        }
-        if end_x <= start_x {
-            continue;
-        }
-        let top = bounds.top() + line_height * line_index as f32;
-        quads.push(fill(
-            Bounds::from_corners(
-                point(bounds.left() + start_x, top),
-                point(bounds.left() + end_x, top + line_height),
-            ),
-            rgba(0x3366_ff33),
-        ));
-    }
-    quads
 }
 
 fn clamped_offset(
@@ -1178,56 +1026,6 @@ fn clamped_offset(
         .expect("clamped offset must be a UTF-8 boundary")
 }
 
-fn line_ranges(text: &str) -> Vec<LineRange> {
-    let bytes = text.as_bytes();
-    let mut ranges = Vec::new();
-    let mut start = 0;
-    let mut index = 0;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'\r' => {
-                let next_start = if bytes.get(index + 1) == Some(&b'\n') {
-                    index + 2
-                } else {
-                    index + 1
-                };
-                ranges.push(LineRange {
-                    start,
-                    end: index,
-                    next_start,
-                });
-                start = next_start;
-                index = next_start;
-            }
-            b'\n' => {
-                let next_start = index + 1;
-                ranges.push(LineRange {
-                    start,
-                    end: index,
-                    next_start,
-                });
-                start = next_start;
-                index = next_start;
-            }
-            _ => index += 1,
-        }
-    }
-    ranges.push(LineRange {
-        start,
-        end: text.len(),
-        next_start: text.len(),
-    });
-    ranges
-}
-
-fn line_index_for_offset(ranges: &[LineRange], offset: usize) -> usize {
-    ranges
-        .iter()
-        .enumerate()
-        .find_map(|(index, range)| (offset < range.next_start).then_some(index))
-        .unwrap_or_else(|| ranges.len().saturating_sub(1))
-}
-
 fn grapheme_column(line: &str, offset: usize) -> usize {
     line.grapheme_indices(true)
         .take_while(|(start, _)| *start < offset)
@@ -1239,13 +1037,6 @@ fn offset_for_grapheme_column(line: &str, column: usize) -> usize {
         .nth(column)
         .map(|(offset, _)| offset)
         .unwrap_or(line.len())
-}
-
-fn floor_char_boundary(text: &str, mut offset: usize) -> usize {
-    while !text.is_char_boundary(offset) {
-        offset -= 1;
-    }
-    offset
 }
 
 #[cfg(test)]
