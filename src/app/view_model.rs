@@ -12,7 +12,6 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
     collections::HashMap,
     fmt,
-    ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -1658,7 +1657,7 @@ impl SendCompletion {
 /// Application-level ViewModel. It owns request tabs and the latest SQLite History query result.
 pub struct WorkspaceViewModel {
     tabs: Vec<RequestViewModel>,
-    active_tab: usize,
+    active_tab_id: Option<RequestTabId>,
     history: RequestHistory,
     /// Current-process complete Requests keyed by SQLite-confirmed History IDs. This is not a
     /// second History store: it has no ordering or metadata, is never rendered independently,
@@ -1681,7 +1680,7 @@ impl WorkspaceViewModel {
         request.tab_id = RequestTabId(1);
         Self {
             tabs: vec![request],
-            active_tab: 0,
+            active_tab_id: Some(RequestTabId(1)),
             history: RequestHistory::new(),
             runtime_replay_requests: HashMap::new(),
             history_storage_status: HistoryStorageStatus::Loading {
@@ -1702,21 +1701,70 @@ impl WorkspaceViewModel {
         self.tabs.len()
     }
 
-    pub fn active_tab_index(&self) -> usize {
-        self.active_tab
+    /// Stable identity of the request tab currently targeted by synchronous editor actions.
+    ///
+    /// The public workspace lifecycle keeps at least one tab open, but returning `Option` makes
+    /// an absent or stale active-tab selection explicit instead of turning it into an indexing
+    /// panic or silently choosing another tab.
+    pub fn active_tab_id(&self) -> Option<RequestTabId> {
+        self.active_tab_id
+            .filter(|tab_id| self.request_for_tab(*tab_id).is_some())
+    }
+
+    pub fn active_tab_index(&self) -> Option<usize> {
+        self.active_tab_id()
+            .and_then(|tab_id| self.tab_index(tab_id))
     }
 
     pub fn tab_index(&self, tab_id: RequestTabId) -> Option<usize> {
         self.tabs.iter().position(|tab| tab.tab_id == tab_id)
     }
 
+    /// The active request, if the selected stable identity still belongs to this workspace.
+    pub fn active_request(&self) -> Option<&RequestViewModel> {
+        self.active_tab_id
+            .and_then(|tab_id| self.request_for_tab(tab_id))
+    }
+
+    /// Mutable access to the active request. Callers must choose this API explicitly instead of
+    /// obtaining a mutable request through workspace deref coercion.
+    pub fn active_request_mut(&mut self) -> Option<&mut RequestViewModel> {
+        let tab_id = self.active_tab_id?;
+        self.request_for_tab_mut(tab_id)
+    }
+
+    pub fn request_for_tab(&self, tab_id: RequestTabId) -> Option<&RequestViewModel> {
+        self.tabs.iter().find(|tab| tab.tab_id == tab_id)
+    }
+
+    pub fn request_for_tab_mut(&mut self, tab_id: RequestTabId) -> Option<&mut RequestViewModel> {
+        self.tabs.iter_mut().find(|tab| tab.tab_id == tab_id)
+    }
+
+    pub fn update_active_request<R>(
+        &mut self,
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
+        self.active_request_mut().map(update)
+    }
+
+    pub fn update_request_for_tab<R>(
+        &mut self,
+        tab_id: RequestTabId,
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
+        self.request_for_tab_mut(tab_id).map(update)
+    }
+
     pub fn select_tab(&mut self, index: usize) -> bool {
-        if index < self.tabs.len() && index != self.active_tab {
-            self.active_tab = index;
-            true
-        } else {
-            false
+        let Some(tab_id) = self.tabs.get(index).map(RequestViewModel::tab_id) else {
+            return false;
+        };
+        if self.active_tab_id == Some(tab_id) {
+            return false;
         }
+        self.active_tab_id = Some(tab_id);
+        true
     }
 
     pub fn select_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
@@ -1778,7 +1826,7 @@ impl WorkspaceViewModel {
         let tab_id = RequestTabId(self.next_tab_id);
         self.next_tab_id += 1;
         self.tabs.push(RequestViewModel::for_tab(tab_id));
-        self.active_tab = self.tabs.len() - 1;
+        self.active_tab_id = Some(tab_id);
     }
 
     pub fn close_tab(&mut self, index: usize) -> bool {
@@ -1788,16 +1836,21 @@ impl WorkspaceViewModel {
 
         if self.tabs.len() == 1 {
             self.tabs[0].new_request();
-            self.active_tab = 0;
+            self.active_tab_id = Some(self.tabs[0].tab_id);
             return true;
         }
 
+        let closing_tab_id = self.tabs[index].tab_id;
         self.tabs[index].mark_pending_cancelled();
         self.tabs.remove(index);
-        if index < self.active_tab {
-            self.active_tab -= 1;
-        } else if self.active_tab >= self.tabs.len() {
-            self.active_tab = self.tabs.len() - 1;
+        if self.active_tab_id == Some(closing_tab_id) {
+            let next_index = index.min(self.tabs.len() - 1);
+            self.active_tab_id = Some(self.tabs[next_index].tab_id);
+        } else if self
+            .active_tab_id
+            .is_some_and(|tab_id| self.tab_index(tab_id).is_none())
+        {
+            self.active_tab_id = None;
         }
         true
     }
@@ -1807,11 +1860,12 @@ impl WorkspaceViewModel {
             .is_some_and(|index| self.close_tab(index))
     }
 
-    pub fn begin_send(&mut self) -> PendingRequest {
+    pub fn begin_send(&mut self) -> Option<PendingRequest> {
+        let tab_id = self.active_tab_id()?;
         let send_id = SendId(self.next_send_id);
         self.next_send_id += 1;
         let cancelled = Arc::new(AtomicBool::new(false));
-        let tab = &mut self.tabs[self.active_tab];
+        let tab = self.request_for_tab_mut(tab_id)?;
         let editor_intent = tab.body_draft.editor_intent();
         let request_options = RequestOptions {
             timeout_ms: (tab.timeout_ms > 0).then_some(tab.timeout_ms),
@@ -1834,11 +1888,11 @@ impl WorkspaceViewModel {
             url = %display_url_for_log(&pending.request.url),
             "request started"
         );
-        pending
+        Some(pending)
     }
 
     pub fn active_send_id(&self) -> Option<SendId> {
-        self.tabs[self.active_tab].pending_send_id
+        self.active_request().and_then(|tab| tab.pending_send_id)
     }
 
     pub fn active_request_id(&self) -> Option<String> {
@@ -1964,21 +2018,24 @@ impl WorkspaceViewModel {
         }
     }
 
-    pub fn load_request(&mut self, request: &Request) {
-        self.tabs[self.active_tab].load_request(request);
+    pub fn load_request(&mut self, request: &Request) -> bool {
+        self.update_active_request(|tab| tab.load_request(request))
+            .is_some()
     }
 
-    pub fn load_history_entry(&mut self, entry: &HistoryEntry) {
+    pub fn load_history_entry(&mut self, entry: &HistoryEntry) -> bool {
         let replay_request = self
             .runtime_replay_requests
             .get(&entry.id)
             .unwrap_or(&entry.request)
             .clone();
-        self.tabs[self.active_tab].load_history_entry(entry, &replay_request);
+        self.update_active_request(|tab| tab.load_history_entry(entry, &replay_request))
+            .is_some()
     }
 
     pub fn request_editor_intent(&self) -> Option<RequestEditorIntent> {
-        self.tabs[self.active_tab].body_draft.editor_intent()
+        self.active_request()
+            .and_then(|tab| tab.body_draft.editor_intent())
     }
 
     pub fn history(&self) -> &[HistoryEntry] {
@@ -2088,20 +2145,6 @@ impl WorkspaceViewModel {
 impl Default for WorkspaceViewModel {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl Deref for WorkspaceViewModel {
-    type Target = RequestViewModel;
-
-    fn deref(&self) -> &Self::Target {
-        &self.tabs[self.active_tab]
-    }
-}
-
-impl DerefMut for WorkspaceViewModel {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tabs[self.active_tab]
     }
 }
 
@@ -2312,10 +2355,19 @@ mod tests {
     #[test]
     fn global_search_projects_grouped_case_insensitive_results_in_source_order() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://alpha.example/users");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://alpha.example/users");
         workspace.new_request();
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://beta.example/orders");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://beta.example/orders");
 
         let newest = HistoryEntry::completed(
             Request::new(HttpMethod::DELETE, "https://archive.example/shared/newest"),
@@ -2552,13 +2604,28 @@ mod tests {
     #[test]
     fn send_builds_request_and_transitions_response() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://example.com/users");
-        workspace.set_body(r#"{"name":"Ada"}"#);
-        workspace.upsert_header("X-Trace", "abc");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/users");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body(r#"{"name":"Ada"}"#);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .upsert_header("X-Trace", "abc");
 
-        let pending = workspace.begin_send();
-        assert!(matches!(workspace.response(), ResponseState::Loading));
+        let pending = workspace.begin_send().unwrap();
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Loading
+        ));
         assert_eq!(pending.request().method, HttpMethod::POST);
         assert_eq!(
             pending.request().body,
@@ -2581,20 +2648,26 @@ mod tests {
             })
         ));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { status: 201, .. }
         ));
-        assert!(!workspace.is_dirty());
+        assert!(!workspace.active_request().unwrap().is_dirty());
     }
 
     #[test]
     fn failed_send_does_not_enter_history() {
         let mut workspace = WorkspaceViewModel::new();
-        let pending = workspace.begin_send();
-        assert!(matches!(workspace.response(), ResponseState::Loading));
+        let pending = workspace.begin_send().unwrap();
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Loading
+        ));
         assert!(workspace.complete_send(pending, Err(AppError::UrlEmpty)));
 
-        assert!(matches!(workspace.response(), ResponseState::Error { .. }));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Error { .. }
+        ));
         assert_eq!(workspace.history_len(), 0);
     }
 
@@ -2887,39 +2960,99 @@ mod tests {
     #[test]
     fn tabs_preserve_independent_request_and_editor_state() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://first.example");
-        workspace.set_body(r#"{"tab":1}"#);
-        workspace.set_bearer_token("first-token");
-        workspace.set_pre_request_script("const first = true;");
-        workspace.set_tests_script("status == 200");
-        workspace.set_row_draft_key(RequestPane::Headers, "X-First-Draft");
-        workspace.set_row_draft_value(RequestPane::Headers, "one");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://first.example");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body(r#"{"tab":1}"#);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token("first-token");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_pre_request_script("const first = true;");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_tests_script("status == 200");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_row_draft_key(RequestPane::Headers, "X-First-Draft");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_row_draft_value(RequestPane::Headers, "one");
 
         workspace.new_request();
-        workspace.set_url("https://second.example");
-        workspace.set_body(r#"{"tab":2}"#);
-        workspace.set_bearer_token("second-token");
-        workspace.set_row_draft_key(RequestPane::Headers, "X-Second-Draft");
-        workspace.set_row_draft_value(RequestPane::Headers, "two");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://second.example");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body(r#"{"tab":2}"#);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token("second-token");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_row_draft_key(RequestPane::Headers, "X-Second-Draft");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_row_draft_value(RequestPane::Headers, "two");
 
         assert_eq!(workspace.tab_count(), 2);
-        assert_eq!(workspace.active_tab_index(), 1);
+        assert_eq!(workspace.active_tab_index().unwrap(), 1);
         assert!(workspace.select_tab(0));
-        assert_eq!(workspace.url(), "https://first.example");
-        assert_eq!(workspace.body(), r#"{"tab":1}"#);
-        assert_eq!(workspace.bearer_token(), "first-token");
-        assert_eq!(workspace.pre_request_script(), "const first = true;");
-        assert_eq!(workspace.tests_script(), "status == 200");
         assert_eq!(
-            workspace.row_draft(RequestPane::Headers),
+            workspace.active_request().unwrap().url(),
+            "https://first.example"
+        );
+        assert_eq!(workspace.active_request().unwrap().body(), r#"{"tab":1}"#);
+        assert_eq!(
+            workspace.active_request().unwrap().bearer_token(),
+            "first-token"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().pre_request_script(),
+            "const first = true;"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().tests_script(),
+            "status == 200"
+        );
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Headers),
             Some(("X-First-Draft", "one"))
         );
 
         assert!(workspace.select_tab(1));
-        assert_eq!(workspace.url(), "https://second.example");
-        assert_eq!(workspace.bearer_token(), "second-token");
         assert_eq!(
-            workspace.row_draft(RequestPane::Headers),
+            workspace.active_request().unwrap().url(),
+            "https://second.example"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().bearer_token(),
+            "second-token"
+        );
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Headers),
             Some(("X-Second-Draft", "two"))
         );
     }
@@ -2937,21 +3070,36 @@ mod tests {
             KeyValueRow::enabled("tag", "gpui"),
         ];
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_body_kind(BodyKind::UrlEncoded);
-        workspace.set_url_encoded_rows(rows.clone());
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::UrlEncoded);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url_encoded_rows(rows.clone());
 
         workspace.new_request();
         assert!(workspace.select_tab(0));
 
-        assert_eq!(workspace.body_draft(), &RequestBodyDraft::UrlEncoded(rows));
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().body_draft(),
+            &RequestBodyDraft::UrlEncoded(rows)
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
             RequestBody::UrlEncoded("tag=rust&tag=gpui".to_string())
         );
 
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://example.test/form");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.test/form");
+        let pending = workspace.begin_send().unwrap();
         assert_eq!(
             pending.request().body,
             RequestBody::UrlEncoded("tag=rust&tag=gpui".to_string())
@@ -2975,13 +3123,22 @@ mod tests {
             MultipartDraftPart::file("pending", std::path::PathBuf::new(), None, None, true),
         ];
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_body_kind(BodyKind::Multipart);
-        workspace.set_multipart_draft_parts(parts.clone());
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::Multipart);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_multipart_draft_parts(parts.clone());
 
         workspace.new_request();
         assert!(workspace.select_tab(0));
 
-        assert_eq!(workspace.body_draft(), &RequestBodyDraft::Multipart(parts));
+        assert_eq!(
+            workspace.active_request().unwrap().body_draft(),
+            &RequestBodyDraft::Multipart(parts)
+        );
         let expected_body = RequestBody::Multipart(vec![
             MultipartPart::text("note", "hello"),
             MultipartPart {
@@ -2993,11 +3150,20 @@ mod tests {
                 },
             },
         ]);
-        assert_eq!(workspace.request_body(), expected_body);
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            expected_body
+        );
 
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://example.test/upload");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.test/upload");
+        let pending = workspace.begin_send().unwrap();
         assert_eq!(pending.request().body, expected_body);
     }
 
@@ -3035,12 +3201,24 @@ mod tests {
             },
         ]);
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://example.test/post");
-        workspace.set_body_kind(BodyKind::Multipart);
-        workspace.set_multipart_draft_parts(parts.clone());
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.test/post");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::Multipart);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_multipart_draft_parts(parts.clone());
 
-        let pending = workspace.begin_send();
+        let pending = workspace.begin_send().unwrap();
         assert_eq!(pending.request().body, expected_request_body);
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3086,37 +3264,94 @@ mod tests {
 
         workspace.new_request();
         workspace.load_history_entry(&entry);
-        assert_eq!(workspace.body_draft(), &RequestBodyDraft::Multipart(parts));
-        assert_eq!(workspace.request_body(), expected_request_body);
+        assert_eq!(
+            workspace.active_request().unwrap().body_draft(),
+            &RequestBodyDraft::Multipart(parts)
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            expected_request_body
+        );
     }
 
     #[test]
     fn closing_tabs_keeps_a_valid_active_request() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("one");
+        workspace.active_request_mut().unwrap().set_url("one");
         workspace.new_request();
-        workspace.set_url("two");
+        workspace.active_request_mut().unwrap().set_url("two");
         workspace.new_request();
-        workspace.set_url("three");
+        workspace.active_request_mut().unwrap().set_url("three");
 
         assert!(workspace.close_tab(1));
         assert_eq!(workspace.tab_count(), 2);
-        assert_eq!(workspace.url(), "three");
+        assert_eq!(workspace.active_request().unwrap().url(), "three");
 
         assert!(workspace.close_tab(1));
         assert_eq!(workspace.tab_count(), 1);
-        assert_eq!(workspace.url(), "one");
+        assert_eq!(workspace.active_request().unwrap().url(), "one");
 
         assert!(workspace.close_tab(0));
         assert_eq!(workspace.tab_count(), 1);
-        assert_eq!(workspace.url(), "");
+        assert_eq!(workspace.active_request().unwrap().url(), "");
+    }
+
+    #[test]
+    fn explicit_active_request_apis_report_absence_without_mutating_a_tab() {
+        let mut workspace = WorkspaceViewModel::new();
+        let tab_id = workspace
+            .active_tab_id()
+            .expect("a new workspace starts with one active request");
+        workspace
+            .update_request_for_tab(tab_id, |request| request.set_url("https://kept.example"))
+            .expect("the stable tab id must resolve");
+
+        workspace.active_tab_id = None;
+
+        assert_eq!(workspace.active_tab_id(), None);
+        assert_eq!(workspace.active_tab_index(), None);
+        assert!(workspace.active_request().is_none());
+        assert!(workspace.active_request_mut().is_none());
+        assert!(workspace.begin_send().is_none());
+        assert!(workspace
+            .update_active_request(|request| request.set_url("https://wrong.example"))
+            .is_none());
+        assert!(
+            !workspace.load_request(&Request::new(HttpMethod::GET, "https://also-wrong.example",))
+        );
+        assert_eq!(
+            workspace
+                .request_for_tab(tab_id)
+                .expect("losing the active selection must not remove the tab")
+                .url(),
+            "https://kept.example"
+        );
+
+        assert!(workspace
+            .update_request_for_tab(tab_id, |request| request
+                .set_url("https://explicit.example"))
+            .is_some());
+        assert_eq!(
+            workspace
+                .request_for_tab(tab_id)
+                .expect("the explicit stable id still resolves")
+                .url(),
+            "https://explicit.example"
+        );
+        assert!(workspace.request_for_tab(RequestTabId(u64::MAX)).is_none());
+        assert!(workspace
+            .update_request_for_tab(RequestTabId(u64::MAX), RequestViewModel::clear_body)
+            .is_none());
     }
 
     #[test]
     fn workspace_collects_completed_requests_in_shared_history() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/shared-history");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/shared-history");
+        let pending = workspace.begin_send().unwrap();
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
@@ -3143,8 +3378,11 @@ mod tests {
     #[test]
     fn non_2xx_completion_remains_a_successful_response_and_enters_history() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/status/418");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/status/418");
+        let pending = workspace.begin_send().unwrap();
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3160,7 +3398,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success {
                 status: 418,
                 body,
@@ -3181,8 +3419,11 @@ mod tests {
             "https://httpbingo.org/redirect-to?url=%2Fanything%2Fredirected&status_code=302";
         let final_body = r#"{"method":"GET","url":"https://httpbingo.org/anything/redirected"}"#;
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url(original_url);
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url(original_url);
+        let pending = workspace.begin_send().unwrap();
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3198,7 +3439,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success {
                 status: 200,
                 body,
@@ -3219,8 +3460,8 @@ mod tests {
         let url = "https://httpbingo.org/json";
         let body = r#"{"slideshow":{"author":"Yours Truly","date":"date of publication","slides":[{"title":"Wake up to WonderWidgets!","type":"all"}],"title":"Sample Slide Show"}}"#;
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url(url);
-        let pending = workspace.begin_send();
+        workspace.active_request_mut().unwrap().set_url(url);
+        let pending = workspace.begin_send().unwrap();
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3240,7 +3481,7 @@ mod tests {
             headers,
             body: actual_body,
             elapsed_ms,
-        } = workspace.response()
+        } = workspace.active_request().unwrap().response()
         else {
             panic!("JSON request should complete as an HTTP response");
         };
@@ -3271,8 +3512,11 @@ mod tests {
     #[test]
     fn cookie_jar_projection_is_application_scoped_non_sensitive_and_clearable() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/cookies");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/cookies");
+        let pending = workspace.begin_send().unwrap();
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
@@ -3285,7 +3529,7 @@ mod tests {
                 redirect_chain: Vec::new(),
             })
         ));
-        let response_before_clear = workspace.response().clone();
+        let response_before_clear = workspace.active_request().unwrap().response().clone();
 
         workspace.sync_cookie_jar(vec![
             ("https://httpbingo.org".into(), "session".into()),
@@ -3313,11 +3557,17 @@ mod tests {
     #[test]
     fn completion_targets_the_originating_tab_after_the_user_switches_tabs() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://first.example/slow");
-        let first = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://first.example/slow");
+        let first = workspace.begin_send().unwrap();
 
         workspace.new_request();
-        workspace.set_url("https://second.example/draft");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://second.example/draft");
         assert!(complete_and_confirm_history(
             &mut workspace,
             first,
@@ -3331,35 +3581,79 @@ mod tests {
             })
         ));
 
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::NotSent
+        ));
         assert!(workspace.select_tab(0));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { body, .. } if body == "first response"
         ));
         assert_eq!(workspace.history_len(), 1);
     }
 
     #[test]
+    fn delayed_completion_for_a_closed_tab_cannot_touch_the_active_request() {
+        let mut workspace = WorkspaceViewModel::new();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://first.example/slow");
+        let first_tab_id = workspace.active_tab_id().expect("first tab must be active");
+        let pending = workspace
+            .begin_send()
+            .expect("the active request must produce a send command");
+
+        workspace.new_request();
+        workspace
+            .active_request_mut()
+            .expect("the new request must be active")
+            .set_url("https://second.example/draft");
+        let second_tab_id = workspace
+            .active_tab_id()
+            .expect("second tab must be active");
+        assert!(workspace.close_tab_by_id(first_tab_id));
+
+        assert!(
+            !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
+        );
+        assert!(workspace.request_for_tab(first_tab_id).is_none());
+        assert_eq!(workspace.active_tab_id(), Some(second_tab_id));
+        let active = workspace
+            .active_request()
+            .expect("closing another tab must preserve the active request");
+        assert_eq!(active.url(), "https://second.example/draft");
+        assert!(matches!(active.response(), ResponseState::NotSent));
+        assert_eq!(workspace.history_len(), 0);
+    }
+
+    #[test]
     fn stale_completion_cannot_replace_a_newer_send() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/race");
-        let older = workspace.begin_send();
-        let newer = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/race");
+        let older = workspace.begin_send().unwrap();
+        let newer = workspace.begin_send().unwrap();
 
         assert!(!complete_and_confirm_history(
             &mut workspace,
             older,
             Ok(RequestResult::success("stale".to_string()))
         ));
-        assert!(matches!(workspace.response(), ResponseState::Loading));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Loading
+        ));
         assert!(complete_and_confirm_history(
             &mut workspace,
             newer,
             Ok(RequestResult::success("current".to_string()))
         ));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { body, .. } if body == "current"
         ));
         assert_eq!(workspace.history_len(), 2);
@@ -3368,9 +3662,15 @@ mod tests {
     #[test]
     fn editing_while_a_request_is_in_flight_keeps_the_draft_dirty() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/original");
-        let pending = workspace.begin_send();
-        workspace.set_url("https://example.com/edited");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/original");
+        let pending = workspace.begin_send().unwrap();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/edited");
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3378,8 +3678,11 @@ mod tests {
             Ok(RequestResult::success("done".to_string()))
         ));
 
-        assert_eq!(workspace.url(), "https://example.com/edited");
-        assert!(workspace.is_dirty());
+        assert_eq!(
+            workspace.active_request().unwrap().url(),
+            "https://example.com/edited"
+        );
+        assert!(workspace.active_request().unwrap().is_dirty());
         assert_eq!(
             workspace.history()[0].request.url,
             "https://example.com/original"
@@ -3389,35 +3692,50 @@ mod tests {
     #[test]
     fn cancelling_a_send_ignores_its_late_completion() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/slow");
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/slow");
+        let pending = workspace.begin_send().unwrap();
 
         assert_eq!(workspace.active_send_id(), Some(pending.send_id()));
         assert_eq!(workspace.active_request_id().as_deref(), Some("req-01"));
         assert_eq!(workspace.in_flight_count(), 1);
         assert!(workspace.cancel_send(pending.send_id()));
-        assert!(matches!(workspace.response(), ResponseState::Cancelled));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Cancelled
+        ));
         assert_eq!(workspace.active_request_id(), None);
         assert_eq!(workspace.in_flight_count(), 0);
         assert!(
             !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
         );
-        assert!(matches!(workspace.response(), ResponseState::Cancelled));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Cancelled
+        ));
         assert_eq!(workspace.history_len(), 0);
     }
 
     #[test]
     fn request_timeout_is_captured_and_finishes_without_fabricating_history() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/slow");
-        workspace.set_timeout_ms(1_000);
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/slow");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_timeout_ms(1_000);
+        let pending = workspace.begin_send().unwrap();
 
         assert_eq!(pending.timeout_ms(), Some(1_000));
         assert_eq!(workspace.in_flight_count(), 1);
         assert!(workspace.complete_send(pending, Err(AppError::Timeout { timeout_ms: 1_000 })));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Error { message } if message == "Request timed out after 1,000 ms"
         ));
         assert_eq!(workspace.active_request_id(), None);
@@ -3428,11 +3746,23 @@ mod tests {
     #[test]
     fn completed_history_captures_and_replays_request_timeout() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/slow");
-        workspace.set_timeout_ms(1_250);
-        workspace.set_redirect_policy(RedirectPolicy::DoNotFollow);
-        workspace.set_max_redirect_hops(7);
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/slow");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_timeout_ms(1_250);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_redirect_policy(RedirectPolicy::DoNotFollow);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_max_redirect_hops(7);
+        let pending = workspace.begin_send().unwrap();
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3448,21 +3778,36 @@ mod tests {
         assert_eq!(entry.request_options.max_redirect_hops, 7);
 
         workspace.new_request();
-        assert_eq!(workspace.timeout_ms(), 0);
-        assert_eq!(workspace.redirect_policy(), RedirectPolicy::Follow);
-        assert_eq!(workspace.max_redirect_hops(), DEFAULT_MAX_REDIRECT_HOPS);
+        assert_eq!(workspace.active_request().unwrap().timeout_ms(), 0);
+        assert_eq!(
+            workspace.active_request().unwrap().redirect_policy(),
+            RedirectPolicy::Follow
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().max_redirect_hops(),
+            DEFAULT_MAX_REDIRECT_HOPS
+        );
         workspace.load_history_entry(&entry);
-        assert_eq!(workspace.timeout_ms(), 1_250);
-        assert_eq!(workspace.redirect_policy(), RedirectPolicy::DoNotFollow);
-        assert_eq!(workspace.max_redirect_hops(), 7);
+        assert_eq!(workspace.active_request().unwrap().timeout_ms(), 1_250);
+        assert_eq!(
+            workspace.active_request().unwrap().redirect_policy(),
+            RedirectPolicy::DoNotFollow
+        );
+        assert_eq!(workspace.active_request().unwrap().max_redirect_hops(), 7);
     }
 
     #[test]
     fn redirect_policy_and_chain_are_captured_by_send_identity() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/redirect/1");
-        workspace.set_max_redirect_hops(3);
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/redirect/1");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_max_redirect_hops(3);
+        let pending = workspace.begin_send().unwrap();
         assert_eq!(
             pending.request_options(),
             RequestOptions {
@@ -3472,8 +3817,14 @@ mod tests {
             }
         );
 
-        workspace.set_redirect_policy(RedirectPolicy::DoNotFollow);
-        workspace.set_max_redirect_hops(9);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_redirect_policy(RedirectPolicy::DoNotFollow);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_max_redirect_hops(9);
         let chain = vec![
             RedirectHop::new(302, "https://example.com/redirect/1", Some("/terminal")),
             RedirectHop::terminal(200, "https://example.com/terminal"),
@@ -3486,9 +3837,9 @@ mod tests {
             Ok(result)
         ));
 
-        assert_eq!(workspace.redirect_chain(), chain);
+        assert_eq!(workspace.active_request().unwrap().redirect_chain(), chain);
         assert!(
-            workspace.is_dirty(),
+            workspace.active_request().unwrap().is_dirty(),
             "edits made during Send must remain dirty"
         );
         assert_eq!(workspace.history()[0].request_options.max_redirect_hops, 3);
@@ -3501,9 +3852,15 @@ mod tests {
     #[test]
     fn redirect_limit_failure_exposes_partial_chain_without_history() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/redirect/3");
-        workspace.set_max_redirect_hops(2);
-        let pending = workspace.begin_send();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/redirect/3");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_max_redirect_hops(2);
+        let pending = workspace.begin_send().unwrap();
         let chain = vec![
             RedirectHop::new(302, "https://example.com/redirect/3", Some("/redirect/2")),
             RedirectHop::new(302, "https://example.com/redirect/2", Some("/redirect/1")),
@@ -3517,15 +3874,19 @@ mod tests {
             })
         ));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Error { message }
                 if message == "Redirect limit exceeded after 2 hops."
         ));
-        assert_eq!(workspace.redirect_chain(), chain);
+        assert_eq!(workspace.active_request().unwrap().redirect_chain(), chain);
         assert_eq!(workspace.history_len(), 0);
 
         workspace.new_request();
-        assert!(workspace.redirect_chain().is_empty());
+        assert!(workspace
+            .active_request()
+            .unwrap()
+            .redirect_chain()
+            .is_empty());
     }
 
     #[test]
@@ -3561,8 +3922,11 @@ mod tests {
         current_session.replace_history_query_result(vec![confirmed.clone()], 0);
         current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request);
         current_session.load_history_entry(&confirmed);
-        assert_eq!(current_session.url(), raw_url);
-        assert_eq!(current_session.bearer_token(), "runtime-token");
+        assert_eq!(current_session.active_request().unwrap().url(), raw_url);
+        assert_eq!(
+            current_session.active_request().unwrap().bearer_token(),
+            "runtime-token"
+        );
 
         // An explicit refresh retains overlays only for IDs still returned by SQLite.
         current_session.replace_history_query_result(vec![confirmed.clone()], 0);
@@ -3574,23 +3938,36 @@ mod tests {
         recovered_session.replace_history_query_result(vec![confirmed.clone()], 0);
         recovered_session.load_history_entry(&confirmed);
         assert_eq!(
-            recovered_session.url(),
+            recovered_session.active_request().unwrap().url(),
             "https://example.com/replay?tag=rust"
         );
-        assert!(recovered_session.bearer_token().is_empty());
+        assert!(recovered_session
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .is_empty());
     }
 
     #[test]
     fn changing_timeout_during_send_keeps_the_request_draft_dirty() {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://example.com/slow");
-        workspace.set_timeout_ms(1_000);
-        let pending = workspace.begin_send();
-        workspace.set_timeout_ms(2_000);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/slow");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_timeout_ms(1_000);
+        let pending = workspace.begin_send().unwrap();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_timeout_ms(2_000);
 
         assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
-        assert_eq!(workspace.timeout_ms(), 2_000);
-        assert!(workspace.is_dirty());
+        assert_eq!(workspace.active_request().unwrap().timeout_ms(), 2_000);
+        assert!(workspace.active_request().unwrap().is_dirty());
     }
 
     #[test]
@@ -3622,17 +3999,21 @@ mod tests {
         workspace.load_history_entry(&first);
         assert_eq!(workspace.in_flight_count(), 0);
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { entry_id, response }
                 if entry_id == &first.id
                     && matches!(&response.body, crate::models::HistoricalResponseBody::Text(body) if body == "first historical body")
         ));
         assert_eq!(workspace.cookie_count(), 1);
-        assert!(workspace.response_stored_cookies().is_empty());
+        assert!(workspace
+            .active_request()
+            .unwrap()
+            .response_stored_cookies()
+            .is_empty());
 
         workspace.load_history_entry(&second);
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { entry_id, response }
                 if entry_id == &second.id
                     && matches!(&response.body, crate::models::HistoricalResponseBody::Text(body) if body == "second historical body")
@@ -3656,8 +4037,11 @@ mod tests {
         workspace.replace_history_query_result(vec![original.clone()], 0);
         workspace.load_history_entry(&original);
 
-        let pending = workspace.begin_send();
-        assert!(matches!(workspace.response(), ResponseState::Loading));
+        let pending = workspace.begin_send().unwrap();
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::Loading
+        ));
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
@@ -3671,7 +4055,7 @@ mod tests {
             })
         ));
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { body, .. } if body == "new response"
         ));
         assert_eq!(workspace.history_len(), 2);
@@ -3680,7 +4064,10 @@ mod tests {
 
         workspace.load_history_entry(&original);
         workspace.replace_history_query_result(Vec::new(), 0);
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::NotSent
+        ));
         assert!(workspace.history().is_empty());
     }
 
@@ -3699,7 +4086,7 @@ mod tests {
         workspace.load_history_entry(&entry);
 
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::HistoricalUnavailable { entry_id: selected }
                 if selected == &entry_id
         ));

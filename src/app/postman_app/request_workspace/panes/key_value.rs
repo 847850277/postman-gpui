@@ -3,7 +3,7 @@ use super::super::layout::{
     visible_row_capacity,
 };
 use crate::{
-    app::{ActivateControl, KeyValueRow, RequestPane, WorkspaceViewModel},
+    app::{ActivateControl, KeyValueRow, RequestPane, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
@@ -245,13 +245,13 @@ impl KeyValueRowsPane {
         pane
     }
 
-    fn update_view_model<R>(
+    fn update_active_request<R>(
         &self,
         cx: &mut Context<Self>,
-        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
-    ) -> R {
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
         let result = self.view_model.update(cx, |view_model, cx| {
-            let result = update(view_model);
+            let result = view_model.update_active_request(update);
             cx.notify();
             result
         });
@@ -268,11 +268,15 @@ impl KeyValueRowsPane {
     fn rebuild_row_editors(&mut self, cx: &mut Context<Self>) {
         let rows = {
             let view_model = self.view_model.read(cx);
-            match self.kind {
-                KeyValueRowsKind::Params => view_model.params(),
-                KeyValueRowsKind::Headers => view_model.headers(),
-            }
-            .to_vec()
+            view_model
+                .active_request()
+                .map_or_else(Vec::new, |request| {
+                    match self.kind {
+                        KeyValueRowsKind::Params => request.params(),
+                        KeyValueRowsKind::Headers => request.headers(),
+                    }
+                    .to_vec()
+                })
         };
         self.row_editors.clear();
         self.row_subscriptions.clear();
@@ -302,27 +306,27 @@ impl KeyValueRowsPane {
         match event {
             PersistentRowEditorEvent::KeyChanged { kind, index, value } => match kind {
                 KeyValueRowsKind::Params => {
-                    self.update_view_model(cx, |view_model| {
-                        view_model.set_param_key(*index, value.clone())
+                    self.update_active_request(cx, |request| {
+                        request.set_param_key(*index, value.clone())
                     });
                     self.emit_effective_url_changed(cx);
                 }
                 KeyValueRowsKind::Headers => {
-                    self.update_view_model(cx, |view_model| {
-                        view_model.set_header_key(*index, value.clone())
+                    self.update_active_request(cx, |request| {
+                        request.set_header_key(*index, value.clone())
                     });
                 }
             },
             PersistentRowEditorEvent::ValueChanged { kind, index, value } => match kind {
                 KeyValueRowsKind::Params => {
-                    self.update_view_model(cx, |view_model| {
-                        view_model.set_param_value(*index, value.clone())
+                    self.update_active_request(cx, |request| {
+                        request.set_param_value(*index, value.clone())
                     });
                     self.emit_effective_url_changed(cx);
                 }
                 KeyValueRowsKind::Headers => {
-                    self.update_view_model(cx, |view_model| {
-                        view_model.set_header_value(*index, value.clone())
+                    self.update_active_request(cx, |request| {
+                        request.set_header_value(*index, value.clone())
                     });
                 }
             },
@@ -339,7 +343,7 @@ impl KeyValueRowsPane {
         match event {
             HeaderInputEvent::ValueChanged(key) => {
                 let pane = self.kind.request_pane();
-                self.update_view_model(cx, |view_model| view_model.set_row_draft_key(pane, key));
+                self.update_active_request(cx, |request| request.set_row_draft_key(pane, key));
                 self.emit_effective_url_changed(cx);
             }
             HeaderInputEvent::SubmitRequested => self.append_row(cx),
@@ -355,9 +359,7 @@ impl KeyValueRowsPane {
         match event {
             HeaderInputEvent::ValueChanged(value) => {
                 let pane = self.kind.request_pane();
-                self.update_view_model(cx, |view_model| {
-                    view_model.set_row_draft_value(pane, value)
-                });
+                self.update_active_request(cx, |request| request.set_row_draft_value(pane, value));
                 self.emit_effective_url_changed(cx);
             }
             HeaderInputEvent::SubmitRequested => self.append_row(cx),
@@ -367,13 +369,13 @@ impl KeyValueRowsPane {
     fn append_row(&mut self, cx: &mut Context<Self>) {
         match self.kind {
             KeyValueRowsKind::Params => {
-                self.update_view_model(cx, |view_model| view_model.append_param_row());
+                self.update_active_request(cx, RequestViewModel::append_param_row);
                 self.rebuild_row_editors(cx);
                 self.rows_scroll_handle.scroll_to_bottom();
                 self.emit_effective_url_changed(cx);
             }
             KeyValueRowsKind::Headers => {
-                self.update_view_model(cx, |view_model| view_model.append_header_row());
+                self.update_active_request(cx, RequestViewModel::append_header_row);
                 self.rebuild_row_editors(cx);
                 self.rows_scroll_handle.scroll_to_bottom();
             }
@@ -386,12 +388,12 @@ impl KeyValueRowsPane {
     }
 
     fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.toggle_param(index));
+        self.update_active_request(cx, |request| request.toggle_param(index));
         self.emit_effective_url_changed(cx);
     }
 
     fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.remove_param(index));
+        self.update_active_request(cx, |request| request.remove_param(index));
         if index < self.row_toggle_focus_handles.len() {
             self.row_toggle_focus_handles.remove(index);
             self.row_delete_focus_handles.remove(index);
@@ -401,14 +403,14 @@ impl KeyValueRowsPane {
     }
 
     fn toggle_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.toggle_header(index));
+        self.update_active_request(cx, |request| request.toggle_header(index));
     }
 
     fn toggle_header_draft(&mut self, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| {
-            let index = view_model.headers().len();
-            view_model.append_header_row();
-            view_model.toggle_header(index);
+        self.update_active_request(cx, |request| {
+            let index = request.headers().len();
+            request.append_header_row();
+            request.toggle_header(index);
         });
         self.rebuild_row_editors(cx);
         self.rows_scroll_handle.scroll_to_bottom();
@@ -416,7 +418,7 @@ impl KeyValueRowsPane {
     }
 
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.remove_header(index));
+        self.update_active_request(cx, |request| request.remove_header(index));
         if index < self.row_toggle_focus_handles.len() {
             self.row_toggle_focus_handles.remove(index);
             self.row_delete_focus_handles.remove(index);
@@ -425,7 +427,7 @@ impl KeyValueRowsPane {
     }
 
     fn clear_header_draft(&mut self, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.clear_header_draft());
+        self.update_active_request(cx, RequestViewModel::clear_header_draft);
         self.project_draft(cx);
     }
 
@@ -450,7 +452,8 @@ impl KeyValueRowsPane {
         let (key, value, key_placeholder, value_placeholder) = {
             let view_model = self.view_model.read(cx);
             let (key, value) = view_model
-                .row_draft(self.kind.request_pane())
+                .active_request()
+                .and_then(|request| request.row_draft(self.kind.request_pane()))
                 .map(|(key, value)| (key.to_string(), value.to_string()))
                 .unwrap_or_default();
             let placeholders = match self.kind {
@@ -489,15 +492,16 @@ impl KeyValueRowsPane {
         let delete_focus_handles = self.row_delete_focus_handles.clone();
         let (rows, draft_key, visible_row_count, enabled_count, effective_url) = {
             let view_model = self.view_model.read(cx);
-            let (draft_key, _) = view_model
-                .row_draft(RequestPane::Params)
-                .unwrap_or_default();
+            let Some(request) = view_model.active_request() else {
+                return div().into_any_element();
+            };
+            let (draft_key, _) = request.row_draft(RequestPane::Params).unwrap_or_default();
             (
-                view_model.params().to_vec(),
+                request.params().to_vec(),
                 draft_key.to_string(),
-                view_model.visible_param_row_count(),
-                view_model.enabled_param_count(),
-                view_model.effective_url(),
+                request.visible_param_row_count(),
+                request.enabled_param_count(),
+                request.effective_url(),
             )
         };
         let draft_enabled = !draft_key.trim().is_empty();
@@ -942,15 +946,17 @@ impl KeyValueRowsPane {
         let delete_focus_handles = self.row_delete_focus_handles.clone();
         let (rows, draft_key, draft_value, visible_row_count, enabled_count) = {
             let view_model = self.view_model.read(cx);
-            let (draft_key, draft_value) = view_model
-                .row_draft(RequestPane::Headers)
-                .unwrap_or_default();
+            let Some(request) = view_model.active_request() else {
+                return div().into_any_element();
+            };
+            let (draft_key, draft_value) =
+                request.row_draft(RequestPane::Headers).unwrap_or_default();
             (
-                view_model.headers().to_vec(),
+                request.headers().to_vec(),
                 draft_key.to_string(),
                 draft_value.to_string(),
-                view_model.visible_header_row_count(),
-                view_model.enabled_header_count(),
+                request.visible_header_row_count(),
+                request.enabled_header_count(),
             )
         };
         let disabled_count = rows
@@ -1580,10 +1586,12 @@ impl Render for KeyValueRowsPane {
         let pane = self.kind.request_pane();
         let visible_rows = {
             let view_model = self.view_model.read(cx);
-            match self.kind {
-                KeyValueRowsKind::Params => view_model.visible_param_row_count(),
-                KeyValueRowsKind::Headers => view_model.visible_header_row_count(),
-            }
+            view_model
+                .active_request()
+                .map_or(0, |request| match self.kind {
+                    KeyValueRowsKind::Params => request.visible_param_row_count(),
+                    KeyValueRowsKind::Headers => request.visible_header_row_count(),
+                })
         };
         let panel_height = adaptive_request_panel_height(
             pane,

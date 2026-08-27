@@ -75,11 +75,19 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
 
     click(cx, "history-item-0").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://example.test/from-sqlite"
     );
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::HistoricalUnavailable { .. }
     ));
 
@@ -92,8 +100,14 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
             workspace.history_storage_status(),
             &HistoryStorageStatus::Ready { skipped_rows: 0 }
         );
-        assert_eq!(workspace.url(), "https://example.test/from-sqlite");
-        assert!(matches!(workspace.response(), ResponseState::NotSent));
+        assert_eq!(
+            workspace.active_request().unwrap().url(),
+            "https://example.test/from-sqlite"
+        );
+        assert!(matches!(
+            workspace.active_request().unwrap().response(),
+            ResponseState::NotSent
+        ));
     });
     assert_eq!(stored_history_count(&database_path), 0);
 }
@@ -128,7 +142,7 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     request.assert();
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { status: 200, body, .. } if body == "persisted"
         ));
         assert_eq!(workspace.history_len(), 1);
@@ -150,13 +164,13 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { entry_id, response }
                 if entry_id == &workspace.history()[0].id
                     && response.status == 200
                     && matches!(&response.body, HistoricalResponseBody::Text(body) if body == "persisted")
         ));
-        assert!(workspace.response_stored_cookies().is_empty());
+        assert!(workspace.active_request().unwrap().response_stored_cookies().is_empty());
     });
     assert!(cx.debug_bounds("response-historical-badge").is_some());
     assert!(cx.debug_bounds("response-copy-button").is_some());
@@ -207,7 +221,7 @@ fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
     request.assert();
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { status: 202, body, .. } if body == "accepted"
         ));
         assert_eq!(workspace.history_len(), 0);
@@ -286,7 +300,7 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
         click(cx, "history-item-1").unwrap();
     }
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Historical { response, .. }
             if matches!(response.body, HistoricalResponseBody::Unsupported)
     ));
@@ -301,7 +315,7 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
         click(cx, "history-item-1").unwrap();
     }
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Historical { response, .. }
             if matches!(response.body, HistoricalResponseBody::TruncatedText(_))
     ));

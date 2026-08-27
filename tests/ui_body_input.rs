@@ -39,7 +39,11 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
     cx.simulate_keystrokes("end shift-left cmd-c");
     assert_eq!(clipboard_text(cx), "e\u{301}");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         body
     );
 }
@@ -61,7 +65,8 @@ fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut T
     cx.simulate_input("第二项");
 
     workspace.read_with(cx, |workspace, _| {
-        let RequestBodyDraft::UrlEncoded(rows) = workspace.body_draft() else {
+        let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
+        else {
             panic!("URL-encoded selection should keep a typed form draft");
         };
         assert_eq!(rows[0].key, "标签");
@@ -91,7 +96,9 @@ fn cancelling_multipart_file_selection_leaves_the_typed_row_unchanged(cx: &mut T
     cx.simulate_input("upload");
     cx.simulate_keystrokes("enter");
     click(cx, "body-form-type-0").unwrap();
-    let before = workspace.read_with(cx, |workspace, _| workspace.body_draft().clone());
+    let before = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().body_draft().clone()
+    });
 
     click(cx, "body-form-file-0").unwrap();
     assert!(cx.did_prompt_for_paths());
@@ -104,7 +111,11 @@ fn cancelling_multipart_file_selection_leaves_the_typed_row_unchanged(cx: &mut T
     cx.run_until_parked();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body_draft().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body_draft()
+            .clone()),
         before
     );
     let RequestBodyDraft::Multipart(parts) = before else {

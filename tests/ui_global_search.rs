@@ -73,7 +73,7 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
 
     click(cx, "global-search-request-result-0").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
     assert!(cx.debug_bounds("global-search-popover").is_none());
@@ -83,10 +83,17 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
     assert!(cx.debug_bounds("global-search-history-group").is_some());
     click(cx, "global-search-history-result-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.active_tab_index(), 1);
-        assert_eq!(workspace.url(), form_history.request.url);
+        assert_eq!(workspace.active_tab_index().unwrap(), 1);
         assert_eq!(
-            workspace.response().historical_entry_id(),
+            workspace.active_request().unwrap().url(),
+            form_history.request.url
+        );
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .response()
+                .historical_entry_id(),
             Some(form_history.id.as_str())
         );
         assert_eq!(workspace.tab_count(), 2);
@@ -133,10 +140,17 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     assert!(cx.debug_bounds("global-search-history-group").is_some());
     cx.simulate_keystrokes("down enter");
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.active_tab_index(), 1);
-        assert_eq!(workspace.url(), archived.request.url);
+        assert_eq!(workspace.active_tab_index().unwrap(), 1);
         assert_eq!(
-            workspace.response().historical_entry_id(),
+            workspace.active_request().unwrap().url(),
+            archived.request.url
+        );
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .response()
+                .historical_entry_id(),
             Some(archived.id.as_str())
         );
     });
@@ -163,7 +177,11 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     assert!(cx.debug_bounds("global-search-popover").is_none());
     cx.simulate_input("/restored");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://draft.example/base/restored"
     );
 }

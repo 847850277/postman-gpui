@@ -165,7 +165,7 @@ impl ResponseViewer {
     }
 
     fn raw_response_body(&self, cx: &App) -> Option<String> {
-        match self.view_model.read(cx).response() {
+        match self.view_model.read(cx).active_request()?.response() {
             ResponseState::Success { body, .. } if !body.is_empty() => Some(body.clone()),
             ResponseState::Historical { response, .. } => response
                 .body
@@ -223,7 +223,10 @@ impl ResponseViewer {
 
     fn get_content(&self, cx: &App) -> String {
         let view_model = self.view_model.read(cx);
-        match (view_model.response(), self.pane) {
+        let Some(request) = view_model.active_request() else {
+            return String::new();
+        };
+        match (request.response(), self.pane) {
             (ResponseState::Success { body, .. }, ResponsePane::Body) => format_response_body(body),
             (ResponseState::Success { headers, .. }, ResponsePane::Headers) => headers
                 .iter()
@@ -433,8 +436,11 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         let pane_count = if matches!(
-            self.view_model.read(cx).response(),
-            ResponseState::Success { .. }
+            self.view_model
+                .read(cx)
+                .active_request()
+                .map(|request| request.response()),
+            Some(ResponseState::Success { .. })
         ) {
             RESPONSE_PANES.len()
         } else {
@@ -883,13 +889,16 @@ impl ResponseViewer {
 
 fn response_cookie_evidence(view_model: &WorkspaceViewModel) -> Vec<ResponseCookieEvidence> {
     let mut cookies = BTreeMap::<(String, String), bool>::new();
+    let Some(request) = view_model.active_request() else {
+        return Vec::new();
+    };
 
-    for cookie in view_model.response_stored_cookies() {
+    for cookie in request.response_stored_cookies() {
         cookies.insert((cookie.origin.clone(), cookie.name.clone()), true);
     }
 
-    if let ResponseState::Success { headers, .. } = view_model.response() {
-        let origin = response_origin(&view_model.effective_url());
+    if let ResponseState::Success { headers, .. } = request.response() {
+        let origin = response_origin(&request.effective_url());
         for (_, value) in headers
             .iter()
             .filter(|(name, _)| name.eq_ignore_ascii_case("set-cookie"))
@@ -1211,10 +1220,15 @@ impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (state, redirect_chain, is_httpbingo, response_cookies, jar_count) = {
             let view_model = self.view_model.read(cx);
+            let active = view_model.active_request();
             (
-                view_model.response().clone(),
-                view_model.redirect_chain().to_vec(),
-                view_model.effective_url().contains("httpbingo.org"),
+                active
+                    .map(|request| request.response().clone())
+                    .unwrap_or(ResponseState::NotSent),
+                active
+                    .map(|request| request.redirect_chain().to_vec())
+                    .unwrap_or_default(),
+                active.is_some_and(|request| request.effective_url().contains("httpbingo.org")),
                 response_cookie_evidence(view_model),
                 view_model.cookie_count(),
             )

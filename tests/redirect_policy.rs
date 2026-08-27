@@ -82,8 +82,8 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     }
     assert_eq!(
         workspace.read_with(cx, |workspace, _| (
-            workspace.redirect_policy(),
-            workspace.max_redirect_hops(),
+            workspace.active_request().unwrap().redirect_policy(),
+            workspace.active_request().unwrap().max_redirect_hops(),
         )),
         (RedirectPolicy::Follow, 10)
     );
@@ -91,7 +91,10 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     click(cx, "redirect-max-hops-increase").unwrap();
     replace_text(cx, "redirect-max-hops-input", "101").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.max_redirect_hops()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .max_redirect_hops()),
         10,
         "values outside 1..=100 must be rejected"
     );
@@ -101,11 +104,15 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
 
     let relative_start = format!("{}/relative-redirect/3", server.url());
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Success { status: 200, body, .. } if body == "terminal"
     ));
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.redirect_chain().to_vec()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_chain()
+            .to_vec()),
         vec![
             RedirectHop::new(302, &relative_start, Some("/relative-redirect/2")),
             RedirectHop::new(
@@ -158,7 +165,7 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Success { status: 302, headers, body, .. }
             if body == "first redirect"
                 && headers.iter().any(|(name, value)| {
@@ -166,7 +173,11 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
                 })
     ));
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.redirect_chain().len()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_chain()
+            .len()),
         1
     );
     assert_eq!(
@@ -189,12 +200,16 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Error { message }
             if message == "Redirect limit exceeded after 2 hops."
     ));
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.redirect_chain().to_vec()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_chain()
+            .to_vec()),
         vec![
             RedirectHop::new(
                 302,

@@ -26,14 +26,22 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         2
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         ""
     );
 
     type_into(cx, "url-input", "https://second.example/orders").unwrap();
     click(cx, "request-tab-0").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://first.example/users"
     );
 
@@ -41,7 +49,11 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
     cx.simulate_keystrokes("end");
     cx.simulate_input("?projected=first");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://first.example/users?projected=first"
     );
 
@@ -51,7 +63,11 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
         1
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://second.example/orders"
     );
 }
@@ -109,7 +125,7 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.tab_count(), 2);
-        assert_eq!(workspace.active_tab_index(), 1);
+        assert_eq!(workspace.active_tab_index().unwrap(), 1);
         assert_eq!(workspace.tabs()[0].tab_id().to_string(), "1");
         assert_eq!(workspace.tabs()[0].method(), HttpMethod::GET);
         assert_eq!(workspace.tabs()[0].url(), tab_a_url);
@@ -141,21 +157,21 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     // Tab A, Tab+Enter activates B, and Shift-Tab+Space activates A again.
     click(cx, "request-tab-0").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         0
     );
     assert!(cx.debug_bounds("params-ready-indicator").is_some());
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
     assert!(cx.debug_bounds("body-input").is_some());
     cx.simulate_keystrokes("shift-tab");
     cx.simulate_keystrokes("space");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         0
     );
 
@@ -185,7 +201,7 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.active_tab_index(), 1);
+        assert_eq!(workspace.active_tab_index().unwrap(), 1);
         assert!(matches!(
             workspace.tabs()[0].response(),
             ResponseState::Success { body, .. } if body.contains(r#""tab":"A""#)
@@ -227,11 +243,14 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     click(cx, "close-tab-1").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.tab_count(), 1);
-        assert_eq!(workspace.active_tab_index(), 0);
-        assert_eq!(workspace.url(), tab_a_url);
-        assert_eq!(workspace.request_pane(), RequestPane::Params);
+        assert_eq!(workspace.active_tab_index().unwrap(), 0);
+        assert_eq!(workspace.active_request().unwrap().url(), tab_a_url);
+        assert_eq!(
+            workspace.active_request().unwrap().request_pane(),
+            RequestPane::Params
+        );
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { body, .. } if body.contains(r#""tab":"A""#)
         ));
         assert_eq!(workspace.history_len(), 2);
@@ -290,26 +309,53 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
 
     click(cx, "request-tab-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::POST);
         assert_eq!(
-            workspace.url(),
+            workspace.active_request().unwrap().method(),
+            HttpMethod::POST
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().url(),
             "https://first.example/items?first-param=one"
         );
         assert_eq!(
-            workspace.row_draft(RequestPane::Params),
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Params),
             Some(("first-param", "one"))
         );
         assert_eq!(
-            workspace.row_draft(RequestPane::Headers),
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Headers),
             Some(("X-First", "header-one"))
         );
-        assert_eq!(workspace.authorization_kind(), AuthorizationKind::Bearer);
-        assert_eq!(workspace.bearer_token(), "first-token");
-        assert_eq!(workspace.body_kind(), BodyKind::Json);
-        assert_eq!(workspace.body(), r#"{"tab":1}"#);
-        assert_eq!(workspace.pre_request_script(), "prepare-first()");
-        assert_eq!(workspace.tests_script(), "assert-first()");
-        assert_eq!(workspace.request_pane(), RequestPane::Tests);
+        assert_eq!(
+            workspace.active_request().unwrap().authorization_kind(),
+            AuthorizationKind::Bearer
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().bearer_token(),
+            "first-token"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Json
+        );
+        assert_eq!(workspace.active_request().unwrap().body(), r#"{"tab":1}"#);
+        assert_eq!(
+            workspace.active_request().unwrap().pre_request_script(),
+            "prepare-first()"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().tests_script(),
+            "assert-first()"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_pane(),
+            RequestPane::Tests
+        );
     });
 
     // Continue typing into each restored control. This checks the explicit pane projection path,
@@ -339,6 +385,8 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
     cx.simulate_input("-restored");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
             .row_draft(RequestPane::Params)
             .map(|(key, value)| (key.to_string(), value.to_string()))),
         Some(("first-param".to_string(), "one-restored".to_string()))
@@ -349,42 +397,84 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
-            workspace.url(),
+            workspace.active_request().unwrap().url(),
             "https://first.example/items?first-param=one-restored#restored"
         );
         assert_eq!(
-            workspace.row_draft(RequestPane::Headers),
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Headers),
             Some(("X-First", "header-one-restored"))
         );
-        assert_eq!(workspace.bearer_token(), "first-token-restored");
-        assert_eq!(workspace.body(), r#"{"tab":1} "#);
-        assert_eq!(workspace.pre_request_script(), "prepare-first()-restored");
-        assert_eq!(workspace.tests_script(), "assert-first()-restored");
+        assert_eq!(
+            workspace.active_request().unwrap().bearer_token(),
+            "first-token-restored"
+        );
+        assert_eq!(workspace.active_request().unwrap().body(), r#"{"tab":1} "#);
+        assert_eq!(
+            workspace.active_request().unwrap().pre_request_script(),
+            "prepare-first()-restored"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().tests_script(),
+            "assert-first()-restored"
+        );
     });
 
     click(cx, "request-tab-1").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::PATCH);
         assert_eq!(
-            workspace.url(),
+            workspace.active_request().unwrap().method(),
+            HttpMethod::PATCH
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().url(),
             "https://second.example/items?second-param=two"
         );
         assert_eq!(
-            workspace.row_draft(RequestPane::Params),
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Params),
             Some(("second-param", "two"))
         );
         assert_eq!(
-            workspace.row_draft(RequestPane::Headers),
+            workspace
+                .active_request()
+                .unwrap()
+                .row_draft(RequestPane::Headers),
             Some(("X-Second", "header-two"))
         );
-        assert_eq!(workspace.authorization_kind(), AuthorizationKind::Basic);
-        assert_eq!(workspace.basic_username(), "second-user");
-        assert_eq!(workspace.basic_password(), "second-pass");
-        assert_eq!(workspace.body_kind(), BodyKind::Raw);
-        assert_eq!(workspace.body(), "second-body");
-        assert_eq!(workspace.pre_request_script(), "prepare-second()");
-        assert_eq!(workspace.tests_script(), "assert-second()");
-        assert_eq!(workspace.request_pane(), RequestPane::Body);
+        assert_eq!(
+            workspace.active_request().unwrap().authorization_kind(),
+            AuthorizationKind::Basic
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().basic_username(),
+            "second-user"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().basic_password(),
+            "second-pass"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Raw
+        );
+        assert_eq!(workspace.active_request().unwrap().body(), "second-body");
+        assert_eq!(
+            workspace.active_request().unwrap().pre_request_script(),
+            "prepare-second()"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().tests_script(),
+            "assert-second()"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_pane(),
+            RequestPane::Body
+        );
     });
 }
 
@@ -407,7 +497,11 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -420,7 +514,11 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     replace_text(cx, "url-input", "https://draft.example/changed").unwrap();
     click(cx, "history-item-0").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         request_url
     );
 
@@ -429,7 +527,11 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         request_url
     );
 
@@ -438,7 +540,11 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("space");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         request_url
     );
     completed.assert();
@@ -463,7 +569,11 @@ fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) 
     click(cx, "row-value-input").unwrap();
     cx.simulate_input("-params");
     assert!(workspace.read_with(cx, |workspace, _| {
-        workspace.row_draft(RequestPane::Params) == Some(("q", "first-params"))
+        workspace
+            .active_request()
+            .unwrap()
+            .row_draft(RequestPane::Params)
+            == Some(("q", "first-params"))
     }));
 
     click(cx, "new-tab-button").unwrap();
@@ -475,10 +585,18 @@ fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) 
     click(cx, "row-value-input").unwrap();
     cx.simulate_input("-restored");
     assert!(workspace.read_with(cx, |workspace, _| {
-        workspace.row_draft(RequestPane::Params) == Some(("q", "first-params-restored"))
+        workspace
+            .active_request()
+            .unwrap()
+            .row_draft(RequestPane::Params)
+            == Some(("q", "first-params-restored"))
     }));
     assert!(workspace.read_with(cx, |workspace, _| {
-        workspace.row_draft(RequestPane::Headers) == Some(("X-Tab-Draft", "one"))
+        workspace
+            .active_request()
+            .unwrap()
+            .row_draft(RequestPane::Headers)
+            == Some(("X-Tab-Draft", "one"))
     }));
 }
 
@@ -512,7 +630,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
-            workspace.body_draft(),
+            workspace.active_request().unwrap().body_draft(),
             &RequestBodyDraft::UrlEncoded(vec![
                 KeyValueRow::enabled("tag", "rust 你好"),
                 KeyValueRow {
@@ -540,7 +658,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
-            workspace.body_draft(),
+            workspace.active_request().unwrap().body_draft(),
             &RequestBodyDraft::UrlEncoded(vec![
                 KeyValueRow::enabled("tag", "rust 你好"),
                 KeyValueRow::enabled("ignored", "draft-only"),
@@ -550,7 +668,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
             ])
         );
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().request_body(),
             RequestBody::UrlEncoded(
                 "tag=rust+%E4%BD%A0%E5%A5%BD&ignored=draft-only&tag=gpui-restored".to_string()
             )
@@ -595,20 +713,25 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
     // field. Seed it in the authoritative draft, then prove projection and the next visible edit
     // round-trip it together with the path and optional file name.
     workspace.update(cx, |workspace, cx| {
-        let RequestBodyDraft::Multipart(mut parts) = workspace.body_draft().clone() else {
+        let RequestBodyDraft::Multipart(mut parts) =
+            workspace.active_request().unwrap().body_draft().clone()
+        else {
             panic!("form-data selection must create a multipart draft");
         };
         let MultipartDraftValue::File { content_type, .. } = &mut parts[2].value else {
             panic!("selected upload row must remain a file");
         };
         *content_type = Some("text/plain".to_string());
-        workspace.set_multipart_draft_parts(parts);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_multipart_draft_parts(parts);
         cx.notify();
     });
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
-            workspace.body_draft(),
+            workspace.active_request().unwrap().body_draft(),
             &RequestBodyDraft::Multipart(vec![
                 MultipartDraftPart::text("note", "hello", true),
                 MultipartDraftPart::text("ignored-text", "draft-only", false),
@@ -629,7 +752,10 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
     assert!(cx.debug_bounds("body-form-row-3").is_some());
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .request_body()),
         RequestBody::Multipart(vec![MultipartPart::text("note", "hello")])
     );
 
@@ -642,7 +768,7 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
 
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().request_body(),
             RequestBody::Multipart(vec![
                 MultipartPart::text("note", "hello"),
                 MultipartPart::text("ignored-text", "draft-only"),
@@ -672,7 +798,7 @@ fn left_rail_new_request_is_a_real_command(cx: &mut TestAppContext) {
         2
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
 }
@@ -750,15 +876,25 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     // Live input remains verbatim in the VM. The normalized request value is a projection, not a
     // second editable source of truth.
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         "Bearer ui-secret"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.normalized_bearer_token()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .normalized_bearer_token()),
         "ui-secret"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.authorization_header_preview()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .authorization_header_preview()),
         Some("Authorization: Bearer ui-secret".to_string())
     );
 
@@ -767,11 +903,19 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     cx.run_until_parked();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         "ui-secret"
     );
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -823,21 +967,36 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
 
     type_into(cx, "basic-auth-username-input", "ui-user").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_username().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_username()
+            .to_string()),
         "ui-user"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         ""
     );
 
     type_into(cx, "basic-auth-password-input", "ui-pass").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         "ui-pass"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.authorization_header_preview()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .authorization_header_preview()),
         Some("Authorization: Basic dWktdXNlcjp1aS1wYXNz".to_string())
     );
 
@@ -846,19 +1005,34 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
     cx.run_until_parked();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.authorization_kind()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .authorization_kind()),
         AuthorizationKind::Basic
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_username().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_username()
+            .to_string()),
         "ui-user"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         "ui-pass"
     );
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -898,6 +1072,8 @@ fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
     click(cx, "new-tab-button").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
             .pre_request_script()
             .to_string()),
         ""
@@ -905,12 +1081,18 @@ fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
     click(cx, "request-tab-0").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
             .pre_request_script()
             .to_string()),
         "const token = 'first';"
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.tests_script().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .tests_script()
+            .to_string()),
         "status === 200"
     );
 }

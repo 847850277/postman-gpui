@@ -30,7 +30,11 @@ impl RequestComposer {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let active = self.view_model.read(cx).request_pane() == pane;
+        let active = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .is_some_and(|request| request.request_pane() == pane);
         let selector = request_pane_selector(pane);
         let label = label.into();
         let accessible_label = format!("{label} request pane");
@@ -107,9 +111,10 @@ impl RequestComposer {
     ) -> impl IntoElement {
         let (is_sending, url_query_count, request_id, in_flight_count) = {
             let view_model = self.view_model.read(cx);
+            let active = view_model.active_request();
             (
-                view_model.is_sending(),
-                view_model.url_query_parameter_count(),
+                active.is_some_and(|request| request.is_sending()),
+                active.map_or(0, |request| request.url_query_parameter_count()),
                 view_model.active_request_id(),
                 view_model.in_flight_count(),
             )
@@ -224,23 +229,24 @@ impl RequestComposer {
     ) -> impl IntoElement {
         let (header_count, authorization_kind, has_authorization, has_body, has_script, has_tests) = {
             let view_model = self.view_model.read(cx);
-            (
-                view_model
-                    .headers()
-                    .iter()
-                    .filter(|row| row.enabled)
-                    .count(),
-                view_model.authorization_kind(),
-                match view_model.authorization_kind() {
-                    AuthorizationKind::Bearer => !view_model.bearer_token().is_empty(),
-                    AuthorizationKind::Basic => {
-                        !view_model.basic_username().is_empty()
-                            || !view_model.basic_password().is_empty()
-                    }
+            view_model.active_request().map_or(
+                (0, AuthorizationKind::Bearer, false, false, false, false),
+                |request| {
+                    (
+                        request.headers().iter().filter(|row| row.enabled).count(),
+                        request.authorization_kind(),
+                        match request.authorization_kind() {
+                            AuthorizationKind::Bearer => !request.bearer_token().is_empty(),
+                            AuthorizationKind::Basic => {
+                                !request.basic_username().is_empty()
+                                    || !request.basic_password().is_empty()
+                            }
+                        },
+                        !request.request_body().is_empty(),
+                        !request.pre_request_script().is_empty(),
+                        !request.tests_script().is_empty(),
+                    )
                 },
-                !view_model.request_body().is_empty(),
-                !view_model.pre_request_script().is_empty(),
-                !view_model.tests_script().is_empty(),
             )
         };
         div()

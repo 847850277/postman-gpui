@@ -151,9 +151,8 @@ impl RequestWorkspace {
     }
 
     pub(super) fn focus_active_request_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let active_tab_id = {
-            let view_model = self.view_model.read(cx);
-            view_model.tabs()[view_model.active_tab_index()].tab_id()
+        let Some(active_tab_id) = self.view_model.read(cx).active_tab_id() else {
+            return;
         };
         self.tab_focus_handles
             .entry(active_tab_id)
@@ -172,9 +171,8 @@ impl RequestWorkspace {
     }
 
     pub(super) fn close_active_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let active_tab_id = {
-            let view_model = self.view_model.read(cx);
-            view_model.tabs()[view_model.active_tab_index()].tab_id()
+        let Some(active_tab_id) = self.view_model.read(cx).active_tab_id() else {
+            return;
         };
         self.close_request_tab(active_tab_id, cx);
         self.focus_active_request_tab(window, cx);
@@ -192,8 +190,10 @@ impl RequestWorkspace {
             if count == 0 {
                 return;
             }
-            let next = (view_model.active_tab_index() as isize + delta).rem_euclid(count as isize)
-                as usize;
+            let Some(active_index) = view_model.active_tab_index() else {
+                return;
+            };
+            let next = (active_index as isize + delta).rem_euclid(count as isize) as usize;
             view_model.tabs()[next].tab_id()
         };
         self.activate_request_tab(tab_id, cx);
@@ -204,8 +204,9 @@ impl RequestWorkspace {
         if let Some(send_id) = self.view_model.read(cx).active_send_id() {
             self.cancel_send(send_id, cx);
         }
-        self.update_view_model(cx, |view_model| view_model.load_history_entry(entry));
-        self.project_active_request(cx);
+        if self.update_view_model(cx, |view_model| view_model.load_history_entry(entry)) {
+            self.project_active_request(cx);
+        }
     }
 }
 

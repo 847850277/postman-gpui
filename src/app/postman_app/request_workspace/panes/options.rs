@@ -1,5 +1,5 @@
 use crate::{
-    app::{ActivateControl, ResponseState, WorkspaceViewModel},
+    app::{ActivateControl, RequestViewModel, ResponseState, WorkspaceViewModel},
     models::{RedirectPolicy, MAX_REDIRECT_HOPS},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
@@ -77,6 +77,20 @@ impl OptionsPane {
         pane
     }
 
+    fn update_active_request<R>(
+        &self,
+        cx: &mut Context<Self>,
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
+        let result = self.view_model.update(cx, |view_model, cx| {
+            let result = view_model.update_active_request(update);
+            cx.notify();
+            result
+        });
+        cx.notify();
+        result
+    }
+
     fn on_timeout_event(
         &mut self,
         input: Entity<HeaderInput>,
@@ -95,12 +109,13 @@ impl OptionsPane {
         };
 
         if let Some(timeout_ms) = parsed {
-            self.view_model.update(cx, |view_model, cx| {
-                view_model.set_timeout_ms(timeout_ms);
-                cx.notify();
-            });
+            self.update_active_request(cx, |request| request.set_timeout_ms(timeout_ms));
         } else {
-            let timeout_ms = self.view_model.read(cx).timeout_ms();
+            let timeout_ms = self
+                .view_model
+                .read(cx)
+                .active_request()
+                .map_or(0, RequestViewModel::timeout_ms);
             input.update(cx, |input, cx| {
                 input.project_content(timeout_value(timeout_ms), cx)
             });
@@ -128,12 +143,15 @@ impl OptionsPane {
             .filter(|value| (1..=MAX_REDIRECT_HOPS).contains(value));
 
         if let Some(max_redirect_hops) = parsed {
-            self.view_model.update(cx, |view_model, cx| {
-                view_model.set_max_redirect_hops(max_redirect_hops);
-                cx.notify();
+            self.update_active_request(cx, |request| {
+                request.set_max_redirect_hops(max_redirect_hops)
             });
         } else {
-            let max_redirect_hops = self.view_model.read(cx).max_redirect_hops();
+            let max_redirect_hops = self
+                .view_model
+                .read(cx)
+                .active_request()
+                .map_or(1, RequestViewModel::max_redirect_hops);
             input.update(cx, |input, cx| {
                 input.project_content(max_redirect_hops.to_string(), cx)
             });
@@ -142,26 +160,22 @@ impl OptionsPane {
     }
 
     fn set_redirect_policy(&mut self, policy: RedirectPolicy, cx: &mut Context<Self>) {
-        self.view_model.update(cx, |view_model, cx| {
-            view_model.set_redirect_policy(policy);
-            cx.notify();
-        });
-        cx.notify();
+        self.update_active_request(cx, |request| request.set_redirect_policy(policy));
     }
 
     fn adjust_max_redirects(&mut self, delta: i32, cx: &mut Context<Self>) {
         let (policy, current) = {
             let view_model = self.view_model.read(cx);
-            (view_model.redirect_policy(), view_model.max_redirect_hops())
+            let Some(request) = view_model.active_request() else {
+                return;
+            };
+            (request.redirect_policy(), request.max_redirect_hops())
         };
         if policy != RedirectPolicy::Follow {
             return;
         }
         let next = (current as i32 + delta).clamp(1, MAX_REDIRECT_HOPS as i32) as u32;
-        self.view_model.update(cx, |view_model, cx| {
-            view_model.set_max_redirect_hops(next);
-            cx.notify();
-        });
+        self.update_active_request(cx, |request| request.set_max_redirect_hops(next));
         self.max_redirects_input
             .update(cx, |input, cx| input.project_content(next.to_string(), cx));
         cx.notify();
@@ -191,7 +205,9 @@ impl OptionsPane {
     ) {
         let (timeout_ms, max_redirect_hops) = {
             let view_model = self.view_model.read(cx);
-            (view_model.timeout_ms(), view_model.max_redirect_hops())
+            view_model.active_request().map_or((0, 1), |request| {
+                (request.timeout_ms(), request.max_redirect_hops())
+            })
         };
         self.timeout_input.update(cx, |input, cx| {
             input.project_content(timeout_value(timeout_ms), cx)
@@ -327,27 +343,32 @@ impl Render for OptionsPane {
             lifecycle,
         ) = {
             let view_model = self.view_model.read(cx);
-            let lifecycle = match view_model.response() {
-                ResponseState::NotSent => "Not sent",
-                ResponseState::Loading => "ResponseState::Loading",
-                ResponseState::Cancelled => "ResponseState::Cancelled",
-                ResponseState::Success { .. } => "ResponseState::Success",
-                ResponseState::Historical { .. } => "ResponseState::Historical",
-                ResponseState::HistoricalUnavailable { .. } => {
+            let active = view_model.active_request();
+            let lifecycle = match active.map(RequestViewModel::response) {
+                None => "No active request",
+                Some(ResponseState::NotSent) => "Not sent",
+                Some(ResponseState::Loading) => "ResponseState::Loading",
+                Some(ResponseState::Cancelled) => "ResponseState::Cancelled",
+                Some(ResponseState::Success { .. }) => "ResponseState::Success",
+                Some(ResponseState::Historical { .. }) => "ResponseState::Historical",
+                Some(ResponseState::HistoricalUnavailable { .. }) => {
                     "ResponseState::Historical · unavailable"
                 }
-                ResponseState::Error { message }
+                Some(ResponseState::Error { message })
                     if message.starts_with("Request timed out after") =>
                 {
                     "ResponseState::Error · timeout"
                 }
-                ResponseState::Error { .. } => "ResponseState::Error",
+                Some(ResponseState::Error { .. }) => "ResponseState::Error",
             };
             (
-                view_model.timeout_ms(),
-                view_model.redirect_policy(),
-                view_model.max_redirect_hops(),
-                format!("{} {}", view_model.method(), view_model.effective_url()),
+                active.map_or(0, RequestViewModel::timeout_ms),
+                active.map_or(RedirectPolicy::Follow, RequestViewModel::redirect_policy),
+                active.map_or(1, RequestViewModel::max_redirect_hops),
+                active.map_or_else(
+                    || "No active request".to_string(),
+                    |request| format!("{} {}", request.method(), request.effective_url()),
+                ),
                 view_model.active_request_id(),
                 view_model.in_flight_count(),
                 lifecycle,

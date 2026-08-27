@@ -1,5 +1,5 @@
 use crate::{
-    app::WorkspaceViewModel,
+    app::{RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::body_input::{BodyInput, BodyInputEvent, BodyType},
         theme::{CODE_BG, CODE_TEXT, FONT_UI, MUTED},
@@ -50,13 +50,13 @@ impl ScriptPane {
         pane
     }
 
-    fn update_view_model<R>(
+    fn update_active_request<R>(
         &self,
         cx: &mut Context<Self>,
-        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
-    ) -> R {
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
         let result = self.view_model.update(cx, |view_model, cx| {
-            let result = update(view_model);
+            let result = view_model.update_active_request(update);
             cx.notify();
             result
         });
@@ -73,12 +73,12 @@ impl ScriptPane {
         if let BodyInputEvent::ValueChanged(script) = event {
             match self.kind {
                 ScriptPaneKind::PreRequest => {
-                    self.update_view_model(cx, |view_model| {
-                        view_model.set_pre_request_script(script)
+                    self.update_active_request(cx, |request| {
+                        request.set_pre_request_script(script)
                     });
                 }
                 ScriptPaneKind::Tests => {
-                    self.update_view_model(cx, |view_model| view_model.set_tests_script(script));
+                    self.update_active_request(cx, |request| request.set_tests_script(script));
                 }
             }
         }
@@ -90,11 +90,15 @@ impl ScriptPane {
     ) {
         let content = {
             let view_model = self.view_model.read(cx);
-            match self.kind {
-                ScriptPaneKind::PreRequest => view_model.pre_request_script(),
-                ScriptPaneKind::Tests => view_model.tests_script(),
-            }
-            .to_string()
+            view_model
+                .active_request()
+                .map_or_else(String::new, |request| {
+                    match self.kind {
+                        ScriptPaneKind::PreRequest => request.pre_request_script(),
+                        ScriptPaneKind::Tests => request.tests_script(),
+                    }
+                    .to_string()
+                })
         };
         self.input.update(cx, |input, cx| {
             input.set_type_silent(BodyType::Raw, cx);

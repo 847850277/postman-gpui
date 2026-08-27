@@ -3,7 +3,7 @@ mod raw;
 use crate::{
     app::{
         ActivateControl, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
-        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, ResponseState,
+        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestViewModel, ResponseState,
         WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
@@ -70,13 +70,13 @@ impl BodyPane {
         pane
     }
 
-    fn update_view_model<R>(
+    fn update_active_request<R>(
         &self,
         cx: &mut Context<Self>,
-        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
-    ) -> R {
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
         let result = self.view_model.update(cx, |view_model, cx| {
-            let result = update(view_model);
+            let result = view_model.update_active_request(update);
             cx.notify();
             result
         });
@@ -92,12 +92,12 @@ impl BodyPane {
     ) {
         match event {
             BodyInputEvent::ValueChanged(value) => {
-                self.update_view_model(cx, |view_model| view_model.set_body(value));
+                self.update_active_request(cx, |request| request.set_body(value));
             }
             BodyInputEvent::FormDataChanged(entries) => {
                 let entries = entries.clone();
-                self.update_view_model(cx, |view_model| match view_model.body_kind() {
-                    BodyKind::UrlEncoded => view_model.set_url_encoded_rows(
+                self.update_active_request(cx, |request| match request.body_kind() {
+                    BodyKind::UrlEncoded => request.set_url_encoded_rows(
                         entries
                             .into_iter()
                             .map(|entry| KeyValueRow {
@@ -126,7 +126,7 @@ impl BodyPane {
                                 }
                             })
                             .collect();
-                        view_model.set_multipart_draft_parts(parts);
+                        request.set_multipart_draft_parts(parts);
                     }
                     BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
                 });
@@ -135,22 +135,22 @@ impl BodyPane {
     }
 
     fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| {
-            let current = view_model.body_kind();
+        self.update_active_request(cx, |request| {
+            let current = request.body_kind();
             let current_is_form = matches!(current, BodyKind::UrlEncoded | BodyKind::Multipart);
             let next_is_form = matches!(kind, BodyKind::UrlEncoded | BodyKind::Multipart);
             if current != kind && current_is_form != next_is_form {
-                view_model.clear_body();
+                request.clear_body();
             }
-            view_model.set_body_kind(kind);
+            request.set_body_kind(kind);
         });
         self.project_active_request(cx);
     }
 
     fn use_sample_json(&mut self, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| {
-            view_model.set_body_kind(BodyKind::Json);
-            view_model.set_body(
+        self.update_active_request(cx, |request| {
+            request.set_body_kind(BodyKind::Json);
+            request.set_body(
                 r#"{
   "name": "Ada Lovelace",
   "email": "ada@example.com",
@@ -162,7 +162,7 @@ impl BodyPane {
     }
 
     fn clear_body(&mut self, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.clear_body());
+        self.update_active_request(cx, RequestViewModel::clear_body);
         self.project_active_request(cx);
     }
 
@@ -176,7 +176,11 @@ impl BodyPane {
     ) {
         let (body_draft, body_kind) = {
             let view_model = self.view_model.read(cx);
-            (view_model.body_draft().clone(), view_model.body_kind())
+            view_model
+                .active_request()
+                .map_or((RequestBodyDraft::None, BodyKind::None), |request| {
+                    (request.body_draft().clone(), request.body_kind())
+                })
         };
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
@@ -232,13 +236,16 @@ impl BodyPane {
             multipart_error,
         ) = {
             let view_model = self.view_model.read(cx);
-            let multipart_omitted = match view_model.body_draft() {
+            let Some(request) = view_model.active_request() else {
+                return div().into_any_element();
+            };
+            let multipart_omitted = match request.body_draft() {
                 RequestBodyDraft::Multipart(parts) => {
                     parts.iter().filter(|part| !part.enabled).count()
                 }
                 _ => 0,
             };
-            let multipart_error = match view_model.response() {
+            let multipart_error = match request.response() {
                 ResponseState::Error { message }
                     if message.contains("failed to read multipart file") =>
                 {
@@ -247,12 +254,12 @@ impl BodyPane {
                 _ => None,
             };
             (
-                view_model.body_kind(),
-                view_model.body().to_string(),
-                view_model.request_body(),
-                view_model.method(),
-                view_model.effective_url(),
-                view_model.effective_headers(),
+                request.body_kind(),
+                request.body().to_string(),
+                request.request_body(),
+                request.method(),
+                request.effective_url(),
+                request.effective_headers(),
                 multipart_omitted,
                 multipart_error,
             )

@@ -30,7 +30,7 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     assert_eq!(
         workspace.read_with(cx, |workspace, _| (
             workspace.tab_count(),
-            workspace.active_tab_index()
+            workspace.active_tab_index().unwrap()
         )),
         (2, 1)
     );
@@ -39,32 +39,36 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     cx.write_to_clipboard(ClipboardItem::new_string(url.clone()));
     cx.simulate_keystrokes("ctrl-l ctrl-a ctrl-v");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         url
     );
 
     cx.simulate_keystrokes("ctrl-tab");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         0
     );
     cx.simulate_keystrokes("ctrl-shift-tab");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
 
     click(cx, "request-tab-0").unwrap();
     cx.simulate_keystrokes("right");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index()),
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
 
     cx.simulate_keystrokes("ctrl-enter");
     cx.run_until_parked();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Success { status: 200, ref body, .. } if body == "keyboard-ok"
     ));
     click(cx, "response-pane-body").unwrap();
@@ -102,7 +106,10 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     click(cx, "method-dropdown-button").unwrap();
     cx.simulate_keystrokes("down escape");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.method()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .method()),
         HttpMethod::POST
     );
     assert!(cx.debug_bounds("method-dropdown-menu").is_none());
@@ -110,14 +117,20 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     click(cx, "request-pane-params").unwrap();
     cx.simulate_keystrokes("right");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.request_pane()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .request_pane()),
         RequestPane::Authorization
     );
 
     click(cx, "auth-kind-bearer").unwrap();
     cx.simulate_keystrokes("right");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.authorization_kind()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .authorization_kind()),
         AuthorizationKind::Basic
     );
 
@@ -125,18 +138,27 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     click(cx, "redirect-policy-follow").unwrap();
     cx.simulate_keystrokes("right");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.redirect_policy()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_policy()),
         RedirectPolicy::DoNotFollow
     );
     cx.simulate_keystrokes("left");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.redirect_policy()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_policy()),
         RedirectPolicy::Follow
     );
     click(cx, "redirect-max-hops-decrease").unwrap();
     cx.simulate_keystrokes("enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.max_redirect_hops()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .max_redirect_hops()),
         8,
         "the focused stepper should activate through Enter"
     );
@@ -145,49 +167,72 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     click(cx, "body-kind-raw").unwrap();
     cx.simulate_keystrokes("right");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body_kind()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body_kind()),
         BodyKind::Json
     );
 
     click(cx, "request-pane-params").unwrap();
-    let initial_rows = workspace.read_with(cx, |workspace, _| workspace.params().len());
+    let initial_rows = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().params().len()
+    });
     click(cx, "add-row-button").unwrap();
     cx.simulate_keystrokes("enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.params().len()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .params()
+            .len()),
         initial_rows + 2
     );
 
     // From Add: draft value, draft key, then the final row's Delete control.
     cx.simulate_keystrokes("shift-tab shift-tab shift-tab enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.params().len()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .params()
+            .len()),
         initial_rows + 1
     );
     // Deletion moves focus to a surviving row toggle, so Space remains a valid next command.
     cx.simulate_keystrokes("space");
-    assert!(!workspace.read_with(cx, |workspace, _| workspace.params()[0].enabled));
+    assert!(!workspace.read_with(cx, |workspace, _| workspace
+        .active_request()
+        .unwrap()
+        .params()[0]
+        .enabled));
 
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-url-encoded").unwrap();
-    let initial_form_rows = workspace.read_with(cx, |workspace, _| match workspace.body_draft() {
-        RequestBodyDraft::UrlEncoded(rows) => rows.len(),
-        _ => 0,
+    let initial_form_rows = workspace.read_with(cx, |workspace, _| {
+        match workspace.active_request().unwrap().body_draft() {
+            RequestBodyDraft::UrlEncoded(rows) => rows.len(),
+            _ => 0,
+        }
     });
     click(cx, "body-form-add-row").unwrap();
     cx.simulate_keystrokes("enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| match workspace.body_draft() {
-            RequestBodyDraft::UrlEncoded(rows) => rows.len(),
-            _ => 0,
+        workspace.read_with(cx, |workspace, _| {
+            match workspace.active_request().unwrap().body_draft() {
+                RequestBodyDraft::UrlEncoded(rows) => rows.len(),
+                _ => 0,
+            }
         }),
         initial_form_rows + 2
     );
     cx.simulate_keystrokes("shift-tab enter");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| match workspace.body_draft() {
-            RequestBodyDraft::UrlEncoded(rows) => rows.len(),
-            _ => 0,
+        workspace.read_with(cx, |workspace, _| {
+            match workspace.active_request().unwrap().body_draft() {
+                RequestBodyDraft::UrlEncoded(rows) => rows.len(),
+                _ => 0,
+            }
         }),
         initial_form_rows + 1
     );
@@ -223,19 +268,31 @@ fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppConte
     cx.simulate_input("https://unicode.example/中文/items");
     cx.simulate_keystrokes("ctrl-z");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         ""
     );
     cx.simulate_keystrokes("ctrl-y");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://unicode.example/中文/items"
     );
 
     // A tab switch projects another request and clears editor-local history.
     cx.simulate_keystrokes("ctrl-t ctrl-z");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         ""
     );
 }
