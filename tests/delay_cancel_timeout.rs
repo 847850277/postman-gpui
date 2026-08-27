@@ -74,7 +74,11 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
     click(cx, "send-button").expect("completion should send through the rendered control");
     cx.run_until_parked();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -94,7 +98,7 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
         (
             workspace.active_request_id(),
             workspace.in_flight_count(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().response().clone(),
         )
     });
     assert_eq!(request_id.as_deref(), Some("req-02"));
@@ -122,7 +126,11 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
     release(&cancel_gate);
     cx.run_until_parked();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Cancelled
     ));
     assert_eq!(
@@ -143,7 +151,10 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
     type_into(cx, "request-timeout-input", "50")
         .expect("the per-request timeout should be directly editable");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.timeout_ms()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .timeout_ms()),
         50
     );
     assert!(cx.debug_bounds("request-timeout-enabled").is_some());
@@ -153,7 +164,7 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Error { message } if message == "Request timed out after 50 ms"
     ));
     assert_eq!(

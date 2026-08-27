@@ -163,9 +163,18 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
 fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/get?existing=1");
-        workspace.upsert_param("q", "rust gpui");
-        workspace.upsert_param("locale", "中文");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/get?existing=1");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .upsert_param("q", "rust gpui");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .upsert_param("locale", "中文");
         workspace
     });
     let observed = workspace.clone();
@@ -196,9 +205,18 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
 fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/bearer");
-        workspace.set_request_pane(RequestPane::Authorization);
-        workspace.set_bearer_token("Bearer scenario-token");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/bearer");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Authorization);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token("Bearer scenario-token");
         workspace
     });
     let observed = workspace.clone();
@@ -242,11 +260,26 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
 fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_url("https://httpbingo.org/basic-auth/scenario-user/scenario-pass");
-        workspace.set_request_pane(RequestPane::Authorization);
-        workspace.set_authorization_kind(AuthorizationKind::Basic);
-        workspace.set_basic_username("scenario-user");
-        workspace.set_basic_password("scenario-pass");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/basic-auth/scenario-user/scenario-pass");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Authorization);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_authorization_kind(AuthorizationKind::Basic);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_basic_username("scenario-user");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_basic_password("scenario-pass");
         workspace
     });
     let observed = workspace.clone();
@@ -301,12 +334,30 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
 ) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.upsert_header("X-Scenario", "httpbingo-json");
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://httpbingo.org/anything/post-json");
-        workspace.set_body_kind(BodyKind::Json);
-        workspace.set_body(r#"{"name":"Ada","active":true}"#);
-        workspace.set_request_pane(RequestPane::Body);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .upsert_header("X-Scenario", "httpbingo-json");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/anything/post-json");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::Json);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body(r#"{"name":"Ada","active":true}"#);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Body);
         workspace
     });
     let observed = workspace.clone();
@@ -356,11 +407,26 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
 fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_method(HttpMethod::PUT);
-        workspace.set_url("https://httpbingo.org/anything/raw");
-        workspace.set_body_kind(BodyKind::Raw);
-        workspace.set_body("plain text body");
-        workspace.set_request_pane(RequestPane::Body);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::PUT);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/anything/raw");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::Raw);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body("plain text body");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Body);
         workspace
     });
     let observed = workspace.clone();
@@ -406,7 +472,11 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         );
     }
     assert!(cx.debug_bounds("body-sample-json").is_none());
-    assert!(workspace.read_with(cx, |workspace, _| workspace.effective_headers().is_empty()));
+    assert!(workspace.read_with(cx, |workspace, _| workspace
+        .active_request()
+        .unwrap()
+        .effective_headers()
+        .is_empty()));
 
     assert_eq!(panel.size.height, px(360.0));
     assert_eq!(kinds.size.height, px(44.0));
@@ -428,11 +498,26 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
 fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_url("https://httpbingo.org/anything/form");
-        workspace.set_body_kind(BodyKind::UrlEncoded);
-        workspace.set_body("name=Ada+Lovelace&active=true");
-        workspace.set_request_pane(RequestPane::Body);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://httpbingo.org/anything/form");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::UrlEncoded);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body("name=Ada+Lovelace&active=true");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Body);
         workspace
     });
     let observed = workspace.clone();
@@ -506,10 +591,19 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
 fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_method(HttpMethod::POST);
-        workspace.set_body_kind(BodyKind::UrlEncoded);
-        workspace.set_body("");
-        workspace.set_request_pane(RequestPane::Body);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(BodyKind::UrlEncoded);
+        workspace.active_request_mut().unwrap().set_body("");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Body);
         workspace
     });
     let observed = workspace.clone();
@@ -617,7 +711,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
 
     workspace.update(cx, |workspace, cx| {
         for _ in 0..3 {
-            workspace.append_param_row();
+            workspace.active_request_mut().unwrap().append_param_row();
         }
         cx.notify();
     });
@@ -637,7 +731,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
 
     workspace.update(cx, |workspace, cx| {
         for _ in 0..20 {
-            workspace.append_param_row();
+            workspace.active_request_mut().unwrap().append_param_row();
         }
         cx.notify();
     });
@@ -663,7 +757,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
     assert!(thumb.size.height < scrollbar.size.height);
 
     workspace.update(cx, |workspace, cx| {
-        workspace.append_param_row();
+        workspace.active_request_mut().unwrap().append_param_row();
         cx.notify();
     });
     cx.run_until_parked();
@@ -680,7 +774,10 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
 fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
-        workspace.set_request_pane(RequestPane::Headers);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_request_pane(RequestPane::Headers);
         workspace
     });
     let observed = workspace.clone();
@@ -698,7 +795,7 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
 
     workspace.update(cx, |workspace, cx| {
         for _ in 0..3 {
-            workspace.append_header_row();
+            workspace.active_request_mut().unwrap().append_header_row();
         }
         cx.notify();
     });
@@ -718,7 +815,7 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
 
     workspace.update(cx, |workspace, cx| {
         for _ in 0..20 {
-            workspace.append_header_row();
+            workspace.active_request_mut().unwrap().append_header_row();
         }
         cx.notify();
     });

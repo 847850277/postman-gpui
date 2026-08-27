@@ -133,7 +133,9 @@ fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Error { message } => assert!(
             message.to_lowercase().contains("url"),
             "error should mention URL, got: {message}"
@@ -164,7 +166,9 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 404);
             assert!(body.contains("missing"));
@@ -197,7 +201,11 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
     let url = format!("{}/status/418", server.url());
     type_into(cx, "url-input", &url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         url,
         "the active URL input must be authoritative before Send"
     );
@@ -206,7 +214,9 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success {
             status,
             body,
@@ -299,7 +309,11 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
     );
     type_into(cx, "url-input", &original_url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         original_url,
         "the focused redirect URL must already be authoritative before Send"
     );
@@ -309,7 +323,9 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success {
             status,
             body,
@@ -383,7 +399,11 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
     let url = format!("{}/json", server.url());
     type_into(cx, "url-input", &url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         url,
         "the focused JSON endpoint must already be authoritative before Send"
     );
@@ -392,7 +412,9 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    let response_before_copy = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response_before_copy = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     match &response_before_copy {
         ResponseState::Success {
             status,
@@ -473,7 +495,11 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
     );
     assert!(cx.debug_bounds("response-copy-feedback").is_some());
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         response_before_copy
     );
     assert_eq!(
@@ -521,7 +547,11 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     let set_url = format!("{}/cookies/set?session=cookie-e2e-demo", server.url());
     type_into(cx, "url-input", &set_url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         set_url,
         "the focused cookie-setting URL must be authoritative before Send"
     );
@@ -539,7 +569,9 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
             "the SQLite History projection must remove the sensitive session query"
         );
         assert!(workspace.history()[0].request.headers.is_empty());
-        let ResponseState::Success { status, body, .. } = workspace.response() else {
+        let ResponseState::Success { status, body, .. } =
+            workspace.active_request().unwrap().response()
+        else {
             panic!("the cookie-setting redirect should finish as a response");
         };
         assert_eq!(*status, 200);
@@ -576,14 +608,19 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     let cookies_url = format!("{}/cookies", server.url());
     type_into(cx, "url-input", &cookies_url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         cookies_url
     );
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    let response_before_clear =
-        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response_before_clear = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     match &response_before_clear {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(*status, 200);
@@ -630,7 +667,10 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         assert_eq!(workspace.cookie_count(), 0);
         assert_eq!(workspace.last_cookie_clear_count(), Some(1));
         assert_eq!(workspace.history_len(), 2);
-        assert_eq!(workspace.response(), &response_before_clear);
+        assert_eq!(
+            workspace.active_request().unwrap().response(),
+            &response_before_clear
+        );
     });
     for selector in ["cookie-jar-empty", "cookie-jar-clear-feedback"] {
         assert!(
@@ -646,7 +686,9 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.cookie_count(), 0);
         assert_eq!(workspace.history_len(), 3);
-        let ResponseState::Success { status, body, .. } = workspace.response() else {
+        let ResponseState::Success { status, body, .. } =
+            workspace.active_request().unwrap().response()
+        else {
             panic!("the after-clear verification should complete as a response");
         };
         assert_eq!(*status, 200);
@@ -684,7 +726,10 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
 
     choose_method(cx, "DELETE").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.method()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .method()),
         HttpMethod::DELETE,
         "the rendered method selector must save directly to the ViewModel"
     );
@@ -694,7 +739,11 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
     let url = format!("{}/delete", server.url());
     type_into(cx, "url-input", &url).unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         url,
         "the active URL input must already be saved before blur"
     );
@@ -703,7 +752,9 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 200);
             let echo: serde_json::Value =
@@ -766,7 +817,7 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
             body,
             headers,
             ..
-        } = workspace.response()
+        } = workspace.active_request().unwrap().response()
         else {
             panic!("response-header fixture should complete successfully");
         };
@@ -794,17 +845,17 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
 
     let lifecycle_before_switch = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.effective_headers(),
-            workspace.request_body(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().effective_headers(),
+            workspace.active_request().unwrap().request_body(),
+            workspace.active_request().unwrap().response().clone(),
             workspace
                 .history()
                 .iter()
                 .map(|entry| entry.id.clone())
                 .collect::<Vec<_>>(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
         )
     });
 
@@ -840,17 +891,17 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             (
-                workspace.method(),
-                workspace.url().to_string(),
-                workspace.effective_headers(),
-                workspace.request_body(),
-                workspace.response().clone(),
+                workspace.active_request().unwrap().method(),
+                workspace.active_request().unwrap().url().to_string(),
+                workspace.active_request().unwrap().effective_headers(),
+                workspace.active_request().unwrap().request_body(),
+                workspace.active_request().unwrap().response().clone(),
                 workspace
                     .history()
                     .iter()
                     .map(|entry| entry.id.clone())
                     .collect::<Vec<_>>(),
-                workspace.active_tab_index(),
+                workspace.active_tab_index().unwrap(),
             )
         }),
         lifecycle_before_switch,
@@ -875,17 +926,17 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             (
-                workspace.method(),
-                workspace.url().to_string(),
-                workspace.effective_headers(),
-                workspace.request_body(),
-                workspace.response().clone(),
+                workspace.active_request().unwrap().method(),
+                workspace.active_request().unwrap().url().to_string(),
+                workspace.active_request().unwrap().effective_headers(),
+                workspace.active_request().unwrap().request_body(),
+                workspace.active_request().unwrap().response().clone(),
                 workspace
                     .history()
                     .iter()
                     .map(|entry| entry.id.clone())
                     .collect::<Vec<_>>(),
-                workspace.active_tab_index(),
+                workspace.active_tab_index().unwrap(),
             )
         }),
         lifecycle_before_switch,
@@ -904,7 +955,7 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
         .expect("empty response-header fixture should finish");
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success {
                 status: 204,
                 body,
@@ -917,13 +968,13 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     assert!(cx.debug_bounds("response-pane-body-active").is_some());
     let empty_lifecycle = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.response().clone(),
+            workspace.active_request().unwrap().response().clone(),
             workspace
                 .history()
                 .iter()
                 .map(|entry| entry.id.clone())
                 .collect::<Vec<_>>(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
         )
     });
     click(cx, "response-pane-headers").unwrap();
@@ -933,13 +984,13 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             (
-                workspace.response().clone(),
+                workspace.active_request().unwrap().response().clone(),
                 workspace
                     .history()
                     .iter()
                     .map(|entry| entry.id.clone())
                     .collect::<Vec<_>>(),
-                workspace.active_tab_index(),
+                workspace.active_tab_index().unwrap(),
             )
         }),
         empty_lifecycle,
@@ -979,14 +1030,20 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
     cx.run_until_parked();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::HEAD);
-        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::HEAD
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::None
+        );
         let ResponseState::Success {
             status,
             body,
             headers,
             ..
-        } = workspace.response()
+        } = workspace.active_request().unwrap().response()
         else {
             panic!("HEAD should complete as an HTTP response");
         };
@@ -1013,14 +1070,20 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
     cx.run_until_parked();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::OPTIONS);
-        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::OPTIONS
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::None
+        );
         let ResponseState::Success {
             status,
             body,
             headers,
             ..
-        } = workspace.response()
+        } = workspace.active_request().unwrap().response()
         else {
             panic!("OPTIONS should complete as an HTTP response");
         };
@@ -1042,11 +1105,17 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
 
     click(cx, "history-item-1").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::HEAD);
-        assert_eq!(workspace.url(), head_url);
-        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::HEAD
+        );
+        assert_eq!(workspace.active_request().unwrap().url(), head_url);
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::None
+        );
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { response, .. }
                 if response.status == 200
                     && matches!(&response.body, HistoricalResponseBody::Empty)
@@ -1057,11 +1126,17 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
 
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::OPTIONS);
-        assert_eq!(workspace.url(), options_url);
-        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::OPTIONS
+        );
+        assert_eq!(workspace.active_request().unwrap().url(), options_url);
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::None
+        );
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { response, .. }
                 if response.status == 200
                     && matches!(&response.body, HistoricalResponseBody::Empty)
@@ -1132,7 +1207,11 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
         }
         urls.push(url.clone());
         assert_eq!(
-            workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+            workspace.read_with(cx, |workspace, _| workspace
+                .active_request()
+                .unwrap()
+                .url()
+                .to_string()),
             url,
             "the latest compressed endpoint edit must be authoritative before Send"
         );
@@ -1141,15 +1220,21 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
         cx.run_until_parked();
 
         workspace.read_with(cx, |workspace, _| {
-            assert_eq!(workspace.method(), HttpMethod::GET);
-            assert!(workspace.headers().is_empty());
-            assert_eq!(workspace.request_body(), RequestBody::None);
+            assert_eq!(
+                workspace.active_request().unwrap().method(),
+                HttpMethod::GET
+            );
+            assert!(workspace.active_request().unwrap().headers().is_empty());
+            assert_eq!(
+                workspace.active_request().unwrap().request_body(),
+                RequestBody::None
+            );
             let ResponseState::Success {
                 status,
                 body: decoded,
                 headers,
                 ..
-            } = workspace.response()
+            } = workspace.active_request().unwrap().response()
             else {
                 panic!("compressed response should complete successfully");
             };
@@ -1203,7 +1288,9 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
     replace_text(cx, "url-input", &format!("{}/corrupt-gzip", server.url())).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Error { message } => assert!(
             message.to_ascii_lowercase().contains("decod"),
             "decoder failure should be readable: {message}"
@@ -1220,12 +1307,18 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
 
     click(cx, "history-item-2").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::GET);
-        assert_eq!(workspace.url(), urls[0]);
-        assert!(workspace.headers().is_empty());
-        assert_eq!(workspace.request_body(), RequestBody::None);
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::GET
+        );
+        assert_eq!(workspace.active_request().unwrap().url(), urls[0]);
+        assert!(workspace.active_request().unwrap().headers().is_empty());
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::None
+        );
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Historical { response, .. }
                 if response.status == 200
                     && matches!(&response.body, HistoricalResponseBody::Text(body)
@@ -1261,7 +1354,9 @@ fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 201);
             assert!(body.contains("ok"));
@@ -1289,7 +1384,10 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
 
     choose_method(cx, "PATCH").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.method()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .method()),
         HttpMethod::PATCH,
         "the rendered method selector must save PATCH directly to the ViewModel"
     );
@@ -1301,9 +1399,12 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
     replace_text(cx, "body-input", r#"{"patched":true}"#).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.body_kind(), BodyKind::Json);
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Json
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
             RequestBody::Json(r#"{"patched":true}"#.to_string()),
             "the active JSON editor must save its latest value before blur"
         );
@@ -1317,7 +1418,9 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 200);
             let echo: serde_json::Value =
@@ -1389,9 +1492,12 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
     replace_text(cx, "body-input", body).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.body_kind(), BodyKind::Json);
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Json
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
             RequestBody::Json(body.to_string())
         );
     });
@@ -1413,7 +1519,9 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 200);
             let echo: serde_json::Value =
@@ -1470,11 +1578,24 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
     replace_text(cx, "body-input", body).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.method(), HttpMethod::PUT);
-        assert_eq!(workspace.body_kind(), BodyKind::Raw);
-        assert_eq!(workspace.body(), body);
-        assert_eq!(workspace.request_body(), RequestBody::Raw(body.to_string()));
-        assert!(workspace.effective_headers().is_empty());
+        assert_eq!(
+            workspace.active_request().unwrap().method(),
+            HttpMethod::PUT
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Raw
+        );
+        assert_eq!(workspace.active_request().unwrap().body(), body);
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            RequestBody::Raw(body.to_string())
+        );
+        assert!(workspace
+            .active_request()
+            .unwrap()
+            .effective_headers()
+            .is_empty());
     });
     for selector in [
         "body-raw-live-saved",
@@ -1503,7 +1624,9 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 200, "unexpected response body: {body}");
             let echo: serde_json::Value =
@@ -1648,13 +1771,16 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     }
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.body_kind(), BodyKind::UrlEncoded);
         assert_eq!(
-            workspace.request_body(),
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::UrlEncoded
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
             RequestBody::UrlEncoded(encoded_body.to_string()),
             "the active URL-encoded Value must already be persisted before blur"
         );
-        let effective_headers = workspace.effective_headers();
+        let effective_headers = workspace.active_request().unwrap().effective_headers();
         for (name, value) in [
             ("Content-Type", "application/x-www-form-urlencoded"),
             ("Accept", "application/json"),
@@ -1700,7 +1826,9 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success { status, body, .. } => {
             assert_eq!(status, 200);
             let echo: serde_json::Value =
@@ -1773,7 +1901,9 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success {
             status,
             body,
@@ -1826,19 +1956,32 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
         server.url()
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         synchronized_url
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.effective_url()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .effective_url()),
         synchronized_url
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url_query_parameter_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url_query_parameter_count()),
         3
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.enabled_param_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .enabled_param_count()),
         3
     );
     assert!(cx.debug_bounds("url-query-count").is_some());
@@ -1850,7 +1993,11 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert!(cx.debug_bounds("response-echo-bar").is_some());
@@ -1888,7 +2035,10 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
     // The initial editor has exactly one visible Key/Value row. Every click must preserve that row
     // and append exactly one more: 1 -> 2 -> 3.
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .visible_param_row_count()),
         1
     );
     assert!(cx.debug_bounds("param-row-0").is_some());
@@ -1898,7 +2048,10 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
         cx.run_until_parked();
         let expected_visible_rows = click_index + 2;
         assert_eq!(
-            workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+            workspace.read_with(cx, |workspace, _| workspace
+                .active_request()
+                .unwrap()
+                .visible_param_row_count()),
             expected_visible_rows,
             "each Add click must add exactly one visible Key/Value row"
         );
@@ -1919,17 +2072,20 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
         server.url()
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.effective_url()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .effective_url()),
         synchronized_url
     );
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.params().len(), 2);
+        assert_eq!(workspace.active_request().unwrap().params().len(), 2);
         assert_eq!(
-            workspace.params()[0],
+            workspace.active_request().unwrap().params()[0],
             KeyValueRow::enabled("q", "rust gpui")
         );
         assert_eq!(
-            workspace.params()[1],
+            workspace.active_request().unwrap().params()[1],
             KeyValueRow::enabled("locale", "中文")
         );
     });
@@ -1941,7 +2097,11 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -1957,9 +2117,15 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
     // Delete targets only the selected row and leaves the other editors intact.
     click(cx, "param-row-delete-1").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.params().len(), 1);
-        assert_eq!(workspace.params()[0].key, "q");
-        assert_eq!(workspace.visible_param_row_count(), 2);
+        assert_eq!(workspace.active_request().unwrap().params().len(), 1);
+        assert_eq!(workspace.active_request().unwrap().params()[0].key, "q");
+        assert_eq!(
+            workspace
+                .active_request()
+                .unwrap()
+                .visible_param_row_count(),
+            2
+        );
     });
     request.assert();
 }
@@ -1973,7 +2139,10 @@ fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut T
 
     click(cx, "request-pane-params").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.visible_param_row_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .visible_param_row_count()),
         1
     );
 
@@ -1996,9 +2165,20 @@ fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut T
         cx.run_until_parked();
         let click_count = click_index + 1;
         workspace.read_with(cx, |workspace, _| {
-            assert_eq!(workspace.params().len(), click_count);
-            assert_eq!(workspace.visible_param_row_count(), click_count + 1);
+            assert_eq!(
+                workspace.active_request().unwrap().params().len(),
+                click_count
+            );
+            assert_eq!(
+                workspace
+                    .active_request()
+                    .unwrap()
+                    .visible_param_row_count(),
+                click_count + 1
+            );
             assert!(workspace
+                .active_request()
+                .unwrap()
                 .params()
                 .iter()
                 .all(|row| row.key.is_empty() && row.value.is_empty()));
@@ -2034,7 +2214,11 @@ fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &m
     click(cx, "request-pane-params").unwrap();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.params().to_vec()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .params()
+            .to_vec()),
         vec![
             KeyValueRow::enabled("existing", "1"),
             KeyValueRow::enabled("q", "rust gpui"),
@@ -2042,7 +2226,10 @@ fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &m
         ]
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.enabled_param_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .enabled_param_count()),
         3
     );
     assert!(cx.debug_bounds("param-row-toggle-0").is_some());
@@ -2053,7 +2240,11 @@ fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &m
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -2092,7 +2283,11 @@ fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     request.assert();
@@ -2146,7 +2341,11 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
         );
     }
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.headers().to_vec()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .headers()
+            .to_vec()),
         vec![
             KeyValueRow::enabled("X-Scenario", "httpbingo-headers"),
             KeyValueRow {
@@ -2161,7 +2360,11 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -2177,7 +2380,12 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
         )])
     );
     assert!(
-        !workspace.read_with(cx, |workspace, _| workspace.headers().to_vec())[1].enabled,
+        !workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .headers()
+            .to_vec())[1]
+            .enabled,
         "disabled rows remain saved in the editor after Send"
     );
     request.assert();
@@ -2208,14 +2416,20 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
     click(cx, "request-pane-headers").unwrap();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .visible_header_row_count()),
         1
     );
     for expected_rows in 2..=4 {
         click(cx, "add-row-button").unwrap();
         cx.run_until_parked();
         assert_eq!(
-            workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+            workspace.read_with(cx, |workspace, _| workspace
+                .active_request()
+                .unwrap()
+                .visible_header_row_count()),
             expected_rows,
             "each Add Header click must append exactly one independent row"
         );
@@ -2231,16 +2445,16 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
     click(cx, "header-row-toggle-2").unwrap();
 
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.headers().len(), 3);
+        assert_eq!(workspace.active_request().unwrap().headers().len(), 3);
         assert_eq!(
-            workspace.headers()[0],
+            workspace.active_request().unwrap().headers()[0],
             KeyValueRow::enabled("X-Scenario", "multiple-header-rows")
         );
         assert_eq!(
-            workspace.headers()[1],
+            workspace.active_request().unwrap().headers()[1],
             KeyValueRow::enabled("X-Locale", "zh-CN")
         );
-        assert!(!workspace.headers()[2].enabled);
+        assert!(!workspace.active_request().unwrap().headers()[2].enabled);
     });
 
     // The value is already in the ViewModel; focus need not leave X-Locale before Send.
@@ -2249,7 +2463,11 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -2267,9 +2485,15 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
 
     click(cx, "header-row-delete-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.headers().len(), 2);
-        assert_eq!(workspace.headers()[0].key, "X-Locale");
-        assert_eq!(workspace.headers()[1].key, "X-Disabled");
+        assert_eq!(workspace.active_request().unwrap().headers().len(), 2);
+        assert_eq!(
+            workspace.active_request().unwrap().headers()[0].key,
+            "X-Locale"
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().headers()[1].key,
+            "X-Disabled"
+        );
     });
     request.assert();
 }
@@ -2283,7 +2507,10 @@ fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut Test
 
     click(cx, "request-pane-headers").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .visible_header_row_count()),
         1
     );
 
@@ -2306,9 +2533,20 @@ fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut Test
         click(cx, "add-row-button").unwrap();
         cx.run_until_parked();
         workspace.read_with(cx, |workspace, _| {
-            assert_eq!(workspace.headers().len(), click_count);
-            assert_eq!(workspace.visible_header_row_count(), click_count + 1);
+            assert_eq!(
+                workspace.active_request().unwrap().headers().len(),
+                click_count
+            );
+            assert_eq!(
+                workspace
+                    .active_request()
+                    .unwrap()
+                    .visible_header_row_count(),
+                click_count + 1
+            );
             assert!(workspace
+                .active_request()
+                .unwrap()
                 .headers()
                 .iter()
                 .all(|row| row.key.is_empty() && row.value.is_empty()));
@@ -2324,21 +2562,30 @@ fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut Test
 fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let pending = workspace.update(cx, |workspace, _| {
-        workspace.set_url("https://example.com/slow");
-        workspace.begin_send()
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://example.com/slow");
+        workspace.begin_send().unwrap()
     });
     let observed = workspace.clone();
     let (_app, cx) =
         cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Loading
     ));
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert!(
         matches!(response, ResponseState::Cancelled),
         "second Send click should cancel the request, got {response:?}"
@@ -2357,7 +2604,11 @@ fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
         ));
     });
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Cancelled
     ));
 }
@@ -2372,18 +2623,32 @@ fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppCon
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-sample-json").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body_kind()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body_kind()),
         BodyKind::Json
     );
-    assert!(workspace.read_with(cx, |workspace, _| workspace.body().contains("Ada Lovelace")));
+    assert!(workspace.read_with(cx, |workspace, _| workspace
+        .active_request()
+        .unwrap()
+        .body()
+        .contains("Ada Lovelace")));
 
     click(cx, "body-clear-button").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body_kind()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body_kind()),
         BodyKind::Json
     );
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         ""
     );
 }
@@ -2427,7 +2692,11 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
     }
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         "k0=v0&k1=v1&k2=v2&k3=v3&k4=v4&k5=v5&k6=v6&k7=v7"
     );
 }
@@ -2463,9 +2732,11 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
     click(cx, "body-kind-form-data").unwrap();
     for expected_rows in [2, 3] {
         click(cx, "body-form-add-row").unwrap();
-        let actual_rows = workspace.read_with(cx, |workspace, _| match workspace.body_draft() {
-            RequestBodyDraft::Multipart(parts) => parts.len(),
-            other => panic!("form-data must retain a multipart draft, got {other:?}"),
+        let actual_rows = workspace.read_with(cx, |workspace, _| {
+            match workspace.active_request().unwrap().body_draft() {
+                RequestBodyDraft::Multipart(parts) => parts.len(),
+                other => panic!("form-data must retain a multipart draft, got {other:?}"),
+            }
         });
         assert_eq!(
             actual_rows, expected_rows,
@@ -2493,14 +2764,17 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
         );
     }
 
-    let body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
+    let body = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().request_body().clone()
+    });
     let expected_body = RequestBody::Multipart(vec![
         MultipartPart::text("note", "hello multipart"),
         MultipartPart::text("category", "gpui"),
     ]);
     assert_eq!(body, expected_body);
     workspace.read_with(cx, |workspace, _| {
-        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+        let RequestBodyDraft::Multipart(parts) = workspace.active_request().unwrap().body_draft()
+        else {
             panic!("form-data must retain a multipart draft");
         };
         assert_eq!(parts.len(), 3, "the extra blank draft row must be retained");
@@ -2514,6 +2788,8 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
             MultipartDraftValue::Text(value) if value.is_empty()
         ));
         assert!(workspace
+            .active_request()
+            .unwrap()
             .effective_headers()
             .iter()
             .all(|header| !header.name.eq_ignore_ascii_case("content-type")));
@@ -2524,7 +2800,11 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     workspace.read_with(cx, |workspace, _| {
@@ -2614,10 +2894,13 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
             "selected File row should render `{selector}`"
         );
     }
-    let body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
+    let body = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().request_body().clone()
+    });
     assert_eq!(body, expected_body);
     workspace.read_with(cx, |workspace, _| {
-        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+        let RequestBodyDraft::Multipart(parts) = workspace.active_request().unwrap().body_draft()
+        else {
             panic!("form-data editor should retain a typed multipart draft");
         };
         assert!(matches!(
@@ -2634,7 +2917,11 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 201, .. }
     ));
     workspace.read_with(cx, |workspace, _| {
@@ -2748,7 +3035,10 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     click(cx, "body-form-toggle-3").unwrap();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .request_body()),
         expected_body
     );
     assert_eq!(
@@ -2767,7 +3057,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
 
     click(cx, "body-form-toggle-2").unwrap();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().request_body()),
         RequestBody::Multipart(parts)
             if parts.iter().any(|part| part.name == "disabled_upload"
                 && matches!(&part.value, MultipartValue::File { path, .. } if path == &fixture_path))
@@ -2775,14 +3065,17 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     click(cx, "body-form-toggle-2").unwrap();
     click(cx, "body-form-toggle-3").unwrap();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().request_body()),
         RequestBody::Multipart(parts)
             if parts.iter().any(|part| part.name == "disabled_note"
                 && matches!(&part.value, MultipartValue::Text(value) if value == "omit-me"))
     ));
     click(cx, "body-form-toggle-3").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.request_body()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .request_body()),
         expected_body
     );
 
@@ -2791,7 +3084,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     cx.run_until_parked();
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
-            workspace.response(),
+            workspace.active_request().unwrap().response(),
             ResponseState::Success { status: 200, .. }
         ));
         assert_eq!(workspace.history_len(), 1);
@@ -2806,8 +3099,14 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     click(cx, "body-kind-none").unwrap();
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.body_kind(), BodyKind::Multipart);
-        assert_eq!(workspace.request_body(), expected_body);
+        assert_eq!(
+            workspace.active_request().unwrap().body_kind(),
+            BodyKind::Multipart
+        );
+        assert_eq!(
+            workspace.active_request().unwrap().request_body(),
+            expected_body
+        );
         assert_eq!(
             workspace.request_editor_intent(),
             Some(expected_intent.clone())
@@ -2847,7 +3146,11 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         ResponseState::Success { status: 200, .. }
     ));
     assert_eq!(
@@ -2881,7 +3184,9 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Error { message } => {
             assert!(message.contains("failed to read multipart file"));
             assert!(message.contains("field `upload`"));
@@ -2896,7 +3201,7 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
     );
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.history()[0].request.url, previous_url);
-        let RequestBodyDraft::Multipart(parts) = workspace.body_draft() else {
+        let RequestBodyDraft::Multipart(parts) = workspace.active_request().unwrap().body_draft() else {
             panic!("the correctable multipart File row must remain selected");
         };
         assert!(matches!(

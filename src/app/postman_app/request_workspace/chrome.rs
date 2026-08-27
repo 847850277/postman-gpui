@@ -57,7 +57,7 @@ impl RequestWorkspace {
                         request.method(),
                         request.tab_title(),
                         request.is_dirty(),
-                        index == active_index,
+                        Some(index) == active_index,
                     )
                 })
                 .collect()
@@ -300,7 +300,7 @@ impl RequestWorkspace {
                     .get(tab_id)
                     .is_some_and(|focus| focus.is_focused(window))
             })
-            .unwrap_or(active_index);
+            .unwrap_or_else(|| active_index.unwrap_or(0));
         let next = (current_index as isize + delta).rem_euclid(tab_ids.len() as isize) as usize;
         self.activate_request_tab(tab_ids[next], cx);
         self.focus_active_request_tab(window, cx);

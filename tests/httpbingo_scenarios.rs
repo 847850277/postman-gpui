@@ -1034,7 +1034,9 @@ fn run_response_headers_workflow(
 
     choose_method(cx, &scenario.draft.method)?;
     type_into(cx, "url-input", &expected.url)?;
-    let url_before_send = workspace.read_with(cx, |workspace, _| workspace.effective_url());
+    let url_before_send = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().effective_url()
+    });
     if url_before_send != expected.url {
         return Err(format!(
             "active response-header URL was not saved before Send\n  expected: {:?}\n  actual:   {:?}",
@@ -1044,8 +1046,9 @@ fn run_response_headers_workflow(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let response_before_switch =
-        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response_before_switch = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&response_before_switch, &scenario.expect.response)?;
     let ResponseState::Success { headers, .. } = &response_before_switch else {
         return Err(format!(
@@ -1084,7 +1087,7 @@ fn run_response_headers_workflow(
     )
     .map_err(|error| format!("response-header History request mismatch: {error}"))?;
     let active_tab_before_switch =
-        workspace.read_with(cx, |workspace, _| workspace.active_tab_index());
+        workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap());
 
     click(cx, "response-pane-headers")?;
     for selector in [
@@ -1117,8 +1120,9 @@ fn run_response_headers_workflow(
     }
     click(cx, "response-pane-body")?;
 
-    let response_after_switch =
-        workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response_after_switch = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     if response_after_switch != response_before_switch {
         return Err(format!(
             "pane switching mutated ResponseState\n  before: {response_before_switch:#?}\n  after:  {response_after_switch:#?}"
@@ -1127,9 +1131,9 @@ fn run_response_headers_workflow(
     let (active_tab_after_switch, method_after_switch, url_after_switch) =
         workspace.read_with(cx, |workspace, _| {
             (
-                workspace.active_tab_index(),
-                workspace.method(),
-                workspace.effective_url(),
+                workspace.active_tab_index().unwrap(),
+                workspace.active_request().unwrap().method(),
+                workspace.active_request().unwrap().effective_url(),
             )
         });
     if active_tab_after_switch != active_tab_before_switch
@@ -1199,7 +1203,9 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     cx.simulate_input(&first_url);
     cx.simulate_keystrokes("ctrl-enter");
     cx.run_until_parked();
-    let first_body = match workspace.read_with(cx, |workspace, _| workspace.response().clone()) {
+    let first_body = match workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    }) {
         ResponseState::Success {
             status: 200, body, ..
         } => body,
@@ -1228,7 +1234,7 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
 
     cx.simulate_keystrokes("ctrl-t");
     let new_tab_state = workspace.read_with(cx, |workspace, _| {
-        (workspace.tab_count(), workspace.active_tab_index())
+        (workspace.tab_count(), workspace.active_tab_index().unwrap())
     });
     if new_tab_state != (2, 1) {
         return Err(format!(
@@ -1238,7 +1244,9 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     let second_url = format!("{HTTPBINGO_BASE_URL}/get?issue=141&request=keyboard-b");
     cx.simulate_keystrokes("ctrl-l ctrl-a");
     cx.simulate_input(&second_url);
-    let projected_second_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    let projected_second_url = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().url().to_string()
+    });
     if projected_second_url != second_url {
         return Err(format!(
             "keyboard URL input did not construct Tab B: {projected_second_url:?}"
@@ -1246,7 +1254,9 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     }
     cx.simulate_keystrokes("ctrl-enter");
     cx.run_until_parked();
-    let second_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let second_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     if !matches!(second_response, ResponseState::Success { status: 200, .. }) {
         return Err(format!(
             "second keyboard Send did not complete with HTTP 200: {second_response:#?}"
@@ -1256,9 +1266,9 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     cx.simulate_keystrokes("ctrl-tab");
     let first_projection = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.active_tab_index(),
-            workspace.url().to_string(),
-            workspace.response().clone(),
+            workspace.active_tab_index().unwrap(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().response().clone(),
         )
     });
     if first_projection.0 != 0
@@ -1277,8 +1287,8 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     cx.simulate_keystrokes("ctrl-shift-f tab enter");
     let historical = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.url().to_string(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().response().clone(),
             workspace.history_len(),
         )
     });
@@ -1295,8 +1305,8 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     let after_close = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),
-            workspace.active_tab_index(),
-            workspace.url().to_string(),
+            workspace.active_tab_index().unwrap(),
+            workspace.active_request().unwrap().url().to_string(),
             workspace.history_len(),
         )
     });
@@ -1320,14 +1330,16 @@ fn active_request_projection(
     cx: &mut VisualTestContext,
 ) -> Request {
     workspace.read_with(cx, |workspace, _| Request {
-        method: workspace.method(),
-        url: workspace.effective_url(),
+        method: workspace.active_request().unwrap().method(),
+        url: workspace.active_request().unwrap().effective_url(),
         headers: workspace
+            .active_request()
+            .unwrap()
             .effective_headers()
             .into_iter()
             .map(|header| (header.name, header.value))
             .collect(),
-        body: workspace.request_body(),
+        body: workspace.active_request().unwrap().request_body(),
     })
 }
 
@@ -1410,7 +1422,7 @@ fn run_multi_tab_workflow(
     let initial_state = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
             workspace.tabs()[0].tab_id().to_string(),
             workspace.tabs()[1].tab_id().to_string(),
             workspace.tabs()[0].request_pane(),
@@ -1547,7 +1559,9 @@ fn run_multi_tab_workflow(
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
         .map_err(|error| format!("Tab A changed after both Sends: {error}"))?;
     assert_response_state(
-        &workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        &workspace.read_with(cx, |workspace, _| {
+            workspace.active_request().unwrap().response().clone()
+        }),
         &workflow.tab_a.expect.response,
     )?;
     cx.simulate_keystrokes("tab");
@@ -1555,7 +1569,9 @@ fn run_multi_tab_workflow(
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
         .map_err(|error| format!("Tab B changed after both Sends: {error}"))?;
     assert_response_state(
-        &workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        &workspace.read_with(cx, |workspace, _| {
+            workspace.active_request().unwrap().response().clone()
+        }),
         &workflow.tab_b.expect.response,
     )?;
 
@@ -1563,10 +1579,10 @@ fn run_multi_tab_workflow(
     let after_close = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
             workspace.tabs()[0].tab_id().to_string(),
-            workspace.request_pane(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().request_pane(),
+            workspace.active_request().unwrap().response().clone(),
             workspace.history_len(),
         )
     });
@@ -1637,7 +1653,9 @@ fn run_history_replay_workflow(
 
     click(cx, "send-button")?;
     cx.run_until_parked();
-    let first_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let first_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&first_response, &scenario.expect.response)?;
     let history_before_replay = history_database.load_authoritative(&workspace, cx)?;
     if history_before_replay.len() != 1 {
@@ -1657,7 +1675,7 @@ fn run_history_replay_workflow(
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
         .map_err(|error| format!("mouse History replay mismatch: {error}"))?;
     if !matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Historical { entry_id, .. } if entry_id == original_id
     ) {
         return Err("mouse History replay did not select the original historical response".into());
@@ -1691,7 +1709,9 @@ fn run_history_replay_workflow(
     // Send immediately from the restored ViewModel; HTTPBingo's echo proves the exact wire shape.
     click(cx, "send-button")?;
     cx.run_until_parked();
-    let replay_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let replay_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&replay_response, &scenario.expect.response)?;
     let history_after_replay = history_database.load_authoritative(&workspace, cx)?;
     if history_after_replay.len() != 2 {
@@ -1766,7 +1786,9 @@ fn run_head_options_workflow(
     type_into(cx, "url-input", &head_request.url)?;
     click(cx, "send-button")?;
     cx.run_until_parked();
-    let head_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let head_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&head_response, &head.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &head_response)?;
     if !matches!(&head_response, ResponseState::Success { body, .. } if body.is_empty()) {
@@ -1791,7 +1813,9 @@ fn run_head_options_workflow(
     type_into(cx, "url-input", &options_request.url)?;
     click(cx, "send-button")?;
     cx.run_until_parked();
-    let options_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let options_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&options_response, &options.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &options_response)?;
     if !matches!(&options_response, ResponseState::Success { body, .. } if body.is_empty()) {
@@ -1819,9 +1843,9 @@ fn run_head_options_workflow(
     click(cx, "history-item-1")?;
     let restored_head = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.request_body(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().request_body(),
         )
     });
     if restored_head
@@ -1839,9 +1863,9 @@ fn run_head_options_workflow(
     click(cx, "history-item-0")?;
     let restored_options = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.request_body(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().request_body(),
         )
     });
     if restored_options
@@ -1897,7 +1921,9 @@ fn run_compression_workflow(
         click(cx, "send-button")?;
         cx.run_until_parked();
 
-        let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+        let response = workspace.read_with(cx, |workspace, _| {
+            workspace.active_request().unwrap().response().clone()
+        });
         assert_response_state(&response, &scenario.expect.response)?;
         click(cx, "response-pane-body")?;
         if cx.debug_bounds("response-content").is_none() {
@@ -1998,11 +2024,11 @@ fn run_compression_workflow(
     click(cx, "history-item-2")?;
     let restored = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.headers().to_vec(),
-            workspace.request_body(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().headers().to_vec(),
+            workspace.active_request().unwrap().request_body(),
+            workspace.active_request().unwrap().response().clone(),
         )
     });
     if restored.0 != HttpMethod::GET
@@ -2050,7 +2076,9 @@ fn run_html_form_workflow(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let discovery_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let discovery_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&discovery_response, &workflow.discovery.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &discovery_response)?;
     let (discovery_history_request, discovery_history_status) = history_database
@@ -2073,8 +2101,8 @@ fn run_html_form_workflow(
     let (tab_count, active_tab, response) = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),
-            workspace.active_tab_index(),
-            workspace.response().clone(),
+            workspace.active_tab_index().unwrap(),
+            workspace.active_request().unwrap().response().clone(),
         )
     });
     if tab_count != 2 || active_tab != 1 || !matches!(response, ResponseState::NotSent) {
@@ -2091,7 +2119,9 @@ fn run_html_form_workflow(
     )?;
     apply_body(cx, &workflow.submission.draft)?;
     assert_url_encoded_body_editor_contract(cx, &workspace, workflow.submission)?;
-    let active_body = workspace.read_with(cx, |workspace, _| workspace.request_body().clone());
+    let active_body = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().request_body().clone()
+    });
     if active_body != submission_request.body {
         return Err(format!(
             "active comments edit was not saved before Send\n  expected: {:?}\n  actual:   {active_body:?}",
@@ -2104,7 +2134,9 @@ fn run_html_form_workflow(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let submission_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let submission_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&submission_response, &workflow.submission.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &submission_response)?;
     let history = history_database
@@ -2140,10 +2172,14 @@ fn run_html_form_workflow(
     }
 
     click(cx, "request-tab-0")?;
-    let restored_discovery = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let restored_discovery = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&restored_discovery, &workflow.discovery.expect.response)?;
     click(cx, "request-tab-1")?;
-    let restored_submission = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let restored_submission = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&restored_submission, &workflow.submission.expect.response)?;
 
     Ok(())
@@ -2169,7 +2205,9 @@ fn run_cookie_workflow(
 
     let set_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.set.draft.path);
     type_into(cx, "url-input", &set_url)?;
-    let active_set_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    let active_set_url = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().url().to_string()
+    });
     if active_set_url != set_url {
         return Err(format!(
             "active cookie-setting URL was not saved before Send\n  expected: {set_url:?}\n  actual:   {active_set_url:?}"
@@ -2178,7 +2216,9 @@ fn run_cookie_workflow(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let set_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let set_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&set_response, &workflow.set.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &set_response)?;
     let cookies = workspace.read_with(cx, |workspace, _| workspace.cookies().to_vec());
@@ -2228,7 +2268,9 @@ fn run_cookie_workflow(
     click(cx, "rail-new-request")?;
     let cookies_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.cleared.draft.path);
     type_into(cx, "url-input", &cookies_url)?;
-    let active_cookies_url = workspace.read_with(cx, |workspace, _| workspace.url().to_string());
+    let active_cookies_url = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().url().to_string()
+    });
     if active_cookies_url != cookies_url {
         return Err(format!(
             "active cookie verification URL was not saved before Send\n  expected: {cookies_url:?}\n  actual:   {active_cookies_url:?}"
@@ -2237,7 +2279,9 @@ fn run_cookie_workflow(
     click(cx, "send-button")?;
     cx.run_until_parked();
 
-    let echoed_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let echoed_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     // The setting scenario's stable response subset is also the proof that this separate request
     // automatically sent Cookie: session=cookie-e2e-demo.
     assert_response_state(&echoed_response, &workflow.set.expect.response)?;
@@ -2283,7 +2327,7 @@ fn run_cookie_workflow(
             (
                 workspace.cookie_count(),
                 workspace.last_cookie_clear_count(),
-                workspace.response().clone(),
+                workspace.active_request().unwrap().response().clone(),
             )
         });
     let history_after_clear = history_database.load_authoritative(&workspace, cx)?;
@@ -2322,7 +2366,9 @@ fn run_cookie_workflow(
     click(cx, "cookie-jar-close")?;
     click(cx, "send-button")?;
     cx.run_until_parked();
-    let cleared_response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let cleared_response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&cleared_response, &workflow.cleared.expect.response)?;
     assert_response_quick_copy(cx, &workspace, &cleared_response)?;
     let final_cookie_count = workspace.read_with(cx, |workspace, _| workspace.cookie_count());
@@ -2382,7 +2428,9 @@ fn run_application_scenario(
     cx.run_until_parked();
 
     choose_method(cx, &scenario.draft.method)?;
-    let selected_method = workspace.read_with(cx, |workspace, _| workspace.method().to_string());
+    let selected_method = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().method().to_string()
+    });
     if selected_method != scenario.draft.method {
         return Err(format!(
             "method selector was not saved to the ViewModel\n  expected: {:?}\n  actual:   {selected_method:?}",
@@ -2402,7 +2450,9 @@ fn run_application_scenario(
         &format!("{HTTPBINGO_BASE_URL}{}", scenario.draft.path),
     )?;
     let url_rows = query_rows_from_path(&scenario.draft.path);
-    let projected_url_rows = workspace.read_with(cx, |workspace, _| workspace.params().to_vec());
+    let projected_url_rows = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().params().to_vec()
+    });
     if projected_url_rows != url_rows {
         return Err(format!(
             "URL query was not projected into Params\n  expected: {url_rows:#?}\n  actual:   {projected_url_rows:#?}"
@@ -2464,8 +2514,13 @@ fn run_application_scenario(
         click(cx, "request-pane-authorization")?;
         assert_bearer_editor_contract(cx)?;
         type_into(cx, "authorization-input", token)?;
-        let live_token =
-            workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string());
+        let live_token = workspace.read_with(cx, |workspace, _| {
+            workspace
+                .active_request()
+                .unwrap()
+                .bearer_token()
+                .to_string()
+        });
         if live_token != *token {
             return Err(format!(
                 "active Bearer input was not saved to the ViewModel\n  expected: {token:?}\n  actual:   {live_token:?}"
@@ -2477,8 +2532,13 @@ fn run_application_scenario(
         click(cx, "auth-kind-basic")?;
         assert_basic_auth_editor_contract(cx)?;
         type_into(cx, "basic-auth-username-input", &credentials.username)?;
-        let live_username =
-            workspace.read_with(cx, |workspace, _| workspace.basic_username().to_string());
+        let live_username = workspace.read_with(cx, |workspace, _| {
+            workspace
+                .active_request()
+                .unwrap()
+                .basic_username()
+                .to_string()
+        });
         if live_username != credentials.username {
             return Err(format!(
                 "active Basic username was not saved to the ViewModel\n  expected: {:?}\n  actual:   {live_username:?}",
@@ -2488,9 +2548,16 @@ fn run_application_scenario(
         type_into(cx, "basic-auth-password-input", &credentials.password)?;
         let (kind, live_password, header_preview) = workspace.read_with(cx, |workspace, _| {
             (
-                workspace.authorization_kind(),
-                workspace.basic_password().to_string(),
-                workspace.authorization_header_preview(),
+                workspace.active_request().unwrap().authorization_kind(),
+                workspace
+                    .active_request()
+                    .unwrap()
+                    .basic_password()
+                    .to_string(),
+                workspace
+                    .active_request()
+                    .unwrap()
+                    .authorization_header_preview(),
             )
         });
         if kind != AuthorizationKind::Basic {
@@ -2543,7 +2610,9 @@ fn run_application_scenario(
             }
         }
         type_into(cx, "request-timeout-input", &timeout_ms.to_string())?;
-        let configured_timeout = workspace.read_with(cx, |workspace, _| workspace.timeout_ms());
+        let configured_timeout = workspace.read_with(cx, |workspace, _| {
+            workspace.active_request().unwrap().timeout_ms()
+        });
         if configured_timeout != timeout_ms {
             return Err(format!(
                 "timeout input was not saved to the active request\n  expected: {timeout_ms}\n  actual:   {configured_timeout}"
@@ -2590,7 +2659,10 @@ fn run_application_scenario(
             &expected_options.max_redirect_hops.to_string(),
         )?;
         let configured = workspace.read_with(cx, |workspace, _| {
-            (workspace.redirect_policy(), workspace.max_redirect_hops())
+            (
+                workspace.active_request().unwrap().redirect_policy(),
+                workspace.active_request().unwrap().max_redirect_hops(),
+            )
         });
         if configured
             != (
@@ -2613,7 +2685,9 @@ fn run_application_scenario(
         }
     }
 
-    let assembled_url = workspace.read_with(cx, |workspace, _| workspace.effective_url());
+    let assembled_url = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().effective_url()
+    });
     if assembled_url != expected.url {
         return Err(format!(
             "application URL mismatch before Send\n  expected: {:?}\n  actual:   {:?}",
@@ -2627,7 +2701,7 @@ fn run_application_scenario(
             (
                 workspace.active_request_id(),
                 workspace.in_flight_count(),
-                workspace.response().clone(),
+                workspace.active_request().unwrap().response().clone(),
             )
         });
         if request_id.is_none() || in_flight != 1 || !matches!(response, ResponseState::Loading) {
@@ -2660,10 +2734,17 @@ fn run_application_scenario(
     }
     cx.run_until_parked();
 
-    let response = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert_response_state(&response, &scenario.expect.response)?;
-    let actual_redirect_chain =
-        workspace.read_with(cx, |workspace, _| workspace.redirect_chain().to_vec());
+    let actual_redirect_chain = workspace.read_with(cx, |workspace, _| {
+        workspace
+            .active_request()
+            .unwrap()
+            .redirect_chain()
+            .to_vec()
+    });
     let expected_redirect_chain = response_redirect_chain(&scenario.expect.response);
     assert_redirect_chain(
         &actual_redirect_chain,
@@ -2922,9 +3003,9 @@ fn assert_json_body_editor_contract(
         .ok_or_else(|| "a JSON UI scenario must contain a body".to_string())?;
     let (kind, active_body, effective_headers) = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.body_kind(),
-            workspace.body().to_string(),
-            workspace.effective_headers(),
+            workspace.active_request().unwrap().body_kind(),
+            workspace.active_request().unwrap().body().to_string(),
+            workspace.active_request().unwrap().effective_headers(),
         )
     });
     if kind != BodyKind::Json || active_body != expected_body {
@@ -2992,10 +3073,10 @@ fn assert_raw_body_editor_contract(
     let (kind, active_body, request_body, effective_headers) =
         workspace.read_with(cx, |workspace, _| {
             (
-                workspace.body_kind(),
-                workspace.body(),
-                workspace.request_body(),
-                workspace.effective_headers(),
+                workspace.active_request().unwrap().body_kind(),
+                workspace.active_request().unwrap().body(),
+                workspace.active_request().unwrap().request_body(),
+                workspace.active_request().unwrap().effective_headers(),
             )
         });
     if kind != BodyKind::Raw
@@ -3062,9 +3143,9 @@ fn assert_url_encoded_body_editor_contract(
         .ok_or_else(|| "a URL-encoded UI scenario must contain a body".to_string())?;
     let (kind, active_body, effective_headers) = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.body_kind(),
-            workspace.request_body().clone(),
-            workspace.effective_headers(),
+            workspace.active_request().unwrap().body_kind(),
+            workspace.active_request().unwrap().request_body().clone(),
+            workspace.active_request().unwrap().effective_headers(),
         )
     });
     if kind != BodyKind::UrlEncoded
@@ -3192,9 +3273,9 @@ fn assert_multipart_body_editor_contract(
     };
     let (kind, active_body, effective_headers) = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.body_kind(),
-            workspace.request_body(),
-            workspace.effective_headers(),
+            workspace.active_request().unwrap().body_kind(),
+            workspace.active_request().unwrap().request_body(),
+            workspace.active_request().unwrap().effective_headers(),
         )
     });
     if kind != BodyKind::Multipart || active_body != expected.body {
@@ -3355,7 +3436,9 @@ fn assert_multipart_file_selection_retained(
     }
 
     let expected = expected_request(&scenario.expect.request, Some(HTTPBINGO_BASE_URL))?;
-    let active_body = workspace.read_with(cx, |workspace, _| workspace.request_body());
+    let active_body = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().request_body()
+    });
     if active_body != expected.body {
         return Err(format!(
             "selected multipart file was not retained after Send\n  expected: {:?}\n  actual:   {active_body:?}",
@@ -3630,15 +3713,15 @@ fn assert_response_quick_copy(
 
     let state_before_copy = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.params().to_vec(),
-            workspace.headers().to_vec(),
-            workspace.request_body().clone(),
-            workspace.request_pane(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().params().to_vec(),
+            workspace.active_request().unwrap().headers().to_vec(),
+            workspace.active_request().unwrap().request_body().clone(),
+            workspace.active_request().unwrap().request_pane(),
+            workspace.active_request().unwrap().response().clone(),
             workspace.history_len(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
             workspace.tab_count(),
         )
     });
@@ -3662,15 +3745,15 @@ fn assert_response_quick_copy(
 
     let state_after_copy = workspace.read_with(cx, |workspace, _| {
         (
-            workspace.method(),
-            workspace.url().to_string(),
-            workspace.params().to_vec(),
-            workspace.headers().to_vec(),
-            workspace.request_body().clone(),
-            workspace.request_pane(),
-            workspace.response().clone(),
+            workspace.active_request().unwrap().method(),
+            workspace.active_request().unwrap().url().to_string(),
+            workspace.active_request().unwrap().params().to_vec(),
+            workspace.active_request().unwrap().headers().to_vec(),
+            workspace.active_request().unwrap().request_body().clone(),
+            workspace.active_request().unwrap().request_pane(),
+            workspace.active_request().unwrap().response().clone(),
             workspace.history_len(),
-            workspace.active_tab_index(),
+            workspace.active_tab_index().unwrap(),
             workspace.tab_count(),
         )
     });
@@ -3769,7 +3852,9 @@ fn apply_precreated_param_rows(
         }
     }
 
-    let actual = workspace.read_with(cx, |workspace, _| workspace.params().to_vec());
+    let actual = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().params().to_vec()
+    });
     for (offset, expected) in rows.iter().enumerate() {
         let index = url_row_count + offset;
         let Some(row) = actual.get(index) else {
@@ -3804,8 +3889,12 @@ fn apply_precreated_header_rows(
         cx.run_until_parked();
     }
     let expected_visible_rows = row_count + 1;
-    let actual_visible_rows =
-        workspace.read_with(cx, |workspace, _| workspace.visible_header_row_count());
+    let actual_visible_rows = workspace.read_with(cx, |workspace, _| {
+        workspace
+            .active_request()
+            .unwrap()
+            .visible_header_row_count()
+    });
     if actual_visible_rows != expected_visible_rows {
         return Err(format!(
             "Add Header did not append one row per click: expected {expected_visible_rows}, got {actual_visible_rows}"
@@ -3864,7 +3953,9 @@ fn apply_precreated_header_rows(
         }
     }
 
-    let actual = workspace.read_with(cx, |workspace, _| workspace.headers().to_vec());
+    let actual = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().headers().to_vec()
+    });
     for (index, expected) in rows.iter().enumerate() {
         let Some(row) = actual.get(index) else {
             return Err(format!("precreated Header row {index} disappeared"));
@@ -3887,8 +3978,8 @@ fn apply_precreated_header_rows(
 
 fn rows_for(workspace: &WorkspaceViewModel, editor: RowEditor) -> Vec<KeyValueRow> {
     match editor {
-        RowEditor::Params => workspace.params().to_vec(),
-        RowEditor::Headers => workspace.headers().to_vec(),
+        RowEditor::Params => workspace.active_request().unwrap().params().to_vec(),
+        RowEditor::Headers => workspace.active_request().unwrap().headers().to_vec(),
     }
 }
 

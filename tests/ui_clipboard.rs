@@ -28,13 +28,21 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     click(cx, "url-input").unwrap();
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         "https://clipboard.example/items"
     );
     assert_eq!(clipboard_text(cx), "https://clipboard.example/items");
     cx.simulate_keystrokes("ctrl-x");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         ""
     );
 
@@ -43,18 +51,30 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     click(cx, "authorization-input").unwrap();
     cx.simulate_keystrokes("cmd-v cmd-a cmd-c");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         "clipboard-token"
     );
     assert_eq!(clipboard_text(cx), "clipboard-token");
     cx.simulate_keystrokes("cmd-x");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         ""
     );
     cx.simulate_keystrokes("cmd-v");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         "clipboard-token"
     );
 
@@ -66,7 +86,11 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     click(cx, "body-input").unwrap();
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         "{\n  \"copied\": true\n}"
     );
     assert_eq!(clipboard_text(cx), "{\n  \"copied\": true\n}");
@@ -77,7 +101,11 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     cx.write_to_clipboard(ClipboardItem::new_string("raw clipboard body".to_string()));
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         "raw clipboard body"
     );
     assert_eq!(clipboard_text(cx), "raw clipboard body");
@@ -92,7 +120,11 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c");
     assert_eq!(clipboard_text(cx), "margherita");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         "pizza=margherita"
     );
 }
@@ -118,7 +150,11 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     assert!(cx.debug_bounds("url-edit-menu").is_some());
     click(cx, "url-edit-menu-paste").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.url().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .url()
+            .to_string()),
         format!("{}/clipboard", server.url())
     );
 
@@ -128,7 +164,11 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     assert!(cx.debug_bounds("header-edit-menu").is_some());
     click(cx, "header-edit-menu-paste").unwrap();
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.bearer_token().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .bearer_token()
+            .to_string()),
         "menu-token"
     );
 
@@ -186,7 +226,9 @@ fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
-    let response_before_copy = workspace.read_with(cx, |workspace, _| workspace.response().clone());
+    let response_before_copy = workspace.read_with(cx, |workspace, _| {
+        workspace.active_request().unwrap().response().clone()
+    });
     assert!(matches!(
         response_before_copy,
         ResponseState::Success { status: 500, .. }
@@ -199,7 +241,11 @@ fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
     assert_eq!(clipboard_text(cx), raw_body);
     assert!(cx.debug_bounds("response-copy-feedback").is_some());
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .response()
+            .clone()),
         response_before_copy
     );
     assert_eq!(
@@ -252,7 +298,7 @@ fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppCon
     cx.run_until_parked();
 
     assert!(matches!(
-        workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+        workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Success { status: 204, ref body, .. } if body.is_empty()
     ));
     assert!(cx.debug_bounds("response-copy-button").is_none());
@@ -279,7 +325,11 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     click(cx, "body-edit-menu-paste").unwrap();
 
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.body().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
         "menukey=menuvalue"
     );
 }
@@ -299,7 +349,11 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     click(cx, "basic-auth-password-input").unwrap();
     cx.simulate_keystrokes("ctrl-v");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         "pässword-🔐"
     );
 
@@ -307,7 +361,11 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     cx.simulate_keystrokes("ctrl-a ctrl-c ctrl-x");
     assert_eq!(clipboard_text(cx), "clipboard sentinel");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         "pässword-🔐"
     );
 
@@ -316,12 +374,20 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     assert!(cx.debug_bounds("header-edit-menu-cut").is_none());
     cx.simulate_keystrokes("escape ctrl-z");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         ""
     );
     cx.simulate_keystrokes("ctrl-y");
     assert_eq!(
-        workspace.read_with(cx, |workspace, _| workspace.basic_password().to_string()),
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .basic_password()
+            .to_string()),
         "pässword-🔐"
     );
 }

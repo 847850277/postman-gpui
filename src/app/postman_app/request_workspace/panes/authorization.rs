@@ -1,5 +1,5 @@
 use crate::{
-    app::{ActivateControl, AuthorizationKind, WorkspaceViewModel},
+    app::{ActivateControl, AuthorizationKind, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{
@@ -77,13 +77,13 @@ impl AuthorizationPane {
         pane
     }
 
-    fn update_view_model<R>(
+    fn update_active_request<R>(
         &self,
         cx: &mut Context<Self>,
-        update: impl FnOnce(&mut WorkspaceViewModel) -> R,
-    ) -> R {
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
         let result = self.view_model.update(cx, |view_model, cx| {
-            let result = update(view_model);
+            let result = view_model.update_active_request(update);
             cx.notify();
             result
         });
@@ -98,7 +98,7 @@ impl AuthorizationPane {
         cx: &mut Context<Self>,
     ) {
         if let HeaderInputEvent::ValueChanged(token) = event {
-            self.update_view_model(cx, |view_model| view_model.set_bearer_token(token));
+            self.update_active_request(cx, |request| request.set_bearer_token(token));
         }
     }
 
@@ -109,7 +109,7 @@ impl AuthorizationPane {
         cx: &mut Context<Self>,
     ) {
         if let HeaderInputEvent::ValueChanged(username) = event {
-            self.update_view_model(cx, |view_model| view_model.set_basic_username(username));
+            self.update_active_request(cx, |request| request.set_basic_username(username));
         }
     }
 
@@ -120,12 +120,12 @@ impl AuthorizationPane {
         cx: &mut Context<Self>,
     ) {
         if let HeaderInputEvent::ValueChanged(password) = event {
-            self.update_view_model(cx, |view_model| view_model.set_basic_password(password));
+            self.update_active_request(cx, |request| request.set_basic_password(password));
         }
     }
 
     fn set_authorization_kind(&mut self, kind: AuthorizationKind, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.set_authorization_kind(kind));
+        self.update_active_request(cx, |request| request.set_authorization_kind(kind));
     }
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
@@ -134,10 +134,15 @@ impl AuthorizationPane {
     ) {
         let (bearer_token, basic_username, basic_password) = {
             let view_model = self.view_model.read(cx);
-            (
-                view_model.bearer_token().to_string(),
-                view_model.basic_username().to_string(),
-                view_model.basic_password().to_string(),
+            view_model.active_request().map_or_else(
+                || (String::new(), String::new(), String::new()),
+                |request| {
+                    (
+                        request.bearer_token().to_string(),
+                        request.basic_username().to_string(),
+                        request.basic_password().to_string(),
+                    )
+                },
             )
         };
         self.authorization_input
@@ -163,11 +168,18 @@ impl AuthorizationPane {
             auth_ready,
         ) = {
             let view_model = self.view_model.read(cx);
-            let authorization_kind = view_model.authorization_kind();
-            let normalized_token = view_model.normalized_bearer_token();
-            let header_preview = view_model.authorization_header_preview();
-            let basic_username_saved = !view_model.basic_username().is_empty();
-            let basic_password_saved = !view_model.basic_password().is_empty();
+            let active = view_model.active_request();
+            let authorization_kind = active.map_or(AuthorizationKind::Bearer, |request| {
+                request.authorization_kind()
+            });
+            let normalized_token = active
+                .map(RequestViewModel::normalized_bearer_token)
+                .unwrap_or_default();
+            let header_preview = active.and_then(RequestViewModel::authorization_header_preview);
+            let basic_username_saved =
+                active.is_some_and(|request| !request.basic_username().is_empty());
+            let basic_password_saved =
+                active.is_some_and(|request| !request.basic_password().is_empty());
             let auth_ready = match authorization_kind {
                 AuthorizationKind::Bearer => !normalized_token.is_empty(),
                 AuthorizationKind::Basic => basic_username_saved && basic_password_saved,

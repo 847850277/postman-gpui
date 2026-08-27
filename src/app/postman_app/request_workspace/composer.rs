@@ -7,7 +7,7 @@ use super::{
     },
 };
 use crate::{
-    app::{BodyKind, PendingRequest, RequestPane, SendId, WorkspaceViewModel},
+    app::{BodyKind, PendingRequest, RequestPane, RequestViewModel, SendId, WorkspaceViewModel},
     ui::{
         components::input::{
             body_input::setup_body_input_key_bindings,
@@ -115,6 +115,14 @@ impl RequestComposer {
         result
     }
 
+    fn update_active_request<R>(
+        &self,
+        cx: &mut Context<Self>,
+        update: impl FnOnce(&mut RequestViewModel) -> R,
+    ) -> Option<R> {
+        self.update_view_model(cx, |view_model| view_model.update_active_request(update))
+    }
+
     fn on_method_changed(
         &mut self,
         _selector: Entity<MethodSelector>,
@@ -122,7 +130,7 @@ impl RequestComposer {
         cx: &mut Context<Self>,
     ) {
         let MethodSelectorEvent::MethodChanged(method) = event;
-        self.update_view_model(cx, |view_model| view_model.set_method(*method));
+        self.update_active_request(cx, |request| request.set_method(*method));
         self.project_selected_pane(cx);
     }
 
@@ -134,8 +142,13 @@ impl RequestComposer {
     ) {
         match event {
             UrlInputEvent::UrlChanged(url) => {
-                self.update_view_model(cx, |view_model| view_model.set_url(url));
-                if self.view_model.read(cx).request_pane() == RequestPane::Params {
+                self.update_active_request(cx, |request| request.set_url(url));
+                if self
+                    .view_model
+                    .read(cx)
+                    .active_request()
+                    .is_some_and(|request| request.request_pane() == RequestPane::Params)
+                {
                     self.params_pane
                         .update(cx, KeyValueRowsPane::project_active_request);
                 }
@@ -156,19 +169,39 @@ impl RequestComposer {
     }
 
     fn project_method(&self, cx: &mut Context<Self>) {
-        let method = self.view_model.read(cx).method();
+        let Some(method) = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(RequestViewModel::method)
+        else {
+            return;
+        };
         self.method_selector
             .update(cx, |selector, cx| selector.project_method(method, cx));
     }
 
     fn project_url(&self, cx: &mut Context<Self>) {
-        let url = self.view_model.read(cx).url().to_string();
+        let url = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(|request| request.url().to_string())
+            .unwrap_or_default();
         self.url_input
             .update(cx, |input, cx| input.project_url(url, cx));
     }
 
     fn project_selected_pane(&self, cx: &mut Context<Self>) {
-        match self.view_model.read(cx).request_pane() {
+        let Some(request_pane) = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(RequestViewModel::request_pane)
+        else {
+            return;
+        };
+        match request_pane {
             RequestPane::Params => self
                 .params_pane
                 .update(cx, KeyValueRowsPane::project_active_request),
@@ -218,7 +251,9 @@ impl RequestComposer {
             return;
         }
 
-        let pending = self.update_view_model(cx, WorkspaceViewModel::begin_send);
+        let Some(pending) = self.update_view_model(cx, WorkspaceViewModel::begin_send) else {
+            return;
+        };
         self.authorization_pane
             .update(cx, AuthorizationPane::project_active_request);
         cx.emit(RequestComposerEvent::Execute(pending));
@@ -247,29 +282,36 @@ impl RequestComposer {
     }
 
     pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
-        self.update_view_model(cx, |view_model| view_model.set_request_pane(pane));
+        self.update_active_request(cx, |request| request.set_request_pane(pane));
         self.project_selected_pane(cx);
     }
 
     fn render_request_panel(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let request_pane = self.view_model.read(cx).request_pane();
-        let visible_rows = match request_pane {
-            RequestPane::Params => self.view_model.read(cx).visible_param_row_count(),
-            RequestPane::Headers => self.view_model.read(cx).visible_header_row_count(),
-            RequestPane::Body
-                if matches!(
-                    self.view_model.read(cx).body_kind(),
-                    BodyKind::UrlEncoded | BodyKind::Multipart
-                ) =>
-            {
-                let body_input = self.body_pane.read(cx).input_entity();
-                body_input.read(cx).form_data_entry_count()
-            }
-            RequestPane::Authorization
-            | RequestPane::Scripts
-            | RequestPane::Tests
-            | RequestPane::Options
-            | RequestPane::Body => 0,
+        let (request_pane, visible_rows) = {
+            let view_model = self.view_model.read(cx);
+            let Some(request) = view_model.active_request() else {
+                return div().into_any_element();
+            };
+            let request_pane = request.request_pane();
+            let visible_rows = match request_pane {
+                RequestPane::Params => request.visible_param_row_count(),
+                RequestPane::Headers => request.visible_header_row_count(),
+                RequestPane::Body
+                    if matches!(
+                        request.body_kind(),
+                        BodyKind::UrlEncoded | BodyKind::Multipart
+                    ) =>
+                {
+                    let body_input = self.body_pane.read(cx).input_entity();
+                    body_input.read(cx).form_data_entry_count()
+                }
+                RequestPane::Authorization
+                | RequestPane::Scripts
+                | RequestPane::Tests
+                | RequestPane::Options
+                | RequestPane::Body => 0,
+            };
+            (request_pane, visible_rows)
         };
         let panel_height = adaptive_request_panel_height(
             request_pane,
@@ -300,6 +342,7 @@ impl RequestComposer {
             .overflow_hidden()
             .child(self.render_request_menu(window, cx))
             .child(editor)
+            .into_any_element()
     }
 }
 
@@ -336,9 +379,18 @@ mod tests {
             .create();
         let workspace = cx.new(|_| WorkspaceViewModel::new());
         workspace.update(cx, |workspace, _| {
-            workspace.set_method(HttpMethod::POST);
-            workspace.set_url(format!("{}/single-source", server.url()));
-            workspace.set_body(expected_body);
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .set_method(HttpMethod::POST);
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .set_url(format!("{}/single-source", server.url()));
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .set_body(expected_body);
         });
         let observed = workspace.clone();
         let (app, cx) =
@@ -360,7 +412,11 @@ mod tests {
         cx.run_until_parked();
 
         assert!(matches!(
-            workspace.read_with(cx, |workspace, _| workspace.response().clone()),
+            workspace.read_with(cx, |workspace, _| workspace
+                .active_request()
+                .unwrap()
+                .response()
+                .clone()),
             ResponseState::Success { status: 200, .. }
         ));
         request.assert();

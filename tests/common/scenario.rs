@@ -543,7 +543,7 @@ fn execute_scenario(
     let mut workspace = WorkspaceViewModel::new();
 
     apply_draft(&mut workspace, &scenario.draft, server_url)?;
-    let pending = workspace.begin_send();
+    let pending = workspace.begin_send().unwrap();
     let sent = vec![pending.request().clone()];
     let executor = RequestExecutor::new();
     let task = executor.spawn_with_options(pending.request().clone(), pending.request_options());
@@ -566,9 +566,12 @@ fn execute_scenario(
             );
         }
     }
-    assert_response_state(workspace.response(), &scenario.expect.response)?;
+    assert_response_state(
+        workspace.active_request().unwrap().response(),
+        &scenario.expect.response,
+    )?;
     assert_redirect_chain(
-        workspace.redirect_chain(),
+        workspace.active_request().unwrap().redirect_chain(),
         response_redirect_chain(&scenario.expect.response),
         server_url,
     )?;
@@ -643,38 +646,66 @@ fn apply_draft(
         return Err("`bearer_token` and `basic_auth` are mutually exclusive".to_string());
     }
 
-    workspace.set_method(parse_method(&draft.method)?);
-    workspace.set_url(absolute_url(server_url, &draft.path)?);
-    workspace.set_timeout_ms(draft.timeout_ms.unwrap_or(0));
+    workspace
+        .active_request_mut()
+        .unwrap()
+        .set_method(parse_method(&draft.method)?);
+    workspace
+        .active_request_mut()
+        .unwrap()
+        .set_url(absolute_url(server_url, &draft.path)?);
+    workspace
+        .active_request_mut()
+        .unwrap()
+        .set_timeout_ms(draft.timeout_ms.unwrap_or(0));
     let request_options = expected_request_options(draft)?;
-    workspace.set_redirect_policy(request_options.redirect_policy);
-    workspace.set_max_redirect_hops(request_options.max_redirect_hops);
+    workspace
+        .active_request_mut()
+        .unwrap()
+        .set_redirect_policy(request_options.redirect_policy);
+    workspace
+        .active_request_mut()
+        .unwrap()
+        .set_max_redirect_hops(request_options.max_redirect_hops);
 
     for _ in 0..draft.precreate_param_rows {
-        workspace.commit_row_draft(RequestPane::Params);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .commit_row_draft(RequestPane::Params);
     }
 
     for param in &draft.params {
-        workspace.upsert_param(&param.key, &param.value);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .upsert_param(&param.key, &param.value);
         if !param.enabled {
             let index = workspace
+                .active_request()
+                .unwrap()
                 .params()
                 .iter()
                 .position(|row| row.key == param.key)
                 .ok_or_else(|| format!("parameter `{}` was not added", param.key))?;
-            workspace.toggle_param(index);
+            workspace.active_request_mut().unwrap().toggle_param(index);
         }
     }
     if draft.precreate_header_rows == 0 {
         for header in &draft.headers {
-            workspace.upsert_header(&header.key, &header.value);
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .upsert_header(&header.key, &header.value);
             if !header.enabled {
                 let index = workspace
+                    .active_request()
+                    .unwrap()
                     .headers()
                     .iter()
                     .position(|row| row.key.eq_ignore_ascii_case(&header.key))
                     .ok_or_else(|| format!("header `{}` was not added", header.key))?;
-                workspace.toggle_header(index);
+                workspace.active_request_mut().unwrap().toggle_header(index);
             }
         }
     } else {
@@ -686,21 +717,30 @@ fn apply_draft(
             ));
         }
         for _ in 0..draft.precreate_header_rows {
-            workspace.append_header_row();
+            workspace.active_request_mut().unwrap().append_header_row();
         }
         for (index, header) in draft.headers.iter().enumerate() {
-            workspace.set_header_key(index, &header.key);
-            workspace.set_header_value(index, &header.value);
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .set_header_key(index, &header.key);
+            workspace
+                .active_request_mut()
+                .unwrap()
+                .set_header_value(index, &header.value);
             if !header.enabled {
-                workspace.toggle_header(index);
+                workspace.active_request_mut().unwrap().toggle_header(index);
             }
         }
     }
     if let Some(body) = &draft.body {
-        workspace.set_body(body);
+        workspace.active_request_mut().unwrap().set_body(body);
     }
     if let Some(body_kind) = &draft.body_kind {
-        workspace.set_body_kind(parse_body_kind(body_kind)?);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_body_kind(parse_body_kind(body_kind)?);
     }
     if !draft.body_rows.is_empty()
         || !draft.multipart_parts.is_empty()
@@ -730,7 +770,10 @@ fn apply_draft(
                 rows.resize_with(row_count, || {
                     postman_gpui::app::KeyValueRow::enabled("", "")
                 });
-                workspace.set_url_encoded_rows(rows);
+                workspace
+                    .active_request_mut()
+                    .unwrap()
+                    .set_url_encoded_rows(rows);
             }
             Some(BodyKind::Multipart) => {
                 let mut parts = if draft.multipart_parts.is_empty() {
@@ -747,19 +790,37 @@ fn apply_draft(
                         .collect::<Result<Vec<_>, _>>()?
                 };
                 parts.resize_with(row_count, || MultipartDraftPart::text("", "", true));
-                workspace.set_multipart_draft_parts(parts);
+                workspace
+                    .active_request_mut()
+                    .unwrap()
+                    .set_multipart_draft_parts(parts);
             }
             _ => unreachable!("form row contract validates the body kind"),
         }
     }
     if let Some(token) = &draft.bearer_token {
-        workspace.set_authorization_kind(AuthorizationKind::Bearer);
-        workspace.set_bearer_token(token);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_authorization_kind(AuthorizationKind::Bearer);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token(token);
     }
     if let Some(credentials) = &draft.basic_auth {
-        workspace.set_authorization_kind(AuthorizationKind::Basic);
-        workspace.set_basic_username(&credentials.username);
-        workspace.set_basic_password(&credentials.password);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_authorization_kind(AuthorizationKind::Basic);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_basic_username(&credentials.username);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_basic_password(&credentials.password);
     }
     Ok(())
 }
