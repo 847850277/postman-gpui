@@ -5,4 +5,5 @@
 //! Stable model value types may be used when a reusable control needs them.
 
 pub mod components;
+pub mod text_editor;
 pub mod theme;
