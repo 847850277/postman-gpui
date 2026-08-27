@@ -3,4 +3,5 @@ pub mod body_input;
 pub(crate) mod edit_history;
 pub mod header_input;
 pub mod method_selector;
+pub(crate) mod single_line_input;
 pub mod url_input;

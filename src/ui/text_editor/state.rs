@@ -2,7 +2,7 @@ use super::{
     history::EditHistory,
     offsets::{
         next_grapheme_boundary, next_word_boundary, previous_grapheme_boundary,
-        previous_word_boundary, OffsetMap,
+        previous_word_boundary, word_range_at, OffsetMap,
     },
     TextOffset, TextOffsetError, TextRange,
 };
@@ -258,6 +258,11 @@ impl TextEditorState {
         self.policy
     }
 
+    /// Update only the disclosure policy; text, selection, composition, and history are unchanged.
+    pub fn set_masked(&mut self, masked: bool) {
+        self.policy.masked = masked;
+    }
+
     pub const fn selection(&self) -> TextSelection {
         self.selection
     }
@@ -424,6 +429,16 @@ impl TextEditorState {
         }))
     }
 
+    pub fn select_word_at(&mut self, offset: TextOffset) -> Result<EditOutcome, TextEditorError> {
+        self.ensure_idle()?;
+        let offset = OffsetMap::new(&self.text).resolve_utf8(offset.utf8())?;
+        let range = word_range_at(&self.text, offset.utf8());
+        Ok(self.set_selection_internal(TextSelection {
+            anchor: TextOffset::from_valid_utf8(range.start),
+            cursor: TextOffset::from_valid_utf8(range.end),
+        }))
+    }
+
     pub fn move_cursor(
         &mut self,
         movement: TextMovement,
@@ -554,6 +569,11 @@ impl TextEditorState {
 
     pub fn break_edit_group(&mut self) {
         self.history.break_typing_group();
+    }
+
+    /// Clear Undo/Redo at a model-projection boundary without changing visible editor state.
+    pub fn clear_edit_history(&mut self) {
+        self.history.clear();
     }
 
     /// Start or update an IME composition using absolute UTF-16 replacement offsets and a

@@ -332,6 +332,33 @@ pub(crate) fn next_word_boundary(text: &str, offset: usize) -> usize {
     text.len()
 }
 
+pub(crate) fn word_range_at(text: &str, offset: usize) -> Range<usize> {
+    let graphemes = text.grapheme_indices(true).collect::<Vec<_>>();
+    if graphemes.is_empty() {
+        return 0..0;
+    }
+    let offset = floor_char_boundary(text, offset.min(text.len()));
+    let target = graphemes
+        .iter()
+        .position(|(start, grapheme)| offset < *start + grapheme.len())
+        .unwrap_or(graphemes.len() - 1);
+    let target_is_word = is_word_grapheme(graphemes[target].1);
+
+    let mut first = target;
+    while first > 0 && is_word_grapheme(graphemes[first - 1].1) == target_is_word {
+        first -= 1;
+    }
+    let mut last = target + 1;
+    while last < graphemes.len() && is_word_grapheme(graphemes[last].1) == target_is_word {
+        last += 1;
+    }
+    let end = graphemes
+        .get(last)
+        .map(|(start, _)| *start)
+        .unwrap_or(text.len());
+    graphemes[first].0..end
+}
+
 fn floor_char_boundary(text: &str, mut offset: usize) -> usize {
     while !text.is_char_boundary(offset) {
         offset -= 1;
