@@ -253,13 +253,14 @@ impl BodyPane {
                 }
                 _ => None,
             };
+            let construction = request.request_construction();
             (
                 request.body_kind(),
                 request.body().to_string(),
-                request.request_body(),
-                request.method(),
-                request.effective_url(),
-                request.effective_headers(),
+                construction.request().body.clone(),
+                construction.request().method,
+                construction.request().url.clone(),
+                construction.effective_headers().to_vec(),
                 multipart_omitted,
                 multipart_error,
             )
