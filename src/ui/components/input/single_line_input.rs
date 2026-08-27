@@ -220,6 +220,16 @@ pub(crate) trait SingleLineInputHost: EntityInputHandler + Sized + 'static {
     fn single_line_focus_handle(&self) -> &FocusHandle;
     fn emit_single_line_changed(&mut self, value: String, cx: &mut Context<Self>);
     fn emit_single_line_submit(&mut self, cx: &mut Context<Self>);
+
+    /// Standalone fields follow the window tab chain. Table cells override these hooks so their
+    /// parent table can resolve traversal from a stable cell identity instead of a render index.
+    fn focus_next_single_line(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_next(cx);
+    }
+
+    fn focus_previous_single_line(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        window.focus_prev(cx);
+    }
 }
 
 pub(crate) fn backspace<H: SingleLineInputHost>(
@@ -412,25 +422,28 @@ pub(crate) fn submit<H: SingleLineInputHost>(
     _: &mut Window,
     cx: &mut Context<H>,
 ) {
+    commit_composition(host);
     host.emit_single_line_submit(cx);
 }
 
 pub(crate) fn focus_next<H: SingleLineInputHost>(
-    _: &mut H,
+    host: &mut H,
     _: &FocusNext,
     window: &mut Window,
     cx: &mut Context<H>,
 ) {
-    window.focus_next(cx);
+    commit_composition(host);
+    host.focus_next_single_line(window, cx);
 }
 
 pub(crate) fn focus_previous<H: SingleLineInputHost>(
-    _: &mut H,
+    host: &mut H,
     _: &FocusPrevious,
     window: &mut Window,
     cx: &mut Context<H>,
 ) {
-    window.focus_prev(cx);
+    commit_composition(host);
+    host.focus_previous_single_line(window, cx);
 }
 
 pub(crate) fn dismiss<H: SingleLineInputHost>(
