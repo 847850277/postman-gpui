@@ -3,8 +3,10 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
-use postman_gpui::app::{MultipartDraftValue, PostmanApp, RequestBodyDraft, WorkspaceViewModel};
+use gpui::{AppContext, ClipboardItem, TestAppContext};
+use postman_gpui::app::{
+    BodyKind, MultipartDraftValue, PostmanApp, RequestBodyDraft, WorkspaceViewModel,
+};
 use ui::{click, replace_text, right_click, scroll_down};
 
 fn clipboard_text(cx: &TestAppContext) -> String {
@@ -46,6 +48,71 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
             .to_string()),
         body
     );
+}
+
+#[gpui::test]
+fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
+    cx: &mut TestAppContext,
+) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let body = "first 😀\n中间 e\u{301}\nlast";
+
+    click(cx, "request-pane-body").unwrap();
+    click(cx, "body-kind-json").unwrap();
+    cx.write_to_clipboard(ClipboardItem::new_string(body.to_string()));
+    click(cx, "body-input").unwrap();
+    cx.simulate_keystrokes("ctrl-v");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
+        body
+    );
+
+    right_click(cx, "body-input").unwrap();
+    click(cx, "body-edit-menu-undo").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
+        ""
+    );
+    right_click(cx, "body-input").unwrap();
+    click(cx, "body-edit-menu-redo").unwrap();
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .body()
+            .to_string()),
+        body
+    );
+
+    right_click(cx, "body-input").unwrap();
+    click(cx, "body-edit-menu-select-all").unwrap();
+    right_click(cx, "body-input").unwrap();
+    click(cx, "body-edit-menu-copy").unwrap();
+    assert_eq!(clipboard_text(cx), body);
+
+    click(cx, "body-kind-raw").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_kind(), BodyKind::Raw);
+        assert_eq!(request.body(), body);
+    });
+    click(cx, "body-kind-json").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_kind(), BodyKind::Json);
+        assert_eq!(request.body(), body);
+    });
 }
 
 #[gpui::test]

@@ -1,14 +1,4 @@
-use std::ops::Range;
-
 pub(crate) use crate::ui::text_editor::{next_word_boundary, previous_word_boundary, EditHistory};
-
-/// One text-editor state used by URL, single-line, and multiline request inputs.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct TextEditSnapshot {
-    pub(crate) text: String,
-    pub(crate) selection: Range<usize>,
-    pub(crate) selection_reversed: bool,
-}
 
 #[cfg(test)]
 mod tests {
