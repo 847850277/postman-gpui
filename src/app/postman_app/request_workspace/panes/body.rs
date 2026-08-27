@@ -3,8 +3,8 @@ mod raw;
 use crate::{
     app::{
         ActivateControl, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
-        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestViewModel, ResponseState,
-        WorkspaceViewModel,
+        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestTabId, RequestViewModel,
+        ResponseState, WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
@@ -38,6 +38,7 @@ fn setup_body_kind_key_bindings() -> Vec<KeyBinding> {
 pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     view_model: Entity<WorkspaceViewModel>,
     body_input: Entity<BodyInput>,
+    projected_tab_id: Option<RequestTabId>,
     kind_focus_handles: Vec<FocusHandle>,
     sample_focus_handle: FocusHandle,
     clear_focus_handle: FocusHandle,
@@ -59,6 +60,7 @@ impl BodyPane {
         let mut pane = Self {
             view_model,
             body_input,
+            projected_tab_id: None,
             kind_focus_handles: (0..5)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
@@ -174,20 +176,34 @@ impl BodyPane {
         &mut self,
         cx: &mut Context<Self>,
     ) {
-        let (body_draft, body_kind) = {
+        let (tab_id, body_draft, body_kind) = {
             let view_model = self.view_model.read(cx);
-            view_model
-                .active_request()
-                .map_or((RequestBodyDraft::None, BodyKind::None), |request| {
-                    (request.body_draft().clone(), request.body_kind())
-                })
+            view_model.active_request().map_or(
+                (None, RequestBodyDraft::None, BodyKind::None),
+                |request| {
+                    (
+                        Some(request.tab_id()),
+                        request.body_draft().clone(),
+                        request.body_kind(),
+                    )
+                },
+            )
         };
+        let tab_changed = self.projected_tab_id != tab_id;
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
             input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
             match body_draft {
-                RequestBodyDraft::None => input.project_content("", cx),
+                RequestBodyDraft::None => {
+                    if tab_changed {
+                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                    }
+                    input.project_content("", cx);
+                }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
+                    if tab_changed {
+                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                    }
                     input.project_content(body, cx)
                 }
                 RequestBodyDraft::UrlEncoded(rows) => {
@@ -195,7 +211,11 @@ impl BodyPane {
                         .into_iter()
                         .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
                         .collect();
-                    input.project_form_data_entries(entries, cx);
+                    if tab_changed {
+                        input.project_form_data_entries_with_rebind(entries, cx);
+                    } else {
+                        input.project_form_data_entries(entries, cx);
+                    }
                 }
                 RequestBodyDraft::Multipart(parts) => {
                     let entries = parts
@@ -217,10 +237,15 @@ impl BodyPane {
                             ),
                         })
                         .collect();
-                    input.project_form_data_entries(entries, cx);
+                    if tab_changed {
+                        input.project_form_data_entries_with_rebind(entries, cx);
+                    } else {
+                        input.project_form_data_entries(entries, cx);
+                    }
                 }
             }
         });
+        self.projected_tab_id = tab_id;
         cx.notify();
     }
 

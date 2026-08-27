@@ -273,6 +273,18 @@ impl BodyInput {
         self.refresh_form_metadata(cx);
     }
 
+    /// Projects a different request tab and starts fresh per-cell selection/composition/history.
+    pub(crate) fn project_form_data_entries_with_rebind(
+        &mut self,
+        entries: Vec<FormDataEntry>,
+        cx: &mut Context<Self>,
+    ) {
+        self.form_input.update(cx, |input, cx| {
+            input.project_form_data_entries_with_rebind(entries, true, cx)
+        });
+        self.refresh_form_metadata(cx);
+    }
+
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         match self.current_type {
             BodyType::Json | BodyType::Raw => {

@@ -3,9 +3,15 @@ use super::super::layout::{
     visible_row_capacity,
 };
 use crate::{
-    app::{ActivateControl, KeyValueRow, RequestPane, RequestViewModel, WorkspaceViewModel},
+    app::{
+        ActivateControl, KeyValueRow, RequestPane, RequestTabId, RequestViewModel,
+        WorkspaceViewModel,
+    },
     ui::{
-        components::input::header_input::{HeaderInput, HeaderInputEvent},
+        components::input::table_cell_input::{
+            TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
+            TableRowId,
+        },
         theme::{
             ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK,
             OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -14,8 +20,8 @@ use crate::{
 };
 use gpui::{
     div, prelude::FluentBuilder, px, relative, rgb, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Role,
-    ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
+    FocusHandle, Focusable, FontWeight, InteractiveElement, IntoElement, ParentElement, Render,
+    Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,17 +32,7 @@ pub(in crate::app::postman_app::request_workspace) enum KeyValueRowsKind {
 
 #[derive(Clone, Debug)]
 pub(in crate::app::postman_app::request_workspace) enum PersistentRowEditorEvent {
-    KeyChanged {
-        kind: KeyValueRowsKind,
-        index: usize,
-        value: String,
-    },
-    ValueChanged {
-        kind: KeyValueRowsKind,
-        index: usize,
-        value: String,
-    },
-    SubmitRequested,
+    Cell(TableCellInputEvent),
 }
 
 /// Editing buffers for one persistent Params or Headers row. Business values remain in the
@@ -44,74 +40,73 @@ pub(in crate::app::postman_app::request_workspace) enum PersistentRowEditorEvent
 pub(in crate::app::postman_app::request_workspace) struct PersistentRowEditor {
     kind: KeyValueRowsKind,
     index: usize,
-    key_input: Entity<HeaderInput>,
-    value_input: Entity<HeaderInput>,
+    row_id: TableRowId,
+    key_input: Entity<TableCellInput>,
+    value_input: Entity<TableCellInput>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl PersistentRowEditor {
     fn new(kind: KeyValueRowsKind, index: usize, row: KeyValueRow, cx: &mut Context<Self>) -> Self {
         let KeyValueRow { key, value, .. } = row;
+        let row_id = TableRowId::next();
         let (key_placeholder, value_placeholder) = match kind {
             KeyValueRowsKind::Params => ("Key", "Value"),
             KeyValueRowsKind::Headers => ("Header name", "Header value"),
         };
         let key_input = cx.new(|cx| {
-            let mut input = HeaderInput::new(cx).with_placeholder(key_placeholder);
+            let mut input = TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Key),
+                key_placeholder,
+                cx,
+            );
             input.project_content(key, cx);
             input
         });
         let value_input = cx.new(|cx| {
-            let mut input = HeaderInput::new(cx).with_placeholder(value_placeholder);
+            let mut input = TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Value),
+                value_placeholder,
+                cx,
+            );
             input.project_content(value, cx);
             input
         });
         let subscriptions = vec![
-            cx.subscribe(&key_input, Self::on_key_event),
-            cx.subscribe(&value_input, Self::on_value_event),
+            cx.subscribe(&key_input, Self::on_cell_event),
+            cx.subscribe(&value_input, Self::on_cell_event),
         ];
         Self {
             kind,
             index,
+            row_id,
             key_input,
             value_input,
             _subscriptions: subscriptions,
         }
     }
 
-    fn on_key_event(
+    fn on_cell_event(
         &mut self,
-        _input: Entity<HeaderInput>,
-        event: &HeaderInputEvent,
+        _input: Entity<TableCellInput>,
+        event: &TableCellInputEvent,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            HeaderInputEvent::ValueChanged(value) => {
-                cx.emit(PersistentRowEditorEvent::KeyChanged {
-                    kind: self.kind,
-                    index: self.index,
-                    value: value.clone(),
-                })
-            }
-            HeaderInputEvent::SubmitRequested => cx.emit(PersistentRowEditorEvent::SubmitRequested),
-        }
+        cx.emit(PersistentRowEditorEvent::Cell(event.clone()));
     }
 
-    fn on_value_event(
-        &mut self,
-        _input: Entity<HeaderInput>,
-        event: &HeaderInputEvent,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            HeaderInputEvent::ValueChanged(value) => {
-                cx.emit(PersistentRowEditorEvent::ValueChanged {
-                    kind: self.kind,
-                    index: self.index,
-                    value: value.clone(),
-                })
-            }
-            HeaderInputEvent::SubmitRequested => cx.emit(PersistentRowEditorEvent::SubmitRequested),
+    fn row_id(&self) -> TableRowId {
+        self.row_id
+    }
+
+    fn set_index(&mut self, index: usize) {
+        self.index = index;
+    }
+
+    fn cell(&self, column: TableCellColumn) -> Entity<TableCellInput> {
+        match column {
+            TableCellColumn::Key => self.key_input.clone(),
+            TableCellColumn::Value => self.value_input.clone(),
         }
     }
 }
@@ -185,17 +180,27 @@ pub(in crate::app::postman_app::request_workspace) enum KeyValueRowsPaneEvent {
 pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     view_model: Entity<WorkspaceViewModel>,
     kind: KeyValueRowsKind,
+    projected_tab_id: Option<RequestTabId>,
     row_editors: Vec<Entity<PersistentRowEditor>>,
     row_subscriptions: Vec<Subscription>,
     row_toggle_focus_handles: Vec<FocusHandle>,
     row_delete_focus_handles: Vec<FocusHandle>,
     rows_scroll_handle: ScrollHandle,
-    draft_key_input: Entity<HeaderInput>,
-    draft_value_input: Entity<HeaderInput>,
+    draft_row_id: TableRowId,
+    draft_key_input: Entity<TableCellInput>,
+    draft_value_input: Entity<TableCellInput>,
+    draft_subscriptions: Vec<Subscription>,
     draft_toggle_focus_handle: FocusHandle,
     draft_delete_focus_handle: FocusHandle,
     add_row_focus_handle: FocusHandle,
-    _subscriptions: Vec<Subscription>,
+    pending_focus: Option<PendingTableFocus>,
+}
+
+enum PendingTableFocus {
+    Cell(TableCellId),
+    Control(FocusHandle),
+    WindowNext,
+    WindowPrevious,
 }
 
 impl EventEmitter<KeyValueRowsPaneEvent> for KeyValueRowsPane {}
@@ -219,27 +224,42 @@ impl KeyValueRowsPane {
             KeyValueRowsKind::Params => ("Key", "Value"),
             KeyValueRowsKind::Headers => ("Header name", "Header value"),
         };
-        let draft_key_input = cx.new(|cx| HeaderInput::new(cx).with_placeholder(key_placeholder));
-        let draft_value_input =
-            cx.new(|cx| HeaderInput::new(cx).with_placeholder(value_placeholder));
-        let subscriptions = vec![
-            cx.subscribe(&draft_key_input, Self::on_draft_key_event),
-            cx.subscribe(&draft_value_input, Self::on_draft_value_event),
+        let draft_row_id = TableRowId::next();
+        let draft_key_input = cx.new(|cx| {
+            TableCellInput::new(
+                TableCellId::new(draft_row_id, TableCellColumn::Key),
+                key_placeholder,
+                cx,
+            )
+        });
+        let draft_value_input = cx.new(|cx| {
+            TableCellInput::new(
+                TableCellId::new(draft_row_id, TableCellColumn::Value),
+                value_placeholder,
+                cx,
+            )
+        });
+        let draft_subscriptions = vec![
+            cx.subscribe(&draft_key_input, Self::on_draft_cell_event),
+            cx.subscribe(&draft_value_input, Self::on_draft_cell_event),
         ];
         let mut pane = Self {
             view_model,
             kind,
+            projected_tab_id: None,
             row_editors: Vec::new(),
             row_subscriptions: Vec::new(),
             row_toggle_focus_handles: Vec::new(),
             row_delete_focus_handles: Vec::new(),
             rows_scroll_handle: ScrollHandle::new(),
+            draft_row_id,
             draft_key_input,
             draft_value_input,
+            draft_subscriptions,
             draft_toggle_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             draft_delete_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             add_row_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            _subscriptions: subscriptions,
+            pending_focus: None,
         };
         pane.project_active_request(cx);
         pane
@@ -265,36 +285,138 @@ impl KeyValueRowsPane {
         }
     }
 
-    fn rebuild_row_editors(&mut self, cx: &mut Context<Self>) {
-        let rows = {
-            let view_model = self.view_model.read(cx);
-            view_model
-                .active_request()
-                .map_or_else(Vec::new, |request| {
-                    match self.kind {
-                        KeyValueRowsKind::Params => request.params(),
-                        KeyValueRowsKind::Headers => request.headers(),
-                    }
-                    .to_vec()
-                })
-        };
+    fn rebuild_row_editors_from(&mut self, rows: &[KeyValueRow], cx: &mut Context<Self>) {
         self.row_editors.clear();
         self.row_subscriptions.clear();
-        while self.row_toggle_focus_handles.len() < rows.len() {
-            self.row_toggle_focus_handles
-                .push(cx.focus_handle().tab_index(0).tab_stop(true));
-            self.row_delete_focus_handles
-                .push(cx.focus_handle().tab_index(0).tab_stop(true));
+        self.row_toggle_focus_handles.clear();
+        self.row_delete_focus_handles.clear();
+        for (index, row) in rows.iter().cloned().enumerate() {
+            self.push_row_editor(index, row, cx);
         }
-        self.row_toggle_focus_handles.truncate(rows.len());
-        self.row_delete_focus_handles.truncate(rows.len());
-        for (index, row) in rows.into_iter().enumerate() {
-            let kind = self.kind;
-            let editor = cx.new(|cx| PersistentRowEditor::new(kind, index, row, cx));
-            let subscription = cx.subscribe(&editor, Self::on_persistent_row_event);
-            self.row_editors.push(editor);
-            self.row_subscriptions.push(subscription);
+    }
+
+    fn push_row_editor(&mut self, index: usize, row: KeyValueRow, cx: &mut Context<Self>) {
+        self.row_toggle_focus_handles
+            .push(cx.focus_handle().tab_index(0).tab_stop(true));
+        self.row_delete_focus_handles
+            .push(cx.focus_handle().tab_index(0).tab_stop(true));
+        let kind = self.kind;
+        let editor = cx.new(|cx| PersistentRowEditor::new(kind, index, row, cx));
+        let subscription = cx.subscribe(&editor, Self::on_persistent_row_event);
+        self.row_editors.push(editor);
+        self.row_subscriptions.push(subscription);
+    }
+
+    fn row_editors_match(&self, rows: &[KeyValueRow], cx: &gpui::App) -> bool {
+        self.row_editors.len() == rows.len()
+            && self.row_editors.iter().zip(rows).all(|(editor, row)| {
+                let editor = editor.read(cx);
+                editor.key_input.read(cx).content() == row.key
+                    && editor.value_input.read(cx).content() == row.value
+            })
+    }
+
+    /// Retain existing cell entities whenever the logical prefix is unchanged. Appending a row
+    /// must not clear cursor, selection, or Undo history in neighboring cells.
+    fn sync_row_editors(
+        &mut self,
+        rows: &[KeyValueRow],
+        force_rebind: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let prefix_matches = !force_rebind
+            && self.row_editors.len() <= rows.len()
+            && self.row_editors.iter().zip(rows).all(|(editor, row)| {
+                let editor = editor.read(cx);
+                editor.key_input.read(cx).content() == row.key
+                    && editor.value_input.read(cx).content() == row.value
+            });
+        if !prefix_matches {
+            self.rebuild_row_editors_from(rows, cx);
+            return;
         }
+        for (index, row) in rows
+            .iter()
+            .cloned()
+            .enumerate()
+            .skip(self.row_editors.len())
+        {
+            self.push_row_editor(index, row, cx);
+        }
+    }
+
+    fn remove_row_editor(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index >= self.row_editors.len() {
+            return;
+        }
+        self.row_editors.remove(index);
+        let _ = self.row_subscriptions.remove(index);
+        self.row_toggle_focus_handles.remove(index);
+        self.row_delete_focus_handles.remove(index);
+        for (new_index, editor) in self.row_editors.iter().enumerate().skip(index) {
+            editor.update(cx, |editor, _| editor.set_index(new_index));
+        }
+    }
+
+    fn row_index(&self, row_id: TableRowId, cx: &gpui::App) -> Option<usize> {
+        self.row_editors
+            .iter()
+            .position(|editor| editor.read(cx).row_id() == row_id)
+    }
+
+    fn cell_entity(&self, cell: TableCellId, cx: &gpui::App) -> Option<Entity<TableCellInput>> {
+        if cell.row() == self.draft_row_id {
+            return Some(match cell.column() {
+                TableCellColumn::Key => self.draft_key_input.clone(),
+                TableCellColumn::Value => self.draft_value_input.clone(),
+            });
+        }
+        self.row_editors.iter().find_map(|editor| {
+            let editor = editor.read(cx);
+            (editor.row_id() == cell.row()).then(|| editor.cell(cell.column()))
+        })
+    }
+
+    fn reset_draft_inputs(&mut self, cx: &mut Context<Self>) {
+        let (key_placeholder, value_placeholder) = match self.kind {
+            KeyValueRowsKind::Params => ("Key", "Value"),
+            KeyValueRowsKind::Headers => ("Header name", "Header value"),
+        };
+        let row_id = TableRowId::next();
+        let key_input = cx.new(|cx| {
+            TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Key),
+                key_placeholder,
+                cx,
+            )
+        });
+        let value_input = cx.new(|cx| {
+            TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Value),
+                value_placeholder,
+                cx,
+            )
+        });
+        self.draft_subscriptions = vec![
+            cx.subscribe(&key_input, Self::on_draft_cell_event),
+            cx.subscribe(&value_input, Self::on_draft_cell_event),
+        ];
+        self.draft_row_id = row_id;
+        self.draft_key_input = key_input;
+        self.draft_value_input = value_input;
+        self.project_draft(cx);
+    }
+
+    fn active_projection(&self, cx: &gpui::App) -> (Option<RequestTabId>, Vec<KeyValueRow>) {
+        let view_model = self.view_model.read(cx);
+        let Some(request) = view_model.active_request() else {
+            return (None, Vec::new());
+        };
+        let rows = match self.kind {
+            KeyValueRowsKind::Params => request.params(),
+            KeyValueRowsKind::Headers => request.headers(),
+        };
+        (Some(request.tab_id()), rows.to_vec())
     }
 
     fn on_persistent_row_event(
@@ -303,84 +425,190 @@ impl KeyValueRowsPane {
         event: &PersistentRowEditorEvent,
         cx: &mut Context<Self>,
     ) {
+        let PersistentRowEditorEvent::Cell(event) = event;
+        self.handle_cell_event(event, false, cx);
+    }
+
+    fn on_draft_cell_event(
+        &mut self,
+        _input: Entity<TableCellInput>,
+        event: &TableCellInputEvent,
+        cx: &mut Context<Self>,
+    ) {
+        self.handle_cell_event(event, true, cx);
+    }
+
+    fn handle_cell_event(
+        &mut self,
+        event: &TableCellInputEvent,
+        draft: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let cell = match event {
+            TableCellInputEvent::ValueChanged { cell, .. }
+            | TableCellInputEvent::SubmitRequested { cell }
+            | TableCellInputEvent::TraversalRequested { cell, .. } => *cell,
+        };
+        let valid_cell = if draft {
+            cell.row() == self.draft_row_id
+        } else {
+            self.row_index(cell.row(), cx).is_some()
+        };
+        if !valid_cell {
+            return;
+        }
+
         match event {
-            PersistentRowEditorEvent::KeyChanged { kind, index, value } => match kind {
-                KeyValueRowsKind::Params => {
-                    self.update_active_request(cx, |request| {
-                        request.set_param_key(*index, value.clone())
-                    });
-                    self.emit_effective_url_changed(cx);
+            TableCellInputEvent::ValueChanged { value, .. } if draft => {
+                let pane = self.kind.request_pane();
+                match cell.column() {
+                    TableCellColumn::Key => {
+                        self.update_active_request(cx, |request| {
+                            request.set_row_draft_key(pane, value)
+                        });
+                    }
+                    TableCellColumn::Value => {
+                        self.update_active_request(cx, |request| {
+                            request.set_row_draft_value(pane, value)
+                        });
+                    }
                 }
-                KeyValueRowsKind::Headers => {
-                    self.update_active_request(cx, |request| {
-                        request.set_header_key(*index, value.clone())
-                    });
+                self.emit_effective_url_changed(cx);
+            }
+            TableCellInputEvent::ValueChanged { value, .. } => {
+                let Some(index) = self.row_index(cell.row(), cx) else {
+                    return;
+                };
+                match (self.kind, cell.column()) {
+                    (KeyValueRowsKind::Params, TableCellColumn::Key) => {
+                        self.update_active_request(cx, |request| {
+                            request.set_param_key(index, value.clone())
+                        });
+                        self.emit_effective_url_changed(cx);
+                    }
+                    (KeyValueRowsKind::Params, TableCellColumn::Value) => {
+                        self.update_active_request(cx, |request| {
+                            request.set_param_value(index, value.clone())
+                        });
+                        self.emit_effective_url_changed(cx);
+                    }
+                    (KeyValueRowsKind::Headers, TableCellColumn::Key) => {
+                        self.update_active_request(cx, |request| {
+                            request.set_header_key(index, value.clone())
+                        });
+                    }
+                    (KeyValueRowsKind::Headers, TableCellColumn::Value) => {
+                        self.update_active_request(cx, |request| {
+                            request.set_header_value(index, value.clone())
+                        });
+                    }
                 }
-            },
-            PersistentRowEditorEvent::ValueChanged { kind, index, value } => match kind {
-                KeyValueRowsKind::Params => {
-                    self.update_active_request(cx, |request| {
-                        request.set_param_value(*index, value.clone())
-                    });
-                    self.emit_effective_url_changed(cx);
-                }
-                KeyValueRowsKind::Headers => {
-                    self.update_active_request(cx, |request| {
-                        request.set_header_value(*index, value.clone())
-                    });
-                }
-            },
-            PersistentRowEditorEvent::SubmitRequested => self.append_row(cx),
+            }
+            TableCellInputEvent::SubmitRequested { .. } => self.append_row(cx),
+            TableCellInputEvent::TraversalRequested { direction, .. } => {
+                self.queue_traversal(cell, *direction, cx);
+            }
         }
     }
 
-    fn on_draft_key_event(
+    fn queue_traversal(
         &mut self,
-        _input: Entity<HeaderInput>,
-        event: &HeaderInputEvent,
+        cell: TableCellId,
+        direction: TableCellTraversal,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            HeaderInputEvent::ValueChanged(key) => {
-                let pane = self.kind.request_pane();
-                self.update_active_request(cx, |request| request.set_row_draft_key(pane, key));
-                self.emit_effective_url_changed(cx);
+        self.pending_focus = if cell.row() == self.draft_row_id {
+            match (self.kind, cell.column(), direction) {
+                (_, TableCellColumn::Key, TableCellTraversal::Forward) => {
+                    Some(PendingTableFocus::Cell(TableCellId::new(
+                        self.draft_row_id,
+                        TableCellColumn::Value,
+                    )))
+                }
+                (_, TableCellColumn::Value, TableCellTraversal::Backward) => {
+                    Some(PendingTableFocus::Cell(TableCellId::new(
+                        self.draft_row_id,
+                        TableCellColumn::Key,
+                    )))
+                }
+                (KeyValueRowsKind::Headers, TableCellColumn::Key, TableCellTraversal::Backward) => {
+                    Some(PendingTableFocus::Control(
+                        self.draft_toggle_focus_handle.clone(),
+                    ))
+                }
+                (
+                    KeyValueRowsKind::Headers,
+                    TableCellColumn::Value,
+                    TableCellTraversal::Forward,
+                ) => Some(PendingTableFocus::Control(
+                    self.draft_delete_focus_handle.clone(),
+                )),
+                (_, TableCellColumn::Key, TableCellTraversal::Backward) => {
+                    Some(PendingTableFocus::WindowPrevious)
+                }
+                (_, TableCellColumn::Value, TableCellTraversal::Forward) => {
+                    Some(PendingTableFocus::WindowNext)
+                }
             }
-            HeaderInputEvent::SubmitRequested => self.append_row(cx),
-        }
+        } else {
+            let Some(index) = self.row_index(cell.row(), cx) else {
+                return;
+            };
+            match (cell.column(), direction) {
+                (TableCellColumn::Key, TableCellTraversal::Forward) => Some(
+                    PendingTableFocus::Cell(TableCellId::new(cell.row(), TableCellColumn::Value)),
+                ),
+                (TableCellColumn::Value, TableCellTraversal::Backward) => Some(
+                    PendingTableFocus::Cell(TableCellId::new(cell.row(), TableCellColumn::Key)),
+                ),
+                (TableCellColumn::Key, TableCellTraversal::Backward) => Some(
+                    PendingTableFocus::Control(self.row_toggle_focus_handles[index].clone()),
+                ),
+                (TableCellColumn::Value, TableCellTraversal::Forward) => Some(
+                    PendingTableFocus::Control(self.row_delete_focus_handles[index].clone()),
+                ),
+            }
+        };
+        cx.notify();
     }
 
-    fn on_draft_value_event(
-        &mut self,
-        _input: Entity<HeaderInput>,
-        event: &HeaderInputEvent,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            HeaderInputEvent::ValueChanged(value) => {
-                let pane = self.kind.request_pane();
-                self.update_active_request(cx, |request| request.set_row_draft_value(pane, value));
-                self.emit_effective_url_changed(cx);
+    fn apply_pending_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(target) = self.pending_focus.take() else {
+            return;
+        };
+        match target {
+            PendingTableFocus::Cell(cell) => {
+                if let Some(input) = self.cell_entity(cell, cx) {
+                    input.read(cx).focus_handle(cx).focus(window, cx);
+                }
             }
-            HeaderInputEvent::SubmitRequested => self.append_row(cx),
+            PendingTableFocus::Control(focus) => focus.focus(window, cx),
+            PendingTableFocus::WindowNext => window.focus_next(cx),
+            PendingTableFocus::WindowPrevious => window.focus_prev(cx),
         }
     }
 
     fn append_row(&mut self, cx: &mut Context<Self>) {
-        match self.kind {
+        let appended = match self.kind {
             KeyValueRowsKind::Params => {
-                self.update_active_request(cx, RequestViewModel::append_param_row);
-                self.rebuild_row_editors(cx);
-                self.rows_scroll_handle.scroll_to_bottom();
-                self.emit_effective_url_changed(cx);
+                let appended = self
+                    .update_active_request(cx, RequestViewModel::append_param_row)
+                    .is_some();
+                if appended {
+                    self.emit_effective_url_changed(cx);
+                }
+                appended
             }
-            KeyValueRowsKind::Headers => {
-                self.update_active_request(cx, RequestViewModel::append_header_row);
-                self.rebuild_row_editors(cx);
-                self.rows_scroll_handle.scroll_to_bottom();
-            }
+            KeyValueRowsKind::Headers => self
+                .update_active_request(cx, RequestViewModel::append_header_row)
+                .is_some(),
+        };
+        if appended {
+            let (_, rows) = self.active_projection(cx);
+            self.sync_row_editors(&rows, false, cx);
+            self.reset_draft_inputs(cx);
+            self.rows_scroll_handle.scroll_to_bottom();
         }
-        self.project_draft(cx);
     }
 
     fn add_current_row(&mut self, cx: &mut Context<Self>) {
@@ -394,11 +622,7 @@ impl KeyValueRowsPane {
 
     fn remove_param(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_active_request(cx, |request| request.remove_param(index));
-        if index < self.row_toggle_focus_handles.len() {
-            self.row_toggle_focus_handles.remove(index);
-            self.row_delete_focus_handles.remove(index);
-        }
-        self.rebuild_row_editors(cx);
+        self.remove_row_editor(index, cx);
         self.emit_effective_url_changed(cx);
     }
 
@@ -407,28 +631,27 @@ impl KeyValueRowsPane {
     }
 
     fn toggle_header_draft(&mut self, cx: &mut Context<Self>) {
-        self.update_active_request(cx, |request| {
+        let appended = self.update_active_request(cx, |request| {
             let index = request.headers().len();
             request.append_header_row();
             request.toggle_header(index);
         });
-        self.rebuild_row_editors(cx);
-        self.rows_scroll_handle.scroll_to_bottom();
-        self.project_draft(cx);
+        if appended.is_some() {
+            let (_, rows) = self.active_projection(cx);
+            self.sync_row_editors(&rows, false, cx);
+            self.reset_draft_inputs(cx);
+            self.rows_scroll_handle.scroll_to_bottom();
+        }
     }
 
     fn remove_header(&mut self, index: usize, cx: &mut Context<Self>) {
         self.update_active_request(cx, |request| request.remove_header(index));
-        if index < self.row_toggle_focus_handles.len() {
-            self.row_toggle_focus_handles.remove(index);
-            self.row_delete_focus_handles.remove(index);
-        }
-        self.rebuild_row_editors(cx);
+        self.remove_row_editor(index, cx);
     }
 
     fn clear_header_draft(&mut self, cx: &mut Context<Self>) {
         self.update_active_request(cx, RequestViewModel::clear_header_draft);
-        self.project_draft(cx);
+        self.reset_draft_inputs(cx);
     }
 
     fn focus_after_row_removal(
@@ -449,25 +672,18 @@ impl KeyValueRowsPane {
     }
 
     fn project_draft(&self, cx: &mut Context<Self>) {
-        let (key, value, key_placeholder, value_placeholder) = {
+        let (key, value) = {
             let view_model = self.view_model.read(cx);
-            let (key, value) = view_model
+            view_model
                 .active_request()
                 .and_then(|request| request.row_draft(self.kind.request_pane()))
                 .map(|(key, value)| (key.to_string(), value.to_string()))
-                .unwrap_or_default();
-            let placeholders = match self.kind {
-                KeyValueRowsKind::Params => ("Key", "Value"),
-                KeyValueRowsKind::Headers => ("Header name", "Header value"),
-            };
-            (key, value, placeholders.0, placeholders.1)
+                .unwrap_or_default()
         };
         self.draft_key_input.update(cx, |input, cx| {
-            input.project_placeholder(key_placeholder, cx);
             input.project_content(key, cx);
         });
         self.draft_value_input.update(cx, |input, cx| {
-            input.project_placeholder(value_placeholder, cx);
             input.project_content(value, cx);
         });
     }
@@ -476,8 +692,17 @@ impl KeyValueRowsPane {
         &mut self,
         cx: &mut Context<Self>,
     ) {
-        self.rebuild_row_editors(cx);
-        self.project_draft(cx);
+        let (tab_id, rows) = self.active_projection(cx);
+        let tab_changed = self.projected_tab_id != tab_id;
+        if tab_changed || !self.row_editors_match(&rows, cx) {
+            self.sync_row_editors(&rows, tab_changed, cx);
+        }
+        if tab_changed {
+            self.reset_draft_inputs(cx);
+        } else {
+            self.project_draft(cx);
+        }
+        self.projected_tab_id = tab_id;
         cx.notify();
     }
 
@@ -1583,6 +1808,7 @@ impl KeyValueRowsPane {
 
 impl Render for KeyValueRowsPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.apply_pending_focus(window, cx);
         let pane = self.kind.request_pane();
         let visible_rows = {
             let view_model = self.view_model.read(cx);
@@ -1602,5 +1828,69 @@ impl Render for KeyValueRowsPane {
             KeyValueRowsKind::Params => self.render_params_editor(panel_height, window, cx),
             KeyValueRowsKind::Headers => self.render_headers_editor(panel_height, window, cx),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{AppContext, TestAppContext};
+
+    #[gpui::test]
+    fn duplicate_param_rows_keep_identity_history_owners_across_append_and_removal(
+        cx: &mut TestAppContext,
+    ) {
+        let workspace = cx.new(|_| WorkspaceViewModel::new());
+        let pane =
+            cx.new(|cx| KeyValueRowsPane::new(workspace.clone(), KeyValueRowsKind::Params, cx));
+
+        pane.update(cx, |pane, cx| {
+            pane.append_row(cx);
+            pane.append_row(cx);
+        });
+        let ids = pane.read_with(cx, |pane, cx| {
+            pane.row_editors
+                .iter()
+                .map(|editor| editor.read(cx).row_id())
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(ids.len(), 2);
+
+        pane.update(cx, |pane, cx| {
+            pane.toggle_param(1, cx);
+            pane.project_active_request(cx);
+            assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[0]);
+            assert_eq!(pane.row_editors[1].read(cx).row_id(), ids[1]);
+
+            pane.remove_param(0, cx);
+            assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[1]);
+        });
+        workspace.read_with(cx, |workspace, _| {
+            let rows = workspace.active_request().unwrap().params();
+            assert_eq!(rows.len(), 1);
+            assert!(!rows[0].enabled);
+            assert!(rows[0].key.is_empty());
+            assert!(rows[0].value.is_empty());
+        });
+    }
+
+    #[gpui::test]
+    fn table_traversal_resolves_from_stable_cell_identity(cx: &mut TestAppContext) {
+        let workspace = cx.new(|_| WorkspaceViewModel::new());
+        let pane = cx.new(|cx| KeyValueRowsPane::new(workspace, KeyValueRowsKind::Headers, cx));
+        pane.update(cx, |pane, cx| {
+            pane.append_row(cx);
+            let row_id = pane.row_editors[0].read(cx).row_id();
+            pane.queue_traversal(
+                TableCellId::new(row_id, TableCellColumn::Key),
+                TableCellTraversal::Forward,
+                cx,
+            );
+            assert!(matches!(
+                pane.pending_focus,
+                Some(PendingTableFocus::Cell(cell))
+                    if cell == TableCellId::new(row_id, TableCellColumn::Value)
+            ));
+        });
     }
 }

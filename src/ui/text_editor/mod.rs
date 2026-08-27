@@ -13,7 +13,9 @@ pub use state::{
     TextEditorSnapshot, TextEditorState, TextLineMode, TextMovement, TextSelection, Utf16Selection,
 };
 
+#[cfg(test)]
 pub(crate) use history::EditHistory;
+#[cfg(test)]
 pub(crate) use offsets::{next_word_boundary, previous_word_boundary};
 
 #[cfg(test)]
