@@ -5,6 +5,15 @@ pub use super::request_lifecycle::{
     PendingRequest, RequestTabId, SendId, SendProgress, SendRejection, SendStart, SendTerminal,
     SendTerminalOutcome, SendTransition,
 };
+use super::workspace_projections::{
+    request_tag_title, CompletedSendHistoryInput, CookieProjectionEvent, GlobalSearchInput,
+    HistoryPersistenceFailure, HistoryQueryRestoreInput, RequestTagInput, WorkspaceProjections,
+};
+pub use super::workspace_projections::{
+    CookieJarEntry, GlobalSearchHistoryResult, GlobalSearchRequestResult, GlobalSearchResults,
+    HistoryReplayInput, HistoryReplaySource, HistoryStorageStage, HistoryStorageStatus,
+    RequestTagProjection,
+};
 pub use crate::models::{
     AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
     MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestConstruction, RequestDraft,
@@ -16,12 +25,9 @@ use crate::{
     http::executor::RequestResult,
     models::{
         HistoricalResponse, HistoryEntry, HttpMethod, MultipartPart, RedirectHop, RedirectPolicy,
-        Request, RequestBody, RequestEditorIntent, RequestHistory,
+        Request, RequestBody, RequestEditorIntent,
     },
 };
-use std::{collections::HashMap, fmt};
-
-const MAX_HISTORY_URL_LENGTH: usize = 40;
 
 /// The request editor section selected by the user.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,51 +79,6 @@ impl ResponseState {
             | Self::Success { .. }
             | Self::Error { .. } => None,
         }
-    }
-}
-
-/// One open-request match in the application-wide search projection.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GlobalSearchRequestResult {
-    pub tab_id: RequestTabId,
-    pub display_name: String,
-    pub method: HttpMethod,
-    pub url: String,
-}
-
-/// One persisted History match in the application-wide search projection.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GlobalSearchHistoryResult {
-    pub entry_id: String,
-    pub display_name: String,
-    pub method: HttpMethod,
-    pub url: String,
-    pub status: Option<u16>,
-    pub response_size: Option<usize>,
-}
-
-/// Deterministic, grouped search results derived from `WorkspaceViewModel` state.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct GlobalSearchResults {
-    requests: Vec<GlobalSearchRequestResult>,
-    history: Vec<GlobalSearchHistoryResult>,
-}
-
-impl GlobalSearchResults {
-    pub fn requests(&self) -> &[GlobalSearchRequestResult] {
-        &self.requests
-    }
-
-    pub fn history(&self) -> &[GlobalSearchHistoryResult] {
-        &self.history
-    }
-
-    pub fn len(&self) -> usize {
-        self.requests.len() + self.history.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.requests.is_empty() && self.history.is_empty()
     }
 }
 
@@ -686,20 +647,7 @@ impl RequestViewModel {
     }
 
     pub fn tab_title(&self) -> String {
-        if self.url().trim().is_empty() {
-            return "Untitled request".to_string();
-        }
-        let without_scheme = self
-            .url()
-            .split_once("://")
-            .map(|(_, value)| value)
-            .unwrap_or(self.url());
-        let title: String = without_scheme.chars().take(28).collect();
-        if without_scheme.chars().count() > 28 {
-            format!("{title}…")
-        } else {
-            title
-        }
+        request_tag_title(self.url())
     }
 
     #[cfg(test)]
@@ -728,50 +676,6 @@ impl RequestTabValue for RequestViewModel {
     }
 }
 
-/// Non-sensitive projection of one application-session cookie. Cookie values stay exclusively in
-/// the transport jar; the ViewModel exposes only enough metadata to make storage and clearing
-/// observable through rendered controls.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CookieJarEntry {
-    pub origin: String,
-    pub name: String,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum HistoryStorageStage {
-    Initialize,
-    Load,
-    Append,
-    Clear,
-}
-
-impl fmt::Display for HistoryStorageStage {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Initialize => "initialization",
-            Self::Load => "load",
-            Self::Append => "append",
-            Self::Clear => "clear",
-        })
-    }
-}
-
-/// Observable state of the SQLite-backed History feature. Entries remain only the latest
-/// successful database query result.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HistoryStorageStatus {
-    Loading {
-        stage: HistoryStorageStage,
-    },
-    Ready {
-        skipped_rows: usize,
-    },
-    Error {
-        stage: HistoryStorageStage,
-        message: String,
-    },
-}
-
 /// Result of routing one HTTP completion to request/response state. Only an accepted completion
 /// yields a History candidate; the ViewModel never adds it to the visible database query result.
 #[derive(Debug)]
@@ -798,18 +702,11 @@ impl SendCompletion {
     }
 }
 
-/// Application-level ViewModel. It owns request tabs and the latest SQLite History query result.
+/// Application-level coordination facade. Request tabs, lifecycle state, and application read
+/// models retain explicit owners behind its named APIs.
 pub struct WorkspaceViewModel {
     tabs: RequestTabs<RequestViewModel>,
-    history: RequestHistory,
-    /// Current-process complete Requests keyed by SQLite-confirmed History IDs. This is not a
-    /// second History store: it has no ordering or metadata, is never rendered independently,
-    /// and is pruned whenever the authoritative SQLite query result changes. It only preserves
-    /// credentials stripped at the persistence boundary for same-session replay.
-    runtime_replay_requests: HashMap<String, Request>,
-    history_storage_status: HistoryStorageStatus,
-    cookie_jar: Vec<CookieJarEntry>,
-    last_cookie_clear_count: Option<usize>,
+    projections: WorkspaceProjections,
     next_send_id: u64,
 }
 
@@ -821,13 +718,7 @@ impl WorkspaceViewModel {
     pub fn with_request(request: RequestViewModel) -> Self {
         Self {
             tabs: RequestTabs::with_initial(request),
-            history: RequestHistory::new(),
-            runtime_replay_requests: HashMap::new(),
-            history_storage_status: HistoryStorageStatus::Loading {
-                stage: HistoryStorageStage::Initialize,
-            },
-            cookie_jar: Vec::new(),
-            last_cookie_clear_count: None,
+            projections: WorkspaceProjections::new(),
             next_send_id: 1,
         }
     }
@@ -900,55 +791,31 @@ impl WorkspaceViewModel {
         self.tabs.select_id(tab_id)
     }
 
-    /// Search open request tabs and the latest authoritative History query result.
-    ///
-    /// Ordering is inherited from the two source collections: request tabs stay in tab order and
-    /// History stays newest-first. Matching here keeps the application shell from growing a
-    /// second request/history data model.
-    pub fn global_search_results(&self, query: &str) -> GlobalSearchResults {
-        let query = query.trim().to_lowercase();
-        if query.is_empty() {
-            return GlobalSearchResults::default();
-        }
-
-        let matches = |display_name: &str, method: HttpMethod, url: &str| {
-            display_name.to_lowercase().contains(&query)
-                || method.to_string().to_lowercase().contains(&query)
-                || url.to_lowercase().contains(&query)
-        };
-
-        let requests = self
-            .tabs
+    /// Immutable request-tag/tab-label read models derived from current draft state.
+    pub fn request_tag_projections(&self) -> Vec<RequestTagProjection> {
+        self.tabs
             .values()
             .iter()
-            .filter_map(|request| {
-                let display_name = request.tab_title();
-                matches(&display_name, request.method(), request.url()).then(|| {
-                    GlobalSearchRequestResult {
-                        tab_id: request.tab_id,
-                        display_name,
-                        method: request.method(),
-                        url: request.url().to_string(),
-                    }
+            .map(|request| {
+                self.projections.request_tags.project(RequestTagInput {
+                    tab_id: request.tab_id(),
+                    method: request.method(),
+                    url: request.url(),
+                    dirty: request.is_dirty(),
                 })
             })
-            .collect();
-        let history = self
-            .history
-            .entries()
-            .iter()
-            .filter(|entry| matches(&entry.name, entry.request.method, &entry.request.url))
-            .map(|entry| GlobalSearchHistoryResult {
-                entry_id: entry.id.clone(),
-                display_name: entry.name.clone(),
-                method: entry.request.method,
-                url: entry.request.url.clone(),
-                status: entry.status,
-                response_size: entry.response_size,
-            })
-            .collect();
+            .collect()
+    }
 
-        GlobalSearchResults { requests, history }
+    /// Search immutable request-tag and authoritative History read models. Source ordering is
+    /// preserved for the existing grouped keyboard/mouse result UI.
+    pub fn global_search_results(&self, query: &str) -> GlobalSearchResults {
+        let request_tags = self.request_tag_projections();
+        self.projections.search.results(GlobalSearchInput {
+            query,
+            request_tags: &request_tags,
+            history: self.projections.history.entries(),
+        })
     }
 
     pub fn new_request(&mut self) {
@@ -1173,16 +1040,12 @@ impl WorkspaceViewModel {
         let history_entry = completed_response
             .filter(|_| transition.is_applied() && !was_cancelled)
             .map(|response| {
-                HistoryEntry::completed_with_intent_and_options(
-                    pending.request().clone(),
-                    history_label(&pending.request().url),
-                    response.status,
-                    response.elapsed_ms,
-                    response.original_size,
-                    pending.editor_intent().cloned(),
-                    pending.request_options(),
-                )
-                .with_historical_response(response)
+                self.projections
+                    .history
+                    .candidate_from_completion(CompletedSendHistoryInput {
+                        pending: &pending,
+                        response,
+                    })
             });
         SendCompletion {
             transition,
@@ -1196,13 +1059,14 @@ impl WorkspaceViewModel {
     }
 
     pub fn load_history_entry(&mut self, entry: &HistoryEntry) -> bool {
-        let replay_request = self
-            .runtime_replay_requests
-            .get(&entry.id)
-            .unwrap_or(&entry.request)
-            .clone();
-        self.update_active_request(|tab| tab.load_history_entry(entry, &replay_request))
+        let replay = self.history_replay_input(entry);
+        self.update_active_request(|tab| tab.load_history_entry(entry, replay.request()))
             .is_some()
+    }
+
+    /// Resolve the explicit persisted-vs-runtime input used to restore a History row into a tab.
+    pub fn history_replay_input(&self, entry: &HistoryEntry) -> HistoryReplayInput {
+        self.projections.history.replay_input(entry)
     }
 
     pub fn request_editor_intent(&self) -> Option<RequestEditorIntent> {
@@ -1211,19 +1075,19 @@ impl WorkspaceViewModel {
     }
 
     pub fn history(&self) -> &[HistoryEntry] {
-        self.history.entries()
+        self.projections.history.entries()
     }
 
     pub fn history_len(&self) -> usize {
-        self.history.len()
+        self.projections.history.len()
     }
 
     pub fn history_storage_status(&self) -> &HistoryStorageStatus {
-        &self.history_storage_status
+        self.projections.history.storage_status()
     }
 
     pub(crate) fn set_history_loading(&mut self, stage: HistoryStorageStage) {
-        self.history_storage_status = HistoryStorageStatus::Loading { stage };
+        self.projections.history.set_loading(stage);
     }
 
     /// Apply only rows confirmed by a successful SQLite query.
@@ -1232,39 +1096,43 @@ impl WorkspaceViewModel {
         entries: Vec<HistoryEntry>,
         skipped_rows: usize,
     ) {
-        self.history.replace(entries);
-        let retained_ids = self
+        let output = self
+            .projections
             .history
-            .entries()
-            .iter()
-            .map(|entry| entry.id.as_str())
-            .collect::<std::collections::HashSet<_>>();
-        self.runtime_replay_requests
-            .retain(|entry_id, _| retained_ids.contains(entry_id.as_str()));
+            .restore_query(HistoryQueryRestoreInput {
+                entries,
+                skipped_rows,
+            });
         for tab in self.tabs.values_mut() {
             if tab
                 .response
                 .historical_entry_id()
-                .is_some_and(|entry_id| !retained_ids.contains(entry_id))
+                .is_some_and(|entry_id| !output.retains(entry_id))
             {
                 tab.response = ResponseState::NotSent;
                 tab.redirect_chain.clear();
                 tab.response_stored_cookies.clear();
             }
         }
-        self.history_storage_status = HistoryStorageStatus::Ready { skipped_rows };
+        tracing::debug!(
+            transition = ?output.transition(),
+            skipped_rows,
+            "History projection restored from SQLite"
+        );
     }
 
     /// Attach a complete Request only after its History ID has been returned by SQLite.
     /// Recovered rows intentionally have no overlay and therefore replay their sanitized request.
     pub(crate) fn confirm_runtime_replay_request(&mut self, entry_id: String, request: Request) {
-        if self
+        if !self
+            .projections
             .history
-            .entries()
-            .iter()
-            .any(|entry| entry.id == entry_id)
+            .confirm_runtime_replay(entry_id.clone(), request)
         {
-            self.runtime_replay_requests.insert(entry_id, request);
+            tracing::debug!(
+                entry_id,
+                "ignored runtime History replay input without a confirmed SQLite row"
+            );
         }
     }
 
@@ -1273,44 +1141,34 @@ impl WorkspaceViewModel {
         stage: HistoryStorageStage,
         message: impl Into<String>,
     ) {
-        self.history_storage_status = HistoryStorageStatus::Error {
+        self.projections.history.fail(HistoryPersistenceFailure {
             stage,
             message: message.into(),
-        };
+        });
     }
 
     pub fn cookies(&self) -> &[CookieJarEntry] {
-        &self.cookie_jar
+        self.projections.cookies.entries()
     }
 
     pub fn cookie_count(&self) -> usize {
-        self.cookie_jar.len()
+        self.projections.cookies.len()
     }
 
     pub fn last_cookie_clear_count(&self) -> Option<usize> {
-        self.last_cookie_clear_count
+        self.projections.cookies.last_clear_count()
     }
 
     pub(crate) fn sync_cookie_jar(&mut self, snapshot: Vec<(String, String)>) {
-        let mut cookie_jar = snapshot
-            .into_iter()
-            .map(|(origin, name)| CookieJarEntry { origin, name })
-            .collect::<Vec<_>>();
-        cookie_jar.sort_by(|left, right| {
-            left.origin
-                .cmp(&right.origin)
-                .then_with(|| left.name.cmp(&right.name))
-        });
-        cookie_jar.dedup();
-        if !cookie_jar.is_empty() {
-            self.last_cookie_clear_count = None;
-        }
-        self.cookie_jar = cookie_jar;
+        self.projections
+            .cookies
+            .apply(CookieProjectionEvent::Snapshot(snapshot));
     }
 
     pub(crate) fn record_cookies_cleared(&mut self, cleared: usize) {
-        self.cookie_jar.clear();
-        self.last_cookie_clear_count = Some(cleared);
+        self.projections
+            .cookies
+            .apply(CookieProjectionEvent::Cleared { count: cleared });
     }
 }
 
@@ -1323,17 +1181,6 @@ impl Default for WorkspaceViewModel {
 impl Default for RequestViewModel {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-fn history_label(url: &str) -> String {
-    if url.chars().count() > MAX_HISTORY_URL_LENGTH {
-        format!(
-            "{}…",
-            url.chars().take(MAX_HISTORY_URL_LENGTH).collect::<String>()
-        )
-    } else {
-        url.to_string()
     }
 }
 
@@ -1425,6 +1272,47 @@ mod tests {
         assert!(workspace.global_search_results("  ").is_empty());
         workspace.close_tab(0);
         assert!(workspace.global_search_results("alpha.example").is_empty());
+    }
+
+    #[test]
+    fn request_tag_updates_remain_scoped_to_the_matching_stable_tab() {
+        let mut workspace = WorkspaceViewModel::new();
+        let first_id = workspace.active_tab_id().unwrap();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://first.example/kept");
+        workspace.new_request();
+        let second_id = workspace.active_tab_id().unwrap();
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_method(HttpMethod::POST);
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_url("https://second.example/changed");
+
+        let tags = workspace.request_tag_projections();
+        assert_eq!(
+            tags,
+            vec![
+                RequestTagProjection {
+                    tab_id: first_id,
+                    method: HttpMethod::GET,
+                    display_name: "first.example/kept".into(),
+                    url: "https://first.example/kept".into(),
+                    dirty: true,
+                },
+                RequestTagProjection {
+                    tab_id: second_id,
+                    method: HttpMethod::POST,
+                    display_name: "second.example/changed".into(),
+                    url: "https://second.example/changed".into(),
+                    dirty: true,
+                },
+            ]
+        );
     }
 
     #[test]
@@ -3090,9 +2978,16 @@ mod tests {
 
         let mut current_session = WorkspaceViewModel::new();
         current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request.clone());
-        assert!(current_session.runtime_replay_requests.is_empty());
+        assert_eq!(
+            current_session.history_replay_input(&confirmed).source(),
+            HistoryReplaySource::PersistedSnapshot
+        );
         current_session.replace_history_query_result(vec![confirmed.clone()], 0);
         current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request);
+        assert_eq!(
+            current_session.history_replay_input(&confirmed).source(),
+            HistoryReplaySource::RuntimeSecretOverlay
+        );
         current_session.load_history_entry(&confirmed);
         assert_eq!(current_session.active_request().unwrap().url(), raw_url);
         assert_eq!(
@@ -3102,9 +2997,15 @@ mod tests {
 
         // An explicit refresh retains overlays only for IDs still returned by SQLite.
         current_session.replace_history_query_result(vec![confirmed.clone()], 0);
-        assert_eq!(current_session.runtime_replay_requests.len(), 1);
+        assert_eq!(
+            current_session.history_replay_input(&confirmed).source(),
+            HistoryReplaySource::RuntimeSecretOverlay
+        );
         current_session.replace_history_query_result(Vec::new(), 0);
-        assert!(current_session.runtime_replay_requests.is_empty());
+        assert_eq!(
+            current_session.history_replay_input(&confirmed).source(),
+            HistoryReplaySource::PersistedSnapshot
+        );
 
         let mut recovered_session = WorkspaceViewModel::new();
         recovered_session.replace_history_query_result(vec![confirmed.clone()], 0);
