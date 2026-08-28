@@ -13,6 +13,54 @@ const HEADER_PANEL_MAX_VISIBLE_ROWS: usize = 4;
 const URL_ENCODED_PANEL_MAX_VISIBLE_ROWS: usize = 6;
 const REQUEST_EDITOR_RESERVED_HEIGHT: f32 = 400.0;
 
+pub(super) const REQUEST_HEAD_HEIGHT: f32 = 46.0;
+pub(super) const REQUEST_COMPOSER_GAP: f32 = 12.0;
+pub(super) const WORKSPACE_CONTENT_PADDING: f32 = 12.0;
+pub(super) const RESPONSE_RESIZE_TRACK_HEIGHT: f32 = 12.0;
+pub(super) const RESPONSE_PANEL_MIN_HEIGHT: f32 = 180.0;
+pub(super) const REQUEST_PANEL_RESIZE_MIN_HEIGHT: f32 = 300.0;
+
+/// UI-only split state shared by the composer and its row panes. `None` keeps the existing
+/// row-driven automatic height; dragging the Response divider installs a manual height.
+#[derive(Default)]
+pub(super) struct RequestPanelLayout {
+    manual_height: Option<f32>,
+}
+
+impl RequestPanelLayout {
+    pub(super) fn resolved_height(
+        &self,
+        pane: RequestPane,
+        visible_rows: usize,
+        viewport_height: f32,
+    ) -> f32 {
+        self.manual_height
+            .unwrap_or_else(|| adaptive_request_panel_height(pane, visible_rows, viewport_height))
+    }
+
+    pub(super) fn set_manual_height(&mut self, height: f32) -> bool {
+        if self.manual_height == Some(height) {
+            return false;
+        }
+        self.manual_height = Some(height);
+        true
+    }
+
+    pub(super) fn reset(&mut self) -> bool {
+        self.manual_height.take().is_some()
+    }
+}
+
+pub(super) fn resizable_request_panel_height_bounds(workspace_content_height: f32) -> (f32, f32) {
+    let reserved_height = WORKSPACE_CONTENT_PADDING * 2.0
+        + REQUEST_HEAD_HEIGHT
+        + REQUEST_COMPOSER_GAP
+        + RESPONSE_RESIZE_TRACK_HEIGHT
+        + RESPONSE_PANEL_MIN_HEIGHT;
+    let maximum = (workspace_content_height - reserved_height).max(REQUEST_PANEL_RESIZE_MIN_HEIGHT);
+    (REQUEST_PANEL_RESIZE_MIN_HEIGHT, maximum)
+}
+
 pub(super) fn header_row_complete(row: &KeyValueRow) -> bool {
     !row.key.trim().is_empty() && !row.value.trim().is_empty()
 }
@@ -62,10 +110,8 @@ pub(super) fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usiz
         | RequestPane::Tests
         | RequestPane::Options => return 0,
     };
-    let additional_rows = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH)
-        .max(0.0)
-        .floor() as usize;
-    (PARAM_ROWS_AT_BASE_HEIGHT + additional_rows).min(max_visible_rows)
+    let row_delta = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH).floor() as isize;
+    (PARAM_ROWS_AT_BASE_HEIGHT as isize + row_delta).clamp(1, max_visible_rows as isize) as usize
 }
 
 pub(super) fn row_scrollbar_geometry(
@@ -88,8 +134,8 @@ pub(super) fn row_scrollbar_geometry(
 #[cfg(test)]
 mod tests {
     use super::{
-        adaptive_request_panel_height, row_scrollbar_geometry, visible_row_capacity,
-        RowScrollbarGeometry,
+        adaptive_request_panel_height, resizable_request_panel_height_bounds,
+        row_scrollbar_geometry, visible_row_capacity, RequestPanelLayout, RowScrollbarGeometry,
     };
     use crate::app::RequestPane;
 
@@ -133,6 +179,7 @@ mod tests {
         );
 
         assert_eq!(visible_row_capacity(RequestPane::Params, 360.0), 2);
+        assert_eq!(visible_row_capacity(RequestPane::Params, 300.0), 1);
         assert_eq!(visible_row_capacity(RequestPane::Params, 406.0), 3);
         assert_eq!(visible_row_capacity(RequestPane::Params, 544.0), 6);
         assert_eq!(visible_row_capacity(RequestPane::Headers, 452.0), 4);
@@ -145,5 +192,15 @@ mod tests {
                 thumb_height: 0.5,
             })
         );
+
+        let mut layout = RequestPanelLayout::default();
+        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 544.0);
+        assert!(layout.set_manual_height(320.0));
+        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 320.0);
+        assert!(layout.reset());
+        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 544.0);
+
+        assert_eq!(resizable_request_panel_height_bounds(980.0), (300.0, 706.0));
+        assert_eq!(resizable_request_panel_height_bounds(500.0), (300.0, 300.0));
     }
 }

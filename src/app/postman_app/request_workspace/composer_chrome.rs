@@ -1,4 +1,4 @@
-use super::composer::RequestComposer;
+use super::{composer::RequestComposer, layout::REQUEST_HEAD_HEIGHT};
 use crate::{
     app::{ActivateControl, AuthorizationKind, RequestPane},
     ui::theme::{
@@ -121,7 +121,7 @@ impl RequestComposer {
         };
         div()
             .debug_selector(|| "request-head".into())
-            .h(px(46.0))
+            .h(px(REQUEST_HEAD_HEIGHT))
             .flex_none()
             .flex()
             .items_center()

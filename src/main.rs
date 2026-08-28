@@ -61,12 +61,12 @@ fn main() {
 
         // 设置应用菜单
         cx.set_menus([Menu::new("Postman GPUI").items([
-            MenuItem::action("About Postman GPUI", Quit), // 可以后续替换为 About 动作
-            MenuItem::separator(),
-            #[cfg(target_os = "macos")]
-            MenuItem::action("Hide Postman GPUI", Quit), // 可以后续替换为 Hide 动作
-            #[cfg(target_os = "macos")]
-            MenuItem::separator(),
+            // MenuItem::action("About Postman GPUI", Quit), // 可以后续替换为 About 动作
+            // MenuItem::separator(),
+            // #[cfg(target_os = "macos")]
+            // MenuItem::action("Hide Postman GPUI", Quit), // 可以后续替换为 Hide 动作
+            // #[cfg(target_os = "macos")]
+            // MenuItem::separator(),
             MenuItem::action("Quit Postman GPUI", Quit),
         ])]);
 

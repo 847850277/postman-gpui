@@ -1,6 +1,6 @@
 use super::{
     composer_chrome::setup_request_pane_key_bindings,
-    layout::adaptive_request_panel_height,
+    layout::{RequestPanelLayout, REQUEST_COMPOSER_GAP},
     panes::{
         AuthorizationPane, BodyPane, KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
         OptionsPane, ScriptPane, ScriptPaneKind,
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    div, px, rgb, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 
@@ -35,6 +35,7 @@ pub(super) enum RequestComposerEvent {
 /// subscriptions, focus/selection state, and scroll handles.
 pub(super) struct RequestComposer {
     pub(super) view_model: Entity<WorkspaceViewModel>,
+    panel_layout: Entity<RequestPanelLayout>,
     pub(super) method_selector: Entity<MethodSelector>,
     pub(super) url_input: Entity<UrlInput>,
     params_pane: Entity<KeyValueRowsPane>,
@@ -52,7 +53,11 @@ pub(super) struct RequestComposer {
 impl EventEmitter<RequestComposerEvent> for RequestComposer {}
 
 impl RequestComposer {
-    pub(super) fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+    pub(super) fn new(
+        view_model: Entity<WorkspaceViewModel>,
+        panel_layout: Entity<RequestPanelLayout>,
+        cx: &mut Context<Self>,
+    ) -> Self {
         cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
@@ -60,10 +65,22 @@ impl RequestComposer {
 
         let method_selector = cx.new(MethodSelector::new);
         let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
-        let params_pane =
-            cx.new(|cx| KeyValueRowsPane::new(view_model.clone(), KeyValueRowsKind::Params, cx));
-        let headers_pane =
-            cx.new(|cx| KeyValueRowsPane::new(view_model.clone(), KeyValueRowsKind::Headers, cx));
+        let params_pane = cx.new(|cx| {
+            KeyValueRowsPane::new(
+                view_model.clone(),
+                panel_layout.clone(),
+                KeyValueRowsKind::Params,
+                cx,
+            )
+        });
+        let headers_pane = cx.new(|cx| {
+            KeyValueRowsPane::new(
+                view_model.clone(),
+                panel_layout.clone(),
+                KeyValueRowsKind::Headers,
+                cx,
+            )
+        });
         let authorization_pane = cx.new(|cx| AuthorizationPane::new(view_model.clone(), cx));
         let body_pane = cx.new(|cx| BodyPane::new(view_model.clone(), cx));
         let script_pane =
@@ -78,10 +95,12 @@ impl RequestComposer {
             cx.subscribe(&params_pane, Self::on_key_value_pane_event),
             cx.subscribe(&headers_pane, Self::on_key_value_pane_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
+            cx.observe(&panel_layout, |_, _, cx| cx.notify()),
         ];
 
         let mut composer = Self {
             view_model,
+            panel_layout,
             method_selector,
             url_input,
             params_pane,
@@ -286,38 +305,47 @@ impl RequestComposer {
         self.project_selected_pane(cx);
     }
 
-    fn render_request_panel(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (request_pane, visible_rows) = {
-            let view_model = self.view_model.read(cx);
-            let Some(request) = view_model.active_request() else {
-                return div().into_any_element();
-            };
-            let request_pane = request.request_pane();
-            let visible_rows = match request_pane {
-                RequestPane::Params => request.visible_param_row_count(),
-                RequestPane::Headers => request.visible_header_row_count(),
-                RequestPane::Body
-                    if matches!(
-                        request.body_kind(),
-                        BodyKind::UrlEncoded | BodyKind::Multipart
-                    ) =>
-                {
-                    let body_input = self.body_pane.read(cx).input_entity();
-                    body_input.read(cx).form_data_entry_count()
-                }
-                RequestPane::Authorization
-                | RequestPane::Scripts
-                | RequestPane::Tests
-                | RequestPane::Options
-                | RequestPane::Body => 0,
-            };
-            (request_pane, visible_rows)
+    fn request_pane_and_visible_rows(&self, cx: &App) -> Option<(RequestPane, usize)> {
+        let view_model = self.view_model.read(cx);
+        let request = view_model.active_request()?;
+        let request_pane = request.request_pane();
+        let visible_rows = match request_pane {
+            RequestPane::Params => request.visible_param_row_count(),
+            RequestPane::Headers => request.visible_header_row_count(),
+            RequestPane::Body
+                if matches!(
+                    request.body_kind(),
+                    BodyKind::UrlEncoded | BodyKind::Multipart
+                ) =>
+            {
+                let body_input = self.body_pane.read(cx).input_entity();
+                body_input.read(cx).form_data_entry_count()
+            }
+            RequestPane::Authorization
+            | RequestPane::Scripts
+            | RequestPane::Tests
+            | RequestPane::Options
+            | RequestPane::Body => 0,
         };
-        let panel_height = adaptive_request_panel_height(
+        Some((request_pane, visible_rows))
+    }
+
+    pub(super) fn request_panel_height(&self, window: &Window, cx: &App) -> Option<f32> {
+        let (request_pane, visible_rows) = self.request_pane_and_visible_rows(cx)?;
+        Some(self.panel_layout.read(cx).resolved_height(
             request_pane,
             visible_rows,
             window.viewport_size().height.as_f32(),
-        );
+        ))
+    }
+
+    fn render_request_panel(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let Some((request_pane, _)) = self.request_pane_and_visible_rows(cx) else {
+            return div().into_any_element();
+        };
+        let panel_height = self
+            .request_panel_height(window, cx)
+            .expect("the active request pane was resolved above");
         let editor = match request_pane {
             RequestPane::Params => self.params_pane.clone().into_any_element(),
             RequestPane::Authorization => self.authorization_pane.clone().into_any_element(),
@@ -352,7 +380,7 @@ impl Render for RequestComposer {
             .flex_none()
             .flex()
             .flex_col()
-            .gap_3()
+            .gap(px(REQUEST_COMPOSER_GAP))
             .child(self.render_request_head(window, cx))
             .child(self.render_request_panel(window, cx))
     }

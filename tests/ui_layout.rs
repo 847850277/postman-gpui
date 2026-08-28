@@ -50,7 +50,7 @@ fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
 
     assert_eq!(top_header.size.height, px(72.0));
     assert_eq!(left_rail.size.width, px(72.0));
-    assert_eq!(history.size.width, px(320.0));
+    assert_eq!(history.size.width, px(260.0));
     assert_eq!(request_tabs.size.height, px(54.0));
     assert_eq!(request_head.size.height, px(46.0));
     assert_eq!(request_panel.size.height, px(360.0));
@@ -92,7 +92,7 @@ fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
     let widened = cx
         .debug_bounds("history-panel")
         .expect("History panel should remain rendered after widening");
-    assert_eq!(widened.size.width, px(440.0));
+    assert_eq!(widened.size.width, px(380.0));
 
     let resize_handle = cx
         .debug_bounds("history-resize-handle")
@@ -119,6 +119,91 @@ fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
         .debug_bounds("history-panel")
         .expect("History panel should remain rendered after narrowing");
     assert_eq!(narrowed.size.width, px(240.0));
+}
+
+#[gpui::test]
+fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let initial_request = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should render");
+    let initial_response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should render");
+    let resize_handle = cx
+        .debug_bounds("response-resize-handle")
+        .expect("Response resize handle should render");
+    let start = resize_handle.center();
+
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x, start.y - px(4.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(
+        point(start.x, start.y - px(60.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_up(
+        point(start.x, start.y - px(60.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+
+    let expanded_request = cx
+        .debug_bounds("request-panel")
+        .expect("request panel should remain rendered after expanding Response");
+    let expanded_response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should remain rendered after expanding");
+    assert_eq!(initial_request.size.height, px(360.0));
+    assert_eq!(expanded_request.size.height, px(300.0));
+    assert_eq!(
+        expanded_response.size.height,
+        initial_response.size.height + px(60.0)
+    );
+
+    let resize_handle = cx
+        .debug_bounds("response-resize-handle")
+        .expect("Response resize handle should move with the panel");
+    let start = resize_handle.center();
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x, start.y + px(4.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(
+        point(start.x, start.y + px(100.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_up(
+        point(start.x, start.y + px(100.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+
+    let shortened_response = cx
+        .debug_bounds("response-container")
+        .expect("response panel should remain rendered after shrinking");
+    assert_eq!(
+        cx.debug_bounds("request-panel")
+            .expect("request panel should grow as Response shrinks")
+            .size
+            .height,
+        px(400.0)
+    );
+    assert_eq!(
+        shortened_response.size.height,
+        expanded_response.size.height - px(100.0)
+    );
 }
 
 #[gpui::test]
@@ -205,7 +290,7 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
         .debug_bounds("history-method-0")
         .expect("history method pill should render");
 
-    assert_eq!(panel.size.width, px(320.0));
+    assert_eq!(panel.size.width, px(260.0));
     assert_eq!(header.origin.x, panel.origin.x + px(16.0));
     assert_eq!(header.origin.y, panel.origin.y + px(18.0));
     assert!(actions.size.width > px(18.0));

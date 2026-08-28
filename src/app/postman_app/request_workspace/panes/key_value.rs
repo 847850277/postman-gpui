@@ -1,6 +1,5 @@
 use super::super::layout::{
-    adaptive_request_panel_height, header_row_complete, row_scrollbar_geometry,
-    visible_row_capacity,
+    header_row_complete, row_scrollbar_geometry, visible_row_capacity, RequestPanelLayout,
 };
 use crate::{
     app::{
@@ -179,6 +178,7 @@ pub(in crate::app::postman_app::request_workspace) enum KeyValueRowsPaneEvent {
 /// shared WorkspaceViewModel; this entity owns only controls, subscriptions, and scrolling.
 pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     view_model: Entity<WorkspaceViewModel>,
+    panel_layout: Entity<RequestPanelLayout>,
     kind: KeyValueRowsKind,
     projected_tab_id: Option<RequestTabId>,
     row_editors: Vec<Entity<PersistentRowEditor>>,
@@ -194,6 +194,7 @@ pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     draft_delete_focus_handle: FocusHandle,
     add_row_focus_handle: FocusHandle,
     pending_focus: Option<PendingTableFocus>,
+    _panel_layout_subscription: Subscription,
 }
 
 enum PendingTableFocus {
@@ -217,6 +218,7 @@ impl KeyValueRowsKind {
 impl KeyValueRowsPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
+        panel_layout: Entity<RequestPanelLayout>,
         kind: KeyValueRowsKind,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -243,8 +245,10 @@ impl KeyValueRowsPane {
             cx.subscribe(&draft_key_input, Self::on_draft_cell_event),
             cx.subscribe(&draft_value_input, Self::on_draft_cell_event),
         ];
+        let panel_layout_subscription = cx.observe(&panel_layout, |_, _, cx| cx.notify());
         let mut pane = Self {
             view_model,
+            panel_layout,
             kind,
             projected_tab_id: None,
             row_editors: Vec::new(),
@@ -260,6 +264,7 @@ impl KeyValueRowsPane {
             draft_delete_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             add_row_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             pending_focus: None,
+            _panel_layout_subscription: panel_layout_subscription,
         };
         pane.project_active_request(cx);
         pane
@@ -1819,7 +1824,7 @@ impl Render for KeyValueRowsPane {
                     KeyValueRowsKind::Headers => request.visible_header_row_count(),
                 })
         };
-        let panel_height = adaptive_request_panel_height(
+        let panel_height = self.panel_layout.read(cx).resolved_height(
             pane,
             visible_rows,
             window.viewport_size().height.as_f32(),
@@ -1841,8 +1846,15 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
-        let pane =
-            cx.new(|cx| KeyValueRowsPane::new(workspace.clone(), KeyValueRowsKind::Params, cx));
+        let panel_layout = cx.new(|_| RequestPanelLayout::default());
+        let pane = cx.new(|cx| {
+            KeyValueRowsPane::new(
+                workspace.clone(),
+                panel_layout,
+                KeyValueRowsKind::Params,
+                cx,
+            )
+        });
 
         pane.update(cx, |pane, cx| {
             pane.append_row(cx);
@@ -1877,7 +1889,10 @@ mod tests {
     #[gpui::test]
     fn table_traversal_resolves_from_stable_cell_identity(cx: &mut TestAppContext) {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
-        let pane = cx.new(|cx| KeyValueRowsPane::new(workspace, KeyValueRowsKind::Headers, cx));
+        let panel_layout = cx.new(|_| RequestPanelLayout::default());
+        let pane = cx.new(|cx| {
+            KeyValueRowsPane::new(workspace, panel_layout, KeyValueRowsKind::Headers, cx)
+        });
         pane.update(cx, |pane, cx| {
             pane.append_row(cx);
             let row_id = pane.row_editors[0].read(cx).row_id();

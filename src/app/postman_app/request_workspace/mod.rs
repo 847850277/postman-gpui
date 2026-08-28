@@ -14,11 +14,12 @@
 use crate::{
     app::{PendingRequest, RequestTabId, SendId, WorkspaceViewModel},
     models::HistoryEntry,
-    ui::theme::BG,
+    ui::theme::{BG, LINE},
 };
 use gpui::{
-    div, rgb, AppContext, Context, Entity, EventEmitter, FocusHandle, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Subscription, Window,
+    deferred, div, px, rgb, AppContext, Context, DragMoveEvent, Entity, EventEmitter, FocusHandle,
+    InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement,
+    Pixels, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use std::collections::HashMap;
 
@@ -31,8 +32,20 @@ mod response_panel;
 
 use chrome::setup_request_tab_key_bindings;
 use composer::{RequestComposer, RequestComposerEvent};
+use layout::{
+    resizable_request_panel_height_bounds, RequestPanelLayout, RESPONSE_RESIZE_TRACK_HEIGHT,
+    WORKSPACE_CONTENT_PADDING,
+};
 pub(super) use panes::{CookiePane, CookiePaneEvent};
 use response_panel::{setup_response_viewer_key_bindings, ResponseViewer, ResponseViewerEvent};
+
+struct ResponsePanelResize;
+
+#[derive(Clone, Copy)]
+struct ResponseResizeOrigin {
+    pointer_y: Pixels,
+    request_panel_height: f32,
+}
 
 #[derive(Clone, Debug)]
 pub(super) enum RequestWorkspaceEvent {
@@ -47,8 +60,10 @@ pub(super) enum RequestWorkspaceEvent {
 /// the composer. HTTP execution remains owned by RequestRunner above this entity.
 pub(super) struct RequestWorkspace {
     view_model: Entity<WorkspaceViewModel>,
+    panel_layout: Entity<RequestPanelLayout>,
     composer: Entity<RequestComposer>,
     response_viewer: Entity<ResponseViewer>,
+    response_resize_origin: Option<ResponseResizeOrigin>,
     tab_focus_handles: HashMap<RequestTabId, FocusHandle>,
     tab_close_focus_handles: HashMap<RequestTabId, FocusHandle>,
     new_tab_focus_handle: FocusHandle,
@@ -62,18 +77,23 @@ impl RequestWorkspace {
         cx.bind_keys(setup_response_viewer_key_bindings());
         cx.bind_keys(setup_request_tab_key_bindings());
 
-        let composer = cx.new(|cx| RequestComposer::new(view_model.clone(), cx));
+        let panel_layout = cx.new(|_| RequestPanelLayout::default());
+        let composer =
+            cx.new(|cx| RequestComposer::new(view_model.clone(), panel_layout.clone(), cx));
         let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
         let subscriptions = vec![
             cx.subscribe(&composer, Self::on_composer_event),
             cx.subscribe(&response_viewer, Self::on_response_viewer_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
+            cx.observe(&panel_layout, |_, _, cx| cx.notify()),
         ];
 
         Self {
             view_model,
+            panel_layout,
             composer,
             response_viewer,
+            response_resize_origin: None,
             tab_focus_handles: HashMap::new(),
             tab_close_focus_handles: HashMap::new(),
             new_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
@@ -208,6 +228,96 @@ impl RequestWorkspace {
             self.project_active_request(cx);
         }
     }
+
+    fn start_response_resize(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(request_panel_height) = self.composer.read(cx).request_panel_height(window, cx)
+        else {
+            return;
+        };
+        self.response_resize_origin = Some(ResponseResizeOrigin {
+            pointer_y: event.position.y,
+            request_panel_height,
+        });
+        cx.stop_propagation();
+    }
+
+    fn resize_response_panel(
+        &mut self,
+        event: &DragMoveEvent<ResponsePanelResize>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(origin) = self.response_resize_origin else {
+            return;
+        };
+        let (minimum, maximum) =
+            resizable_request_panel_height_bounds(event.bounds.size.height.as_f32());
+        let pointer_delta = (event.event.position.y - origin.pointer_y).as_f32();
+        let height = (origin.request_panel_height + pointer_delta).clamp(minimum, maximum);
+        self.panel_layout.update(cx, |layout, cx| {
+            if layout.set_manual_height(height) {
+                cx.notify();
+            }
+        });
+    }
+
+    fn finish_response_resize(
+        &mut self,
+        _resize: &ResponsePanelResize,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        self.response_resize_origin = None;
+    }
+
+    fn reset_response_resize(
+        &mut self,
+        event: &MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.response_resize_origin = None;
+        if event.click_count >= 2 {
+            self.panel_layout.update(cx, |layout, cx| {
+                if layout.reset() {
+                    cx.notify();
+                }
+            });
+        }
+        cx.stop_propagation();
+    }
+
+    fn render_response_resize_track(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .id("response-resize-track")
+            .relative()
+            .h(px(RESPONSE_RESIZE_TRACK_HEIGHT))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(div().w(px(48.0)).h(px(3.0)).rounded_full().bg(rgb(LINE)))
+            .child(deferred(
+                div()
+                    .id("response-resize-handle")
+                    .debug_selector(|| "response-resize-handle".into())
+                    .absolute()
+                    .inset_0()
+                    .cursor_row_resize()
+                    .aria_label("Resize Response panel")
+                    .on_mouse_down(MouseButton::Left, cx.listener(Self::start_response_resize))
+                    .on_mouse_up(MouseButton::Left, cx.listener(Self::reset_response_resize))
+                    .on_drag(ResponsePanelResize, |_, _, _, cx| {
+                        cx.stop_propagation();
+                        cx.new(|_| gpui::Empty)
+                    }),
+            ))
+    }
 }
 
 impl Render for RequestWorkspace {
@@ -226,9 +336,11 @@ impl Render for RequestWorkspace {
                     .min_h_0()
                     .flex()
                     .flex_col()
-                    .gap_3()
-                    .p_3()
+                    .p(px(WORKSPACE_CONTENT_PADDING))
+                    .on_drag_move::<ResponsePanelResize>(cx.listener(Self::resize_response_panel))
+                    .on_drop::<ResponsePanelResize>(cx.listener(Self::finish_response_resize))
                     .child(self.composer.clone())
+                    .child(self.render_response_resize_track(cx))
                     .child(
                         div()
                             .id("response-container")
