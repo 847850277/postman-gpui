@@ -1,6 +1,7 @@
 use crate::ui::{
     components::{
         common::edit_context_menu::{edit_context_menu, EDITABLE_ACTIONS},
+        common::scrollbar::{scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry},
         input::multiline_input::{
             self as multiline, MultilineInputHost, MultilineInputState, MultilineTextElement,
         },
@@ -14,6 +15,8 @@ use gpui::{
     Window,
 };
 use std::ops::Range;
+
+const TEXT_BODY_FALLBACK_VISIBLE_LINES: usize = 7;
 
 #[derive(Clone, Debug)]
 pub(super) enum TextBodyInputEvent {
@@ -86,6 +89,35 @@ impl Focusable for TextBodyInput {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
+}
+
+fn text_body_scrollbar_geometry(
+    line_count: usize,
+    viewport_height: f32,
+    estimated_line_height: f32,
+    offset_y: f32,
+    max_offset_y: f32,
+) -> Option<ScrollbarGeometry> {
+    let estimated_content_height = estimated_line_height * line_count.max(1) as f32 + 16.0;
+    let overflows = max_offset_y > 0.0
+        || (viewport_height > 0.0 && estimated_content_height > viewport_height)
+        || (viewport_height <= 0.0 && line_count > TEXT_BODY_FALLBACK_VISIBLE_LINES);
+    if !overflows {
+        return None;
+    }
+
+    let visible_fraction = if viewport_height > 0.0 {
+        let content_height = if max_offset_y > 0.0 {
+            viewport_height + max_offset_y
+        } else {
+            estimated_content_height
+        };
+        viewport_height / content_height.max(viewport_height)
+    } else {
+        TEXT_BODY_FALLBACK_VISIBLE_LINES as f32 / line_count.max(1) as f32
+    };
+
+    Some(scrollbar_geometry(visible_fraction, offset_y, max_offset_y))
 }
 
 impl EntityInputHandler for TextBodyInput {
@@ -167,76 +199,99 @@ impl Render for TextBodyInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let context_menu_position = self.input.context_menu_position();
         let scroll_handle = self.input.scroll_handle().clone();
-        let editor = div().flex_1().min_h_0().flex().flex_col().child(
-            div()
-                .id("body-text-scroll")
-                .w_full()
-                .h_full()
-                .min_h_0()
-                .px_3()
-                .py_2()
-                .bg(rgb(CODE_BG))
-                .border_1()
-                .border_color(if self.focus_handle.is_focused(window) {
-                    rgb(INFO)
-                } else {
-                    rgb(LINE)
-                })
-                .rounded_lg()
-                .font_family(FONT_MONO)
-                .text_size(px(13.0))
-                .text_color(rgb(CODE_TEXT))
-                .cursor(CursorStyle::IBeam)
-                .track_focus(&self.focus_handle(cx))
-                .key_context("BodyInput")
-                .overflow_y_scroll()
-                .track_scroll(&scroll_handle)
-                .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
-                .on_action(cx.listener(multiline::backspace::<Self>))
-                .on_action(cx.listener(multiline::delete::<Self>))
-                .on_action(cx.listener(multiline::left::<Self>))
-                .on_action(cx.listener(multiline::right::<Self>))
-                .on_action(cx.listener(multiline::word_left::<Self>))
-                .on_action(cx.listener(multiline::word_right::<Self>))
-                .on_action(cx.listener(multiline::up::<Self>))
-                .on_action(cx.listener(multiline::down::<Self>))
-                .on_action(cx.listener(multiline::select_left::<Self>))
-                .on_action(cx.listener(multiline::select_right::<Self>))
-                .on_action(cx.listener(multiline::select_word_left::<Self>))
-                .on_action(cx.listener(multiline::select_word_right::<Self>))
-                .on_action(cx.listener(multiline::select_up::<Self>))
-                .on_action(cx.listener(multiline::select_down::<Self>))
-                .on_action(cx.listener(multiline::select_all::<Self>))
-                .on_action(cx.listener(multiline::home::<Self>))
-                .on_action(cx.listener(multiline::end::<Self>))
-                .on_action(cx.listener(multiline::paste::<Self>))
-                .on_action(cx.listener(multiline::cut::<Self>))
-                .on_action(cx.listener(multiline::copy::<Self>))
-                .on_action(cx.listener(multiline::undo::<Self>))
-                .on_action(cx.listener(multiline::redo::<Self>))
-                .on_action(cx.listener(multiline::enter::<Self>))
-                .on_action(cx.listener(multiline::focus_next::<Self>))
-                .on_action(cx.listener(multiline::focus_previous::<Self>))
-                .on_action(cx.listener(multiline::dismiss::<Self>))
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(multiline::on_mouse_down::<Self>),
-                )
-                .on_mouse_down(
-                    MouseButton::Right,
-                    cx.listener(multiline::open_context_menu::<Self>),
-                )
-                .on_mouse_up(
-                    MouseButton::Left,
-                    cx.listener(multiline::on_mouse_up::<Self>),
-                )
-                .on_mouse_up_out(
-                    MouseButton::Left,
-                    cx.listener(multiline::on_mouse_up::<Self>),
-                )
-                .on_mouse_move(cx.listener(multiline::on_mouse_move::<Self>))
-                .child(MultilineTextElement::new(cx.entity().clone())),
+        let line_count = crate::ui::text_layout::line_ranges(self.input.text()).len();
+        let scrollbar = text_body_scrollbar_geometry(
+            line_count,
+            scroll_handle.bounds().size.height.as_f32(),
+            window.line_height().as_f32(),
+            scroll_handle.offset().y.as_f32(),
+            scroll_handle.max_offset().y.as_f32(),
         );
+        let editor = div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .relative()
+            .child(
+                div()
+                    .id("body-text-scroll")
+                    .debug_selector(|| "body-text-scroll".into())
+                    .w_full()
+                    .h_full()
+                    .min_h_0()
+                    .px_3()
+                    .py_2()
+                    .when(scrollbar.is_some(), |editor| editor.pr(px(20.0)))
+                    .bg(rgb(CODE_BG))
+                    .border_1()
+                    .border_color(if self.focus_handle.is_focused(window) {
+                        rgb(INFO)
+                    } else {
+                        rgb(LINE)
+                    })
+                    .rounded_lg()
+                    .font_family(FONT_MONO)
+                    .text_size(px(13.0))
+                    .text_color(rgb(CODE_TEXT))
+                    .cursor(CursorStyle::IBeam)
+                    .track_focus(&self.focus_handle(cx))
+                    .key_context("BodyInput")
+                    .overflow_y_scroll()
+                    .track_scroll(&scroll_handle)
+                    .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                    .on_action(cx.listener(multiline::backspace::<Self>))
+                    .on_action(cx.listener(multiline::delete::<Self>))
+                    .on_action(cx.listener(multiline::left::<Self>))
+                    .on_action(cx.listener(multiline::right::<Self>))
+                    .on_action(cx.listener(multiline::word_left::<Self>))
+                    .on_action(cx.listener(multiline::word_right::<Self>))
+                    .on_action(cx.listener(multiline::up::<Self>))
+                    .on_action(cx.listener(multiline::down::<Self>))
+                    .on_action(cx.listener(multiline::select_left::<Self>))
+                    .on_action(cx.listener(multiline::select_right::<Self>))
+                    .on_action(cx.listener(multiline::select_word_left::<Self>))
+                    .on_action(cx.listener(multiline::select_word_right::<Self>))
+                    .on_action(cx.listener(multiline::select_up::<Self>))
+                    .on_action(cx.listener(multiline::select_down::<Self>))
+                    .on_action(cx.listener(multiline::select_all::<Self>))
+                    .on_action(cx.listener(multiline::home::<Self>))
+                    .on_action(cx.listener(multiline::end::<Self>))
+                    .on_action(cx.listener(multiline::paste::<Self>))
+                    .on_action(cx.listener(multiline::cut::<Self>))
+                    .on_action(cx.listener(multiline::copy::<Self>))
+                    .on_action(cx.listener(multiline::undo::<Self>))
+                    .on_action(cx.listener(multiline::redo::<Self>))
+                    .on_action(cx.listener(multiline::enter::<Self>))
+                    .on_action(cx.listener(multiline::focus_next::<Self>))
+                    .on_action(cx.listener(multiline::focus_previous::<Self>))
+                    .on_action(cx.listener(multiline::dismiss::<Self>))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(multiline::on_mouse_down::<Self>),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(multiline::open_context_menu::<Self>),
+                    )
+                    .on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(multiline::on_mouse_up::<Self>),
+                    )
+                    .on_mouse_up_out(
+                        MouseButton::Left,
+                        cx.listener(multiline::on_mouse_up::<Self>),
+                    )
+                    .on_mouse_move(cx.listener(multiline::on_mouse_move::<Self>))
+                    .child(MultilineTextElement::new(cx.entity().clone())),
+            )
+            .when_some(scrollbar, |editor, scrollbar| {
+                editor.child(vertical_scrollbar(
+                    "body-text-scrollbar",
+                    "body-text-scrollbar-thumb",
+                    scrollbar,
+                ))
+            });
         editor.when_some(context_menu_position, |root, position| {
             root.child(edit_context_menu(
                 position,
@@ -319,6 +374,15 @@ mod tests {
             multiline::replace_text_in_range(host, Some(end..end), "", cx);
         });
         visual.run_until_parked();
+        let scrollbar = visual
+            .debug_bounds("body-text-scrollbar")
+            .expect("long multiline content should expose a visible scrollbar");
+        let thumb = visual
+            .debug_bounds("body-text-scrollbar-thumb")
+            .expect("the visible text scrollbar should expose its thumb");
+        assert!(thumb.origin.y >= scrollbar.origin.y);
+        assert!(thumb.bottom() <= scrollbar.bottom());
+        assert!(thumb.size.height < scrollbar.size.height);
         assert!(
             input.read_with(visual, |host, _| host.input.scroll_handle().offset().y
                 < px(0.0)),

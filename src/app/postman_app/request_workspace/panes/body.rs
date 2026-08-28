@@ -1,14 +1,19 @@
 mod raw;
 
+use super::super::layout::RequestPanelLayout;
+
 use crate::{
     app::{
         ActivateControl, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
-        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestTabId, RequestViewModel,
-        ResponseState, WorkspaceViewModel,
+        MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestPane, RequestTabId,
+        RequestViewModel, ResponseState, WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
-        components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
+        components::{
+            common::scrollbar::{scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry},
+            input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
+        },
         theme::{
             ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
             LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -18,7 +23,7 @@ use crate::{
 use gpui::{
     actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
     FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use raw::render_raw_request_semantics;
 
@@ -37,8 +42,11 @@ fn setup_body_kind_key_bindings() -> Vec<KeyBinding> {
 /// the shared WorkspaceViewModel and are projected only on request or pane changes.
 pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     view_model: Entity<WorkspaceViewModel>,
+    panel_layout: Entity<RequestPanelLayout>,
     body_input: Entity<BodyInput>,
     projected_tab_id: Option<RequestTabId>,
+    effective_headers_scroll: ScrollHandle,
+    raw_semantics_scroll: ScrollHandle,
     kind_focus_handles: Vec<FocusHandle>,
     sample_focus_handle: FocusHandle,
     clear_focus_handle: FocusHandle,
@@ -48,6 +56,7 @@ pub(in crate::app::postman_app::request_workspace) struct BodyPane {
 impl BodyPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
+        panel_layout: Entity<RequestPanelLayout>,
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys(setup_body_kind_key_bindings());
@@ -59,8 +68,11 @@ impl BodyPane {
         let subscriptions = vec![cx.subscribe(&body_input, Self::on_body_event)];
         let mut pane = Self {
             view_model,
+            panel_layout,
             body_input,
             projected_tab_id: None,
+            effective_headers_scroll: ScrollHandle::new(),
+            raw_semantics_scroll: ScrollHandle::new(),
             kind_focus_handles: (0..5)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
@@ -295,6 +307,11 @@ impl BodyPane {
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let is_multipart = kind == BodyKind::Multipart;
         let form_row_count = self.body_input.read(cx).form_data_entry_count();
+        let panel_height = self.panel_layout.read(cx).resolved_height(
+            RequestPane::Body,
+            form_row_count,
+            window.viewport_size().height.as_f32(),
+        );
 
         div()
             .flex_1()
@@ -448,6 +465,7 @@ impl BodyPane {
                     body,
                     kind,
                     (method, effective_url, effective_headers),
+                    panel_height,
                     window,
                     cx,
                 )
@@ -460,6 +478,7 @@ impl BodyPane {
         body: String,
         kind: BodyKind,
         request_projection: (HttpMethod, String, Vec<EffectiveHeader>),
+        panel_height: f32,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
@@ -467,14 +486,18 @@ impl BodyPane {
         let is_json = kind == BodyKind::Json;
         let is_raw = kind == BodyKind::Raw;
         let body_len = body.chars().count();
+        let side_list_viewport_height =
+            (panel_height - BODY_TEXT_SIDE_LIST_RESERVED_HEIGHT).max(0.0);
         let side_panel = if is_json {
-            Some(self.render_effective_headers(effective_headers))
+            Some(self.render_effective_headers(effective_headers, side_list_viewport_height, cx))
         } else if is_raw {
             Some(render_raw_request_semantics(
                 &body,
                 method,
                 &effective_url,
                 effective_headers,
+                &self.raw_semantics_scroll,
+                side_list_viewport_height,
             ))
         } else {
             None
@@ -950,8 +973,18 @@ impl BodyPane {
             .into_any_element()
     }
 
-    fn render_effective_headers(&self, headers: Vec<EffectiveHeader>) -> gpui::AnyElement {
+    fn render_effective_headers(
+        &self,
+        headers: Vec<EffectiveHeader>,
+        viewport_height: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let count = headers.len();
+        let scrollbar = effective_headers_scrollbar_geometry(
+            count,
+            viewport_height,
+            &self.effective_headers_scroll,
+        );
         div()
             .debug_selector(|| "body-effective-headers".into())
             .w(px(360.0))
@@ -1011,29 +1044,47 @@ impl BodyPane {
             )
             .child(
                 div()
-                    .id("body-effective-headers-scroll")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
                     .flex()
-                    .flex_col()
-                    .gap_2()
-                    .px_2()
-                    .pb_2()
-                    .when(count == 0, |list| {
-                        list.child(
-                            div()
-                                .flex_1()
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .font_family(FONT_UI)
-                                .text_size(px(10.0))
-                                .text_color(rgb(MUTED))
-                                .child("No enabled request headers"),
-                        )
-                    })
-                    .children(headers.into_iter().map(render_effective_header)),
+                    .relative()
+                    .child(
+                        div()
+                            .id("body-effective-headers-scroll")
+                            .debug_selector(|| "body-effective-headers-scroll".into())
+                            .flex_1()
+                            .min_h_0()
+                            .overflow_y_scroll()
+                            .track_scroll(&self.effective_headers_scroll)
+                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .px_2()
+                            .pb_2()
+                            .when(scrollbar.is_some(), |list| list.pr(px(20.0)))
+                            .when(count == 0, |list| {
+                                list.child(
+                                    div()
+                                        .flex_1()
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .font_family(FONT_UI)
+                                        .text_size(px(10.0))
+                                        .text_color(rgb(MUTED))
+                                        .child("No enabled request headers"),
+                                )
+                            })
+                            .children(headers.into_iter().map(render_effective_header)),
+                    )
+                    .when_some(scrollbar, |viewport, scrollbar| {
+                        viewport.child(vertical_scrollbar(
+                            "body-effective-headers-scrollbar",
+                            "body-effective-headers-scrollbar-thumb",
+                            scrollbar,
+                        ))
+                    }),
             )
             .child(
                 div()
@@ -1142,6 +1193,49 @@ impl Render for BodyPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.render_body_editor(window, cx)
     }
+}
+
+const EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS: usize = 3;
+const EFFECTIVE_HEADER_ROW_HEIGHT: f32 = 48.0;
+const EFFECTIVE_HEADER_ROW_GAP: f32 = 8.0;
+const EFFECTIVE_HEADER_LIST_BOTTOM_PADDING: f32 = 8.0;
+const BODY_TEXT_SIDE_LIST_RESERVED_HEIGHT: f32 = 186.0;
+
+fn effective_headers_scrollbar_geometry(
+    header_count: usize,
+    viewport_height: f32,
+    scroll_handle: &ScrollHandle,
+) -> Option<ScrollbarGeometry> {
+    if header_count == 0 {
+        return None;
+    }
+
+    let content_height = EFFECTIVE_HEADER_ROW_HEIGHT * header_count as f32
+        + EFFECTIVE_HEADER_ROW_GAP * header_count.saturating_sub(1) as f32
+        + EFFECTIVE_HEADER_LIST_BOTTOM_PADDING;
+    let max_offset_y = scroll_handle.max_offset().y.as_f32();
+    let overflows = max_offset_y > 0.0
+        || (viewport_height > 0.0 && content_height > viewport_height)
+        || (viewport_height <= 0.0 && header_count > EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS);
+    if !overflows {
+        return None;
+    }
+
+    let visible_fraction = if viewport_height > 0.0 {
+        let measured_content_height = if max_offset_y > 0.0 {
+            viewport_height + max_offset_y
+        } else {
+            content_height
+        };
+        viewport_height / measured_content_height.max(viewport_height)
+    } else {
+        EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS as f32 / header_count as f32
+    };
+    Some(scrollbar_geometry(
+        visible_fraction,
+        scroll_handle.offset().y.as_f32(),
+        max_offset_y,
+    ))
 }
 
 const BODY_KINDS: [BodyKind; 5] = [

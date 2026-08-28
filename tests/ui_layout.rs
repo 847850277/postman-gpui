@@ -547,6 +547,66 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     assert!(editor.bottom() <= source.origin.y);
     assert!(source.bottom() <= panel.bottom());
     assert!(headers.bottom() <= panel.bottom());
+    assert!(cx
+        .debug_bounds("body-effective-headers-scrollbar")
+        .is_none());
+}
+
+#[gpui::test]
+fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overflows(
+    cx: &mut TestAppContext,
+) {
+    let long_body = (0..80)
+        .map(|line| format!(r#"{{"line":{line}}}"#))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let workspace = cx.new(move |_| {
+        let mut workspace = WorkspaceViewModel::new();
+        let request = workspace.active_request_mut().unwrap();
+        request.set_method(HttpMethod::POST);
+        request.set_body_kind(BodyKind::Json);
+        request.set_body(long_body);
+        for index in 0..8 {
+            request.upsert_header(format!("X-Overflow-{index}"), format!("value-{index}"));
+        }
+        request.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    cx.run_until_parked();
+
+    let text_scrollbar = cx
+        .debug_bounds("body-text-scrollbar")
+        .expect("a long JSON body should expose a visible scrollbar");
+    let text_thumb = cx
+        .debug_bounds("body-text-scrollbar-thumb")
+        .expect("the JSON body scrollbar should expose its thumb");
+    let headers_scrollbar = cx
+        .debug_bounds("body-effective-headers-scrollbar")
+        .expect("many effective headers should expose a visible scrollbar");
+    let headers_thumb = cx
+        .debug_bounds("body-effective-headers-scrollbar-thumb")
+        .expect("the effective-header scrollbar should expose its thumb");
+
+    assert!(text_thumb.origin.y >= text_scrollbar.origin.y);
+    assert!(text_thumb.bottom() <= text_scrollbar.bottom());
+    assert!(text_thumb.size.height < text_scrollbar.size.height);
+    assert!(headers_thumb.origin.y >= headers_scrollbar.origin.y);
+    assert!(headers_thumb.bottom() <= headers_scrollbar.bottom());
+    assert!(headers_thumb.size.height < headers_scrollbar.size.height);
+
+    scroll_down(cx, "body-text-scroll", 90.0).unwrap();
+    scroll_down(cx, "body-effective-headers-scroll", 90.0).unwrap();
+    let text_thumb_after = cx
+        .debug_bounds("body-text-scrollbar-thumb")
+        .expect("the JSON body scrollbar should remain visible after scrolling");
+    let headers_thumb_after = cx
+        .debug_bounds("body-effective-headers-scrollbar-thumb")
+        .expect("the effective-header scrollbar should remain visible after scrolling");
+    assert!(text_thumb_after.origin.y > text_thumb.origin.y);
+    assert!(headers_thumb_after.origin.y > headers_thumb.origin.y);
 }
 
 #[gpui::test]
@@ -638,6 +698,83 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         "Raw ready state {ready:?} overflows semantics panel {semantics:?}"
     );
     assert!(semantics.bottom() <= panel.bottom());
+    assert!(cx.debug_bounds("body-raw-scrollbar").is_none());
+}
+
+#[gpui::test]
+fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        let request = workspace.active_request_mut().unwrap();
+        request.set_method(HttpMethod::PUT);
+        request.set_url("https://httpbingo.org/anything/raw");
+        request.set_body_kind(BodyKind::Raw);
+        request.set_body("plain text body");
+        request.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let resize_handle = cx
+        .debug_bounds("response-resize-handle")
+        .expect("Response resize handle should render");
+    let start = resize_handle.center();
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x, start.y - px(4.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(
+        point(start.x, start.y - px(60.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_up(
+        point(start.x, start.y - px(60.0)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+
+    assert_eq!(
+        cx.debug_bounds("request-panel")
+            .expect("the narrowed request panel should remain rendered")
+            .size
+            .height,
+        px(300.0)
+    );
+    let rows = cx
+        .debug_bounds("body-raw-semantics-scroll")
+        .expect("Raw semantics should render inside a scroll viewport");
+    let scrollbar = cx
+        .debug_bounds("body-raw-scrollbar")
+        .expect("overflowing Raw semantics should expose a scrollbar");
+    let thumb = cx
+        .debug_bounds("body-raw-scrollbar-thumb")
+        .expect("the Raw semantics scrollbar should expose its thumb");
+    let footer = cx
+        .debug_bounds("body-raw-semantics-footer")
+        .expect("the Raw semantics footer should remain fixed");
+    assert!(thumb.origin.y >= scrollbar.origin.y);
+    assert!(thumb.bottom() <= scrollbar.bottom());
+    assert!(thumb.size.height < scrollbar.size.height);
+    assert!(footer.origin.y >= rows.bottom());
+
+    scroll_down(cx, "body-raw-semantics-scroll", 60.0).unwrap();
+    let thumb_after = cx
+        .debug_bounds("body-raw-scrollbar-thumb")
+        .expect("the Raw scrollbar should remain visible after scrolling");
+    let ready_after = cx
+        .debug_bounds("body-raw-ready-indicator")
+        .expect("the final Raw semantics row should be reachable by scrolling");
+    let footer_after = cx
+        .debug_bounds("body-raw-semantics-footer")
+        .expect("the Raw footer should remain visible after scrolling");
+    assert!(thumb_after.origin.y > thumb.origin.y);
+    assert!(ready_after.bottom() <= rows.bottom());
+    assert_eq!(footer_after.origin.y, footer.origin.y);
 }
 
 #[gpui::test]

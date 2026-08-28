@@ -82,7 +82,7 @@ impl RequestComposer {
             )
         });
         let authorization_pane = cx.new(|cx| AuthorizationPane::new(view_model.clone(), cx));
-        let body_pane = cx.new(|cx| BodyPane::new(view_model.clone(), cx));
+        let body_pane = cx.new(|cx| BodyPane::new(view_model.clone(), panel_layout.clone(), cx));
         let script_pane =
             cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, cx));
         let tests_pane =

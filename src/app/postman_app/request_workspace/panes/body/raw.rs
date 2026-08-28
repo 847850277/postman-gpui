@@ -1,9 +1,20 @@
 use crate::{
     app::{EffectiveHeader, EffectiveHeaderSource},
     models::HttpMethod,
-    ui::theme::{FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, OK, OK_SOFT, PANEL, SUBTEXT, TEXT},
+    ui::{
+        components::common::scrollbar::{
+            scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry,
+        },
+        theme::{FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, OK, OK_SOFT, PANEL, SUBTEXT, TEXT},
+    },
 };
-use gpui::{div, px, rgb, FontWeight, InteractiveElement, IntoElement, ParentElement, Styled};
+use gpui::{
+    div, prelude::FluentBuilder, px, rgb, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, ScrollHandle, StatefulInteractiveElement, Styled,
+};
+
+const RAW_SEMANTICS_ROW_COUNT: usize = 3;
+const RAW_SEMANTICS_ROW_HEIGHT: f32 = 48.0;
 
 struct RawSemanticsRow {
     selector: &'static str,
@@ -20,6 +31,8 @@ pub(super) fn render_raw_request_semantics(
     method: HttpMethod,
     effective_url: &str,
     effective_headers: Vec<EffectiveHeader>,
+    scroll_handle: &ScrollHandle,
+    viewport_height: f32,
 ) -> gpui::AnyElement {
     let generated_count = effective_headers
         .iter()
@@ -39,6 +52,7 @@ pub(super) fn render_raw_request_semantics(
     } else {
         body.to_string()
     };
+    let scrollbar = raw_semantics_scrollbar_geometry(viewport_height, scroll_handle);
 
     div()
         .debug_selector(|| "body-raw-effective-request".into())
@@ -99,35 +113,64 @@ pub(super) fn render_raw_request_semantics(
                         .child(format!("{generated_count} GENERATED")),
                 ),
         )
-        .child(render_raw_semantics_row(RawSemanticsRow {
-            selector: "body-raw-content-type-state",
-            value_selector: "body-raw-content-type-value",
-            mark: content_type_mark,
-            key: "Content-Type",
-            value: content_type_value,
-            state: content_type_state,
-            success: !has_content_type,
-        }))
-        .child(render_raw_semantics_row(RawSemanticsRow {
-            selector: "body-raw-exact-bytes",
-            value_selector: "body-raw-effective-body",
-            mark: "✓",
-            key: "Body bytes",
-            value: body_preview,
-            state: "EXACT",
-            success: true,
-        }))
-        .child(render_raw_semantics_row(RawSemanticsRow {
-            selector: "body-raw-ready-indicator",
-            value_selector: "body-raw-request-target",
-            mark: "✓",
-            key: "Effective request",
-            value: raw_request_target(method, effective_url),
-            state: "READY",
-            success: true,
-        }))
         .child(
             div()
+                .flex_1()
+                .min_h_0()
+                .flex()
+                .relative()
+                .child(
+                    div()
+                        .id("body-raw-semantics-scroll")
+                        .debug_selector(|| "body-raw-semantics-scroll".into())
+                        .flex_1()
+                        .min_h_0()
+                        .flex()
+                        .flex_col()
+                        .when(scrollbar.is_some(), |rows| rows.pr(px(16.0)))
+                        .overflow_y_scroll()
+                        .track_scroll(scroll_handle)
+                        .children([
+                            render_raw_semantics_row(RawSemanticsRow {
+                                selector: "body-raw-content-type-state",
+                                value_selector: "body-raw-content-type-value",
+                                mark: content_type_mark,
+                                key: "Content-Type",
+                                value: content_type_value,
+                                state: content_type_state,
+                                success: !has_content_type,
+                            }),
+                            render_raw_semantics_row(RawSemanticsRow {
+                                selector: "body-raw-exact-bytes",
+                                value_selector: "body-raw-effective-body",
+                                mark: "✓",
+                                key: "Body bytes",
+                                value: body_preview,
+                                state: "EXACT",
+                                success: true,
+                            }),
+                            render_raw_semantics_row(RawSemanticsRow {
+                                selector: "body-raw-ready-indicator",
+                                value_selector: "body-raw-request-target",
+                                mark: "✓",
+                                key: "Effective request",
+                                value: raw_request_target(method, effective_url),
+                                state: "READY",
+                                success: true,
+                            }),
+                        ]),
+                )
+                .when_some(scrollbar, |viewport, scrollbar| {
+                    viewport.child(vertical_scrollbar(
+                        "body-raw-scrollbar",
+                        "body-raw-scrollbar-thumb",
+                        scrollbar,
+                    ))
+                }),
+        )
+        .child(
+            div()
+                .debug_selector(|| "body-raw-semantics-footer".into())
                 .h(px(28.0))
                 .flex_none()
                 .flex()
@@ -152,6 +195,28 @@ pub(super) fn render_raw_request_semantics(
                 ),
         )
         .into_any_element()
+}
+
+fn raw_semantics_scrollbar_geometry(
+    viewport_height: f32,
+    scroll_handle: &ScrollHandle,
+) -> Option<ScrollbarGeometry> {
+    let max_offset_y = scroll_handle.max_offset().y.as_f32();
+    let content_height = RAW_SEMANTICS_ROW_HEIGHT * RAW_SEMANTICS_ROW_COUNT as f32;
+    if max_offset_y <= 0.0 && (viewport_height <= 0.0 || content_height <= viewport_height) {
+        return None;
+    }
+
+    let visible_fraction = if max_offset_y > 0.0 && viewport_height > 0.0 {
+        viewport_height / (viewport_height + max_offset_y)
+    } else {
+        viewport_height / content_height
+    };
+    Some(scrollbar_geometry(
+        visible_fraction,
+        scroll_handle.offset().y.as_f32(),
+        max_offset_y,
+    ))
 }
 
 fn render_raw_semantics_row(row: RawSemanticsRow) -> gpui::AnyElement {

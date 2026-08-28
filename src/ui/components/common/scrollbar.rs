@@ -1,4 +1,7 @@
-/// Normalized geometry shared by the request-row and body-form scrollbars.
+use crate::ui::theme::{INFO, LINE, PANEL_ALT};
+use gpui::{div, px, relative, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
+
+/// Normalized geometry shared by bounded workspace scrollbars.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScrollbarGeometry {
     pub thumb_top: f32,
@@ -22,6 +25,36 @@ pub fn scrollbar_geometry(
         thumb_top: progress * (1.0 - thumb_height),
         thumb_height,
     }
+}
+
+/// Renders the shared narrow vertical track used by bounded request-workspace regions.
+pub fn vertical_scrollbar(
+    track_selector: &'static str,
+    thumb_selector: &'static str,
+    geometry: ScrollbarGeometry,
+) -> gpui::AnyElement {
+    div()
+        .debug_selector(move || track_selector.into())
+        .absolute()
+        .top(px(8.0))
+        .right(px(5.0))
+        .bottom(px(8.0))
+        .w(px(8.0))
+        .rounded_full()
+        .bg(rgb(PANEL_ALT))
+        .border_1()
+        .border_color(rgb(LINE))
+        .child(
+            div()
+                .debug_selector(move || thumb_selector.into())
+                .absolute()
+                .top(relative(geometry.thumb_top))
+                .w_full()
+                .h(relative(geometry.thumb_height))
+                .rounded_full()
+                .bg(rgb(INFO)),
+        )
+        .into_any_element()
 }
 
 #[cfg(test)]
