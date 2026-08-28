@@ -1,5 +1,7 @@
 # Postman GPUI
 
+[![Downloads](https://img.shields.io/github/downloads/847850277/postman-gpui/total)](https://github.com/847850277/postman-gpui/releases)
+
 Postman GPUI is a native, cross-platform HTTP client built with Rust and GPUI. It focuses on a
 fast request/response workflow, keyboard-friendly editing, and local-first request history.
 
