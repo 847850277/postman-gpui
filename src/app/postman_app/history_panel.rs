@@ -296,7 +296,7 @@ impl Render for HistoryList {
             .debug_selector(|| "history-panel".into())
             .flex()
             .flex_col()
-            .w(px(320.0))
+            .w_full()
             .h_full()
             .flex_none()
             .gap(px(12.0))

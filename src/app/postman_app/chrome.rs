@@ -1,4 +1,4 @@
-use super::PostmanApp;
+use super::{PostmanApp, LEFT_RAIL_WIDTH};
 use crate::{
     app::{ActivateControl, NewRequest, ToggleShortcutHelp},
     ui::theme::{
@@ -131,10 +131,10 @@ impl PostmanApp {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let passive_slots = ["↻", "◫", "◇", "⌘", "⚙", "?"];
+        let passive_slots = ["?"];
         div()
             .debug_selector(|| "left-rail".into())
-            .w(px(72.0))
+            .w(px(LEFT_RAIL_WIDTH))
             .h_full()
             .flex_none()
             .flex()

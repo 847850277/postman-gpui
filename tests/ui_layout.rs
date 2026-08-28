@@ -3,7 +3,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{px, AppContext, Modifiers, TestAppContext};
+use gpui::{point, px, AppContext, Modifiers, MouseButton, TestAppContext};
 use postman_gpui::app::{AuthorizationKind, BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::models::{HistoryEntry, HttpMethod, Request};
 use postman_gpui::persistence::{
@@ -58,6 +58,67 @@ fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
     assert_eq!(new_tab.size.height, px(32.0));
     assert_eq!(send.size.width, px(110.0));
     assert_eq!(send.size.height, px(46.0));
+}
+
+#[gpui::test]
+fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_app, cx) =
+        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+
+    let resize_handle = cx
+        .debug_bounds("history-resize-handle")
+        .expect("History resize handle should render");
+    let start = resize_handle.center();
+
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x + px(4.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(
+        point(start.x + px(120.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_up(
+        point(start.x + px(120.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+
+    let widened = cx
+        .debug_bounds("history-panel")
+        .expect("History panel should remain rendered after widening");
+    assert_eq!(widened.size.width, px(440.0));
+
+    let resize_handle = cx
+        .debug_bounds("history-resize-handle")
+        .expect("History resize handle should move with the panel");
+    let start = resize_handle.center();
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x - px(4.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(
+        point(start.x - px(400.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_up(
+        point(start.x - px(400.0), start.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+
+    let narrowed = cx
+        .debug_bounds("history-panel")
+        .expect("History panel should remain rendered after narrowing");
+    assert_eq!(narrowed.size.width, px(240.0));
 }
 
 #[gpui::test]
