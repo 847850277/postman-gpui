@@ -329,10 +329,7 @@ impl Dropdown {
                                     )
                                 })
                         })),
-                ), // 点击外部关闭下拉菜单
-                   // .on_mouse_down_out(cx.listener(|this, _event, window, cx| {
-                   //     this.close_dropdown(&ClickEvent::default(), window, cx)
-                   // }))
+                ),
         )
         .with_priority(1000) // 设置高渲染优先级，确保显示在最顶层
     }
