@@ -331,7 +331,7 @@ impl Dropdown {
                         })),
                 ),
         )
-        .with_priority(1000) // 设置高渲染优先级，确保显示在最顶层
+        .with_priority(1000)
     }
 }
 
