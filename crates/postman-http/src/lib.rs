@@ -4,4 +4,4 @@ pub mod request;
 pub mod response;
 
 pub use error::HttpError;
-pub use http_transport::{HttpFuture, HttpTransport};
+pub use http_transport::HttpTransport;
