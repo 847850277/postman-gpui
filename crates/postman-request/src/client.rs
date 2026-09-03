@@ -18,7 +18,7 @@ pub struct RequestClient {
 }
 
 impl RequestClient {
-    pub fn new() -> Self {
+    pub fn try_new() -> Result<Self, HttpError> {
         let cookie_jar = Arc::new(ApplicationCookieJar::default());
         let client = base_client_builder(cookie_jar.clone())
             // Keep response negotiation explicit. Reqwest adds one Accept-Encoding value only
@@ -29,7 +29,11 @@ impl RequestClient {
             .brotli(true)
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .expect("the built-in HTTP client configuration should be valid");
+            .map_err(|error| {
+                HttpError::invalid_request(format!(
+                    "failed to initialize the default HTTP client: {error}"
+                ))
+            })?;
         // Reqwest 0.12 currently adds Accept-Encoding even when Range is present. Keep a second
         // connection pool with the same cookie provider for that one negotiation-suppressed path.
         let range_client = base_client_builder(cookie_jar.clone())
@@ -38,12 +42,17 @@ impl RequestClient {
             .no_brotli()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .expect("the range HTTP client configuration should be valid");
-        RequestClient {
+            .map_err(|error| {
+                HttpError::invalid_request(format!(
+                    "failed to initialize the Range HTTP client: {error}"
+                ))
+            })?;
+
+        Ok(RequestClient {
             client,
             range_client,
             cookie_jar,
-        }
+        })
     }
 
     pub fn cookie_snapshot(&self) -> Vec<(String, String)> {
@@ -108,12 +117,6 @@ impl RequestClient {
     }
 }
 
-impl Default for RequestClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>) -> ClientBuilder {
     Client::builder()
         .user_agent(DEFAULT_USER_AGENT)
@@ -129,5 +132,15 @@ pub(crate) fn map_reqwest_error(error: reqwest::Error) -> HttpError {
         HttpError::invalid_response(error.to_string())
     } else {
         HttpError::network(error.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_configuration_builds_both_clients() {
+        RequestClient::try_new().expect("the built-in client configuration should be valid");
     }
 }
