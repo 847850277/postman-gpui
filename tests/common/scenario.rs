@@ -545,7 +545,8 @@ fn execute_scenario(
     apply_draft(&mut workspace, &scenario.draft, server_url)?;
     let pending = workspace.begin_send().unwrap();
     let sent = vec![pending.request().clone()];
-    let executor = RequestExecutor::new();
+    let executor = RequestExecutor::try_new()
+        .map_err(|error| format!("failed to initialize request executor: {error}"))?;
     let task = executor.spawn_with_options(pending.request().clone(), pending.request_options());
     if matches!(&scenario.expect.response, ResponseSpec::Cancelled) {
         workspace.cancel_send(pending.send_id());

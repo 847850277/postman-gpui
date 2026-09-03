@@ -1,7 +1,16 @@
-[package]
+[workspace]
+members = [
+    ".",
+    "crates/postman-http",
+    "crates/postman-request"
+]
+resolver = "2"
+
+[workspace.package]
 name = "postman-gpui"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.97"
 authors = ["847850277"]
 description = "A native, cross-platform HTTP client built with Rust and GPUI"
 license = "MIT"
@@ -11,10 +20,22 @@ readme = "README.md"
 keywords = ["http", "api", "client", "gpui"]
 categories = ["development-tools"]
 
+[package]
+name = "postman-gpui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
 [dependencies]
+postman-http = { path = "crates/postman-http" }
+postman-request = { path = "crates/postman-request" }
 gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["font-kit", "wayland", "x11"] }
-anyhow = "1.0.75" 
+anyhow = "1.0.75"
 base64 = "0.22"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["brotli", "cookies", "deflate", "gzip", "json", "multipart"] }

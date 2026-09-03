@@ -2598,9 +2598,7 @@ fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     workspace.update(cx, |workspace, _| {
         assert!(!workspace.complete_send(
             pending,
-            Ok(postman_gpui::http::executor::RequestResult::success(
-                "too late".to_string(),
-            )),
+            Ok(postman_http::HttpResponse::success("too late".to_string(),)),
         ));
     });
     assert!(matches!(

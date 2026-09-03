@@ -1,9 +1,10 @@
 use super::{HistoryStorageStage, WorkspaceViewModel};
 use crate::{
-    models::{HistoryEntry, Request},
+    models::HistoryEntry,
     persistence::{HistoryLoadResult, HistoryLoadWarningKind, HistoryRepositoryTask},
 };
 use gpui::{Context, Entity};
+use postman_http::request::Request;
 
 /// Convert one successful repository query into the transient render projection. Row-level
 /// failures are isolated so one malformed durable row cannot hide other valid History entries.

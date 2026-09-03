@@ -1,6 +1,6 @@
-use super::request::{Request, RequestOptions};
 use super::request_draft::RequestEditorIntent;
 use chrono::{DateTime, Utc};
+use postman_http::request::{Request, RequestOptions};
 use uuid::Uuid;
 
 /// Maximum number of SQLite-backed History rows rendered by the application.
