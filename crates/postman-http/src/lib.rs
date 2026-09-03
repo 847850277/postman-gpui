@@ -1,7 +1,7 @@
 pub mod error;
-mod http_transport;
 pub mod request;
 pub mod response;
+mod transport;
 
 pub use error::HttpError;
-pub use http_transport::HttpTransport;
+pub use transport::HttpTransport;

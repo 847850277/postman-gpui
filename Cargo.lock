@@ -4459,6 +4459,11 @@ version = "0.1.0"
 [[package]]
 name = "postman-request"
 version = "0.1.0"
+dependencies = [
+ "postman-http",
+ "reqwest",
+ "tokio",
+]
 
 [[package]]
 name = "potential_utf"
