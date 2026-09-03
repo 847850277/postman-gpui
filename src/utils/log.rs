@@ -1,4 +1,6 @@
-use crate::models::{HttpMethod, MultipartValue, RequestBody};
+//use crate::models::{HttpMethod, MultipartValue, RequestBody};
+
+use postman_http::request::{HttpMethod, MultipartValue, RequestBody};
 
 pub(crate) fn display_header_value<'a>(name: &str, value: &'a str) -> &'a str {
     if is_sensitive_name(name) {
@@ -259,7 +261,7 @@ pub(crate) fn display_url_for_log(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{MultipartPart, MultipartValue};
+    use postman_http::request::MultipartPart;
     use std::path::PathBuf;
 
     #[test]

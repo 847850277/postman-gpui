@@ -26,7 +26,8 @@ pub(super) struct RequestRunner {
 impl RequestRunner {
     pub(super) fn new(history_worker: Option<Arc<HistoryRepositoryWorker>>) -> Self {
         Self {
-            executor: RequestExecutor::new(),
+            executor: RequestExecutor::try_new()
+                .expect("the application HTTP executor should initialize"),
             history_worker,
             in_flight: HashMap::new(),
         }

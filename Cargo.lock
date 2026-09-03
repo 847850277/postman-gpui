@@ -4440,6 +4440,8 @@ dependencies = [
  "gpui_platform",
  "mime_guess",
  "mockito",
+ "postman-http",
+ "postman-request",
  "reqwest",
  "rusqlite",
  "serde",

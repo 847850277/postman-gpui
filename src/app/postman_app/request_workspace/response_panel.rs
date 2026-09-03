@@ -1640,7 +1640,6 @@ mod tests {
     };
     use crate::{
         app::{ResponseState, WorkspaceViewModel},
-        http::executor::RequestResult,
         models::{HistoricalResponse, HistoricalResponseBody},
         ui::text_editor::TextRange,
         utils::formatter::format_response_body,
@@ -1649,6 +1648,7 @@ mod tests {
         point, px, AppContext, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
         MouseUpEvent, ScrollDelta, ScrollWheelEvent, TestAppContext,
     };
+    use postman_http::HttpResponse;
 
     #[test]
     fn unknown_success_reason_keeps_the_exact_http_status_visible() {
@@ -1736,7 +1736,7 @@ mod tests {
                 .expect("default request")
                 .set_url("https://example.test/response-selection");
             let pending = workspace.begin_send().expect("send should start");
-            assert!(workspace.complete_send(pending, Ok(RequestResult::success(body))));
+            assert!(workspace.complete_send(pending, Ok(HttpResponse::success(body))));
             workspace
         });
         let (viewer, visual) =
@@ -1884,7 +1884,7 @@ mod tests {
                 .expect("default request")
                 .set_url("https://example.test/response-scroll-selection");
             let pending = workspace.begin_send().expect("send should start");
-            assert!(workspace.complete_send(pending, Ok(RequestResult::success(body))));
+            assert!(workspace.complete_send(pending, Ok(HttpResponse::success(body))));
             workspace
         });
         let (viewer, visual) =

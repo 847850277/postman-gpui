@@ -1,8 +1,8 @@
-use super::request::{
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use postman_http::request::{
     HttpMethod, MultipartPart, MultipartValue, RedirectPolicy, Request, RequestBody,
     RequestOptions, DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{fmt, path::PathBuf};
 
 /// Editor-only state captured with a completed request. The effective [`Request`] remains the

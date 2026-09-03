@@ -1,65 +1,59 @@
 // src/errors/mod.rs
-//! Unified error handling module for the Postman GPUI application.
+//! Application-level error composition.
 //!
-//! This module provides a centralized error type that can be used throughout
-//! the application for consistent error handling and reporting.
+//! HTTP failures are defined by `postman-http` and wrapped here. This module owns only errors
+//! introduced by the application itself, so transport behavior is not duplicated in the GUI
+//! crate.
 
 use std::fmt;
 
-use crate::models::RedirectHop;
+use postman_http::{response::RedirectHop, HttpError};
 
-/// Unified application error type
-#[derive(Debug, Clone)]
+/// Error exposed by the application boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppError {
-    /// HTTP request error (wraps reqwest errors)
-    HttpError(String),
-    /// Validation error (e.g., invalid input)
+    /// A transport-independent HTTP failure supplied by `postman-http`.
+    Http(HttpError),
+    /// Invalid application input or state.
     ValidationError(String),
-    /// Parse error (e.g., JSON parsing failed)
+    /// Application-owned parsing failure.
     ParseError(String),
-    /// URL is empty or missing
-    UrlEmpty,
-    /// Network connection error
-    NetworkError(String),
-    /// Request-level deadline configured in the editor elapsed.
-    Timeout { timeout_ms: u64 },
-    /// A followed response remained a redirect after the configured number of observable hops.
-    RedirectLimitExceeded {
-        max_hops: u32,
-        chain: Vec<RedirectHop>,
-    },
-    /// UI rendering error
+    /// Failure while creating or driving application runtime infrastructure.
+    RuntimeError(String),
+    /// UI rendering failure.
     RenderError(String),
 }
 
 impl fmt::Display for AppError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AppError::HttpError(msg) => write!(f, "HTTP Error: {}", msg),
-            AppError::ValidationError(msg) => write!(f, "Validation Error: {}", msg),
-            AppError::ParseError(msg) => write!(f, "Parse Error: {}", msg),
-            AppError::UrlEmpty => write!(f, "Error: URL cannot be empty"),
-            AppError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
-            AppError::Timeout { timeout_ms } => {
+            Self::Http(HttpError::EmptyUrl) => formatter.write_str("Error: URL cannot be empty"),
+            Self::Http(HttpError::InvalidRequest(message)) => {
+                write!(formatter, "Validation Error: {message}")
+            }
+            Self::Http(HttpError::InvalidResponse(message)) => {
+                write!(formatter, "HTTP Error: {message}")
+            }
+            Self::Http(HttpError::Network(message)) => {
+                write!(formatter, "Network Error: {message}")
+            }
+            Self::Http(HttpError::Timeout { timeout_ms }) => {
                 write!(
-                    f,
+                    formatter,
                     "Request timed out after {} ms",
                     format_number(*timeout_ms)
                 )
             }
-            AppError::RedirectLimitExceeded { max_hops, .. } => {
-                write!(f, "Redirect limit exceeded after {max_hops} hops.")
+            Self::Http(HttpError::Cancelled) => formatter.write_str("Request cancelled"),
+            Self::Http(HttpError::RedirectLimitExceeded { max_hops, .. }) => {
+                write!(formatter, "Redirect limit exceeded after {max_hops} hops.")
             }
-            AppError::RenderError(msg) => write!(f, "Render Error: {}", msg),
-        }
-    }
-}
-
-impl AppError {
-    pub fn redirect_chain(&self) -> &[RedirectHop] {
-        match self {
-            Self::RedirectLimitExceeded { chain, .. } => chain,
-            _ => &[],
+            Self::ValidationError(message) => {
+                write!(formatter, "Validation Error: {message}")
+            }
+            Self::ParseError(message) => write!(formatter, "Parse Error: {message}"),
+            Self::RuntimeError(message) => write!(formatter, "Runtime Error: {message}"),
+            Self::RenderError(message) => write!(formatter, "Render Error: {message}"),
         }
     }
 }
@@ -76,35 +70,43 @@ fn format_number(value: u64) -> String {
     formatted
 }
 
-impl std::error::Error for AppError {}
-
-// Implement From trait for reqwest::Error
-impl From<reqwest::Error> for AppError {
-    fn from(err: reqwest::Error) -> Self {
-        let err = err.without_url();
-        if err.is_timeout() {
-            AppError::NetworkError(format!("Request timeout: {}", err))
-        } else if err.is_connect() {
-            AppError::NetworkError(format!("Connection failed: {}", err))
-        } else if err.is_status() {
-            AppError::HttpError(format!("HTTP status error: {}", err))
-        } else {
-            AppError::HttpError(err.to_string())
+impl AppError {
+    /// Returns redirect evidence when the wrapped HTTP failure exceeded its redirect limit.
+    pub fn redirect_chain(&self) -> &[RedirectHop] {
+        match self {
+            Self::Http(error) => error.redirect_chain(),
+            _ => &[],
         }
     }
 }
 
-// Implement From trait for String (for backward compatibility)
-impl From<String> for AppError {
-    fn from(msg: String) -> Self {
-        AppError::ValidationError(msg)
+impl std::error::Error for AppError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Http(error) => Some(error),
+            Self::ValidationError(_)
+            | Self::ParseError(_)
+            | Self::RuntimeError(_)
+            | Self::RenderError(_) => None,
+        }
     }
 }
 
-// Implement From trait for &str (for convenience)
+impl From<HttpError> for AppError {
+    fn from(error: HttpError) -> Self {
+        Self::Http(error)
+    }
+}
+
+impl From<String> for AppError {
+    fn from(message: String) -> Self {
+        Self::ValidationError(message)
+    }
+}
+
 impl From<&str> for AppError {
-    fn from(msg: &str) -> Self {
-        AppError::ValidationError(msg.to_string())
+    fn from(message: &str) -> Self {
+        Self::ValidationError(message.to_owned())
     }
 }
 
@@ -113,56 +115,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_app_error_display() {
-        let err = AppError::UrlEmpty;
-        assert_eq!(err.to_string(), "Error: URL cannot be empty");
-
-        let err = AppError::ValidationError("Invalid input".to_string());
-        assert_eq!(err.to_string(), "Validation Error: Invalid input");
-
-        let err = AppError::HttpError("404 Not Found".to_string());
-        assert_eq!(err.to_string(), "HTTP Error: 404 Not Found");
-
-        let err = AppError::ParseError("Invalid JSON".to_string());
-        assert_eq!(err.to_string(), "Parse Error: Invalid JSON");
-
-        let err = AppError::NetworkError("Connection timeout".to_string());
-        assert_eq!(err.to_string(), "Network Error: Connection timeout");
-
-        let err = AppError::Timeout { timeout_ms: 1_000 };
-        assert_eq!(err.to_string(), "Request timed out after 1,000 ms");
-
-        let err = AppError::RedirectLimitExceeded {
-            max_hops: 2,
-            chain: Vec::new(),
-        };
-        assert_eq!(err.to_string(), "Redirect limit exceeded after 2 hops.");
-
-        let err = AppError::RenderError("Failed to render component".to_string());
-        assert_eq!(err.to_string(), "Render Error: Failed to render component");
+    fn formats_http_errors_for_the_application() {
+        let error = AppError::from(HttpError::Timeout { timeout_ms: 1_000 });
+        assert_eq!(error.to_string(), "Request timed out after 1,000 ms");
     }
 
     #[test]
-    fn test_from_string() {
-        let err: AppError = "test error".into();
-        assert_eq!(err.to_string(), "Validation Error: test error");
+    fn displays_application_errors() {
+        let cases = [
+            (
+                AppError::ValidationError("invalid input".to_owned()),
+                "Validation Error: invalid input",
+            ),
+            (
+                AppError::ParseError("invalid JSON".to_owned()),
+                "Parse Error: invalid JSON",
+            ),
+            (
+                AppError::RuntimeError("executor unavailable".to_owned()),
+                "Runtime Error: executor unavailable",
+            ),
+            (
+                AppError::RenderError("window closed".to_owned()),
+                "Render Error: window closed",
+            ),
+        ];
 
-        let err: AppError = String::from("another error").into();
-        assert_eq!(err.to_string(), "Validation Error: another error");
+        for (error, expected) in cases {
+            assert_eq!(error.to_string(), expected);
+        }
     }
 
     #[test]
-    fn test_error_is_send_and_sync() {
-        fn assert_send<T: Send>() {}
-        fn assert_sync<T: Sync>() {}
-        assert_send::<AppError>();
-        assert_sync::<AppError>();
+    fn converts_http_and_validation_errors() {
+        assert_eq!(
+            AppError::from(HttpError::EmptyUrl),
+            AppError::Http(HttpError::EmptyUrl)
+        );
+        assert_eq!(
+            AppError::from("invalid input"),
+            AppError::ValidationError("invalid input".to_owned())
+        );
     }
 
     #[test]
-    fn test_error_is_clone() {
-        let err = AppError::UrlEmpty;
-        let cloned = err.clone();
-        assert_eq!(err.to_string(), cloned.to_string());
+    fn exposes_redirect_chain_from_wrapped_http_error() {
+        let chain = vec![RedirectHop::new(
+            302,
+            "https://example.com/start",
+            Some("/next"),
+        )];
+        let error = AppError::from(HttpError::RedirectLimitExceeded {
+            max_hops: 1,
+            chain: chain.clone(),
+        });
+
+        assert_eq!(error.redirect_chain(), chain);
+        assert!(AppError::ParseError("invalid".to_owned())
+            .redirect_chain()
+            .is_empty());
+    }
+
+    #[test]
+    fn error_is_send_sync_and_clone() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<AppError>();
+
+        let error = AppError::from(HttpError::network("offline"));
+        assert_eq!(error.clone(), error);
     }
 }
