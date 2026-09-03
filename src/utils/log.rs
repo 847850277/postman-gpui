@@ -1,5 +1,3 @@
-//use crate::models::{HttpMethod, MultipartValue, RequestBody};
-
 use postman_http::request::{HttpMethod, MultipartValue, RequestBody};
 
 pub(crate) fn display_header_value<'a>(name: &str, value: &'a str) -> &'a str {
