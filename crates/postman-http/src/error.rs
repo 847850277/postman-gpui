@@ -15,6 +15,10 @@ pub enum HttpError {
     Timeout {
         timeout_ms: u64,
     },
+    ResponseTooLarge {
+        limit_bytes: u64,
+        size_bytes: u64,
+    },
     Cancelled,
     RedirectLimitExceeded {
         max_hops: u32,
@@ -56,6 +60,15 @@ impl fmt::Display for HttpError {
             Self::Timeout { timeout_ms } => {
                 write!(formatter, "HTTP request timed out after {timeout_ms} ms")
             }
+            Self::ResponseTooLarge {
+                limit_bytes,
+                size_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "HTTP response body size {size_bytes} bytes exceeds the {limit_bytes}-byte limit"
+                )
+            }
             Self::Cancelled => formatter.write_str("HTTP request was cancelled"),
             Self::RedirectLimitExceeded { max_hops, .. } => {
                 write!(
@@ -92,6 +105,13 @@ mod tests {
             (
                 HttpError::Timeout { timeout_ms: 1_500 },
                 "HTTP request timed out after 1500 ms",
+            ),
+            (
+                HttpError::ResponseTooLarge {
+                    limit_bytes: 1_024,
+                    size_bytes: 1_025,
+                },
+                "HTTP response body size 1025 bytes exceeds the 1024-byte limit",
             ),
             (HttpError::Cancelled, "HTTP request was cancelled"),
             (

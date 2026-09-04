@@ -4462,6 +4462,10 @@ version = "0.1.0"
 name = "postman-request"
 version = "0.1.0"
 dependencies = [
+ "encoding_rs",
+ "flate2",
+ "mime",
+ "mockito",
  "postman-http",
  "reqwest",
  "tokio",

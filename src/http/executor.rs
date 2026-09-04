@@ -10,6 +10,9 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
+const APPLICATION_USER_AGENT: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
 /// A cancellable request scheduled on the executor's Tokio runtime.
 ///
 /// Public callers await the task directly. Callers that require blocking behavior (such as the
@@ -68,7 +71,7 @@ pub struct RequestExecutor {
 impl RequestExecutor {
     pub fn try_new() -> Result<Self, AppError> {
         Ok(Self {
-            client: RequestClient::try_new().map_err(AppError::from)?,
+            client: RequestClient::try_new(APPLICATION_USER_AGENT).map_err(AppError::from)?,
             runtime: Arc::new(tokio::runtime::Runtime::new().map_err(|error| {
                 AppError::RuntimeError(format!("failed to initialize HTTP runtime: {error}"))
             })?),

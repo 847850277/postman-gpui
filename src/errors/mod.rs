@@ -44,6 +44,17 @@ impl fmt::Display for AppError {
                     format_number(*timeout_ms)
                 )
             }
+            Self::Http(HttpError::ResponseTooLarge {
+                limit_bytes,
+                size_bytes,
+            }) => {
+                write!(
+                    formatter,
+                    "Response body is too large: {} bytes exceeds the {}-byte limit",
+                    format_number(*size_bytes),
+                    format_number(*limit_bytes)
+                )
+            }
             Self::Http(HttpError::Cancelled) => formatter.write_str("Request cancelled"),
             Self::Http(HttpError::RedirectLimitExceeded { max_hops, .. }) => {
                 write!(formatter, "Redirect limit exceeded after {max_hops} hops.")
@@ -118,6 +129,15 @@ mod tests {
     fn formats_http_errors_for_the_application() {
         let error = AppError::from(HttpError::Timeout { timeout_ms: 1_000 });
         assert_eq!(error.to_string(), "Request timed out after 1,000 ms");
+
+        let error = AppError::from(HttpError::ResponseTooLarge {
+            limit_bytes: 33_554_432,
+            size_bytes: 33_554_433,
+        });
+        assert_eq!(
+            error.to_string(),
+            "Response body is too large: 33,554,433 bytes exceeds the 33,554,432-byte limit"
+        );
     }
 
     #[test]

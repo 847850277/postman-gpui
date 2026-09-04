@@ -8,19 +8,26 @@ use reqwest::{Client, ClientBuilder, Response};
 
 use crate::{cookie_store::ApplicationCookieJar, multipart::build_multipart};
 
-const DEFAULT_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+/// Maximum decoded response body buffered in memory by the default client (32 MiB).
+pub const DEFAULT_MAX_RESPONSE_BODY_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct RequestClient {
     client: Client,
     range_client: Client,
     cookie_jar: Arc<ApplicationCookieJar>,
+    max_response_body_bytes: u64,
 }
 
 impl RequestClient {
-    pub fn try_new() -> Result<Self, HttpError> {
+    /// Builds the shared HTTP session using the embedding product's identity.
+    ///
+    /// The caller owns the User-Agent because this transport can be embedded by the GPUI app,
+    /// a CLI, or an agent-facing host. Individual requests may still override it with an explicit
+    /// `User-Agent` header.
+    pub fn try_new(user_agent: &str) -> Result<Self, HttpError> {
         let cookie_jar = Arc::new(ApplicationCookieJar::default());
-        let client = base_client_builder(cookie_jar.clone())
+        let client = base_client_builder(cookie_jar.clone(), user_agent)
             // Keep response negotiation explicit. Reqwest adds one Accept-Encoding value only
             // when the user did not supply one, then transparently decodes the response and
             // removes the stale wire encoding/length headers.
@@ -36,7 +43,7 @@ impl RequestClient {
             })?;
         // Reqwest 0.12 currently adds Accept-Encoding even when Range is present. Keep a second
         // connection pool with the same cookie provider for that one negotiation-suppressed path.
-        let range_client = base_client_builder(cookie_jar.clone())
+        let range_client = base_client_builder(cookie_jar.clone(), user_agent)
             .no_gzip()
             .no_deflate()
             .no_brotli()
@@ -52,7 +59,15 @@ impl RequestClient {
             client,
             range_client,
             cookie_jar,
+            max_response_body_bytes: DEFAULT_MAX_RESPONSE_BODY_BYTES,
         })
+    }
+
+    /// Overrides the maximum decoded response body retained in memory for one client session.
+    /// A zero limit permits only empty response bodies.
+    pub fn with_max_response_body_bytes(mut self, max_response_body_bytes: u64) -> Self {
+        self.max_response_body_bytes = max_response_body_bytes;
+        self
     }
 
     pub fn cookie_snapshot(&self) -> Vec<(String, String)> {
@@ -61,6 +76,10 @@ impl RequestClient {
 
     pub fn clear_cookies(&self) -> usize {
         self.cookie_jar.clear()
+    }
+
+    pub(crate) fn max_response_body_bytes(&self) -> u64 {
+        self.max_response_body_bytes
     }
 
     /// Sends exactly one HTTP exchange.
@@ -117,9 +136,9 @@ impl RequestClient {
     }
 }
 
-fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>) -> ClientBuilder {
+fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>, user_agent: &str) -> ClientBuilder {
     Client::builder()
-        .user_agent(DEFAULT_USER_AGENT)
+        .user_agent(user_agent)
         // Both connection pools belong to one application session. The observable provider
         // retains cookies from intermediate redirects and adds them to later requests.
         .cookie_provider(cookie_jar)
@@ -141,6 +160,22 @@ mod tests {
 
     #[test]
     fn default_configuration_builds_both_clients() {
-        RequestClient::try_new().expect("the built-in client configuration should be valid");
+        let client = RequestClient::try_new("postman-request-test/0.1.0")
+            .expect("the built-in client configuration should be valid");
+
+        assert_eq!(
+            client.max_response_body_bytes(),
+            DEFAULT_MAX_RESPONSE_BODY_BYTES
+        );
+    }
+
+    #[test]
+    fn invalid_caller_user_agent_returns_a_typed_error() {
+        let error = match RequestClient::try_new("invalid\nuser-agent") {
+            Ok(_) => panic!("invalid header characters must be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(error, HttpError::InvalidRequest(_)));
     }
 }

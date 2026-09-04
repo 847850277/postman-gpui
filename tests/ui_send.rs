@@ -31,6 +31,8 @@ use std::{
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
 const DEFAULT_ACCEPT_ENCODING: &str = "gzip,deflate,br";
+const APPLICATION_USER_AGENT: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 fn serve_raw_http_response(
     expected_target: &'static str,
@@ -153,6 +155,7 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
         .mock("GET", "/missing")
+        .match_header("user-agent", APPLICATION_USER_AGENT)
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(r#"{"error":"missing"}"#)
