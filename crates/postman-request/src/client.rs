@@ -145,12 +145,18 @@ fn base_client_builder(cookie_jar: Arc<ApplicationCookieJar>, user_agent: &str) 
 }
 
 pub(crate) fn map_reqwest_error(error: reqwest::Error) -> HttpError {
-    if error.is_builder() {
-        HttpError::invalid_request(error.to_string())
-    } else if error.is_decode() {
-        HttpError::invalid_response(error.to_string())
+    let is_builder = error.is_builder();
+    let is_decode = error.is_decode();
+    // Reqwest's Display includes the complete request URL by default. Query values and embedded
+    // credentials must not cross the transport-neutral error boundary or reach headless reports.
+    let message = error.without_url().to_string();
+
+    if is_builder {
+        HttpError::invalid_request(message)
+    } else if is_decode {
+        HttpError::invalid_response(message)
     } else {
-        HttpError::network(error.to_string())
+        HttpError::network(message)
     }
 }
 
@@ -177,5 +183,30 @@ mod tests {
         };
 
         assert!(matches!(error, HttpError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn network_errors_do_not_expose_the_request_url() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("the operating system should reserve a local test port");
+        let port = listener
+            .local_addr()
+            .expect("the local test listener should have an address")
+            .port();
+        drop(listener);
+        let unreachable_url = format!("http://127.0.0.1:{port}/private-path?api_key=must-not-leak");
+        let client = RequestClient::try_new("postman-request-test/0.1.0")
+            .expect("the test client configuration should be valid");
+        let error = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("the test runtime should be available")
+            .block_on(client.send_once(&Request::new(HttpMethod::GET, &unreachable_url)))
+            .expect_err("a server dropped before the request should reject the connection");
+        let message = error.to_string();
+
+        assert!(!message.contains("private-path"));
+        assert!(!message.contains("must-not-leak"));
+        assert!(!message.contains(&unreachable_url));
     }
 }

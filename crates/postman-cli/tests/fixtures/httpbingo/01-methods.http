@@ -1,0 +1,63 @@
+@host = https://httpbingo.org
+
+### GET query parameters
+# @assert status == 200
+# @assert jsonpath "$.method" == "GET"
+# @assert jsonpath "$.args.source[0]" == "headless"
+# @assert jsonpath "$.args.tag[0]" == "rust"
+GET {{host}}/get?source=headless&tag=rust
+Accept: application/json
+
+### POST JSON
+# @assert status == 200
+# @assert jsonpath "$.method" == "POST"
+# @assert jsonpath "$.json.operation" == "create"
+POST {{host}}/post
+Content-Type: application/json
+
+{"operation":"create"}
+
+### PUT raw text
+# @assert status == 200
+# @assert jsonpath "$.method" == "PUT"
+# @assert jsonpath "$.data" == "replace-with-headless"
+PUT {{host}}/put
+Content-Type: text/plain
+
+replace-with-headless
+
+### PATCH JSON
+# @assert status == 200
+# @assert jsonpath "$.method" == "PATCH"
+# @assert jsonpath "$.json.operation" == "patch"
+PATCH {{host}}/patch
+Content-Type: application/json
+
+{"operation":"patch"}
+
+### DELETE
+# @assert status == 200
+# @assert jsonpath "$.method" == "DELETE"
+DELETE {{host}}/delete?source=headless
+Accept: application/json
+
+### HEAD
+# @assert status == 200
+HEAD {{host}}/head
+
+### OPTIONS
+# @assert status == 200
+OPTIONS {{host}}/anything/options
+
+### Generic anything endpoint
+# @assert status == 200
+# @assert jsonpath "$.method" == "GET"
+# @assert body contains "method"
+GET {{host}}/anything/method-matrix
+Accept: application/json
+
+### Service index
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+GET {{host}}/
+

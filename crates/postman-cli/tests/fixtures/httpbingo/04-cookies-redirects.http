@@ -1,0 +1,58 @@
+@host = https://httpbingo.org
+
+### Set a session cookie through a redirect
+# @assert status == 200
+# @assert redirects == 1
+# @assert jsonpath "$.cookies.session" == "matrix-cookie"
+GET {{host}}/cookies/set?session=matrix-cookie
+
+### Reuse the session cookie
+# @assert status == 200
+# @assert jsonpath "$.cookies.session" == "matrix-cookie"
+GET {{host}}/cookies
+
+### Delete the session cookie through a redirect
+# @assert status == 200
+# @assert redirects == 1
+GET {{host}}/cookies/delete?session=
+
+### Confirm cookie deletion
+# @assert status == 200
+# @assert jsonpath "$.cookies" == {}
+GET {{host}}/cookies
+
+### Follow two relative redirects
+# @assert status == 200
+# @assert redirects == 2
+GET {{host}}/relative-redirect/2
+
+### Follow two absolute redirects
+# @assert status == 200
+# @assert redirects == 2
+GET {{host}}/absolute-redirect/2
+
+### Follow generic redirects
+# @assert status == 200
+# @assert redirects == 2
+GET {{host}}/redirect/2
+
+### Do not follow a redirect for this request
+# @redirect no-follow
+# @assert status == 302
+# @assert redirects == 1
+GET {{host}}/redirect-to?url=/get&status_code=302
+
+### Preserve POST semantics across 307
+# @assert status == 200
+# @assert redirects == 1
+# @assert jsonpath "$.method" == "POST"
+# @assert jsonpath "$.json.redirected" == true
+POST {{host}}/redirect-to?url=/anything/redirected&status_code=307
+Content-Type: application/json
+
+{"redirected":true}
+
+### Enforce a per-request redirect limit
+# @max-redirects 2
+# @assert error == redirect-limit
+GET {{host}}/redirect/3

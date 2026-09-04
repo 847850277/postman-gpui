@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/mccutchen/go-httpbin/blob/697b6e3b326edfd8915a3b1c36c4a43f367ea3ac/httpbin/httpbin.go#L160-L235",
+  "statuses": {
+    "covered": "Executed by the live suite with assertions for the endpoint's core behavior.",
+    "partial": "Executed by the live suite, but the current response or .http model cannot validate every important semantic.",
+    "pending-model": "Requires a client, transport, or .http parser capability that is not modeled yet.",
+    "server-unavailable": "The upstream HTTPBingo implementation intentionally does not implement this endpoint."
+  },
+  "endpoints": [
+    {
+      "family": "/",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "GET {{host}}/\n",
+      "note": "Service index and HTML content negotiation."
+    },
+    {
+      "family": "/absolute-redirect/{n}",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/absolute-redirect/2",
+      "note": "Follows and counts an absolute redirect chain."
+    },
+    {
+      "family": "/anything[/...path]",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "GET {{host}}/anything/method-matrix",
+      "note": "Generic path routing and request echo; typed bodies are covered separately."
+    },
+    {
+      "family": "/base64/{data}",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/base64/aGVhZGxlc3MtbWF0cml4",
+      "note": "Compatibility decode route."
+    },
+    {
+      "family": "/base64/{operation}/{data}",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/base64/decode/aGVhZGxlc3MtbWF0cml4",
+      "note": "Both explicit encode and decode operations are exercised."
+    },
+    {
+      "family": "/basic-auth/{user}/{password}",
+      "status": "covered",
+      "suite": "02-headers-auth.http",
+      "evidence": "GET {{host}}/basic-auth/postman/headless",
+      "note": "Authenticated and missing-credential paths."
+    },
+    {
+      "family": "/bearer",
+      "status": "covered",
+      "suite": "02-headers-auth.http",
+      "evidence": "GET {{host}}/bearer",
+      "note": "Authenticated and missing-token paths."
+    },
+    {
+      "family": "/brotli",
+      "status": "server-unavailable",
+      "note": "HTTPBingo registers this route with its not-implemented handler."
+    },
+    {
+      "family": "/bytes/{n}",
+      "status": "pending-model",
+      "note": "The shared response currently stores a decoded String instead of lossless bytes."
+    },
+    {
+      "family": "/cache",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/cache\n",
+      "note": "Generic cache validation endpoint."
+    },
+    {
+      "family": "/cache/{seconds}",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/cache/60",
+      "note": "Validates Cache-Control max-age."
+    },
+    {
+      "family": "/cookies",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/cookies\n",
+      "note": "Validates cookie-jar reuse between sequential requests."
+    },
+    {
+      "family": "/cookies/delete",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/cookies/delete?session=",
+      "note": "Expires a stored cookie through a redirect."
+    },
+    {
+      "family": "/cookies/set",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/cookies/set?session=matrix-cookie",
+      "note": "Captures a Set-Cookie value through a redirect."
+    },
+    {
+      "family": "/deflate",
+      "status": "covered",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/deflate",
+      "note": "Transparent Deflate decoding."
+    },
+    {
+      "family": "/delay/{duration}",
+      "status": "covered",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/delay/2",
+      "note": "A per-request deadline produces the typed timeout error."
+    },
+    {
+      "family": "/delete",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "DELETE {{host}}/delete?source=headless",
+      "note": "DELETE request echo."
+    },
+    {
+      "family": "/deny",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/deny",
+      "note": "Static deny fixture."
+    },
+    {
+      "family": "/digest-auth/{qop}/{user}/{password}[/{algorithm}]",
+      "status": "pending-model",
+      "note": "Digest challenge/response needs a dynamic authentication provider or response script."
+    },
+    {
+      "family": "/drip",
+      "status": "partial",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/drip?duration=0.1&numbytes=5&code=201&delay=0",
+      "note": "Status and buffered body pass; chunk timing is not exposed by HttpResponse."
+    },
+    {
+      "family": "/dump/request",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/dump/request",
+      "note": "Raw request dump and custom header path."
+    },
+    {
+      "family": "/encoding/utf8",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/encoding/utf8",
+      "note": "UTF-8 text decoding."
+    },
+    {
+      "family": "/env",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/env",
+      "note": "Server environment response."
+    },
+    {
+      "family": "/etag/{etag}",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/etag/headless-etag",
+      "note": "Both 200 ETag and conditional 304 paths."
+    },
+    {
+      "family": "/forms/post",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/forms/post",
+      "note": "HTML form fixture; URL-encoded submission is exercised against /post."
+    },
+    {
+      "family": "/get",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "GET {{host}}/get?source=headless&tag=rust",
+      "note": "GET method and repeated query representation."
+    },
+    {
+      "family": "/gzip",
+      "status": "covered",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/gzip",
+      "note": "Transparent Gzip decoding."
+    },
+    {
+      "family": "/head",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "HEAD {{host}}/head",
+      "note": "HEAD without a response body."
+    },
+    {
+      "family": "/headers",
+      "status": "covered",
+      "suite": "02-headers-auth.http",
+      "evidence": "GET {{host}}/headers",
+      "note": "Custom request-header echo."
+    },
+    {
+      "family": "/hidden-basic-auth/{user}/{password}",
+      "status": "covered",
+      "suite": "02-headers-auth.http",
+      "evidence": "GET {{host}}/hidden-basic-auth/postman/headless",
+      "note": "Authenticated 200 and concealed 404 paths."
+    },
+    {
+      "family": "/html",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/html",
+      "note": "HTML response decoding."
+    },
+    {
+      "family": "/hostname",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/hostname",
+      "note": "Hostname diagnostics."
+    },
+    {
+      "family": "/image[/{kind}]",
+      "status": "pending-model",
+      "note": "Image and Accept negotiation need a lossless binary response body."
+    },
+    {
+      "family": "/ip",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/ip",
+      "note": "Origin diagnostics."
+    },
+    {
+      "family": "/json",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/json",
+      "note": "JSON response and JSONPath assertion."
+    },
+    {
+      "family": "/jsonl",
+      "status": "partial",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/jsonl",
+      "note": "NDJSON content passes after buffering; incremental line delivery is not exposed."
+    },
+    {
+      "family": "/links/{n}[/{offset}]",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/links/2/0",
+      "note": "Both explicit and default offsets are exercised."
+    },
+    {
+      "family": "/patch",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "PATCH {{host}}/patch",
+      "note": "PATCH JSON request echo."
+    },
+    {
+      "family": "/post",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "POST {{host}}/post",
+      "note": "POST JSON plus URL-encoded form bodies."
+    },
+    {
+      "family": "/put",
+      "status": "covered",
+      "suite": "01-methods.http",
+      "evidence": "PUT {{host}}/put",
+      "note": "PUT raw request echo."
+    },
+    {
+      "family": "/range/{n}",
+      "status": "partial",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/range/64",
+      "note": "206, Content-Range, and ASCII bytes pass; arbitrary binary remains lossy."
+    },
+    {
+      "family": "/redirect-to",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/redirect-to?url=/get&status_code=302",
+      "note": "No-follow policy plus 307 POST preservation."
+    },
+    {
+      "family": "/redirect/{n}",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/redirect/3",
+      "note": "Normal following and a typed redirect-limit error."
+    },
+    {
+      "family": "/relative-redirect/{n}",
+      "status": "covered",
+      "suite": "04-cookies-redirects.http",
+      "evidence": "GET {{host}}/relative-redirect/2",
+      "note": "Follows and counts a relative redirect chain."
+    },
+    {
+      "family": "/response-headers",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/response-headers?X-E2E=matrix",
+      "note": "Dynamic response-header assertion."
+    },
+    {
+      "family": "/robots.txt",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/robots.txt",
+      "note": "Static robots policy."
+    },
+    {
+      "family": "/sse",
+      "status": "partial",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/sse?count=2&duration=0.1&delay=0",
+      "note": "Finite event payload passes after buffering; progressive event delivery is not exposed."
+    },
+    {
+      "family": "/status/{code}",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/status/418",
+      "note": "Both empty success and non-success statuses."
+    },
+    {
+      "family": "/stream-bytes/{n}",
+      "status": "pending-model",
+      "note": "Streaming arbitrary bytes needs a lossless streaming response abstraction."
+    },
+    {
+      "family": "/stream/{n}",
+      "status": "partial",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/stream/2",
+      "note": "Finite records pass after buffering; chunk boundaries and timing are not exposed."
+    },
+    {
+      "family": "/trailers",
+      "status": "pending-model",
+      "note": "HttpResponse has no HTTP trailer collection."
+    },
+    {
+      "family": "/unstable",
+      "status": "covered",
+      "suite": "06-compression-resilience.http",
+      "evidence": "GET {{host}}/unstable?failure_rate=0&seed=171",
+      "note": "Deterministic success path; failure/retry policy belongs in deterministic tests."
+    },
+    {
+      "family": "/upload",
+      "status": "partial",
+      "suite": "03-bodies-content.http",
+      "evidence": "POST {{host}}/upload",
+      "note": "Raw upload passes; external-file and multipart .http syntax are not parsed yet."
+    },
+    {
+      "family": "/user-agent",
+      "status": "covered",
+      "suite": "02-headers-auth.http",
+      "evidence": "GET {{host}}/user-agent",
+      "note": "Explicit User-Agent override."
+    },
+    {
+      "family": "/uuid",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/uuid",
+      "note": "JSON shape; the smoke flow additionally captures and reuses the UUID."
+    },
+    {
+      "family": "/version",
+      "status": "covered",
+      "suite": "05-cache-response.http",
+      "evidence": "GET {{host}}/version",
+      "note": "Service identity response."
+    },
+    {
+      "family": "/websocket/echo",
+      "status": "pending-model",
+      "note": "Requires a WebSocket transport and frame-level result model."
+    },
+    {
+      "family": "/xml",
+      "status": "covered",
+      "suite": "03-bodies-content.http",
+      "evidence": "GET {{host}}/xml",
+      "note": "XML response decoding."
+    }
+  ]
+}

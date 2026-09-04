@@ -4425,6 +4425,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "postman-cli"
+version = "0.1.0"
+dependencies = [
+ "mockito",
+ "postman-http",
+ "postman-request",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "postman-gpui"
 version = "0.1.0"
 dependencies = [

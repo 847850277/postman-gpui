@@ -54,12 +54,31 @@ python3 scripts/release.py package
 python3 scripts/release.py package --universal-macos
 ```
 
+## 无界面 `.http` Runner
+
+无界面 Runner 会解析仓库内的一个或多个 `.http` 文件/目录，通过桌面应用同样使用的 `postman-http` 和
+`postman-request` crates 顺序执行请求；传输或声明式断言失败时返回非零退出码。
+
+```bash
+cargo httpbingo-headless
+cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
+```
+
+目录会递归发现并按路径排序执行 `.http` 文件，同一次运行共享 Cookie 会话。当前 HTTPBingo
+矩阵包含 6 个场景文件、67 个真实请求，并盘点了上游全部 58 个端点族：45 个完整覆盖、6 个
+带明确限制的部分覆盖、6 个等待模型能力，另有 `/brotli` 在服务端本身未实现。
+
+支持的语法、响应捕获、断言、JSON 报告、逐请求超时/重定向参数和覆盖矩阵见
+[Headless Runner 说明](crates/postman-cli/README.md)。
+
 ## 验证
 
 ```bash
 cargo fmt -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked --all-targets --all-features
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace --all-targets --all-features
+cargo httpbingo-headless
 cargo httpbingo-scenarios
 python3 -m unittest discover -s scripts/tests
 ```
@@ -68,8 +87,8 @@ python3 -m unittest discover -s scripts/tests
 
 v0.1.0 功能范围由 [#50](https://github.com/847850277/postman-gpui/issues/50) 跟踪。
 二进制下载、响应保存和流式进度暂时保留在
-[#69](https://github.com/847850277/postman-gpui/issues/69)；等未来 CLI、性能测试可复用的 HTTP
-核心架构明确后再继续实现，它们不阻塞首版发布。
+[#69](https://github.com/847850277/postman-gpui/issues/69)，首个可复用 HTTP 核心和无界面
+`.http` Runner 由 [#171](https://github.com/847850277/postman-gpui/issues/171) 跟踪。
 
 发布相关资料：
 

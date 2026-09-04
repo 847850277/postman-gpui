@@ -1,0 +1,25 @@
+[package]
+name = "postman-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Headless .http runner for postman-gpui"
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[[bin]]
+name = "postman"
+path = "src/main.rs"
+
+[dependencies]
+postman-http = { path = "../postman-http" }
+postman-request = { path = "../postman-request" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+mockito = "1"
+tempfile = "3"
