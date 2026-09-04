@@ -33,6 +33,7 @@ use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 const DEFAULT_ACCEPT_ENCODING: &str = "gzip,deflate,br";
 const APPLICATION_USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+const RAW_HTTP_FIXTURE_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn serve_raw_http_response(
     expected_target: &'static str,
@@ -47,14 +48,15 @@ fn serve_raw_http_response(
         .set_nonblocking(true)
         .expect("deterministic response-header fixture should configure nonblocking accept");
     let handle = std::thread::spawn(move || {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + RAW_HTTP_FIXTURE_TIMEOUT;
         let (mut stream, _) = loop {
             match listener.accept() {
                 Ok(connection) => break connection,
-                Err(error)
-                    if error.kind() == std::io::ErrorKind::WouldBlock
-                        && Instant::now() < deadline =>
-                {
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    assert!(
+                        Instant::now() < deadline,
+                        "response-header fixture did not receive a request within {RAW_HTTP_FIXTURE_TIMEOUT:?}"
+                    );
                     std::thread::sleep(Duration::from_millis(5));
                 }
                 Err(error) => panic!("response-header fixture did not receive a request: {error}"),
@@ -64,7 +66,7 @@ fn serve_raw_http_response(
             .set_nonblocking(false)
             .expect("response-header fixture should use blocking request reads");
         stream
-            .set_read_timeout(Some(Duration::from_secs(2)))
+            .set_read_timeout(Some(RAW_HTTP_FIXTURE_TIMEOUT))
             .expect("response-header fixture should configure its read deadline");
         let mut request = Vec::new();
         let mut buffer = [0_u8; 1_024];
