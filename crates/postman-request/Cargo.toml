@@ -1,0 +1,23 @@
+[package]
+name = "postman-request"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+encoding_rs = "0.8"
+mime = "0.3"
+postman-http = { path = "../postman-http" }
+reqwest = { version = "0.12", features = [
+    "brotli",
+    "cookies",
+    "deflate",
+    "gzip",
+    "multipart",
+] }
+tokio = { version = "1", features = ["fs", "time"] }
+
+[dev-dependencies]
+flate2 = "1"
+mockito = "1"
+tokio = { version = "1", features = ["full"] }

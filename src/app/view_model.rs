@@ -22,12 +22,12 @@ pub use crate::models::{
 use crate::utils::log::display_url_for_log;
 use crate::{
     errors::AppError,
-    http::executor::RequestResult,
     models::{
         HistoricalResponse, HistoryEntry, HttpMethod, MultipartPart, RedirectHop, RedirectPolicy,
         Request, RequestBody, RequestEditorIntent,
     },
 };
+use postman_http::{HttpError, HttpResponse};
 
 /// The request editor section selected by the user.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -585,12 +585,12 @@ impl RequestViewModel {
     fn complete_send(
         &mut self,
         pending: &PendingRequest,
-        result: Result<RequestResult, AppError>,
+        result: Result<HttpResponse, AppError>,
         stored_cookies: Vec<CookieJarEntry>,
     ) -> SendTransition {
         let outcome = match &result {
             Ok(_) => SendTerminalOutcome::Completed,
-            Err(AppError::Timeout { .. }) => SendTerminalOutcome::TimedOut,
+            Err(AppError::Http(HttpError::Timeout { .. })) => SendTerminalOutcome::TimedOut,
             Err(_) => SendTerminalOutcome::Failed,
         };
         let transition = self.send_lifecycle.complete(pending.send_id(), outcome);
@@ -964,7 +964,7 @@ impl WorkspaceViewModel {
     pub fn complete_send(
         &mut self,
         pending: PendingRequest,
-        result: Result<RequestResult, AppError>,
+        result: Result<HttpResponse, AppError>,
     ) -> bool {
         self.complete_send_for_persistence(pending, result)
             .response_applied()
@@ -973,7 +973,7 @@ impl WorkspaceViewModel {
     pub fn complete_send_for_persistence(
         &mut self,
         pending: PendingRequest,
-        result: Result<RequestResult, AppError>,
+        result: Result<HttpResponse, AppError>,
     ) -> SendCompletion {
         self.complete_send_with_stored_cookies(pending, result, Vec::new())
     }
@@ -981,7 +981,7 @@ impl WorkspaceViewModel {
     pub(crate) fn complete_send_with_stored_cookies(
         &mut self,
         pending: PendingRequest,
-        result: Result<RequestResult, AppError>,
+        result: Result<HttpResponse, AppError>,
         stored_cookies: Vec<(String, String)>,
     ) -> SendCompletion {
         let was_cancelled = pending.was_cancelled();
@@ -1197,7 +1197,7 @@ mod tests {
     fn complete_and_confirm_history(
         workspace: &mut WorkspaceViewModel,
         pending: PendingRequest,
-        result: Result<RequestResult, AppError>,
+        result: Result<HttpResponse, AppError>,
     ) -> bool {
         let (response_applied, candidate) = workspace
             .complete_send_for_persistence(pending, result)
@@ -1539,7 +1539,7 @@ mod tests {
             .any(|(key, value)| key == "X-Trace" && value == "abc"));
         assert!(workspace.complete_send(
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 201,
                 headers: vec![("x-test".into(), "yes".into())],
                 body: r#"{"ok":true}"#.into(),
@@ -1563,7 +1563,7 @@ mod tests {
             workspace.active_request().unwrap().response(),
             ResponseState::Loading
         ));
-        assert!(workspace.complete_send(pending, Err(AppError::UrlEmpty)));
+        assert!(workspace.complete_send(pending, Err(AppError::Http(HttpError::EmptyUrl))));
 
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -2144,7 +2144,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult::success("ok".to_string()))
+            Ok(HttpResponse::success("ok".to_string()))
         ));
 
         let entry = workspace.history()[0].clone();
@@ -2276,7 +2276,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 204,
                 headers: Vec::new(),
                 body: String::new(),
@@ -2308,7 +2308,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 418,
                 headers: vec![("content-type".into(), "text/plain".into())],
                 body: "I'm a teapot!".into(),
@@ -2349,7 +2349,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 200,
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: final_body.into(),
@@ -2387,7 +2387,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 200,
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: body.into(),
@@ -2441,7 +2441,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 200,
                 headers: vec![("content-type".into(), "application/json".into())],
                 body: r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into(),
@@ -2492,7 +2492,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             first,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 200,
                 headers: Vec::new(),
                 body: "first response".to_string(),
@@ -2537,7 +2537,7 @@ mod tests {
         assert!(workspace.close_tab_by_id(first_tab_id));
 
         assert!(
-            !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
+            !workspace.complete_send(pending, Ok(HttpResponse::success("too late".to_string())))
         );
         assert!(workspace.request_for_tab(first_tab_id).is_none());
         assert_eq!(workspace.active_tab_id(), Some(second_tab_id));
@@ -2569,7 +2569,7 @@ mod tests {
 
         let completion = workspace.complete_send_for_persistence(
             pending,
-            Ok(RequestResult::success("too late".to_string())),
+            Ok(HttpResponse::success("too late".to_string())),
         );
         assert_eq!(
             completion.transition(),
@@ -2595,7 +2595,7 @@ mod tests {
         assert!(!complete_and_confirm_history(
             &mut workspace,
             older,
-            Ok(RequestResult::success("stale".to_string()))
+            Ok(HttpResponse::success("stale".to_string()))
         ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -2604,7 +2604,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             newer,
-            Ok(RequestResult::success("current".to_string()))
+            Ok(HttpResponse::success("current".to_string()))
         ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -2629,14 +2629,14 @@ mod tests {
 
         let first = workspace.complete_send_for_persistence(
             pending,
-            Ok(RequestResult::success("accepted".to_string())),
+            Ok(HttpResponse::success("accepted".to_string())),
         );
         assert_eq!(first.transition(), SendTransition::Applied);
         assert!(first.history_entry().is_some());
 
         let duplicate = workspace.complete_send_for_persistence(
             duplicate,
-            Ok(RequestResult::success("duplicate".to_string())),
+            Ok(HttpResponse::success("duplicate".to_string())),
         );
         assert_eq!(
             duplicate.transition(),
@@ -2668,7 +2668,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult::success("done".to_string()))
+            Ok(HttpResponse::success("done".to_string()))
         ));
 
         assert_eq!(
@@ -2711,7 +2711,7 @@ mod tests {
             SendTerminalOutcome::Cancelled
         );
         assert!(
-            !workspace.complete_send(pending, Ok(RequestResult::success("too late".to_string())))
+            !workspace.complete_send(pending, Ok(HttpResponse::success("too late".to_string())))
         );
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -2735,7 +2735,10 @@ mod tests {
 
         assert_eq!(pending.timeout_ms(), Some(1_000));
         assert_eq!(workspace.in_flight_count(), 1);
-        assert!(workspace.complete_send(pending, Err(AppError::Timeout { timeout_ms: 1_000 })));
+        assert!(workspace.complete_send(
+            pending,
+            Err(AppError::Http(HttpError::Timeout { timeout_ms: 1_000 }))
+        ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),
             ResponseState::Error { message } if message == "Request timed out after 1,000 ms"
@@ -2764,7 +2767,10 @@ mod tests {
         let tab_id = workspace.active_tab_id().unwrap();
         let first = workspace.begin_send().unwrap();
         let first_send_id = first.send_id();
-        assert!(workspace.complete_send(first, Err(AppError::Timeout { timeout_ms: 50 })));
+        assert!(workspace.complete_send(
+            first,
+            Err(AppError::Http(HttpError::Timeout { timeout_ms: 50 }))
+        ));
 
         let retry = workspace.retry_send_for_tab(tab_id).unwrap();
         assert_eq!(
@@ -2827,7 +2833,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult::success("done".into()))
+            Ok(HttpResponse::success("done".into()))
         ));
         let entry = workspace.history()[0].clone();
         assert_eq!(entry.request_options.timeout_ms, Some(1_250));
@@ -2889,7 +2895,7 @@ mod tests {
             RedirectHop::new(302, "https://example.com/redirect/1", Some("/terminal")),
             RedirectHop::terminal(200, "https://example.com/terminal"),
         ];
-        let mut result = RequestResult::success("done".into());
+        let mut result = HttpResponse::success("done".into());
         result.redirect_chain = chain.clone();
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -2928,10 +2934,10 @@ mod tests {
 
         assert!(workspace.complete_send(
             pending,
-            Err(AppError::RedirectLimitExceeded {
+            Err(AppError::Http(HttpError::RedirectLimitExceeded {
                 max_hops: 2,
                 chain: chain.clone(),
-            })
+            }))
         ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -3038,7 +3044,7 @@ mod tests {
             .unwrap()
             .set_timeout_ms(2_000);
 
-        assert!(workspace.complete_send(pending, Ok(RequestResult::success("done".into()))));
+        assert!(workspace.complete_send(pending, Ok(HttpResponse::success("done".into()))));
         assert_eq!(workspace.active_request().unwrap().timeout_ms(), 2_000);
         assert!(workspace.active_request().unwrap().is_dirty());
     }
@@ -3118,7 +3124,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(RequestResult {
+            Ok(HttpResponse {
                 status: 200,
                 headers: Vec::new(),
                 body: "new response".into(),

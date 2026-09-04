@@ -1,25 +1,17 @@
 use crate::errors::AppError;
-use crate::http::client::HttpClient;
-use crate::models::{RedirectHop, Request, RequestOptions};
 use crate::utils::log::{format_http_request, format_http_response};
+use postman_http::request::{Request, RequestOptions};
+use postman_http::{HttpError, HttpResponse, HttpTransport};
+use postman_request::RequestClient;
 use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
     task::{Context as TaskContext, Poll},
-    time::Duration,
 };
 
-/// HTTP 请求执行结果
-#[derive(Debug, Clone)]
-pub struct RequestResult {
-    pub status: u16,
-    pub headers: Vec<(String, String)>,
-    pub body: String,
-    pub elapsed_ms: u128,
-    pub stored_cookies: Vec<(String, String)>,
-    pub redirect_chain: Vec<RedirectHop>,
-}
+const APPLICATION_USER_AGENT: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// A cancellable request scheduled on the executor's Tokio runtime.
 ///
@@ -27,7 +19,7 @@ pub struct RequestResult {
 /// deterministic scenario harness) own that scheduling adapter themselves.
 #[must_use = "request tasks must be awaited or explicitly aborted"]
 pub struct RequestTask {
-    handle: tokio::task::JoinHandle<Result<RequestResult, AppError>>,
+    handle: tokio::task::JoinHandle<Result<HttpResponse, AppError>>,
     runtime: Arc<tokio::runtime::Runtime>,
 }
 
@@ -39,19 +31,22 @@ impl RequestTask {
     /// GPUI's background executor does not reliably receive Tokio join wake-ups during its
     /// deterministic test loop. This crate-only adapter blocks that background thread on the
     /// same typed task; it does not create a second request construction or transport path.
-    pub(crate) fn join_on_background_thread(self) -> Result<RequestResult, AppError> {
+    pub(crate) fn join_on_background_thread(self) -> Result<HttpResponse, AppError> {
         let runtime = self.runtime.clone();
         runtime.block_on(self)
     }
 }
 
 impl Future for RequestTask {
-    type Output = Result<RequestResult, AppError>;
+    type Output = Result<HttpResponse, AppError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
         match Pin::new(&mut self.handle).poll(cx) {
             Poll::Ready(Ok(result)) => Poll::Ready(result),
-            Poll::Ready(Err(error)) => Poll::Ready(Err(AppError::NetworkError(format!(
+            Poll::Ready(Err(error)) if error.is_cancelled() => {
+                Poll::Ready(Err(AppError::Http(HttpError::Cancelled)))
+            }
+            Poll::Ready(Err(error)) => Poll::Ready(Err(AppError::RuntimeError(format!(
                 "request task stopped before completion: {error}"
             )))),
             Poll::Pending => Poll::Pending,
@@ -67,45 +62,20 @@ impl Drop for RequestTask {
     }
 }
 
-impl RequestResult {
-    pub fn success(body: String) -> Self {
-        Self {
-            status: 200,
-            headers: Vec::new(),
-            body,
-            elapsed_ms: 0,
-            stored_cookies: Vec::new(),
-            redirect_chain: Vec::new(),
-        }
-    }
-
-    pub fn error(message: String) -> Self {
-        Self {
-            status: 0,
-            headers: Vec::new(),
-            body: message,
-            elapsed_ms: 0,
-            stored_cookies: Vec::new(),
-            redirect_chain: Vec::new(),
-        }
-    }
-}
-
 /// HTTP 请求执行器
 pub struct RequestExecutor {
-    client: HttpClient,
+    client: RequestClient,
     runtime: Arc<tokio::runtime::Runtime>,
 }
 
 impl RequestExecutor {
-    pub fn new() -> Self {
-        Self {
-            client: HttpClient::new(),
-            runtime: Arc::new(
-                tokio::runtime::Runtime::new()
-                    .expect("the built-in async HTTP runtime should be available"),
-            ),
-        }
+    pub fn try_new() -> Result<Self, AppError> {
+        Ok(Self {
+            client: RequestClient::try_new(APPLICATION_USER_AGENT).map_err(AppError::from)?,
+            runtime: Arc::new(tokio::runtime::Runtime::new().map_err(|error| {
+                AppError::RuntimeError(format!("failed to initialize HTTP runtime: {error}"))
+            })?),
+        })
     }
 
     /// Starts a cancellable request on the shared Tokio runtime. Dropping the returned task or
@@ -148,15 +118,10 @@ impl RequestExecutor {
     /// Canonical transport path. Every caller supplies the same typed command; only scheduling
     /// differs between the GPUI application and deterministic test adapters.
     async fn execute(
-        client: HttpClient,
+        client: RequestClient,
         request: Request,
         options: RequestOptions,
-    ) -> Result<RequestResult, AppError> {
-        if request.url.trim().is_empty() {
-            tracing::debug!(method = %request.method, "skipping empty URL");
-            return Err(AppError::UrlEmpty);
-        }
-
+    ) -> Result<HttpResponse, AppError> {
         let method = request.method;
         let url_for_log = crate::utils::log::display_url_for_log(&request.url);
         if tracing::enabled!(target: "postman_gpui::http", tracing::Level::INFO) {
@@ -170,22 +135,9 @@ impl RequestExecutor {
         }
 
         let started = std::time::Instant::now();
-        let result = match options.timeout_ms.filter(|timeout_ms| *timeout_ms > 0) {
-            Some(timeout_ms) => match tokio::time::timeout(
-                Duration::from_millis(timeout_ms),
-                client.execute_with_options(request, options),
-            )
-            .await
-            {
-                Ok(result) => result,
-                Err(_) => Err(AppError::Timeout { timeout_ms }),
-            },
-            None => client.execute_with_options(request, options).await,
-        };
-        let elapsed_ms = started.elapsed().as_millis();
-
-        match result {
+        match client.execute(request, options).await {
             Ok(response) => {
+                let elapsed_ms = response.elapsed_ms;
                 if tracing::enabled!(target: "postman_gpui::http", tracing::Level::INFO) {
                     let response_log = format_http_response(
                         response.status(),
@@ -195,18 +147,10 @@ impl RequestExecutor {
                     );
                     tracing::info!(target: "postman_gpui::http", "\n{}", response_log);
                 }
-                Ok(RequestResult {
-                    status: response.status(),
-                    headers: response.headers().to_vec(),
-                    // ResponseState owns the exact server text. Formatting belongs to the
-                    // response viewer so copy/export features never lose the original payload.
-                    body: response.body().to_string(),
-                    elapsed_ms,
-                    stored_cookies: response.stored_cookies().to_vec(),
-                    redirect_chain: response.redirect_chain().to_vec(),
-                })
+                Ok(response)
             }
             Err(error) => {
+                let elapsed_ms = started.elapsed().as_millis();
                 tracing::warn!(
                     target: "postman_gpui::http",
                     method = %method,
@@ -215,163 +159,8 @@ impl RequestExecutor {
                     error = %error,
                     "HTTP RESPONSE: transport failed"
                 );
-                Err(error)
+                Err(error.into())
             }
         }
-    }
-}
-
-impl Default for RequestExecutor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::{HttpMethod, RequestBody};
-    use mockito::Server;
-    use std::{
-        sync::{mpsc, Condvar, Mutex},
-        time::Duration,
-    };
-
-    fn wait(task: RequestTask) -> Result<RequestResult, AppError> {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("the test scheduling adapter should be available")
-            .block_on(task)
-    }
-
-    #[test]
-    fn test_executor_creation() {
-        let executor = RequestExecutor::new();
-        // Verify executor can be created
-        assert!(std::mem::size_of_val(&executor) > 0);
-    }
-
-    #[test]
-    fn test_executor_execute_validates_empty_url() {
-        let executor = RequestExecutor::new();
-        let task = executor.spawn(Request::new(HttpMethod::GET, ""));
-        let result = wait(task);
-        assert!(result.is_err());
-        if let Err(e) = result {
-            assert!(matches!(e, AppError::UrlEmpty));
-        }
-    }
-
-    #[test]
-    fn typed_request_is_the_canonical_execution_command() {
-        let mut server = Server::new();
-        let received = server
-            .mock("POST", "/typed")
-            .match_header("content-type", "application/json")
-            .match_body(r#"{"name":"Ada"}"#)
-            .with_status(201)
-            .with_header("x-contract", "typed-request")
-            .with_body("created")
-            .create();
-        let mut request = Request::new(HttpMethod::POST, format!("{}/typed", server.url()));
-        request.add_header("Content-Type", "application/json");
-        request.body = RequestBody::Json(r#"{"name":"Ada"}"#.to_string());
-
-        let executor = RequestExecutor::new();
-        let result = wait(executor.spawn(request)).expect("typed request should succeed");
-
-        assert_eq!(result.status, 201);
-        assert_eq!(result.body, "created");
-        assert!(result
-            .headers
-            .iter()
-            .any(|header| header == &("x-contract".to_string(), "typed-request".to_string())));
-        received.assert();
-    }
-
-    #[test]
-    fn abort_handle_cancels_the_underlying_request_task() {
-        let mut server = Server::new();
-        let (response_started_tx, response_started_rx) = mpsc::channel();
-        let release_response = std::sync::Arc::new((Mutex::new(false), Condvar::new()));
-        let response_gate = release_response.clone();
-        let slow_response = server
-            .mock("GET", "/slow")
-            .with_chunked_body(move |writer| {
-                writer.write_all(b"started")?;
-                let _ = response_started_tx.send(());
-                let (released, wake) = &*response_gate;
-                let released = released
-                    .lock()
-                    .expect("response gate should not be poisoned");
-                let _ = wake
-                    .wait_timeout_while(released, Duration::from_secs(2), |released| !*released)
-                    .expect("response gate should remain available");
-                Ok(())
-            })
-            .create();
-        let executor = RequestExecutor::new();
-        let task = executor.spawn(Request::new(
-            HttpMethod::GET,
-            format!("{}/slow", server.url()),
-        ));
-        let abort_handle = task.abort_handle();
-
-        response_started_rx
-            .recv_timeout(Duration::from_secs(2))
-            .expect("the slow response should start before cancellation");
-        abort_handle.abort();
-        let (released, wake) = &*release_response;
-        *released
-            .lock()
-            .expect("response gate should not be poisoned") = true;
-        wake.notify_all();
-
-        let error = wait(task).expect_err("aborted request should not complete successfully");
-        assert!(matches!(error, AppError::NetworkError(message) if message.contains("cancelled")));
-        slow_response.assert();
-    }
-
-    #[test]
-    fn configured_timeout_stops_transport_with_a_distinct_typed_error() {
-        let mut server = Server::new();
-        let (response_started_tx, response_started_rx) = mpsc::channel();
-        let release_response = std::sync::Arc::new((Mutex::new(false), Condvar::new()));
-        let response_gate = release_response.clone();
-        let slow_response = server
-            .mock("GET", "/deadline")
-            .with_chunked_body(move |writer| {
-                writer.write_all(b"started")?;
-                let _ = response_started_tx.send(());
-                let (released, wake) = &*response_gate;
-                let released = released
-                    .lock()
-                    .expect("response gate should not be poisoned");
-                let _ = wake
-                    .wait_timeout_while(released, Duration::from_secs(2), |released| !*released)
-                    .expect("response gate should remain available");
-                Ok(())
-            })
-            .create();
-        let executor = RequestExecutor::new();
-        let task = executor.spawn_with_timeout(
-            Request::new(HttpMethod::GET, format!("{}/deadline", server.url())),
-            Some(50),
-        );
-
-        response_started_rx
-            .recv_timeout(Duration::from_secs(2))
-            .expect("the delayed response should start before its deadline");
-        let error = wait(task).expect_err("the configured deadline should stop the request");
-        let (released, wake) = &*release_response;
-        *released
-            .lock()
-            .expect("response gate should not be poisoned") = true;
-        wake.notify_all();
-
-        assert!(matches!(&error, AppError::Timeout { timeout_ms: 50 }));
-        assert_eq!(error.to_string(), "Request timed out after 50 ms");
-        slow_response.assert();
     }
 }

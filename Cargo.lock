@@ -4440,6 +4440,8 @@ dependencies = [
  "gpui_platform",
  "mime_guess",
  "mockito",
+ "postman-http",
+ "postman-request",
  "reqwest",
  "rusqlite",
  "serde",
@@ -4450,6 +4452,23 @@ dependencies = [
  "tracing-subscriber",
  "unicode-segmentation",
  "uuid",
+]
+
+[[package]]
+name = "postman-http"
+version = "0.1.0"
+
+[[package]]
+name = "postman-request"
+version = "0.1.0"
+dependencies = [
+ "encoding_rs",
+ "flate2",
+ "mime",
+ "mockito",
+ "postman-http",
+ "reqwest",
+ "tokio",
 ]
 
 [[package]]
