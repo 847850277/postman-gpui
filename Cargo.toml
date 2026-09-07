@@ -2,6 +2,7 @@
 members = [
     ".",
     "crates/postman-cli",
+    "crates/postman-flow",
     "crates/postman-http",
     "crates/postman-request"
 ]

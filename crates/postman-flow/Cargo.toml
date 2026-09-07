@@ -1,0 +1,18 @@
+[package]
+name = "postman-flow"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Minimal streaming HTTP flow runtime for postman-gpui"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+futures = "0.3"
+postman-http = { path = "../postman-http" }
+serde_json = "1"
+
+[dev-dependencies]
+postman-request = { path = "../postman-request" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
