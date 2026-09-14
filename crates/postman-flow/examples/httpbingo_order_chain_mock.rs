@@ -28,20 +28,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut succeeded = false;
 
+    tracing::info!("启动业务流程链：登录 -> 筛选订单 -> 关联下单");
+
     // 观察事件流推进
     while let Some(event) = events.next().await {
         let event = event?;
-        println!("{event:?}");
-        if let FlowEvent::FlowFinished { success } = event {
-            succeeded = success;
+        match &event {
+            FlowEvent::FlowStarted { name, total_steps } => {
+                tracing::info!(flow_name = %name, total_steps, "Flow 启动");
+            }
+            FlowEvent::StepStarted { step_id, name } => {
+                tracing::info!(step_id = %step_id, step_name = %name, "▶ 步骤开始");
+            }
+            FlowEvent::ResponseReceived { step_id, status, elapsed_ms } => {
+                tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
+            }
+            FlowEvent::OutputExported { step_id, name } => {
+                tracing::info!(step_id = %step_id, export_name = %name, "↳ 提取并导出变量");
+            }
+            FlowEvent::CheckFinished { step_id, check, success, message } => {
+                if *success {
+                    tracing::info!(step_id = %step_id, check = %check, "↳ 断言检查通过 ✔");
+                } else {
+                    tracing::warn!(step_id = %step_id, check = %check, message = ?message, "↳ 断言检查失败 ✘");
+                }
+            }
+            FlowEvent::StepFinished { step_id, outcome } => {
+                tracing::info!(step_id = %step_id, ?outcome, "⏹ 步骤完成");
+            }
+            FlowEvent::FlowFinished { success } => {
+                succeeded = *success;
+                if *success {
+                    tracing::info!("Flow 全部步骤执行完毕，状态：成功");
+                } else {
+                    tracing::error!("Flow 执行终止，状态：失败");
+                }
+            }
         }
     }
 
     if !succeeded {
-        return Err("业务流程链执行失败，请检查上方事件输出".into());
+        return Err("业务流程链执行失败，请检查上方日志".into());
     }
 
-    println!("\n✅ 业务流程链路执行成功：登录 -> 筛选订单 -> 提交下单 全链路闭环！");
+    tracing::info!("✅ 业务流程链路执行成功：登录 -> 筛选订单 -> 提交下单 全链路闭环！");
     Ok(())
 }
 
