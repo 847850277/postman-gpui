@@ -12,7 +12,9 @@ repository.workspace = true
 futures = "0.3"
 postman-http = { path = "../postman-http" }
 serde_json = "1"
+tracing = "0.1"
 
 [dev-dependencies]
 postman-request = { path = "../postman-request" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

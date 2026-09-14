@@ -157,14 +157,67 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         };
 
+        tracing::info!(
+            step_id = %step.id,
+            step_name = %step.name,
+            method = %request.method,
+            url = %request.url,
+            "executing HTTP step"
+        );
+        for (name, value) in &request.headers {
+            tracing::debug!(
+                step_id = %step.id,
+                header = %name,
+                value = %self.context.redact(value),
+                "request header"
+            );
+        }
+        if let Some(body) = request.body.as_text() {
+            if !body.is_empty() {
+                tracing::debug!(
+                    step_id = %step.id,
+                    body = %self.context.redact(body),
+                    "request body"
+                );
+            }
+        }
+
         let response = match self
             .environment
             .transport
             .execute(request, self.environment.request_options)
             .await
         {
-            Ok(response) => response,
+            Ok(response) => {
+                tracing::info!(
+                    step_id = %step.id,
+                    status = response.status,
+                    elapsed_ms = response.elapsed_ms,
+                    "HTTP response received"
+                );
+                for (name, value) in &response.headers {
+                    tracing::debug!(
+                        step_id = %step.id,
+                        header = %name,
+                        value = %self.context.redact(value),
+                        "response header"
+                    );
+                }
+                if !response.body.is_empty() {
+                    tracing::debug!(
+                        step_id = %step.id,
+                        body = %self.context.redact(&response.body),
+                        "response body"
+                    );
+                }
+                response
+            }
             Err(error) => {
+                tracing::error!(
+                    step_id = %step.id,
+                    error = %error,
+                    "HTTP step execution error"
+                );
                 self.fail_step(&step.id, error.to_string());
                 return;
             }

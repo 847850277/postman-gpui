@@ -8,6 +8,14 @@ use postman_request::RequestClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 初始化日志订阅器（可通过 RUST_LOG=debug 控制日志级别）
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("postman_flow=debug,info")),
+        )
+        .init();
+
     // 初始化网络传输客户端
     let transport = RequestClient::try_new("postman-flow-order-example/0.1.0")?;
 
