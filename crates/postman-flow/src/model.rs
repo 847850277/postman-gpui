@@ -105,6 +105,12 @@ impl HttpStepPlan {
         self
     }
 
+    /// Resolve a structured JSON value before serialization, preserving types and escaping strings.
+    pub fn json_value_body(mut self, body: JsonTemplate) -> Self {
+        self.body = BodyTemplate::JsonValue(body);
+        self
+    }
+
     pub fn check(mut self, check: ResponseCheck) -> Self {
         self.checks.push(check);
         self
@@ -119,19 +125,68 @@ impl HttpStepPlan {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BodyTemplate {
     None,
+    /// Raw JSON text interpolation. Callers are responsible for quoting and escaping its values.
     Json(TextTemplate),
+    /// Structured values are resolved first and serialized as JSON exactly once.
+    JsonValue(JsonTemplate),
     Raw(TextTemplate),
     UrlEncoded(TextTemplate),
+}
+
+/// A JSON value expression, independent of a text format or editor. References retain their
+/// original JSON types. Object keys and literal values are never interpreted as templates.
+#[derive(Debug, Clone, PartialEq)]
+pub enum JsonTemplate {
+    Literal(Value),
+    Input(String),
+    StepOutput { step_id: String, name: String },
+    Object(BTreeMap<String, JsonTemplate>),
+    Array(Vec<JsonTemplate>),
+}
+
+impl JsonTemplate {
+    pub fn literal(value: impl Into<Value>) -> Self {
+        Self::Literal(value.into())
+    }
+
+    pub fn input(name: impl Into<String>) -> Self {
+        Self::Input(name.into())
+    }
+
+    pub fn step_output(step_id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self::StepOutput {
+            step_id: step_id.into(),
+            name: name.into(),
+        }
+    }
+
+    pub fn object<K: Into<String>>(fields: impl IntoIterator<Item = (K, Self)>) -> Self {
+        Self::Object(
+            fields
+                .into_iter()
+                .map(|(key, value)| (key.into(), value))
+                .collect(),
+        )
+    }
+
+    pub fn array(items: impl IntoIterator<Item = Self>) -> Self {
+        Self::Array(items.into_iter().collect())
+    }
 }
 
 impl BodyTemplate {
     pub(crate) fn render(
         &self,
         render: impl Fn(&TextTemplate) -> Result<String, String>,
+        render_json: impl Fn(&JsonTemplate) -> Result<Value, String>,
     ) -> Result<RequestBody, String> {
         Ok(match self {
             Self::None => RequestBody::None,
             Self::Json(template) => RequestBody::Json(render(template)?),
+            Self::JsonValue(template) => RequestBody::Json(
+                serde_json::to_string(&render_json(template)?)
+                    .map_err(|error| format!("could not serialize JSON request body: {error}"))?,
+            ),
             Self::Raw(template) => RequestBody::Raw(render(template)?),
             Self::UrlEncoded(template) => RequestBody::UrlEncoded(render(template)?),
         })

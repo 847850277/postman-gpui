@@ -13,8 +13,8 @@ use postman_http::{
 use serde_json::Value;
 
 use crate::model::{
-    BodyTemplate, FlowEvent, FlowInputs, FlowPlan, ResponseCheck, ResponseExport, StepOutcome,
-    TemplatePart, TextTemplate,
+    BodyTemplate, FlowEvent, FlowInputs, FlowPlan, JsonTemplate, ResponseCheck, ResponseExport,
+    StepOutcome, TemplatePart, TextTemplate,
 };
 
 /// A pull-based stream of observable Flow progress.
@@ -308,7 +308,10 @@ fn prepare_request(
     for (name, value) in &step.headers {
         request.add_header(context.render(name)?, context.render(value)?);
     }
-    request.body = step.body.render(|template| context.render(template))?;
+    request.body = step.body.render(
+        |template| context.render(template),
+        |template| context.resolve_json(template),
+    )?;
 
     if let RequestBody::Json(body) = &request.body {
         serde_json::from_str::<Value>(body)
@@ -407,6 +410,32 @@ struct RunContext {
 }
 
 impl RunContext {
+    fn resolve_json(&self, template: &JsonTemplate) -> Result<Value, String> {
+        match template {
+            JsonTemplate::Literal(value) => Ok(value.clone()),
+            JsonTemplate::Input(name) => self
+                .inputs
+                .get(name)
+                .map(|value| value.value.clone())
+                .ok_or_else(|| format!("input `{name}` is not bound")),
+            JsonTemplate::StepOutput { step_id, name } => self
+                .outputs
+                .get(&(step_id.clone(), name.clone()))
+                .map(|value| value.value.clone())
+                .ok_or_else(|| format!("output `{step_id}.{name}` is not available at runtime")),
+            JsonTemplate::Object(fields) => fields
+                .iter()
+                .map(|(name, value)| Ok((name.clone(), self.resolve_json(value)?)))
+                .collect::<Result<_, String>>()
+                .map(Value::Object),
+            JsonTemplate::Array(items) => items
+                .iter()
+                .map(|value| self.resolve_json(value))
+                .collect::<Result<_, _>>()
+                .map(Value::Array),
+        }
+    }
+
     fn render(&self, template: &TextTemplate) -> Result<String, String> {
         let mut rendered = String::new();
         for part in &template.parts {
@@ -562,6 +591,9 @@ fn validate_and_bind(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContex
         }
         match &step.body {
             BodyTemplate::None => {}
+            BodyTemplate::JsonValue(template) => {
+                validate_json_template(template, &input_names, &available_outputs)?;
+            }
             BodyTemplate::Json(template)
             | BodyTemplate::Raw(template)
             | BodyTemplate::UrlEncoded(template) => {
@@ -602,6 +634,50 @@ fn validate_and_bind(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContex
     })
 }
 
+fn validate_json_template(
+    template: &JsonTemplate,
+    input_names: &HashSet<String>,
+    available_outputs: &HashSet<(String, String)>,
+) -> Result<(), FlowError> {
+    match template {
+        JsonTemplate::Literal(_) => Ok(()),
+        JsonTemplate::Input(name) => validate_input_reference(name, input_names),
+        JsonTemplate::StepOutput { step_id, name } => {
+            validate_output_reference(step_id, name, available_outputs)
+        }
+        JsonTemplate::Object(fields) => fields
+            .values()
+            .try_for_each(|value| validate_json_template(value, input_names, available_outputs)),
+        JsonTemplate::Array(items) => items
+            .iter()
+            .try_for_each(|value| validate_json_template(value, input_names, available_outputs)),
+    }
+}
+
+fn validate_input_reference(name: &str, input_names: &HashSet<String>) -> Result<(), FlowError> {
+    if input_names.contains(name) {
+        Ok(())
+    } else {
+        Err(FlowError::InvalidPlan(format!(
+            "template references undeclared input `{name}`"
+        )))
+    }
+}
+
+fn validate_output_reference(
+    step_id: &str,
+    name: &str,
+    available_outputs: &HashSet<(String, String)>,
+) -> Result<(), FlowError> {
+    if available_outputs.contains(&(step_id.to_owned(), name.to_owned())) {
+        Ok(())
+    } else {
+        Err(FlowError::InvalidPlan(format!(
+            "template output reference `{step_id}.{name}` must point to an earlier step"
+        )))
+    }
+}
+
 fn validate_template(
     template: &TextTemplate,
     input_names: &HashSet<String>,
@@ -610,18 +686,9 @@ fn validate_template(
     for part in &template.parts {
         match part {
             TemplatePart::Literal(_) => {}
-            TemplatePart::Input(name) if input_names.contains(name) => {}
-            TemplatePart::Input(name) => {
-                return Err(FlowError::InvalidPlan(format!(
-                    "template references undeclared input `{name}`"
-                )));
-            }
-            TemplatePart::StepOutput { step_id, name }
-                if available_outputs.contains(&(step_id.clone(), name.clone())) => {}
+            TemplatePart::Input(name) => validate_input_reference(name, input_names)?,
             TemplatePart::StepOutput { step_id, name } => {
-                return Err(FlowError::InvalidPlan(format!(
-                    "template output reference `{step_id}.{name}` must point to an earlier step"
-                )));
+                validate_output_reference(step_id, name, available_outputs)?;
             }
         }
     }

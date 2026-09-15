@@ -8,7 +8,7 @@ mod model;
 mod runtime;
 
 pub use model::{
-    BodyTemplate, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, HttpStepPlan, ResponseCheck,
-    ResponseExport, StepOutcome, TemplatePart, TextTemplate,
+    BodyTemplate, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, HttpStepPlan, JsonTemplate,
+    ResponseCheck, ResponseExport, StepOutcome, TemplatePart, TextTemplate,
 };
 pub use runtime::{execute_flow, FlowError, FlowEventStream, FlowSessionEnvironment};
