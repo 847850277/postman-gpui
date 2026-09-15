@@ -1,26 +1,46 @@
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowEvent, FlowInputs, FlowPlan, FlowSessionEnvironment, HttpStepPlan,
-    ResponseCheck, TemplatePart, TextTemplate,
+    execute_flow, BodyTemplate, FlowDefinition, FlowEvent, FlowInputs, FlowSessionEnvironment,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, TemplatePart,
+    TextTemplate,
 };
 use postman_http::request::{HttpMethod, RequestOptions};
 use postman_request::RequestClient;
 
+mod compile;
+pub use compile::compile_example;
+
+pub fn json_request(
+    id: &str,
+    method: HttpMethod,
+    path: &str,
+    body: JsonTemplate,
+) -> HttpStepDefinition {
+    let mut step = request(id, method, path);
+    step.request
+        .as_inline_mut()
+        .expect("request helper constructs inline HTTP")
+        .body = BodyTemplate::JsonValue(body);
+    step
+}
+
 /// Shared HTTPBingo wiring; plans contain the examples' actual orchestration logic.
-pub fn request(id: &str, method: HttpMethod, path: &str) -> HttpStepPlan {
-    HttpStepPlan::new(
+pub fn request(id: &str, method: HttpMethod, path: &str) -> HttpStepDefinition {
+    HttpStepDefinition::new(
         id,
         id,
-        method,
-        TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal(path)]),
-    )
-    .header(
-        TextTemplate::literal("Accept"),
-        TextTemplate::literal("application/json"),
-    )
-    .header(
-        TextTemplate::literal("Content-Type"),
-        TextTemplate::literal("application/json"),
+        HttpRequestTemplate::new(
+            method,
+            TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal(path)]),
+        )
+        .header(
+            TextTemplate::literal("Accept"),
+            TextTemplate::literal("application/json"),
+        )
+        .header(
+            TextTemplate::literal("Content-Type"),
+            TextTemplate::literal("application/json"),
+        ),
     )
     .check(ResponseCheck::StatusEquals(200))
 }
@@ -33,15 +53,16 @@ pub fn equals(path: &str, expected: TemplatePart) -> ResponseCheck {
 }
 
 pub async fn run_live(
-    plan: FlowPlan,
+    plan: FlowDefinition,
     inputs: FlowInputs,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let transport = RequestClient::try_new("postman-flow-examples/0.1.0")?;
-    let environment = FlowSessionEnvironment::new(transport).with_request_options(RequestOptions {
+    let environment = FlowSessionEnvironment::new(inputs).with_request_options(RequestOptions {
         timeout_ms: Some(15_000),
         ..RequestOptions::default()
     });
-    let mut events = execute_flow(plan, inputs, environment)?;
+    let events = execute_flow(compile_example(&plan)?, transport, environment)?;
+    let mut events = std::pin::pin!(events);
     let mut success = false;
     while let Some(event) = events.next().await {
         let event = event?;
@@ -77,7 +98,9 @@ pub async fn run_live(
             FlowEvent::StepFinished { step_id, outcome } => {
                 tracing::info!(step_id = %step_id, ?outcome, "⏹ 步骤完成");
             }
-            FlowEvent::FlowFinished { success: finished } => {
+            FlowEvent::FlowFinished {
+                success: finished, ..
+            } => {
                 success = *finished;
                 if *finished {
                     tracing::info!("Flow 全部步骤执行完毕，状态：成功");
@@ -184,11 +207,12 @@ pub mod testing {
     }
 
     pub async fn run(
-        plan: FlowPlan,
+        plan: FlowDefinition,
         inputs: FlowInputs,
         transport: HttpBingoFixture,
     ) -> Result<Vec<FlowEvent>, FlowError> {
-        execute_flow(plan, inputs, FlowSessionEnvironment::new(transport))?
+        let compiled = compile_example(&plan).expect("example definition should compile");
+        execute_flow(compiled, transport, FlowSessionEnvironment::new(inputs))?
             .try_collect()
             .await
     }

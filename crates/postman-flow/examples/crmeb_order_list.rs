@@ -1,7 +1,10 @@
+#[path = "support/compile.rs"]
+mod compile;
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, FlowSessionEnvironment,
-    HttpStepPlan, JsonTemplate, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport,
+    TemplatePart, TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -17,18 +20,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let transport = RequestClient::try_new("postman-flow-example/0.1.0")?;
-    let mut events = execute_flow(
-        crmeb_order_list_plan(),
-        FlowInputs::new(),
-        FlowSessionEnvironment::new(transport),
+    let events = execute_flow(
+        compile::compile_example(&crmeb_order_list_definition())?,
+        transport,
+        FlowSessionEnvironment::new(FlowInputs::new()),
     )?;
+    let mut events = std::pin::pin!(events);
 
     let mut succeeded = false;
 
     while let Some(event) = events.next().await {
         let event = event?;
         tracing::info!("{event:?}");
-        if let FlowEvent::FlowFinished { success } = event {
+        if let FlowEvent::FlowFinished { success, .. } = event {
             succeeded = success;
         }
     }
@@ -39,8 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn crmeb_order_list_plan() -> FlowPlan {
-    FlowPlan {
+pub(crate) fn crmeb_order_list_definition() -> FlowDefinition {
+    FlowDefinition {
         name: "crmeb_order_list".to_owned(),
         // 1. 全局入参配置
         inputs: vec![
@@ -51,25 +55,23 @@ fn crmeb_order_list_plan() -> FlowPlan {
             FlowInputSpec::with_default("captchaVerification", ""),
         ],
         steps: vec![
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "pre-step-login",
-                "0. 登陆前置获取key",
+                "0. 登陆前置获取key", HttpRequestTemplate::new(
                 HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/login/info")]),
-            )
+                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/login/info")]))
                 .header(
                     TextTemplate::literal("Content-Type"),
                     TextTemplate::literal("application/json"),
-                )
+                ))
                 .check(ResponseCheck::StatusEquals(200))
                 // 关键：提取前置接口的 key 导出
                 .export(ResponseExport::json("key", "$.data.key").sensitive()),
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-login",
-                "1. 用户登录（获取 Token）",
+                "1. 用户登录（获取 Token）", HttpRequestTemplate::new(
                 HttpMethod::POST,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/login")]),
-            )
+                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/login")]))
             .header(
                 TextTemplate::literal("Content-Type"),
                 TextTemplate::literal("application/json"),
@@ -81,17 +83,16 @@ fn crmeb_order_list_plan() -> FlowPlan {
                 ("key", JsonTemplate::step_output("pre-step-login", "key")),
                 ("captchaType", JsonTemplate::input("captchaType")),
                 ("captchaVerification", JsonTemplate::input("captchaVerification")),
-            ]))
+            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 关键：提取 token 导出
             .export(ResponseExport::json("token", "$.data.token").sensitive())
             ,
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "order-list",
-                "2. 订单列表",
+                "2. 订单列表", HttpRequestTemplate::new(
                 HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/order/list?page=1&limit=15&status=&pay_type=&data=&real_name=&field_key=all&type=")]),
-            ).header(
+                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/adminapi/order/list?page=1&limit=15&status=&pay_type=&data=&real_name=&field_key=all&type=")])).header(
                 TextTemplate::literal("Content-Type"),
                 TextTemplate::literal("application/json"),
             ).header(
@@ -100,11 +101,12 @@ fn crmeb_order_list_plan() -> FlowPlan {
                     TemplatePart::literal("Bearer "),
                     TemplatePart::step_output("step-login", "token"),
                 ]),
-            ).check(ResponseCheck::StatusEquals(200))
+            )).check(ResponseCheck::StatusEquals(200))
             .check(ResponseCheck::JsonPathEquals {
                 path: "$.status".to_string(),
                 expected: TextTemplate::literal("200"),
             })
         ],
-    }
+    outputs: Vec::new(),
+}
 }

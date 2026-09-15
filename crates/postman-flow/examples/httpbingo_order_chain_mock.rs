@@ -1,7 +1,10 @@
+#[path = "support/compile.rs"]
+mod compile;
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, FlowSessionEnvironment,
-    HttpStepPlan, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
+    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
+    TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -20,11 +23,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = RequestClient::try_new("postman-flow-order-example/0.1.0")?;
 
     // 执行流
-    let mut events = execute_flow(
-        order_business_chain_plan(),
-        FlowInputs::new(),
-        FlowSessionEnvironment::new(transport),
+    let events = execute_flow(
+        compile::compile_example(&order_business_chain_definition())?,
+        transport,
+        FlowSessionEnvironment::new(FlowInputs::new()),
     )?;
+    let mut events = std::pin::pin!(events);
 
     let mut succeeded = false;
 
@@ -65,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             FlowEvent::StepFinished { step_id, outcome } => {
                 tracing::info!(step_id = %step_id, ?outcome, "⏹ 步骤完成");
             }
-            FlowEvent::FlowFinished { success } => {
+            FlowEvent::FlowFinished { success, .. } => {
                 succeeded = *success;
                 if *success {
                     tracing::info!("Flow 全部步骤执行完毕，状态：成功");
@@ -84,8 +88,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn order_business_chain_plan() -> FlowPlan {
-    FlowPlan {
+pub(crate) fn order_business_chain_definition() -> FlowDefinition {
+    FlowDefinition {
         name: "order-business-chain-simulation".to_owned(),
         // 1. 全局入参配置
         inputs: vec![
@@ -97,15 +101,20 @@ fn order_business_chain_plan() -> FlowPlan {
             // ==============================================================
             // 步骤 1: 模拟登录，生成并获取 Token
             // ==============================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-login",
                 "1. 用户登录（获取 Token）",
-                HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]),
-            )
-            .header(
-                TextTemplate::literal("Accept"),
-                TextTemplate::literal("application/json"),
+                HttpRequestTemplate::new(
+                    HttpMethod::GET,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/uuid"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Accept"),
+                    TextTemplate::literal("application/json"),
+                ),
             )
             .check(ResponseCheck::StatusEquals(200))
             // 关键：从 httpbingo 返回的 {"uuid": "..."} 中导出 auth_token
@@ -113,72 +122,76 @@ fn order_business_chain_plan() -> FlowPlan {
             // ==============================================================
             // 步骤 2: 模拟订单筛选（筛选张三在实验小学的订单）
             // ==============================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-filter-orders",
                 "2. 筛选指定客户和学校的订单",
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/orders/query"),
-                ]),
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/orders/query"),
+                    ]),
+                )
+                // 鉴权头注入步骤 1 的 Token
+                .header(
+                    TextTemplate::literal("Authorization"),
+                    TextTemplate::parts([
+                        TemplatePart::literal("Bearer "),
+                        TemplatePart::step_output("step-login", "auth_token"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                // 模拟查询条件，并生成一个模拟订单号 "ORD-2026-999"
+                .json_body(TextTemplate::parts([
+                    TemplatePart::literal(r#"{"customer":""#),
+                    TemplatePart::input("customer"),
+                    TemplatePart::literal(r#"","school":""#),
+                    TemplatePart::input("school"),
+                    TemplatePart::literal(r#"","order_id":"ORD-2026-999"}"#),
+                ])),
             )
-            // 鉴权头注入步骤 1 的 Token
-            .header(
-                TextTemplate::literal("Authorization"),
-                TextTemplate::parts([
-                    TemplatePart::literal("Bearer "),
-                    TemplatePart::step_output("step-login", "auth_token"),
-                ]),
-            )
-            .header(
-                TextTemplate::literal("Content-Type"),
-                TextTemplate::literal("application/json"),
-            )
-            // 模拟查询条件，并生成一个模拟订单号 "ORD-2026-999"
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"customer":""#),
-                TemplatePart::input("customer"),
-                TemplatePart::literal(r#"","school":""#),
-                TemplatePart::input("school"),
-                TemplatePart::literal(r#"","order_id":"ORD-2026-999"}"#),
-            ]))
             .check(ResponseCheck::StatusEquals(200))
             // 关键：从 httpbingo 回显的 $.json.order_id 提取订单号，导出给步骤 3
             .export(ResponseExport::json("target_order_id", "$.json.order_id")),
             // ==============================================================
             // 步骤 3: 模拟关联订单提交下单
             // ==============================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-place-order",
                 "3. 关联前序订单提交新订单",
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/orders/submit"),
-                ]),
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/orders/submit"),
+                    ]),
+                )
+                // 复用步骤 1 的 Token
+                .header(
+                    TextTemplate::literal("Authorization"),
+                    TextTemplate::parts([
+                        TemplatePart::literal("Bearer "),
+                        TemplatePart::step_output("step-login", "auth_token"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                // 关键：Body 组合步骤 2 导出的 target_order_id、输入的 school、输入的 customer
+                .json_body(TextTemplate::parts([
+                    TemplatePart::literal(r#"{"source_order_id":""#),
+                    TemplatePart::step_output("step-filter-orders", "target_order_id"),
+                    TemplatePart::literal(r#"","target_school":""#),
+                    TemplatePart::input("school"),
+                    TemplatePart::literal(r#"","customer_name":""#),
+                    TemplatePart::input("customer"),
+                    TemplatePart::literal(r#""}"#),
+                ])),
             )
-            // 复用步骤 1 的 Token
-            .header(
-                TextTemplate::literal("Authorization"),
-                TextTemplate::parts([
-                    TemplatePart::literal("Bearer "),
-                    TemplatePart::step_output("step-login", "auth_token"),
-                ]),
-            )
-            .header(
-                TextTemplate::literal("Content-Type"),
-                TextTemplate::literal("application/json"),
-            )
-            // 关键：Body 组合步骤 2 导出的 target_order_id、输入的 school、输入的 customer
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"source_order_id":""#),
-                TemplatePart::step_output("step-filter-orders", "target_order_id"),
-                TemplatePart::literal(r#"","target_school":""#),
-                TemplatePart::input("school"),
-                TemplatePart::literal(r#"","customer_name":""#),
-                TemplatePart::input("customer"),
-                TemplatePart::literal(r#""}"#),
-            ]))
             // 断言 1：状态码必须为 200
             .check(ResponseCheck::StatusEquals(200))
             // 断言 2：验证步骤 2 的订单号是否正确注入到步骤 3 的请求体中
@@ -195,5 +208,24 @@ fn order_business_chain_plan() -> FlowPlan {
                 expected: TextTemplate::parts([TemplatePart::input("school")]),
             }),
         ],
+        outputs: Vec::new(),
     }
+}
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/httpbingo_order_chain.http.yml"))
+            .unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let constructed = postman_flow::compile_flow(
+        &order_business_chain_definition(),
+        &postman_flow::ApiCatalog::new(),
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(native, constructed);
+    let saved = postman_flow::write_flow_yaml(&document).unwrap();
+    assert_eq!(postman_flow::parse_flow_yaml(&saved).unwrap(), document);
 }

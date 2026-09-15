@@ -1,0 +1,117 @@
+flow:
+  inputs:
+  - default: https://httpbingo.org
+    name: host
+  - default: 张三
+    name: customer
+  - default: 实验小学
+    name: school
+  name: order-business-chain-simulation
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: auth_token
+      path: $.uuid
+      sensitive: true
+    id: step-login
+    name: 1. 用户登录（获取 Token）
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: target_order_id
+      path: $.json.order_id
+    id: step-filter-orders
+    name: 2. 筛选指定客户和学校的订单
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"customer":"'
+          - input: customer
+          - literal: '","school":"'
+          - input: school
+          - literal: '","order_id":"ORD-2026-999"}'
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: auth_token
+              step: step-login
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/orders/query
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: target_order_id
+          step: step-filter-orders
+      kind: jsonpath_template
+      path: $.json.source_order_id
+    - equals:
+        input: school
+      kind: jsonpath_template
+      path: $.json.target_school
+    id: step-place-order
+    name: 3. 关联前序订单提交新订单
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"source_order_id":"'
+          - output:
+              name: target_order_id
+              step: step-filter-orders
+          - literal: '","target_school":"'
+          - input: school
+          - literal: '","customer_name":"'
+          - input: customer
+          - literal: '"}'
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: auth_token
+              step: step-login
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/orders/submit
+schema_version: 1

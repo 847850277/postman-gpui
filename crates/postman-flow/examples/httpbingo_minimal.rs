@@ -1,7 +1,10 @@
+#[path = "support/compile.rs"]
+mod compile;
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, FlowSessionEnvironment,
-    HttpStepPlan, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
+    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
+    TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -9,17 +12,18 @@ use postman_request::RequestClient;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = RequestClient::try_new("postman-flow-example/0.1.0")?;
-    let mut events = execute_flow(
-        httpbingo_plan(),
-        FlowInputs::new(),
-        FlowSessionEnvironment::new(transport),
+    let events = execute_flow(
+        compile::compile_example(&httpbingo_definition())?,
+        transport,
+        FlowSessionEnvironment::new(FlowInputs::new()),
     )?;
+    let mut events = std::pin::pin!(events);
     let mut succeeded = false;
 
     while let Some(event) = events.next().await {
         let event = event?;
         println!("{event:?}");
-        if let FlowEvent::FlowFinished { success } = event {
+        if let FlowEvent::FlowFinished { success, .. } = event {
             succeeded = success;
         }
     }
@@ -30,51 +34,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn httpbingo_plan() -> FlowPlan {
-    FlowPlan {
+pub(crate) fn httpbingo_definition() -> FlowDefinition {
+    FlowDefinition {
         name: "httpbingo-minimal".to_owned(),
         inputs: vec![
             FlowInputSpec::with_default("host", "https://httpbingo.org"),
             FlowInputSpec::with_default("client", "postman-flow-headless"),
         ],
         steps: vec![
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "generate-correlation-id",
                 "Generate a correlation id",
-                HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]),
-            )
-            .header(
-                TextTemplate::literal("Accept"),
-                TextTemplate::literal("application/json"),
+                HttpRequestTemplate::new(
+                    HttpMethod::GET,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/uuid"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Accept"),
+                    TextTemplate::literal("application/json"),
+                ),
             )
             .check(ResponseCheck::StatusEquals(200))
             .export(ResponseExport::json("correlation_id", "$.uuid")),
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "echo-http-request",
                 "Reuse the correlation id",
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/headless-e2e/"),
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/headless-e2e/"),
+                        TemplatePart::step_output("generate-correlation-id", "correlation_id"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Accept"),
+                    TextTemplate::literal("application/json"),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                .json_body(TextTemplate::parts([
+                    TemplatePart::literal("{\"client\":\""),
+                    TemplatePart::input("client"),
+                    TemplatePart::literal("\",\"correlation_id\":\""),
                     TemplatePart::step_output("generate-correlation-id", "correlation_id"),
-                ]),
+                    TemplatePart::literal("\"}"),
+                ])),
             )
-            .header(
-                TextTemplate::literal("Accept"),
-                TextTemplate::literal("application/json"),
-            )
-            .header(
-                TextTemplate::literal("Content-Type"),
-                TextTemplate::literal("application/json"),
-            )
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal("{\"client\":\""),
-                TemplatePart::input("client"),
-                TemplatePart::literal("\",\"correlation_id\":\""),
-                TemplatePart::step_output("generate-correlation-id", "correlation_id"),
-                TemplatePart::literal("\"}"),
-            ]))
             .check(ResponseCheck::StatusEquals(200))
             .check(ResponseCheck::JsonPathEquals {
                 path: "$.method".to_owned(),
@@ -92,5 +103,23 @@ fn httpbingo_plan() -> FlowPlan {
                 )]),
             }),
         ],
+        outputs: Vec::new(),
     }
+}
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/httpbingo_minimal.http.yml")).unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let constructed = postman_flow::compile_flow(
+        &httpbingo_definition(),
+        &postman_flow::ApiCatalog::new(),
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(native, constructed);
+    let saved = postman_flow::write_flow_yaml(&document).unwrap();
+    assert_eq!(postman_flow::parse_flow_yaml(&saved).unwrap(), document);
 }

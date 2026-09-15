@@ -1,0 +1,219 @@
+flow:
+  inputs:
+  - default: https://httpbingo.org
+    name: host
+  - default: USR-8888
+    name: user_id
+  - default: 北京市海淀区中关村南大街 1 号
+    name: shipping_address
+  name: e-commerce-multi-hop-pipeline
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: auth_token
+      path: $.uuid
+      sensitive: true
+    id: step-1-auth
+    name: 1. 用户登录获取 AuthToken
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: draft_order_id
+      path: $.json.order_id
+    - name: total_amount
+      path: $.json.amount
+    id: step-2-create-draft-order
+    name: 2. 创建交易草稿订单
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"buyer_id":"'
+          - input: user_id
+          - literal: '","sku_id":"SKU-IPHONE-16","quantity":1,"order_id":"ORD-2026-9001","amount":"7999.00"}'
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: auth_token
+              step: step-1-auth
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/orders/draft
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: draft_order_id
+          step: step-2-create-draft-order
+      kind: jsonpath_template
+      path: $.json.target_order_id
+    exports:
+    - name: payment_txn_id
+      path: $.json.gateway_txn_id
+    - name: pay_signature
+      path: $.json.signature
+    id: step-3-create-payment-txn
+    name: 3. 根据草稿订单发起支付申请
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"target_order_id":"'
+          - output:
+              name: draft_order_id
+              step: step-2-create-draft-order
+          - literal: '","pay_amount":"'
+          - output:
+              name: total_amount
+              step: step-2-create-draft-order
+          - literal: '","channel":"ALIPAY","gateway_txn_id":"TXN-PAY-556677","signature":"SIG-SEC-XYZ999"}'
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: auth_token
+              step: step-1-auth
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/pay/gateway/create
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: payment_txn_id
+          step: step-3-create-payment-txn
+      kind: jsonpath_template
+      path: $.json.txn_id
+    exports:
+    - name: clearing_receipt_no
+      path: $.json.receipt_no
+    id: step-4-confirm-payment
+    name: 4. 凭支付流水与签名提交银行清算核销
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"txn_id":"'
+          - output:
+              name: payment_txn_id
+              step: step-3-create-payment-txn
+          - literal: '","verify_sign":"'
+          - output:
+              name: pay_signature
+              step: step-3-create-payment-txn
+          - literal: '","receipt_no":"RCPT-BANK-2026-8888","clear_status":"CLEARED"}'
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/pay/clearing/confirm
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: draft_order_id
+          step: step-2-create-draft-order
+      kind: jsonpath_template
+      path: $.json.order_id
+    - equals:
+        output:
+          name: payment_txn_id
+          step: step-3-create-payment-txn
+      kind: jsonpath_template
+      path: $.json.payment_txn_id
+    - equals:
+        output:
+          name: clearing_receipt_no
+          step: step-4-confirm-payment
+      kind: jsonpath_template
+      path: $.json.receipt_no
+    id: step-5-fulfillment-dispatch
+    name: 5. 汇总全链路单据，通知仓库发货
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"order_id":"'
+          - output:
+              name: draft_order_id
+              step: step-2-create-draft-order
+          - literal: '","payment_txn_id":"'
+          - output:
+              name: payment_txn_id
+              step: step-3-create-payment-txn
+          - literal: '","receipt_no":"'
+          - output:
+              name: clearing_receipt_no
+              step: step-4-confirm-payment
+          - literal: '","destination":"'
+          - input: shipping_address
+          - literal: '"}'
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: auth_token
+              step: step-1-auth
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/warehouse/dispatch
+schema_version: 1

@@ -1,7 +1,10 @@
+#[path = "support/compile.rs"]
+mod compile;
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, FlowSessionEnvironment,
-    HttpStepPlan, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
+    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
+    TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -20,11 +23,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("启动多跳级联业务流：下单 -> 支付流 -> 凭证核销 -> 履约发货");
 
-    let mut events = execute_flow(
-        multi_hop_commerce_pipeline(),
-        FlowInputs::new(),
-        FlowSessionEnvironment::new(transport),
+    let events = execute_flow(
+        compile::compile_example(&multi_hop_commerce_definition())?,
+        transport,
+        FlowSessionEnvironment::new(FlowInputs::new()),
     )?;
+    let mut events = std::pin::pin!(events);
 
     let mut succeeded = false;
 
@@ -62,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             FlowEvent::StepFinished { step_id, outcome } => {
                 tracing::info!(step_id = %step_id, ?outcome, "⏹ 步骤执行完毕");
             }
-            FlowEvent::FlowFinished { success } => {
+            FlowEvent::FlowFinished { success, .. } => {
                 succeeded = *success;
                 if *success {
                     tracing::info!("Flow 全部步骤执行完毕，状态：成功");
@@ -81,8 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn multi_hop_commerce_pipeline() -> FlowPlan {
-    FlowPlan {
+pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
+    FlowDefinition {
         name: "e-commerce-multi-hop-pipeline".to_owned(),
         inputs: vec![
             FlowInputSpec::with_default("host", "https://httpbingo.org"),
@@ -93,13 +97,12 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
             // =========================================================================
             // 步骤 1: 获取会话/认证凭证（Auth）
             // =========================================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-1-auth",
-                "1. 用户登录获取 AuthToken",
+                "1. 用户登录获取 AuthToken", HttpRequestTemplate::new(
                 HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]),
-            )
-            .header(TextTemplate::literal("Accept"), TextTemplate::literal("application/json"))
+                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]))
+            .header(TextTemplate::literal("Accept"), TextTemplate::literal("application/json")))
             .check(ResponseCheck::StatusEquals(200))
             // 导出 token
             .export(ResponseExport::json("auth_token", "$.uuid").sensitive()),
@@ -109,15 +112,14 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
             // 依赖：步骤 1 的 auth_token + 全局 user_id
             // 产出：草稿订单号 draft_order_id 和 应付金额 total_amount
             // =========================================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-2-create-draft-order",
-                "2. 创建交易草稿订单",
+                "2. 创建交易草稿订单", HttpRequestTemplate::new(
                 HttpMethod::POST,
                 TextTemplate::parts([
                     TemplatePart::input("host"),
                     TemplatePart::literal("/anything/orders/draft"),
-                ]),
-            )
+                ]))
             .header(
                 TextTemplate::literal("Authorization"),
                 TextTemplate::parts([
@@ -130,7 +132,7 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
                 TemplatePart::literal(r#"{"buyer_id":""#),
                 TemplatePart::input("user_id"),
                 TemplatePart::literal(r#"","sku_id":"SKU-IPHONE-16","quantity":1,"order_id":"ORD-2026-9001","amount":"7999.00"}"#),
-            ]))
+            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 导出本次提交后生成的数据：订单号 与 待付金额
             .export(ResponseExport::json("draft_order_id", "$.json.order_id"))
@@ -141,15 +143,14 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
             // 关键依赖：必须根据步骤 2 生成的 draft_order_id 和 total_amount 作为请求参数！
             // 产出：支付网关返回的 payment_txn_id 和 签名 pay_sign
             // =========================================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-3-create-payment-txn",
-                "3. 根据草稿订单发起支付申请",
+                "3. 根据草稿订单发起支付申请", HttpRequestTemplate::new(
                 HttpMethod::POST,
                 TextTemplate::parts([
                     TemplatePart::input("host"),
                     TemplatePart::literal("/anything/pay/gateway/create"),
-                ]),
-            )
+                ]))
             .header(
                 TextTemplate::literal("Authorization"),
                 TextTemplate::parts([
@@ -165,7 +166,7 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
                 TemplatePart::literal(r#"","pay_amount":""#),
                 TemplatePart::step_output("step-2-create-draft-order", "total_amount"),
                 TemplatePart::literal(r#"","channel":"ALIPAY","gateway_txn_id":"TXN-PAY-556677","signature":"SIG-SEC-XYZ999"}"#),
-            ]))
+            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 验证支付网关收到的订单号确实等于步骤 2 的订单号
             .check(ResponseCheck::JsonPathEquals {
@@ -183,15 +184,14 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
             // 关键依赖：必须使用步骤 3 生成的 payment_txn_id 和 pay_signature 提交核销！
             // 产出：银行清算回执号 clearing_receipt_no
             // =========================================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-4-confirm-payment",
-                "4. 凭支付流水与签名提交银行清算核销",
+                "4. 凭支付流水与签名提交银行清算核销", HttpRequestTemplate::new(
                 HttpMethod::POST,
                 TextTemplate::parts([
                     TemplatePart::input("host"),
                     TemplatePart::literal("/anything/pay/clearing/confirm"),
-                ]),
-            )
+                ]))
             .header(TextTemplate::literal("Content-Type"), TextTemplate::literal("application/json"))
             // 请求参数完全引用 步骤 3 提交后得到的结果！
             .json_body(TextTemplate::parts([
@@ -200,7 +200,7 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
                 TemplatePart::literal(r#"","verify_sign":""#),
                 TemplatePart::step_output("step-3-create-payment-txn", "pay_signature"),
                 TemplatePart::literal(r#"","receipt_no":"RCPT-BANK-2026-8888","clear_status":"CLEARED"}"#),
-            ]))
+            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 验证核销接口收到正确的支付流水号
             .check(ResponseCheck::JsonPathEquals {
@@ -221,15 +221,14 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
             //   - 步骤 4 的 clearing_receipt_no
             //   - 全局输入的 shipping_address
             // =========================================================================
-            HttpStepPlan::new(
+            HttpStepDefinition::new(
                 "step-5-fulfillment-dispatch",
-                "5. 汇总全链路单据，通知仓库发货",
+                "5. 汇总全链路单据，通知仓库发货", HttpRequestTemplate::new(
                 HttpMethod::POST,
                 TextTemplate::parts([
                     TemplatePart::input("host"),
                     TemplatePart::literal("/anything/warehouse/dispatch"),
-                ]),
-            )
+                ]))
             .header(
                 TextTemplate::literal("Authorization"),
                 TextTemplate::parts([
@@ -249,7 +248,7 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
                 TemplatePart::literal(r#"","destination":""#),
                 TemplatePart::input("shipping_address"),
                 TemplatePart::literal(r#""}"#),
-            ]))
+            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 全链路严格断言验证：检查发货单据中各个单号是否完全吻合
             .check(ResponseCheck::JsonPathEquals {
@@ -271,5 +270,23 @@ fn multi_hop_commerce_pipeline() -> FlowPlan {
                 ]),
             }),
         ],
-    }
+    outputs: Vec::new(),
+}
+}
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/httpbingo_multi_hop.http.yml")).unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let constructed = postman_flow::compile_flow(
+        &multi_hop_commerce_definition(),
+        &postman_flow::ApiCatalog::new(),
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(native, constructed);
+    let saved = postman_flow::write_flow_yaml(&document).unwrap();
+    assert_eq!(postman_flow::parse_flow_yaml(&saved).unwrap(), document);
 }

@@ -4,13 +4,13 @@
 mod support;
 
 use postman_flow::{
-    FlowInputSpec, FlowInputs, FlowPlan, HttpStepPlan, JsonTemplate, ResponseExport, TemplatePart,
-    TextTemplate,
+    FlowDefinition, FlowInputSpec, FlowInputs, HttpStepDefinition, JsonTemplate, ResponseExport,
+    TemplatePart, TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use serde_json::json;
 
-use support::{equals, request};
+use support::{equals, json_request, request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,25 +27,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(
         "This is data-flow verification; HTTPBingo does not execute real business operations."
     );
-    support::run_live(dynamic_chain_plan(), FlowInputs::new()).await
+    support::run_live(dynamic_chain_definition(), FlowInputs::new()).await
 }
 
-fn uuid(id: &str) -> HttpStepPlan {
+fn uuid(id: &str) -> HttpStepDefinition {
     request(id, HttpMethod::GET, "/uuid").export(ResponseExport::json("id", "$.uuid"))
 }
 
-fn authorized(id: &str, path: &str) -> HttpStepPlan {
-    request(id, HttpMethod::POST, path).header(
-        TextTemplate::literal("Authorization"),
-        TextTemplate::parts([
-            TemplatePart::literal("Bearer "),
-            TemplatePart::step_output("auth", "token"),
-        ]),
-    )
+fn authorized(id: &str, path: &str, body: JsonTemplate) -> HttpStepDefinition {
+    let mut step = json_request(id, HttpMethod::POST, path, body);
+    step.request
+        .as_inline_mut()
+        .expect("json_request constructs inline HTTP")
+        .headers
+        .push((
+            TextTemplate::literal("Authorization"),
+            TextTemplate::parts([
+                TemplatePart::literal("Bearer "),
+                TemplatePart::step_output("auth", "token"),
+            ]),
+        ));
+    step
 }
 
-fn dynamic_chain_plan() -> FlowPlan {
-    FlowPlan {
+pub(crate) fn dynamic_chain_definition() -> FlowDefinition {
+    FlowDefinition {
         name: "httpbingo-dynamic-chain".into(),
         inputs: vec![
             FlowInputSpec::with_default("host", "https://httpbingo.org"),
@@ -60,8 +66,10 @@ fn dynamic_chain_plan() -> FlowPlan {
             request("auth", HttpMethod::GET, "/uuid")
                 .export(ResponseExport::json("token", "$.uuid").sensitive()),
             uuid("allocate-order-id"),
-            authorized("order", "/anything/flow/orders")
-                .json_value_body(JsonTemplate::object([
+            authorized(
+                "order",
+                "/anything/flow/orders",
+                JsonTemplate::object([
                     (
                         "order_id",
                         JsonTemplate::step_output("allocate-order-id", "id"),
@@ -70,24 +78,27 @@ fn dynamic_chain_plan() -> FlowPlan {
                     ("quantity", JsonTemplate::input("quantity")),
                     ("amount_minor", JsonTemplate::input("amount_minor")),
                     ("metadata", JsonTemplate::input("metadata")),
-                ]))
-                .check(equals(
-                    "$.json.order_id",
-                    TemplatePart::step_output("allocate-order-id", "id"),
-                ))
-                .check(equals("$.json.customer", TemplatePart::input("customer")))
-                .check(equals("$.json.quantity", TemplatePart::input("quantity")))
-                .check(equals(
-                    "$.json.amount_minor",
-                    TemplatePart::input("amount_minor"),
-                ))
-                .check(equals("$.json.metadata", TemplatePart::input("metadata")))
-                .export(ResponseExport::json("order_id", "$.json.order_id"))
-                .export(ResponseExport::json("amount_minor", "$.json.amount_minor"))
-                .export(ResponseExport::json("document", "$.json")),
+                ]),
+            )
+            .check(equals(
+                "$.json.order_id",
+                TemplatePart::step_output("allocate-order-id", "id"),
+            ))
+            .check(equals("$.json.customer", TemplatePart::input("customer")))
+            .check(equals("$.json.quantity", TemplatePart::input("quantity")))
+            .check(equals(
+                "$.json.amount_minor",
+                TemplatePart::input("amount_minor"),
+            ))
+            .check(equals("$.json.metadata", TemplatePart::input("metadata")))
+            .export(ResponseExport::json("order_id", "$.json.order_id"))
+            .export(ResponseExport::json("amount_minor", "$.json.amount_minor"))
+            .export(ResponseExport::json("document", "$.json")),
             uuid("allocate-payment-id"),
-            authorized("payment", "/anything/flow/payments")
-                .json_value_body(JsonTemplate::object([
+            authorized(
+                "payment",
+                "/anything/flow/payments",
+                JsonTemplate::object([
                     ("order_id", JsonTemplate::step_output("order", "order_id")),
                     (
                         "amount_minor",
@@ -97,24 +108,27 @@ fn dynamic_chain_plan() -> FlowPlan {
                         "payment_id",
                         JsonTemplate::step_output("allocate-payment-id", "id"),
                     ),
-                ]))
-                .check(equals(
-                    "$.json.order_id",
-                    TemplatePart::step_output("order", "order_id"),
-                ))
-                .check(equals(
-                    "$.json.amount_minor",
-                    TemplatePart::step_output("order", "amount_minor"),
-                ))
-                .check(equals(
-                    "$.json.payment_id",
-                    TemplatePart::step_output("allocate-payment-id", "id"),
-                ))
-                .export(ResponseExport::json("payment_id", "$.json.payment_id"))
-                .export(ResponseExport::json("document", "$.json")),
+                ]),
+            )
+            .check(equals(
+                "$.json.order_id",
+                TemplatePart::step_output("order", "order_id"),
+            ))
+            .check(equals(
+                "$.json.amount_minor",
+                TemplatePart::step_output("order", "amount_minor"),
+            ))
+            .check(equals(
+                "$.json.payment_id",
+                TemplatePart::step_output("allocate-payment-id", "id"),
+            ))
+            .export(ResponseExport::json("payment_id", "$.json.payment_id"))
+            .export(ResponseExport::json("document", "$.json")),
             uuid("allocate-receipt-id"),
-            authorized("settlement", "/anything/flow/settlements")
-                .json_value_body(JsonTemplate::object([
+            authorized(
+                "settlement",
+                "/anything/flow/settlements",
+                JsonTemplate::object([
                     ("order_id", JsonTemplate::step_output("order", "order_id")),
                     (
                         "payment_id",
@@ -124,23 +138,26 @@ fn dynamic_chain_plan() -> FlowPlan {
                         "receipt_id",
                         JsonTemplate::step_output("allocate-receipt-id", "id"),
                     ),
-                ]))
-                .check(equals(
-                    "$.json.order_id",
-                    TemplatePart::step_output("order", "order_id"),
-                ))
-                .check(equals(
-                    "$.json.payment_id",
-                    TemplatePart::step_output("payment", "payment_id"),
-                ))
-                .check(equals(
-                    "$.json.receipt_id",
-                    TemplatePart::step_output("allocate-receipt-id", "id"),
-                ))
-                .export(ResponseExport::json("receipt_id", "$.json.receipt_id"))
-                .export(ResponseExport::json("document", "$.json")),
-            authorized("dispatch", "/anything/flow/dispatch")
-                .json_value_body(JsonTemplate::object([
+                ]),
+            )
+            .check(equals(
+                "$.json.order_id",
+                TemplatePart::step_output("order", "order_id"),
+            ))
+            .check(equals(
+                "$.json.payment_id",
+                TemplatePart::step_output("payment", "payment_id"),
+            ))
+            .check(equals(
+                "$.json.receipt_id",
+                TemplatePart::step_output("allocate-receipt-id", "id"),
+            ))
+            .export(ResponseExport::json("receipt_id", "$.json.receipt_id"))
+            .export(ResponseExport::json("document", "$.json")),
+            authorized(
+                "dispatch",
+                "/anything/flow/dispatch",
+                JsonTemplate::object([
                     ("order", JsonTemplate::step_output("order", "document")),
                     ("payment", JsonTemplate::step_output("payment", "document")),
                     (
@@ -148,33 +165,35 @@ fn dynamic_chain_plan() -> FlowPlan {
                         JsonTemplate::step_output("settlement", "document"),
                     ),
                     ("address", JsonTemplate::input("address")),
-                ]))
-                .check(equals(
-                    "$.json.order",
-                    TemplatePart::step_output("order", "document"),
-                ))
-                .check(equals(
-                    "$.json.payment",
-                    TemplatePart::step_output("payment", "document"),
-                ))
-                .check(equals(
-                    "$.json.settlement",
-                    TemplatePart::step_output("settlement", "document"),
-                ))
-                .check(equals(
-                    "$.json.settlement.order_id",
-                    TemplatePart::step_output("allocate-order-id", "id"),
-                ))
-                .check(equals(
-                    "$.json.settlement.payment_id",
-                    TemplatePart::step_output("allocate-payment-id", "id"),
-                ))
-                .check(equals(
-                    "$.json.settlement.receipt_id",
-                    TemplatePart::step_output("allocate-receipt-id", "id"),
-                ))
-                .check(equals("$.json.address", TemplatePart::input("address"))),
+                ]),
+            )
+            .check(equals(
+                "$.json.order",
+                TemplatePart::step_output("order", "document"),
+            ))
+            .check(equals(
+                "$.json.payment",
+                TemplatePart::step_output("payment", "document"),
+            ))
+            .check(equals(
+                "$.json.settlement",
+                TemplatePart::step_output("settlement", "document"),
+            ))
+            .check(equals(
+                "$.json.settlement.order_id",
+                TemplatePart::step_output("allocate-order-id", "id"),
+            ))
+            .check(equals(
+                "$.json.settlement.payment_id",
+                TemplatePart::step_output("allocate-payment-id", "id"),
+            ))
+            .check(equals(
+                "$.json.settlement.receipt_id",
+                TemplatePart::step_output("allocate-receipt-id", "id"),
+            ))
+            .check(equals("$.json.address", TemplatePart::input("address"))),
         ],
+        outputs: Vec::new(),
     }
 }
 
@@ -188,12 +207,19 @@ mod tests {
     #[tokio::test]
     async fn ids_from_distinct_responses_flow_into_the_final_combined_document() {
         let transport = HttpBingoFixture::default();
-        let events = run(dynamic_chain_plan(), FlowInputs::new(), transport.clone())
-            .await
-            .unwrap();
+        let events = run(
+            dynamic_chain_definition(),
+            FlowInputs::new(),
+            transport.clone(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             events.last(),
-            Some(&FlowEvent::FlowFinished { success: true })
+            Some(&FlowEvent::FlowFinished {
+                success: true,
+                outputs: Default::default()
+            })
         );
         let requests = transport.requests();
         assert_eq!(requests.len(), 8);
@@ -235,7 +261,7 @@ mod tests {
         let transport = HttpBingoFixture::default();
         for customer in ["first buyer", "second \"buyer\"\n"] {
             let events = run(
-                dynamic_chain_plan(),
+                dynamic_chain_definition(),
                 FlowInputs::new().with("customer", customer),
                 transport.clone(),
             )
@@ -243,7 +269,10 @@ mod tests {
             .unwrap();
             assert_eq!(
                 events.last(),
-                Some(&FlowEvent::FlowFinished { success: true })
+                Some(&FlowEvent::FlowFinished {
+                    success: true,
+                    outputs: Default::default()
+                })
             );
         }
         let requests = transport.requests();
@@ -266,7 +295,7 @@ mod tests {
     #[tokio::test]
     async fn a_failure_at_any_hop_stops_every_later_request() {
         for index in 0..8 {
-            let plan = dynamic_chain_plan();
+            let plan = dynamic_chain_definition();
             let failed_id = plan.steps[index].id.clone();
             let transport = HttpBingoFixture::default();
             transport.fail_on_request(index);
@@ -275,7 +304,10 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 events.last(),
-                Some(&FlowEvent::FlowFinished { success: false })
+                Some(&FlowEvent::FlowFinished {
+                    success: false,
+                    outputs: Default::default()
+                })
             );
             assert_eq!(transport.requests().len(), index + 1);
             assert!(events.iter().any(|event| matches!(
@@ -295,8 +327,9 @@ mod tests {
             ("order_id", JsonTemplate::literal("not-the-server-order")),
             ("amount_minor", JsonTemplate::literal("129900")),
         ] {
-            let mut plan = dynamic_chain_plan();
-            let BodyTemplate::JsonValue(JsonTemplate::Object(fields)) = &mut plan.steps[4].body
+            let mut plan = dynamic_chain_definition();
+            let BodyTemplate::JsonValue(JsonTemplate::Object(fields)) =
+                &mut plan.steps[4].request.as_inline_mut().unwrap().body
             else {
                 panic!("payment must use structured JSON");
             };
@@ -307,7 +340,10 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 events.last(),
-                Some(&FlowEvent::FlowFinished { success: false })
+                Some(&FlowEvent::FlowFinished {
+                    success: false,
+                    outputs: Default::default()
+                })
             );
             assert_eq!(transport.requests().len(), 5);
             assert!(events.iter().any(|event| matches!(
@@ -321,4 +357,22 @@ mod tests {
             )));
         }
     }
+}
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/httpbingo_dynamic_chain.http.yml"))
+            .unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let constructed = postman_flow::compile_flow(
+        &dynamic_chain_definition(),
+        &postman_flow::ApiCatalog::new(),
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(native, constructed);
+    let saved = postman_flow::write_flow_yaml(&document).unwrap();
+    assert_eq!(postman_flow::parse_flow_yaml(&saved).unwrap(), document);
 }

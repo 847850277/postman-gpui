@@ -1,7 +1,6 @@
 use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
+    collections::{BTreeMap, VecDeque},
     fmt,
-    pin::Pin,
 };
 
 use futures::{stream, Stream};
@@ -12,24 +11,23 @@ use postman_http::{
 };
 use serde_json::Value;
 
-use crate::model::{
-    BodyTemplate, FlowEvent, FlowInputs, FlowPlan, JsonTemplate, ResponseCheck, ResponseExport,
-    StepOutcome, TemplatePart, TextTemplate,
+use crate::{
+    plan::{CompiledCheck, CompiledExport},
+    FlowEvent, FlowInputs, FlowOutputs, FlowPlan, FlowValue, HttpRequestTemplate, JsonTemplate,
+    StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
 
-/// A pull-based stream of observable Flow progress.
-pub type FlowEventStream = Pin<Box<dyn Stream<Item = Result<FlowEvent, FlowError>> + Send>>;
-
 /// Stable dependencies and policies shared by every step in one run.
-pub struct FlowSessionEnvironment<T> {
-    pub transport: T,
+#[derive(Clone, Default)]
+pub struct FlowSessionEnvironment {
+    pub inputs: FlowInputs,
     pub request_options: RequestOptions,
 }
 
-impl<T> FlowSessionEnvironment<T> {
-    pub fn new(transport: T) -> Self {
+impl FlowSessionEnvironment {
+    pub fn new(inputs: FlowInputs) -> Self {
         Self {
-            transport,
+            inputs,
             request_options: RequestOptions::default(),
         }
     }
@@ -42,14 +40,16 @@ impl<T> FlowSessionEnvironment<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FlowError {
-    InvalidPlan(String),
+    InvariantViolation(String),
     InvalidInputs(String),
 }
 
 impl fmt::Display for FlowError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidPlan(message) => write!(formatter, "invalid Flow plan: {message}"),
+            Self::InvariantViolation(message) => {
+                write!(formatter, "Flow invariant violation: {message}")
+            }
             Self::InvalidInputs(message) => write!(formatter, "invalid Flow inputs: {message}"),
         }
     }
@@ -57,33 +57,25 @@ impl fmt::Display for FlowError {
 
 impl std::error::Error for FlowError {}
 
-/// Validates and binds the plan before returning a lazy event stream.
-///
-/// Transport failures and failed response checks are normal run outcomes, so they are represented
-/// by [`FlowEvent::StepFinished`] and [`FlowEvent::FlowFinished`] rather than stream errors.
-pub fn execute_flow<T>(
+/// Bind session inputs and return a lazy, statically dispatched event stream.
+/// No request runs until the stream is polled. Dropping it prevents subsequent steps.
+pub fn execute_flow<T: HttpTransport>(
     plan: FlowPlan,
-    inputs: FlowInputs,
-    environment: FlowSessionEnvironment<T>,
-) -> Result<FlowEventStream, FlowError>
-where
-    T: HttpTransport + 'static,
-{
-    let context = validate_and_bind(&plan, &inputs)?;
-    let machine = RunMachine::new(plan, environment, context);
-
-    Ok(Box::pin(stream::unfold(
-        machine,
-        |mut machine| async move {
-            let event = machine.next_event().await?;
-            Some((event, machine))
-        },
-    )))
+    http_transport: T,
+    session_environment: FlowSessionEnvironment,
+) -> Result<impl Stream<Item = Result<FlowEvent, FlowError>> + Send, FlowError> {
+    let context = bind_inputs(&plan, &session_environment.inputs)?;
+    let machine = RunMachine::new(plan, http_transport, session_environment, context);
+    Ok(stream::unfold(machine, |mut machine| async move {
+        let event = machine.next_event().await?;
+        Some((event, machine))
+    }))
 }
 
 struct RunMachine<T> {
     plan: FlowPlan,
-    environment: FlowSessionEnvironment<T>,
+    transport: T,
+    environment: FlowSessionEnvironment,
     context: RunContext,
     step_index: usize,
     phase: RunPhase,
@@ -101,9 +93,15 @@ enum RunPhase {
 }
 
 impl<T: HttpTransport> RunMachine<T> {
-    fn new(plan: FlowPlan, environment: FlowSessionEnvironment<T>, context: RunContext) -> Self {
+    fn new(
+        plan: FlowPlan,
+        transport: T,
+        environment: FlowSessionEnvironment,
+        context: RunContext,
+    ) -> Self {
         Self {
             plan,
+            transport,
             environment,
             context,
             step_index: 0,
@@ -138,8 +136,19 @@ impl<T: HttpTransport> RunMachine<T> {
                 RunPhase::ExecuteStep => self.execute_current_step().await,
                 RunPhase::FlowFinish => {
                     self.phase = RunPhase::Done;
+                    let outputs = if self.success {
+                        match self.context.flow_outputs(&self.plan) {
+                            Ok(outputs) => outputs,
+                            Err(message) => {
+                                return Some(Err(FlowError::InvariantViolation(message)))
+                            }
+                        }
+                    } else {
+                        FlowOutputs::new()
+                    };
                     return Some(Ok(FlowEvent::FlowFinished {
                         success: self.success,
+                        outputs,
                     }));
                 }
                 RunPhase::Done => return None,
@@ -149,7 +158,7 @@ impl<T: HttpTransport> RunMachine<T> {
 
     async fn execute_current_step(&mut self) {
         let step = self.plan.steps[self.step_index].clone();
-        let request = match prepare_request(&step, &self.context) {
+        let request = match prepare_request(&step.request, &self.context) {
             Ok(request) => request,
             Err(message) => {
                 self.fail_step(&step.id, message);
@@ -161,7 +170,7 @@ impl<T: HttpTransport> RunMachine<T> {
             step_id = %step.id,
             step_name = %step.name,
             method = %request.method,
-            url = %request.url,
+            url = %self.context.redact(&request.url),
             "executing HTTP step"
         );
         for (name, value) in &request.headers {
@@ -183,7 +192,6 @@ impl<T: HttpTransport> RunMachine<T> {
         }
 
         let response = match self
-            .environment
             .transport
             .execute(request, self.environment.request_options)
             .await
@@ -215,7 +223,7 @@ impl<T: HttpTransport> RunMachine<T> {
             Err(error) => {
                 tracing::error!(
                     step_id = %step.id,
-                    error = %error,
+                    error = %self.context.redact(&error.to_string()),
                     "HTTP step execution error"
                 );
                 self.fail_step(&step.id, error.to_string());
@@ -295,10 +303,7 @@ impl<T: HttpTransport> RunMachine<T> {
     }
 }
 
-fn prepare_request(
-    step: &crate::model::HttpStepPlan,
-    context: &RunContext,
-) -> Result<Request, String> {
+fn prepare_request(step: &HttpRequestTemplate, context: &RunContext) -> Result<Request, String> {
     let url = context.render(&step.url)?;
     if url.trim().is_empty() {
         return Err("rendered request URL is empty".to_owned());
@@ -328,14 +333,14 @@ struct CheckResult {
 }
 
 fn evaluate_check(
-    check: &ResponseCheck,
+    check: &CompiledCheck,
     response: &HttpResponse,
     context: &RunContext,
 ) -> CheckResult {
-    match check {
-        ResponseCheck::StatusEquals(expected) => {
+    let (path, expected) = match check {
+        CompiledCheck::Status(expected) => {
             let success = response.status == *expected;
-            CheckResult {
+            return CheckResult {
                 description: format!("status == {expected}"),
                 success,
                 message: (!success).then(|| {
@@ -344,57 +349,38 @@ fn evaluate_check(
                         response.status
                     )
                 }),
-            }
+            };
         }
-        ResponseCheck::JsonPathEquals { path, expected } => {
-            let description = format!("jsonpath \"{path}\" == expected value");
-            let expected = match context.resolve_expected(expected) {
-                Ok(expected) => expected,
-                Err(message) => {
-                    return CheckResult {
-                        description,
-                        success: false,
-                        message: Some(message),
-                    };
-                }
-            };
-            let body = match serde_json::from_str::<Value>(&response.body) {
-                Ok(body) => body,
-                Err(_) => {
-                    return CheckResult {
-                        description,
-                        success: false,
-                        message: Some("response body is not valid JSON".to_owned()),
-                    };
-                }
-            };
-            let actual = match resolve_json_path(&body, path) {
-                Ok(actual) => actual,
-                Err(message) => {
-                    return CheckResult {
-                        description,
-                        success: false,
-                        message: Some(message),
-                    };
-                }
-            };
-            let success = actual == &expected;
-            CheckResult {
-                description,
-                success,
-                message: (!success)
-                    .then(|| "JSONPath value did not equal the expected value".to_owned()),
-            }
+        CompiledCheck::JsonText { path, expected } => (path, context.resolve_expected(expected)),
+        CompiledCheck::JsonValue { path, expected } => (path, context.resolve_json(expected)),
+    };
+    let description = format!("jsonpath {:?} == expected value", path.source());
+    let outcome = (|| {
+        let expected = expected?;
+        let body = serde_json::from_str::<Value>(&response.body)
+            .map_err(|_| "response body is not valid JSON".to_owned())?;
+        let actual = path.resolve(&body)?;
+        if actual == &expected {
+            Ok(())
+        } else {
+            Err("JSONPath value did not equal the expected value".to_owned())
         }
+    })();
+    CheckResult {
+        description,
+        success: outcome.is_ok(),
+        message: outcome.err(),
     }
 }
 
-fn extract_output(export: &ResponseExport, response: &HttpResponse) -> Result<Value, String> {
+fn extract_output(export: &CompiledExport, response: &HttpResponse) -> Result<Value, String> {
     let body = serde_json::from_str::<Value>(&response.body)
-        .map_err(|_| format!("output `{}` requires a JSON response body", export.name))?;
-    resolve_json_path(&body, &export.json_path)
+        .map_err(|_| format!("output '{}' requires a JSON response body", export.name))?;
+    export
+        .path
+        .resolve(&body)
         .cloned()
-        .map_err(|message| format!("output `{}` could not be exported: {message}", export.name))
+        .map_err(|message| format!("output '{}' could not be exported: {message}", export.name))
 }
 
 #[derive(Debug, Clone)]
@@ -410,9 +396,32 @@ struct RunContext {
 }
 
 impl RunContext {
+    fn flow_outputs(&self, plan: &FlowPlan) -> Result<FlowOutputs, String> {
+        plan.outputs
+            .iter()
+            .map(|output| {
+                let value = match &output.value {
+                    ValueReference::Input(name) => self.inputs.get(name),
+                    ValueReference::StepOutput { step_id, name } => {
+                        self.outputs.get(&(step_id.clone(), name.clone()))
+                    }
+                }
+                .ok_or_else(|| format!("compiled flow output '{}' is unavailable", output.name))?;
+                Ok((
+                    output.name.clone(),
+                    FlowValue {
+                        value: value.value.clone(),
+                        sensitive: value.sensitive,
+                    },
+                ))
+            })
+            .collect()
+    }
+
     fn resolve_json(&self, template: &JsonTemplate) -> Result<Value, String> {
         match template {
             JsonTemplate::Literal(value) => Ok(value.clone()),
+            JsonTemplate::String(value) => self.render(value).map(Value::String),
             JsonTemplate::Input(name) => self
                 .inputs
                 .get(name)
@@ -509,35 +518,14 @@ fn value_as_text(value: &Value) -> String {
     }
 }
 
-fn validate_and_bind(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContext, FlowError> {
-    if plan.name.trim().is_empty() {
-        return Err(FlowError::InvalidPlan(
-            "flow name cannot be empty".to_owned(),
-        ));
-    }
-    if plan.steps.is_empty() {
-        return Err(FlowError::InvalidPlan(
-            "flow must contain at least one HTTP step".to_owned(),
-        ));
-    }
-
-    let mut input_names = HashSet::new();
-    for input in &plan.inputs {
-        if input.name.trim().is_empty() {
-            return Err(FlowError::InvalidPlan(
-                "input name cannot be empty".to_owned(),
-            ));
-        }
-        if !input_names.insert(input.name.clone()) {
-            return Err(FlowError::InvalidPlan(format!(
-                "input `{}` is declared more than once",
-                input.name
-            )));
-        }
-    }
-
+fn bind_inputs(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContext, FlowError> {
+    let input_names = plan
+        .inputs
+        .iter()
+        .map(|input| input.name.as_str())
+        .collect::<std::collections::HashSet<_>>();
     for name in provided.values.keys() {
-        if !input_names.contains(name) {
+        if !input_names.contains(name.as_str()) {
             return Err(FlowError::InvalidInputs(format!(
                 "input `{name}` is not declared by the plan"
             )));
@@ -563,542 +551,8 @@ fn validate_and_bind(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContex
         );
     }
 
-    let mut step_ids = HashSet::new();
-    for step in &plan.steps {
-        if step.id.trim().is_empty() {
-            return Err(FlowError::InvalidPlan("step id cannot be empty".to_owned()));
-        }
-        if step.name.trim().is_empty() {
-            return Err(FlowError::InvalidPlan(format!(
-                "step `{}` has an empty display name",
-                step.id
-            )));
-        }
-        if !step_ids.insert(step.id.clone()) {
-            return Err(FlowError::InvalidPlan(format!(
-                "step id `{}` is used more than once",
-                step.id
-            )));
-        }
-    }
-
-    let mut available_outputs = HashSet::new();
-    for step in &plan.steps {
-        validate_template(&step.url, &input_names, &available_outputs)?;
-        for (name, value) in &step.headers {
-            validate_template(name, &input_names, &available_outputs)?;
-            validate_template(value, &input_names, &available_outputs)?;
-        }
-        match &step.body {
-            BodyTemplate::None => {}
-            BodyTemplate::JsonValue(template) => {
-                validate_json_template(template, &input_names, &available_outputs)?;
-            }
-            BodyTemplate::Json(template)
-            | BodyTemplate::Raw(template)
-            | BodyTemplate::UrlEncoded(template) => {
-                validate_template(template, &input_names, &available_outputs)?;
-            }
-        }
-        for check in &step.checks {
-            if let ResponseCheck::JsonPathEquals { path, expected } = check {
-                parse_json_path(path).map_err(FlowError::InvalidPlan)?;
-                validate_template(expected, &input_names, &available_outputs)?;
-            }
-        }
-
-        let mut output_names = HashSet::new();
-        for export in &step.exports {
-            if export.name.trim().is_empty() {
-                return Err(FlowError::InvalidPlan(format!(
-                    "step `{}` has an empty output name",
-                    step.id
-                )));
-            }
-            if !output_names.insert(export.name.clone()) {
-                return Err(FlowError::InvalidPlan(format!(
-                    "step `{}` exports `{}` more than once",
-                    step.id, export.name
-                )));
-            }
-            parse_json_path(&export.json_path).map_err(FlowError::InvalidPlan)?;
-        }
-        for export in &step.exports {
-            available_outputs.insert((step.id.clone(), export.name.clone()));
-        }
-    }
-
     Ok(RunContext {
         inputs,
         outputs: BTreeMap::new(),
     })
-}
-
-fn validate_json_template(
-    template: &JsonTemplate,
-    input_names: &HashSet<String>,
-    available_outputs: &HashSet<(String, String)>,
-) -> Result<(), FlowError> {
-    match template {
-        JsonTemplate::Literal(_) => Ok(()),
-        JsonTemplate::Input(name) => validate_input_reference(name, input_names),
-        JsonTemplate::StepOutput { step_id, name } => {
-            validate_output_reference(step_id, name, available_outputs)
-        }
-        JsonTemplate::Object(fields) => fields
-            .values()
-            .try_for_each(|value| validate_json_template(value, input_names, available_outputs)),
-        JsonTemplate::Array(items) => items
-            .iter()
-            .try_for_each(|value| validate_json_template(value, input_names, available_outputs)),
-    }
-}
-
-fn validate_input_reference(name: &str, input_names: &HashSet<String>) -> Result<(), FlowError> {
-    if input_names.contains(name) {
-        Ok(())
-    } else {
-        Err(FlowError::InvalidPlan(format!(
-            "template references undeclared input `{name}`"
-        )))
-    }
-}
-
-fn validate_output_reference(
-    step_id: &str,
-    name: &str,
-    available_outputs: &HashSet<(String, String)>,
-) -> Result<(), FlowError> {
-    if available_outputs.contains(&(step_id.to_owned(), name.to_owned())) {
-        Ok(())
-    } else {
-        Err(FlowError::InvalidPlan(format!(
-            "template output reference `{step_id}.{name}` must point to an earlier step"
-        )))
-    }
-}
-
-fn validate_template(
-    template: &TextTemplate,
-    input_names: &HashSet<String>,
-    available_outputs: &HashSet<(String, String)>,
-) -> Result<(), FlowError> {
-    for part in &template.parts {
-        match part {
-            TemplatePart::Literal(_) => {}
-            TemplatePart::Input(name) => validate_input_reference(name, input_names)?,
-            TemplatePart::StepOutput { step_id, name } => {
-                validate_output_reference(step_id, name, available_outputs)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum JsonPathSegment {
-    Key(String),
-    Index(usize),
-}
-
-fn parse_json_path(path: &str) -> Result<Vec<JsonPathSegment>, String> {
-    let mut remaining = path
-        .strip_prefix('$')
-        .ok_or_else(|| format!("JSONPath `{path}` must start with `$`"))?;
-    let mut segments = Vec::new();
-
-    while !remaining.is_empty() {
-        if let Some(after_dot) = remaining.strip_prefix('.') {
-            let end = after_dot.find(['.', '[']).unwrap_or(after_dot.len());
-            let key = &after_dot[..end];
-            if key.is_empty() {
-                return Err(format!("JSONPath `{path}` contains an empty object key"));
-            }
-            segments.push(JsonPathSegment::Key(key.to_owned()));
-            remaining = &after_dot[end..];
-            continue;
-        }
-
-        if let Some(after_bracket) = remaining.strip_prefix('[') {
-            let end = after_bracket
-                .find(']')
-                .ok_or_else(|| format!("JSONPath `{path}` contains an unterminated array index"))?;
-            let index = after_bracket[..end]
-                .parse::<usize>()
-                .map_err(|_| format!("JSONPath `{path}` contains a non-numeric array index"))?;
-            segments.push(JsonPathSegment::Index(index));
-            remaining = &after_bracket[end + 1..];
-            continue;
-        }
-
-        return Err(format!("unsupported JSONPath syntax in `{path}`"));
-    }
-
-    Ok(segments)
-}
-
-fn resolve_json_path<'value>(root: &'value Value, path: &str) -> Result<&'value Value, String> {
-    let mut current = root;
-    for segment in parse_json_path(path)? {
-        current = match segment {
-            JsonPathSegment::Key(key) => current
-                .get(key.as_str())
-                .ok_or_else(|| format!("JSONPath `{path}` did not find object key `{key}`"))?,
-            JsonPathSegment::Index(index) => current
-                .get(index)
-                .ok_or_else(|| format!("JSONPath `{path}` did not find array index {index}"))?,
-        };
-    }
-    Ok(current)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::{Arc, Mutex};
-
-    use futures::StreamExt;
-    use postman_http::{
-        request::{HttpMethod, Request, RequestBody, RequestOptions},
-        HttpError, HttpResponse,
-    };
-    use postman_request::RequestClient;
-
-    use super::*;
-    use crate::model::{FlowInputSpec, HttpStepPlan};
-
-    #[derive(Clone)]
-    struct FakeTransport {
-        state: Arc<Mutex<FakeState>>,
-    }
-
-    struct FakeState {
-        responses: VecDeque<Result<HttpResponse, HttpError>>,
-        requests: Vec<Request>,
-    }
-
-    impl FakeTransport {
-        fn new(responses: impl IntoIterator<Item = Result<HttpResponse, HttpError>>) -> Self {
-            Self {
-                state: Arc::new(Mutex::new(FakeState {
-                    responses: responses.into_iter().collect(),
-                    requests: Vec::new(),
-                })),
-            }
-        }
-
-        fn requests(&self) -> Vec<Request> {
-            self.state
-                .lock()
-                .expect("fake transport state should not be poisoned")
-                .requests
-                .clone()
-        }
-    }
-
-    impl HttpTransport for FakeTransport {
-        async fn execute(
-            &self,
-            request: Request,
-            _options: RequestOptions,
-        ) -> Result<HttpResponse, HttpError> {
-            let mut state = self
-                .state
-                .lock()
-                .expect("fake transport state should not be poisoned");
-            state.requests.push(request);
-            state
-                .responses
-                .pop_front()
-                .expect("fake transport must have one response per request")
-        }
-    }
-
-    #[tokio::test]
-    async fn an_exported_value_is_typed_and_available_to_the_next_step() {
-        let transport = FakeTransport::new([
-            Ok(HttpResponse::new(
-                200,
-                Vec::new(),
-                r#"{"uuid":"flow-123"}"#.to_owned(),
-            )),
-            Ok(HttpResponse::new(
-                200,
-                Vec::new(),
-                r#"{"method":"POST","json":{"client":"postman-flow","correlation_id":"flow-123"}}"#
-                    .to_owned(),
-            )),
-        ]);
-        let mut stream = execute_flow(
-            two_step_plan(),
-            FlowInputs::new(),
-            FlowSessionEnvironment::new(transport.clone()),
-        )
-        .expect("the plan should validate");
-
-        let events = stream
-            .by_ref()
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .expect("the event stream should not fail");
-
-        assert!(events.contains(&FlowEvent::OutputExported {
-            step_id: "seed".to_owned(),
-            name: "correlation_id".to_owned(),
-        }));
-        assert_eq!(
-            events.last(),
-            Some(&FlowEvent::FlowFinished { success: true })
-        );
-
-        let requests = transport.requests();
-        assert_eq!(requests.len(), 2);
-        assert_eq!(
-            requests[1].url,
-            "https://example.com/anything/headless-e2e/flow-123"
-        );
-        assert_eq!(
-            requests[1].body,
-            RequestBody::Json(
-                r#"{"client":"postman-flow","correlation_id":"flow-123"}"#.to_owned()
-            )
-        );
-    }
-
-    /// Opt-in live contract test. Keeping it ignored prevents ordinary unit tests from depending
-    /// on DNS, TLS, or the availability of a public service.
-    #[tokio::test]
-    //#[ignore = "requires live network access to https://httpbingo.org"]
-    async fn live_httpbingo_flow_reuses_first_response_in_second_request() {
-        let transport = RequestClient::try_new("postman-flow-live-test/0.1.0")
-            .expect("the live test HTTP client should initialize");
-        let environment =
-            FlowSessionEnvironment::new(transport).with_request_options(RequestOptions {
-                timeout_ms: Some(15_000),
-                ..RequestOptions::default()
-            });
-        let inputs = FlowInputs::new()
-            .with("host", "https://httpbingo.org")
-            .with("client", "postman-flow-live-test");
-        let stream = execute_flow(two_step_plan(), inputs, environment)
-            .expect("the live HTTPBingo plan should validate");
-
-        let events = stream
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .expect("the event stream should not fail");
-        for event in &events {
-            println!("{event:?}");
-        }
-
-        assert!(events.contains(&FlowEvent::OutputExported {
-            step_id: "seed".to_owned(),
-            name: "correlation_id".to_owned(),
-        }));
-        assert!(events
-            .iter()
-            .all(|event| !matches!(event, FlowEvent::CheckFinished { success: false, .. })));
-        assert_eq!(
-            events.last(),
-            Some(&FlowEvent::FlowFinished { success: true })
-        );
-    }
-
-    #[tokio::test]
-    async fn a_failed_check_stops_the_sequence() {
-        let transport = FakeTransport::new([
-            Ok(HttpResponse::new(
-                500,
-                Vec::new(),
-                r#"{"uuid":"flow-123"}"#.to_owned(),
-            )),
-            Ok(HttpResponse::new(200, Vec::new(), String::new())),
-        ]);
-        let stream = execute_flow(
-            two_step_plan(),
-            FlowInputs::new(),
-            FlowSessionEnvironment::new(transport.clone()),
-        )
-        .expect("the plan should validate");
-
-        let events = stream
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .expect("the event stream should not fail");
-
-        assert_eq!(transport.requests().len(), 1);
-        assert_eq!(
-            events.last(),
-            Some(&FlowEvent::FlowFinished { success: false })
-        );
-        assert!(events.iter().any(|event| matches!(
-            event,
-            FlowEvent::StepFinished {
-                step_id,
-                outcome: StepOutcome::Failed { .. }
-            } if step_id == "seed"
-        )));
-    }
-
-    #[test]
-    fn a_required_input_is_rejected_before_the_stream_starts() {
-        let mut plan = two_step_plan();
-        plan.inputs.push(FlowInputSpec::required("token"));
-        let result = execute_flow(
-            plan,
-            FlowInputs::new(),
-            FlowSessionEnvironment::new(FakeTransport::new([])),
-        );
-
-        let error = match result {
-            Ok(_) => panic!("missing input must reject the run"),
-            Err(error) => error,
-        };
-        assert_eq!(
-            error,
-            FlowError::InvalidInputs("required input `token` is missing".to_owned())
-        );
-    }
-
-    #[test]
-    fn a_forward_output_reference_is_rejected_before_the_stream_starts() {
-        let plan = FlowPlan {
-            name: "invalid-forward-reference".to_owned(),
-            inputs: Vec::new(),
-            steps: vec![
-                HttpStepPlan::new(
-                    "first",
-                    "First",
-                    HttpMethod::GET,
-                    TextTemplate::parts([TemplatePart::step_output("second", "id")]),
-                ),
-                HttpStepPlan::new(
-                    "second",
-                    "Second",
-                    HttpMethod::GET,
-                    TextTemplate::literal("https://example.com"),
-                )
-                .export(ResponseExport::json("id", "$.id")),
-            ],
-        };
-        let result = execute_flow(
-            plan,
-            FlowInputs::new(),
-            FlowSessionEnvironment::new(FakeTransport::new([])),
-        );
-
-        let error = match result {
-            Ok(_) => panic!("a forward reference must reject the plan"),
-            Err(error) => error,
-        };
-        assert!(
-            matches!(error, FlowError::InvalidPlan(message) if message.contains("earlier step"))
-        );
-    }
-
-    #[tokio::test]
-    async fn sensitive_values_are_redacted_from_transport_failures() {
-        let transport = FakeTransport::new([Err(HttpError::network(
-            "failed to reach https://example.com/top-secret-token",
-        ))]);
-        let plan = FlowPlan {
-            name: "redaction".to_owned(),
-            inputs: vec![FlowInputSpec::with_default("token", "top-secret-token").sensitive()],
-            steps: vec![HttpStepPlan::new(
-                "request",
-                "Request",
-                HttpMethod::GET,
-                TextTemplate::parts([
-                    TemplatePart::literal("https://example.com/"),
-                    TemplatePart::input("token"),
-                ]),
-            )],
-        };
-        let stream = execute_flow(
-            plan,
-            FlowInputs::new(),
-            FlowSessionEnvironment::new(transport),
-        )
-        .expect("the plan should validate");
-
-        let events = stream
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .expect("the event stream should not fail");
-        let debug = format!("{events:?}");
-
-        assert!(!debug.contains("top-secret-token"));
-        assert!(debug.contains("[REDACTED]"));
-    }
-
-    fn two_step_plan() -> FlowPlan {
-        FlowPlan {
-            name: "httpbingo-minimal".to_owned(),
-            inputs: vec![
-                FlowInputSpec::with_default("host", "https://example.com"),
-                FlowInputSpec::with_default("client", "postman-flow"),
-            ],
-            steps: vec![
-                HttpStepPlan::new(
-                    "seed",
-                    "Generate a correlation id",
-                    HttpMethod::GET,
-                    TextTemplate::parts([
-                        TemplatePart::input("host"),
-                        TemplatePart::literal("/uuid"),
-                    ]),
-                )
-                .header(
-                    TextTemplate::literal("Accept"),
-                    TextTemplate::literal("application/json"),
-                )
-                .check(ResponseCheck::StatusEquals(200))
-                .export(ResponseExport::json("correlation_id", "$.uuid")),
-                HttpStepPlan::new(
-                    "echo",
-                    "Reuse the correlation id",
-                    HttpMethod::POST,
-                    TextTemplate::parts([
-                        TemplatePart::input("host"),
-                        TemplatePart::literal("/anything/headless-e2e/"),
-                        TemplatePart::step_output("seed", "correlation_id"),
-                    ]),
-                )
-                .header(
-                    TextTemplate::literal("Accept"),
-                    TextTemplate::literal("application/json"),
-                )
-                .header(
-                    TextTemplate::literal("Content-Type"),
-                    TextTemplate::literal("application/json"),
-                )
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal("{\"client\":\""),
-                    TemplatePart::input("client"),
-                    TemplatePart::literal("\",\"correlation_id\":\""),
-                    TemplatePart::step_output("seed", "correlation_id"),
-                    TemplatePart::literal("\"}"),
-                ]))
-                .check(ResponseCheck::StatusEquals(200))
-                .check(ResponseCheck::JsonPathEquals {
-                    path: "$.json.client".to_owned(),
-                    expected: TextTemplate::parts([TemplatePart::input("client")]),
-                })
-                .check(ResponseCheck::JsonPathEquals {
-                    path: "$.json.correlation_id".to_owned(),
-                    expected: TextTemplate::parts([TemplatePart::step_output(
-                        "seed",
-                        "correlation_id",
-                    )]),
-                }),
-            ],
-        }
-    }
 }

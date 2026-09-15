@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 
 use postman_http::request::{HttpMethod, RequestBody};
 use serde_json::Value;
@@ -55,43 +55,123 @@ impl FlowInputs {
     }
 }
 
-/// This minimal plan is deliberately a sequence. Control-flow nodes come after the data-flow
-/// contract has proven stable.
+/// Editable, format-independent source. Only compilation makes it executable.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FlowPlan {
+pub struct FlowDefinition {
     pub name: String,
     pub inputs: Vec<FlowInputSpec>,
-    pub steps: Vec<HttpStepPlan>,
+    pub steps: Vec<HttpStepDefinition>,
+    pub outputs: Vec<FlowOutputSpec>,
+}
+
+impl FlowDefinition {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            inputs: Vec::new(),
+            steps: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HttpStepPlan {
+pub struct HttpStepDefinition {
     pub id: String,
     pub name: String,
-    pub method: HttpMethod,
-    pub url: TextTemplate,
-    pub headers: Vec<(TextTemplate, TextTemplate)>,
-    pub body: BodyTemplate,
+    pub request: HttpRequestSource,
     pub checks: Vec<ResponseCheck>,
     pub exports: Vec<ResponseExport>,
 }
 
-impl HttpStepPlan {
+impl HttpStepDefinition {
     pub fn new(
         id: impl Into<String>,
         name: impl Into<String>,
-        method: HttpMethod,
-        url: TextTemplate,
+        request: impl Into<HttpRequestSource>,
     ) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
+            request: request.into(),
+            checks: Vec::new(),
+            exports: Vec::new(),
+        }
+    }
+
+    pub fn check(mut self, check: ResponseCheck) -> Self {
+        self.checks.push(check);
+        self
+    }
+
+    pub fn export(mut self, export: ResponseExport) -> Self {
+        self.exports.push(export);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum HttpRequestSource {
+    Inline(HttpRequestTemplate),
+    Api(ApiCall),
+}
+
+impl HttpRequestSource {
+    pub fn as_inline_mut(&mut self) -> Option<&mut HttpRequestTemplate> {
+        match self {
+            Self::Inline(request) => Some(request),
+            Self::Api(_) => None,
+        }
+    }
+}
+
+impl From<HttpRequestTemplate> for HttpRequestSource {
+    fn from(value: HttpRequestTemplate) -> Self {
+        Self::Inline(value)
+    }
+}
+
+impl From<ApiCall> for HttpRequestSource {
+    fn from(value: ApiCall) -> Self {
+        Self::Api(value)
+    }
+}
+
+/// Bindings are in the flow's scope; API templates use inputs as local parameter references.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApiCall {
+    pub api_id: String,
+    pub bindings: BTreeMap<String, TextTemplate>,
+}
+
+impl ApiCall {
+    pub fn new(api_id: impl Into<String>) -> Self {
+        Self {
+            api_id: api_id.into(),
+            bindings: BTreeMap::new(),
+        }
+    }
+    pub fn bind(mut self, name: impl Into<String>, value: TextTemplate) -> Self {
+        self.bindings.insert(name.into(), value);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpRequestTemplate {
+    pub method: HttpMethod,
+    pub url: TextTemplate,
+    pub headers: Vec<(TextTemplate, TextTemplate)>,
+    pub body: BodyTemplate,
+}
+
+impl HttpRequestTemplate {
+    pub fn new(method: HttpMethod, url: TextTemplate) -> Self {
+        Self {
             method,
             url,
             headers: Vec::new(),
             body: BodyTemplate::None,
-            checks: Vec::new(),
-            exports: Vec::new(),
         }
     }
 
@@ -108,16 +188,6 @@ impl HttpStepPlan {
     /// Resolve a structured JSON value before serialization, preserving types and escaping strings.
     pub fn json_value_body(mut self, body: JsonTemplate) -> Self {
         self.body = BodyTemplate::JsonValue(body);
-        self
-    }
-
-    pub fn check(mut self, check: ResponseCheck) -> Self {
-        self.checks.push(check);
-        self
-    }
-
-    pub fn export(mut self, export: ResponseExport) -> Self {
-        self.exports.push(export);
         self
     }
 }
@@ -138,8 +208,13 @@ pub enum BodyTemplate {
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonTemplate {
     Literal(Value),
+    /// Render a text template, then encode it as a JSON string.
+    String(TextTemplate),
     Input(String),
-    StepOutput { step_id: String, name: String },
+    StepOutput {
+        step_id: String,
+        name: String,
+    },
     Object(BTreeMap<String, JsonTemplate>),
     Array(Vec<JsonTemplate>),
 }
@@ -200,6 +275,11 @@ pub enum ResponseCheck {
         path: String,
         expected: TextTemplate,
     },
+    /// Typed equality without text-to-JSON coercion.
+    JsonValueEquals {
+        path: String,
+        expected: JsonTemplate,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -224,7 +304,7 @@ impl ResponseExport {
     }
 }
 
-/// Templates contain explicit references. There is no string lookup ambiguity inside FlowPlan.
+/// Text templates contain explicit references; literal text is never recursively interpreted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextTemplate {
     pub parts: Vec<TemplatePart>,
@@ -275,6 +355,47 @@ pub enum StepOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValueReference {
+    Input(String),
+    StepOutput { step_id: String, name: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowOutputSpec {
+    pub name: String,
+    pub value: ValueReference,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct FlowValue {
+    pub(crate) value: Value,
+    pub(crate) sensitive: bool,
+}
+
+impl FlowValue {
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+    pub fn is_sensitive(&self) -> bool {
+        self.sensitive
+    }
+}
+
+impl fmt::Debug for FlowValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut output = f.debug_struct("FlowValue");
+        if self.sensitive {
+            output.field("value", &"[REDACTED]");
+        } else {
+            output.field("value", &self.value);
+        }
+        output.field("sensitive", &self.sensitive).finish()
+    }
+}
+
+pub type FlowOutputs = BTreeMap<String, FlowValue>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FlowEvent {
     FlowStarted {
         name: String,
@@ -305,5 +426,6 @@ pub enum FlowEvent {
     },
     FlowFinished {
         success: bool,
+        outputs: FlowOutputs,
     },
 }

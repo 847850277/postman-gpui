@@ -1,16 +1,16 @@
 //! Live HTTPBingo example: inputs -> JSON values -> response exports -> another JSON request.
 //! Strings are escaped by serialization; numeric-looking strings stay strings.
-//! This uses the existing FlowPlan boundary, not a YAML parser or compiler.
+//! The Rust definition and matching .http.yml fixture compile to the same execution plan.
 
 mod support;
 
 use postman_flow::{
-    FlowInputSpec, FlowInputs, FlowPlan, JsonTemplate, ResponseExport, TemplatePart,
+    FlowDefinition, FlowInputSpec, FlowInputs, JsonTemplate, ResponseExport, TemplatePart,
 };
 use postman_http::request::HttpMethod;
 use serde_json::{json, Value};
 
-use support::{equals, request};
+use support::{equals, json_request};
 
 const FIELDS: [&str; 10] = [
     "text",
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     tracing::info!("HTTPBingo: JSON escaping and type preservation across two requests.");
-    support::run_live(json_values_plan(), FlowInputs::new()).await
+    support::run_live(json_values_definition(), FlowInputs::new()).await
 }
 
 fn sample_values() -> [(&'static str, Value); 10] {
@@ -59,7 +59,7 @@ fn sample_values() -> [(&'static str, Value); 10] {
     ]
 }
 
-fn json_values_plan() -> FlowPlan {
+pub(crate) fn json_values_definition() -> FlowDefinition {
     let mut inputs = vec![FlowInputSpec::with_default("host", "https://httpbingo.org")];
     inputs.extend(
         sample_values()
@@ -67,16 +67,16 @@ fn json_values_plan() -> FlowPlan {
             .map(|(name, value)| FlowInputSpec::with_default(name, value)),
     );
 
-    let mut first = request(
+    let mut first = json_request(
         "send-values",
         HttpMethod::POST,
         "/anything/flow/json-values",
-    )
-    .json_value_body(JsonTemplate::object(
-        FIELDS
-            .into_iter()
-            .map(|name| (name, JsonTemplate::input(name))),
-    ));
+        JsonTemplate::object(
+            FIELDS
+                .into_iter()
+                .map(|name| (name, JsonTemplate::input(name))),
+        ),
+    );
     for name in FIELDS {
         first = first
             .check(equals(&format!("$.json.{name}"), TemplatePart::input(name)))
@@ -84,43 +84,43 @@ fn json_values_plan() -> FlowPlan {
     }
     first = first.export(ResponseExport::json("document", "$.json"));
 
-    let mut second = request(
+    let mut second = json_request(
         "reuse-values",
         HttpMethod::POST,
         "/anything/flow/reuse-values",
-    )
-    .json_value_body(JsonTemplate::object([
-        (
-            "document",
-            JsonTemplate::step_output("send-values", "document"),
-        ),
-        (
-            "fields",
-            JsonTemplate::object(
-                FIELDS
-                    .into_iter()
-                    .map(|name| (name, JsonTemplate::step_output("send-values", name))),
+        JsonTemplate::object([
+            (
+                "document",
+                JsonTemplate::step_output("send-values", "document"),
             ),
-        ),
-        (
-            "nested",
-            JsonTemplate::array([
-                JsonTemplate::step_output("send-values", "integer"),
-                JsonTemplate::object([
-                    ("text", JsonTemplate::step_output("send-values", "text")),
-                    (
-                        "optional",
-                        JsonTemplate::step_output("send-values", "optional"),
-                    ),
+            (
+                "fields",
+                JsonTemplate::object(
+                    FIELDS
+                        .into_iter()
+                        .map(|name| (name, JsonTemplate::step_output("send-values", name))),
+                ),
+            ),
+            (
+                "nested",
+                JsonTemplate::array([
+                    JsonTemplate::step_output("send-values", "integer"),
+                    JsonTemplate::object([
+                        ("text", JsonTemplate::step_output("send-values", "text")),
+                        (
+                            "optional",
+                            JsonTemplate::step_output("send-values", "optional"),
+                        ),
+                    ]),
                 ]),
-            ]),
-        ),
-        // Neither literal strings nor object keys are recursively interpreted.
-        (
-            "{{literal.key}}",
-            JsonTemplate::literal("{{not_a_variable}}"),
-        ),
-    ]))
+            ),
+            // Neither literal strings nor object keys are recursively interpreted.
+            (
+                "{{literal.key}}",
+                JsonTemplate::literal("{{not_a_variable}}"),
+            ),
+        ]),
+    )
     .check(equals(
         "$.json.document",
         TemplatePart::step_output("send-values", "document"),
@@ -138,17 +138,18 @@ fn json_values_plan() -> FlowPlan {
         ));
     }
 
-    FlowPlan {
+    FlowDefinition {
         name: "httpbingo-json-values".into(),
         inputs,
         steps: vec![first, second],
+        outputs: Vec::new(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use postman_flow::{
-        execute_flow, BodyTemplate, FlowError, FlowEvent, FlowSessionEnvironment, StepOutcome,
+        compile_flow, ApiCatalog, BodyTemplate, CompileEnvironment, FlowEvent, StepOutcome,
         TextTemplate,
     };
 
@@ -158,12 +159,19 @@ mod tests {
     #[tokio::test]
     async fn quotes_newlines_and_json_types_survive_input_and_output_bindings() {
         let transport = HttpBingoFixture::default();
-        let events = run(json_values_plan(), FlowInputs::new(), transport.clone())
-            .await
-            .unwrap();
+        let events = run(
+            json_values_definition(),
+            FlowInputs::new(),
+            transport.clone(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             events.last(),
-            Some(&FlowEvent::FlowFinished { success: true })
+            Some(&FlowEvent::FlowFinished {
+                success: true,
+                outputs: Default::default()
+            })
         );
         let requests = transport.requests();
         assert_eq!(requests.len(), 2);
@@ -196,21 +204,30 @@ mod tests {
             json!([]),
             json!({}),
         ] {
-            let plan = FlowPlan {
+            let plan = FlowDefinition {
                 name: "root-json-values".into(),
                 inputs: vec![
                     FlowInputSpec::with_default("host", "https://httpbingo.org"),
                     FlowInputSpec::required("value"),
                 ],
                 steps: vec![
-                    request("seed", HttpMethod::POST, "/anything/root")
-                        .json_value_body(JsonTemplate::input("value"))
-                        .check(equals("$.json", TemplatePart::input("value")))
-                        .export(ResponseExport::json("value", "$.json")),
-                    request("copy", HttpMethod::POST, "/anything/root-copy")
-                        .json_value_body(JsonTemplate::step_output("seed", "value"))
-                        .check(equals("$.json", TemplatePart::input("value"))),
+                    json_request(
+                        "seed",
+                        HttpMethod::POST,
+                        "/anything/root",
+                        JsonTemplate::input("value"),
+                    )
+                    .check(equals("$.json", TemplatePart::input("value")))
+                    .export(ResponseExport::json("value", "$.json")),
+                    json_request(
+                        "copy",
+                        HttpMethod::POST,
+                        "/anything/root-copy",
+                        JsonTemplate::step_output("seed", "value"),
+                    )
+                    .check(equals("$.json", TemplatePart::input("value"))),
                 ],
+                outputs: Vec::new(),
             };
             let transport = HttpBingoFixture::default();
             let events = run(
@@ -222,7 +239,10 @@ mod tests {
             .unwrap();
             assert_eq!(
                 events.last(),
-                Some(&FlowEvent::FlowFinished { success: true })
+                Some(&FlowEvent::FlowFinished {
+                    success: true,
+                    outputs: Default::default()
+                })
             );
             for request in transport.requests() {
                 assert_eq!(body(&request), value);
@@ -243,19 +263,14 @@ mod tests {
                 "earlier step",
             ),
         ] {
-            let mut plan = json_values_plan();
-            plan.steps[0].body =
-                BodyTemplate::JsonValue(JsonTemplate::array([JsonTemplate::object([(
-                    "nested", reference,
-                )])]));
-            let transport = HttpBingoFixture::default();
-            let result = execute_flow(
-                plan,
-                FlowInputs::new(),
-                FlowSessionEnvironment::new(transport.clone()),
+            let mut plan = json_values_definition();
+            plan.steps[0].request.as_inline_mut().unwrap().body = BodyTemplate::JsonValue(
+                JsonTemplate::array([JsonTemplate::object([("nested", reference)])]),
             );
+            let transport = HttpBingoFixture::default();
+            let result = compile_flow(&plan, &ApiCatalog::new(), &CompileEnvironment::default());
             assert!(
-                matches!(result, Err(FlowError::InvalidPlan(message)) if message.contains(expected))
+                matches!(result, Err(errors) if errors.iter().any(|error| error.message.contains(expected)))
             );
             assert!(transport.requests().is_empty());
         }
@@ -263,37 +278,34 @@ mod tests {
 
     #[test]
     fn an_unknown_export_on_an_earlier_step_is_rejected() {
-        let mut plan = json_values_plan();
-        plan.steps[1].body =
+        let mut plan = json_values_definition();
+        plan.steps[1].request.as_inline_mut().unwrap().body =
             BodyTemplate::JsonValue(JsonTemplate::step_output("send-values", "missing"));
-        assert!(matches!(
-            execute_flow(
-                plan,
-                FlowInputs::new(),
-                FlowSessionEnvironment::new(HttpBingoFixture::default())
-            ),
-            Err(FlowError::InvalidPlan(_))
-        ));
+        assert!(compile_flow(&plan, &ApiCatalog::new(), &CompileEnvironment::default()).is_err());
     }
 
     #[tokio::test]
     async fn raw_json_text_keeps_its_explicit_escaping_contract() {
-        let mut plan = json_values_plan();
+        let mut plan = json_values_definition();
         plan.steps.truncate(1);
         plan.steps[0].checks.truncate(1);
         plan.steps[0].exports.clear();
-        plan.steps[0].body = BodyTemplate::Json(TextTemplate::parts([
-            TemplatePart::literal("{\"text\":\""),
-            TemplatePart::input("text"),
-            TemplatePart::literal("\"}"),
-        ]));
+        plan.steps[0].request.as_inline_mut().unwrap().body =
+            BodyTemplate::Json(TextTemplate::parts([
+                TemplatePart::literal("{\"text\":\""),
+                TemplatePart::input("text"),
+                TemplatePart::literal("\"}"),
+            ]));
         let transport = HttpBingoFixture::default();
         let events = run(plan.clone(), FlowInputs::new(), transport.clone())
             .await
             .unwrap();
         assert_eq!(
             events.last(),
-            Some(&FlowEvent::FlowFinished { success: false })
+            Some(&FlowEvent::FlowFinished {
+                success: false,
+                outputs: Default::default()
+            })
         );
         assert!(events.iter().any(|event| matches!(
             event,
@@ -303,13 +315,17 @@ mod tests {
         assert!(transport.requests().is_empty());
 
         // Explicitly escaped raw text is still supported; its semantics were not silently changed.
-        plan.steps[0].body = BodyTemplate::Json(TextTemplate::literal(r#"{"text":"a\"b\nc"}"#));
+        plan.steps[0].request.as_inline_mut().unwrap().body =
+            BodyTemplate::Json(TextTemplate::literal(r#"{"text":"a\"b\nc"}"#));
         let events = run(plan, FlowInputs::new(), transport.clone())
             .await
             .unwrap();
         assert_eq!(
             events.last(),
-            Some(&FlowEvent::FlowFinished { success: true })
+            Some(&FlowEvent::FlowFinished {
+                success: true,
+                outputs: Default::default()
+            })
         );
         assert_eq!(body(&transport.requests()[0]), json!({"text": "a\"b\nc"}));
     }
@@ -318,16 +334,41 @@ mod tests {
     async fn a_failed_response_stops_json_output_consumers() {
         let transport = HttpBingoFixture::default();
         transport.fail_on_request(0);
-        let events = run(json_values_plan(), FlowInputs::new(), transport.clone())
-            .await
-            .unwrap();
+        let events = run(
+            json_values_definition(),
+            FlowInputs::new(),
+            transport.clone(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             events.last(),
-            Some(&FlowEvent::FlowFinished { success: false })
+            Some(&FlowEvent::FlowFinished {
+                success: false,
+                outputs: Default::default()
+            })
         );
         assert_eq!(transport.requests().len(), 1);
         assert!(!events
             .iter()
             .any(|event| matches!(event, FlowEvent::OutputExported { .. })));
     }
+}
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/httpbingo_json_values.http.yml"))
+            .unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let constructed = postman_flow::compile_flow(
+        &json_values_definition(),
+        &postman_flow::ApiCatalog::new(),
+        &environment,
+    )
+    .unwrap();
+    assert_eq!(native, constructed);
+    let saved = postman_flow::write_flow_yaml(&document).unwrap();
+    assert_eq!(postman_flow::parse_flow_yaml(&saved).unwrap(), document);
 }

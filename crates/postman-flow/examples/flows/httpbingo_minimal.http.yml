@@ -1,0 +1,78 @@
+flow:
+  inputs:
+  - default: https://httpbingo.org
+    name: host
+  - default: postman-flow-headless
+    name: client
+  name: httpbingo-minimal
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: correlation_id
+      path: $.uuid
+    id: generate-correlation-id
+    name: Generate a correlation id
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        literal: POST
+      kind: jsonpath_template
+      path: $.method
+    - equals:
+        input: client
+      kind: jsonpath_template
+      path: $.json.client
+    - equals:
+        output:
+          name: correlation_id
+          step: generate-correlation-id
+      kind: jsonpath_template
+      path: $.json.correlation_id
+    id: echo-http-request
+    name: Reuse the correlation id
+    request:
+      body:
+        kind: json_template
+        value:
+          concat:
+          - literal: '{"client":"'
+          - input: client
+          - literal: '","correlation_id":"'
+          - output:
+              name: correlation_id
+              step: generate-correlation-id
+          - literal: '"}'
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/headless-e2e/
+        - output:
+            name: correlation_id
+            step: generate-correlation-id
+schema_version: 1

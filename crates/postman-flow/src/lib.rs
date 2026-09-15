@@ -1,14 +1,30 @@
-//! Minimal proof of the Postman Flow execution boundary.
+//! Format-independent HTTP flow definitions, YAML v1 documents, compilation and execution.
 //!
-//! This first slice intentionally supports only an ordered sequence of HTTP steps. It proves that
-//! one step can export a typed response value and a later step can consume it while the caller
-//! observes execution through a stream.
+//! Parse or construct a FlowDefinition, compile an immutable FlowPlan, and execute it with
+//! a caller-supplied HTTP transport and session. Version 1 supports ordered HTTP steps;
+//! source documents and optional editor layout remain separate from runtime state.
 
+mod catalog;
+mod compiler;
+mod document;
+mod json_path;
 mod model;
+mod plan;
 mod runtime;
 
-pub use model::{
-    BodyTemplate, FlowEvent, FlowInputSpec, FlowInputs, FlowPlan, HttpStepPlan, JsonTemplate,
-    ResponseCheck, ResponseExport, StepOutcome, TemplatePart, TextTemplate,
+pub use catalog::{ApiCatalog, ApiDefinition};
+pub use compiler::{
+    compile_flow, CompileEnvironment, Diagnostic, DiagnosticCode, DiagnosticLocation,
 };
-pub use runtime::{execute_flow, FlowError, FlowEventStream, FlowSessionEnvironment};
+pub use document::{
+    parse_flow_yaml, write_flow_yaml, DocumentError, DocumentErrorCode, EditorLayout, FlowDocument,
+    NodePosition, FLOW_DOCUMENT_VERSION,
+};
+pub use model::{
+    ApiCall, BodyTemplate, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowOutputSpec,
+    FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
+    JsonTemplate, ResponseCheck, ResponseExport, StepOutcome, TemplatePart, TextTemplate,
+    ValueReference,
+};
+pub use plan::FlowPlan;
+pub use runtime::{execute_flow, FlowError, FlowSessionEnvironment};
