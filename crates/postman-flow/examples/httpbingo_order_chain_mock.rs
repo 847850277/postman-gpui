@@ -40,13 +40,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             FlowEvent::StepStarted { step_id, name } => {
                 tracing::info!(step_id = %step_id, step_name = %name, "▶ 步骤开始");
             }
-            FlowEvent::ResponseReceived { step_id, status, elapsed_ms } => {
+            FlowEvent::ResponseReceived {
+                step_id,
+                status,
+                elapsed_ms,
+            } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
             FlowEvent::OutputExported { step_id, name } => {
                 tracing::info!(step_id = %step_id, export_name = %name, "↳ 提取并导出变量");
             }
-            FlowEvent::CheckFinished { step_id, check, success, message } => {
+            FlowEvent::CheckFinished {
+                step_id,
+                check,
+                success,
+                message,
+            } => {
                 if *success {
                     tracing::info!(step_id = %step_id, check = %check, "↳ 断言检查通过 ✔");
                 } else {
@@ -94,14 +103,13 @@ fn order_business_chain_plan() -> FlowPlan {
                 HttpMethod::GET,
                 TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]),
             )
-                .header(
-                    TextTemplate::literal("Accept"),
-                    TextTemplate::literal("application/json"),
-                )
-                .check(ResponseCheck::StatusEquals(200))
-                // 关键：从 httpbingo 返回的 {"uuid": "..."} 中导出 auth_token
-                .export(ResponseExport::json("auth_token", "$.uuid").sensitive()),
-
+            .header(
+                TextTemplate::literal("Accept"),
+                TextTemplate::literal("application/json"),
+            )
+            .check(ResponseCheck::StatusEquals(200))
+            // 关键：从 httpbingo 返回的 {"uuid": "..."} 中导出 auth_token
+            .export(ResponseExport::json("auth_token", "$.uuid").sensitive()),
             // ==============================================================
             // 步骤 2: 模拟订单筛选（筛选张三在实验小学的订单）
             // ==============================================================
@@ -114,30 +122,29 @@ fn order_business_chain_plan() -> FlowPlan {
                     TemplatePart::literal("/anything/orders/query"),
                 ]),
             )
-                // 鉴权头注入步骤 1 的 Token
-                .header(
-                    TextTemplate::literal("Authorization"),
-                    TextTemplate::parts([
-                        TemplatePart::literal("Bearer "),
-                        TemplatePart::step_output("step-login", "auth_token"),
-                    ]),
-                )
-                .header(
-                    TextTemplate::literal("Content-Type"),
-                    TextTemplate::literal("application/json"),
-                )
-                // 模拟查询条件，并生成一个模拟订单号 "ORD-2026-999"
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal(r#"{"customer":""#),
-                    TemplatePart::input("customer"),
-                    TemplatePart::literal(r#"","school":""#),
-                    TemplatePart::input("school"),
-                    TemplatePart::literal(r#"","order_id":"ORD-2026-999"}"#),
-                ]))
-                .check(ResponseCheck::StatusEquals(200))
-                // 关键：从 httpbingo 回显的 $.json.order_id 提取订单号，导出给步骤 3
-                .export(ResponseExport::json("target_order_id", "$.json.order_id")),
-
+            // 鉴权头注入步骤 1 的 Token
+            .header(
+                TextTemplate::literal("Authorization"),
+                TextTemplate::parts([
+                    TemplatePart::literal("Bearer "),
+                    TemplatePart::step_output("step-login", "auth_token"),
+                ]),
+            )
+            .header(
+                TextTemplate::literal("Content-Type"),
+                TextTemplate::literal("application/json"),
+            )
+            // 模拟查询条件，并生成一个模拟订单号 "ORD-2026-999"
+            .json_body(TextTemplate::parts([
+                TemplatePart::literal(r#"{"customer":""#),
+                TemplatePart::input("customer"),
+                TemplatePart::literal(r#"","school":""#),
+                TemplatePart::input("school"),
+                TemplatePart::literal(r#"","order_id":"ORD-2026-999"}"#),
+            ]))
+            .check(ResponseCheck::StatusEquals(200))
+            // 关键：从 httpbingo 回显的 $.json.order_id 提取订单号，导出给步骤 3
+            .export(ResponseExport::json("target_order_id", "$.json.order_id")),
             // ==============================================================
             // 步骤 3: 模拟关联订单提交下单
             // ==============================================================
@@ -150,42 +157,43 @@ fn order_business_chain_plan() -> FlowPlan {
                     TemplatePart::literal("/anything/orders/submit"),
                 ]),
             )
-                // 复用步骤 1 的 Token
-                .header(
-                    TextTemplate::literal("Authorization"),
-                    TextTemplate::parts([
-                        TemplatePart::literal("Bearer "),
-                        TemplatePart::step_output("step-login", "auth_token"),
-                    ]),
-                )
-                .header(
-                    TextTemplate::literal("Content-Type"),
-                    TextTemplate::literal("application/json"),
-                )
-                // 关键：Body 组合步骤 2 导出的 target_order_id、输入的 school、输入的 customer
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal(r#"{"source_order_id":""#),
-                    TemplatePart::step_output("step-filter-orders", "target_order_id"),
-                    TemplatePart::literal(r#"","target_school":""#),
-                    TemplatePart::input("school"),
-                    TemplatePart::literal(r#"","customer_name":""#),
-                    TemplatePart::input("customer"),
-                    TemplatePart::literal(r#""}"#),
-                ]))
-                // 断言 1：状态码必须为 200
-                .check(ResponseCheck::StatusEquals(200))
-                // 断言 2：验证步骤 2 的订单号是否正确注入到步骤 3 的请求体中
-                .check(ResponseCheck::JsonPathEquals {
-                    path: "$.json.source_order_id".to_owned(),
-                    expected: TextTemplate::parts([
-                        TemplatePart::step_output("step-filter-orders", "target_order_id"),
-                    ]),
-                })
-                // 断言 3：验证学校是否正确注入
-                .check(ResponseCheck::JsonPathEquals {
-                    path: "$.json.target_school".to_owned(),
-                    expected: TextTemplate::parts([TemplatePart::input("school")]),
-                }),
+            // 复用步骤 1 的 Token
+            .header(
+                TextTemplate::literal("Authorization"),
+                TextTemplate::parts([
+                    TemplatePart::literal("Bearer "),
+                    TemplatePart::step_output("step-login", "auth_token"),
+                ]),
+            )
+            .header(
+                TextTemplate::literal("Content-Type"),
+                TextTemplate::literal("application/json"),
+            )
+            // 关键：Body 组合步骤 2 导出的 target_order_id、输入的 school、输入的 customer
+            .json_body(TextTemplate::parts([
+                TemplatePart::literal(r#"{"source_order_id":""#),
+                TemplatePart::step_output("step-filter-orders", "target_order_id"),
+                TemplatePart::literal(r#"","target_school":""#),
+                TemplatePart::input("school"),
+                TemplatePart::literal(r#"","customer_name":""#),
+                TemplatePart::input("customer"),
+                TemplatePart::literal(r#""}"#),
+            ]))
+            // 断言 1：状态码必须为 200
+            .check(ResponseCheck::StatusEquals(200))
+            // 断言 2：验证步骤 2 的订单号是否正确注入到步骤 3 的请求体中
+            .check(ResponseCheck::JsonPathEquals {
+                path: "$.json.source_order_id".to_owned(),
+                expected: TextTemplate::parts([TemplatePart::step_output(
+                    "step-filter-orders",
+                    "target_order_id",
+                )]),
+            })
+            // 断言 3：验证学校是否正确注入
+            .check(ResponseCheck::JsonPathEquals {
+                path: "$.json.target_school".to_owned(),
+                expected: TextTemplate::parts([TemplatePart::input("school")]),
+            }),
         ],
     }
 }

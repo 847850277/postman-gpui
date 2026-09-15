@@ -52,13 +52,22 @@ pub async fn run_live(
             FlowEvent::StepStarted { step_id, name } => {
                 tracing::info!(step_id = %step_id, step_name = %name, "▶ 步骤开始");
             }
-            FlowEvent::ResponseReceived { step_id, status, elapsed_ms } => {
+            FlowEvent::ResponseReceived {
+                step_id,
+                status,
+                elapsed_ms,
+            } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
             FlowEvent::OutputExported { step_id, name } => {
                 tracing::info!(step_id = %step_id, export_name = %name, "↳ 提取并导出变量");
             }
-            FlowEvent::CheckFinished { step_id, check, success, message } => {
+            FlowEvent::CheckFinished {
+                step_id,
+                check,
+                success,
+                message,
+            } => {
                 if *success {
                     tracing::info!(step_id = %step_id, check = %check, "↳ 断言检查通过 ✔");
                 } else {
