@@ -111,11 +111,11 @@ impl HttpFile {
                         ResponseCheck::HeaderExists { name: name.clone() }
                     }
                     Assertion::HeaderContains { name, expected } => {
-                        let expected_str = strip_surrounding_quotes(expected);
+                        let expected_str = unescape_expected_string(expected);
                         ResponseCheck::HeaderContains {
                             name: name.clone(),
                             expected: parse_text_template(
-                                expected_str,
+                                &expected_str,
                                 &captured,
                                 &self.variables,
                                 &mut referenced_inputs,
@@ -125,10 +125,10 @@ impl HttpFile {
                         }
                     }
                     Assertion::BodyContains { expected } => {
-                        let expected_str = strip_surrounding_quotes(expected);
+                        let expected_str = unescape_expected_string(expected);
                         ResponseCheck::BodyContains {
                             expected: parse_text_template(
-                                expected_str,
+                                &expected_str,
                                 &captured,
                                 &self.variables,
                                 &mut referenced_inputs,
@@ -197,6 +197,16 @@ impl HttpFile {
     pub fn into_flow_definition(self) -> Result<FlowDefinition, ParseError> {
         self.to_flow_definition()
     }
+}
+
+fn unescape_expected_string(s: &str) -> String {
+    let trimmed = s.trim();
+    if trimmed.starts_with('"') && trimmed.ends_with('"') {
+        if let Ok(serde_json::Value::String(unescaped)) = serde_json::from_str(trimmed) {
+            return unescaped;
+        }
+    }
+    strip_surrounding_quotes(trimmed).to_owned()
 }
 
 fn strip_surrounding_quotes(s: &str) -> &str {
