@@ -45,10 +45,10 @@ pub fn request(id: &str, method: HttpMethod, path: &str) -> HttpStepDefinition {
     .check(ResponseCheck::StatusEquals(200))
 }
 
-pub fn equals(path: &str, expected: TemplatePart) -> ResponseCheck {
-    ResponseCheck::JsonPathEquals {
+pub fn equals(path: &str, expected: JsonTemplate) -> ResponseCheck {
+    ResponseCheck::JsonValueEquals {
         path: path.into(),
-        expected: TextTemplate::parts([expected]),
+        expected,
     }
 }
 

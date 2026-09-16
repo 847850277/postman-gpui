@@ -39,14 +39,15 @@ flow:
     name: 2. 筛选指定客户和学校的订单
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"customer":"'
-          - input: customer
-          - literal: '","school":"'
-          - input: school
-          - literal: '","order_id":"ORD-2026-999"}'
+          object:
+            customer:
+              input: customer
+            order_id:
+              literal: ORD-2026-999
+            school:
+              input: school
       headers:
       - name:
           literal: Authorization
@@ -73,28 +74,27 @@ flow:
         output:
           name: target_order_id
           step: step-filter-orders
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.source_order_id
     - equals:
         input: school
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.target_school
     id: step-place-order
     name: 3. 关联前序订单提交新订单
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"source_order_id":"'
-          - output:
-              name: target_order_id
-              step: step-filter-orders
-          - literal: '","target_school":"'
-          - input: school
-          - literal: '","customer_name":"'
-          - input: customer
-          - literal: '"}'
+          object:
+            customer_name:
+              input: customer
+            source_order_id:
+              output:
+                name: target_order_id
+                step: step-filter-orders
+            target_school:
+              input: school
       headers:
       - name:
           literal: Authorization

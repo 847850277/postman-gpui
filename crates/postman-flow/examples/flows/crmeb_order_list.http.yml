@@ -75,8 +75,8 @@ flow:
     - equals: 200
       kind: status
     - equals:
-        literal: '200'
-      kind: jsonpath_template
+        literal: 200
+      kind: jsonpath
       path: $.status
     id: order-list
     name: 2. 订单列表

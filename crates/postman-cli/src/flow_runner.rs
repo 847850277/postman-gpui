@@ -169,23 +169,7 @@ pub async fn run_flow_plan<T: HttpTransport>(
 
 /// CLI `--input` keeps explicit JSON types, but does not coerce `00123` into `123`.
 pub(crate) fn parse_flow_input_value(value: &str) -> Value {
-    match serde_json::from_str::<Value>(value) {
-        Ok(parsed) if is_explicit_json_binding(value, &parsed) => parsed,
-        _ => Value::String(value.to_owned()),
-    }
-}
-
-fn is_explicit_json_binding(source: &str, parsed: &Value) -> bool {
-    match parsed {
-        Value::Bool(_) | Value::Null | Value::Object(_) | Value::Array(_) | Value::String(_) => {
-            true
-        }
-        Value::Number(_) => {
-            let digits = source.strip_prefix('-').unwrap_or(source);
-            (digits == "0" || digits.starts_with(|c: char| ('1'..='9').contains(&c)))
-                && digits.bytes().all(|byte| byte.is_ascii_digit())
-        }
-    }
+    serde_json::from_str::<Value>(value).unwrap_or_else(|_| Value::String(value.to_owned()))
 }
 
 #[cfg(test)]
@@ -196,6 +180,9 @@ mod tests {
     #[test]
     fn flow_inputs_keep_json_types_without_eating_leading_zeros() {
         assert_eq!(parse_flow_input_value("100"), json!(100));
+        assert_eq!(parse_flow_input_value("1.5"), json!(1.5));
+        assert_eq!(parse_flow_input_value("1e3"), json!(1000.0));
+        assert_eq!(parse_flow_input_value("-42.5"), json!(-42.5));
         assert_eq!(parse_flow_input_value("true"), json!(true));
         assert_eq!(parse_flow_input_value("null"), json!(null));
         assert_eq!(parse_flow_input_value(r#""00123""#), json!("00123"));

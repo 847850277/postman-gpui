@@ -102,9 +102,9 @@ pub(crate) fn crmeb_order_list_definition() -> FlowDefinition {
                     TemplatePart::step_output("step-login", "token"),
                 ]),
             )).check(ResponseCheck::StatusEquals(200))
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.status".to_string(),
-                expected: TextTemplate::literal("200"),
+                expected: JsonTemplate::literal(200_i64),
             })
         ],
     outputs: Vec::new(),

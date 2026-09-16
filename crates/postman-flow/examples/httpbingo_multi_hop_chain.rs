@@ -3,8 +3,8 @@ mod compile;
 use futures::StreamExt;
 use postman_flow::{
     execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
-    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
-    TextTemplate,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport,
+    TemplatePart, TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -99,14 +99,22 @@ pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
             // =========================================================================
             HttpStepDefinition::new(
                 "step-1-auth",
-                "1. 用户登录获取 AuthToken", HttpRequestTemplate::new(
-                HttpMethod::GET,
-                TextTemplate::parts([TemplatePart::input("host"), TemplatePart::literal("/uuid")]))
-            .header(TextTemplate::literal("Accept"), TextTemplate::literal("application/json")))
+                "1. 用户登录获取 AuthToken",
+                HttpRequestTemplate::new(
+                    HttpMethod::GET,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/uuid"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Accept"),
+                    TextTemplate::literal("application/json"),
+                ),
+            )
             .check(ResponseCheck::StatusEquals(200))
             // 导出 token
             .export(ResponseExport::json("auth_token", "$.uuid").sensitive()),
-
             // =========================================================================
             // 步骤 2: 创建草稿订单（Create Draft Order）
             // 依赖：步骤 1 的 auth_token + 全局 user_id
@@ -114,30 +122,37 @@ pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
             // =========================================================================
             HttpStepDefinition::new(
                 "step-2-create-draft-order",
-                "2. 创建交易草稿订单", HttpRequestTemplate::new(
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/orders/draft"),
-                ]))
-            .header(
-                TextTemplate::literal("Authorization"),
-                TextTemplate::parts([
-                    TemplatePart::literal("Bearer "),
-                    TemplatePart::step_output("step-1-auth", "auth_token"),
-                ]),
+                "2. 创建交易草稿订单",
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/orders/draft"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Authorization"),
+                    TextTemplate::parts([
+                        TemplatePart::literal("Bearer "),
+                        TemplatePart::step_output("step-1-auth", "auth_token"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                .json_value_body(JsonTemplate::object([
+                    ("buyer_id", JsonTemplate::input("user_id")),
+                    ("sku_id", JsonTemplate::literal("SKU-IPHONE-16")),
+                    ("quantity", JsonTemplate::literal(1_i64)),
+                    ("order_id", JsonTemplate::literal("ORD-2026-9001")),
+                    ("amount", JsonTemplate::literal("7999.00")),
+                ])),
             )
-            .header(TextTemplate::literal("Content-Type"), TextTemplate::literal("application/json"))
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"buyer_id":""#),
-                TemplatePart::input("user_id"),
-                TemplatePart::literal(r#"","sku_id":"SKU-IPHONE-16","quantity":1,"order_id":"ORD-2026-9001","amount":"7999.00"}"#),
-            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 导出本次提交后生成的数据：订单号 与 待付金额
             .export(ResponseExport::json("draft_order_id", "$.json.order_id"))
             .export(ResponseExport::json("total_amount", "$.json.amount")),
-
             // =========================================================================
             // 步骤 3: 请求支付网关，生成支付流水号（Create Payment Transaction）
             // 关键依赖：必须根据步骤 2 生成的 draft_order_id 和 total_amount 作为请求参数！
@@ -145,40 +160,51 @@ pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
             // =========================================================================
             HttpStepDefinition::new(
                 "step-3-create-payment-txn",
-                "3. 根据草稿订单发起支付申请", HttpRequestTemplate::new(
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/pay/gateway/create"),
-                ]))
-            .header(
-                TextTemplate::literal("Authorization"),
-                TextTemplate::parts([
-                    TemplatePart::literal("Bearer "),
-                    TemplatePart::step_output("step-1-auth", "auth_token"),
-                ]),
+                "3. 根据草稿订单发起支付申请",
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/pay/gateway/create"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Authorization"),
+                    TextTemplate::parts([
+                        TemplatePart::literal("Bearer "),
+                        TemplatePart::step_output("step-1-auth", "auth_token"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                .json_value_body(JsonTemplate::object([
+                    (
+                        "target_order_id",
+                        JsonTemplate::step_output("step-2-create-draft-order", "draft_order_id"),
+                    ),
+                    (
+                        "pay_amount",
+                        JsonTemplate::step_output("step-2-create-draft-order", "total_amount"),
+                    ),
+                    ("channel", JsonTemplate::literal("ALIPAY")),
+                    ("gateway_txn_id", JsonTemplate::literal("TXN-PAY-556677")),
+                    ("signature", JsonTemplate::literal("SIG-SEC-XYZ999")),
+                ])),
             )
-            .header(TextTemplate::literal("Content-Type"), TextTemplate::literal("application/json"))
-            // 请求参数完全引用 步骤 2 提交后得到的结果！
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"target_order_id":""#),
-                TemplatePart::step_output("step-2-create-draft-order", "draft_order_id"),
-                TemplatePart::literal(r#"","pay_amount":""#),
-                TemplatePart::step_output("step-2-create-draft-order", "total_amount"),
-                TemplatePart::literal(r#"","channel":"ALIPAY","gateway_txn_id":"TXN-PAY-556677","signature":"SIG-SEC-XYZ999"}"#),
-            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 验证支付网关收到的订单号确实等于步骤 2 的订单号
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.target_order_id".to_owned(),
-                expected: TextTemplate::parts([
-                    TemplatePart::step_output("step-2-create-draft-order", "draft_order_id"),
-                ]),
+                expected: JsonTemplate::step_output("step-2-create-draft-order", "draft_order_id"),
             })
             // 导出支付网关生成的流水号和凭证签名
-            .export(ResponseExport::json("payment_txn_id", "$.json.gateway_txn_id"))
+            .export(ResponseExport::json(
+                "payment_txn_id",
+                "$.json.gateway_txn_id",
+            ))
             .export(ResponseExport::json("pay_signature", "$.json.signature")),
-
             // =========================================================================
             // 步骤 4: 支付渠道凭证核销与清算（Confirm & Clear Payment）
             // 关键依赖：必须使用步骤 3 生成的 payment_txn_id 和 pay_signature 提交核销！
@@ -186,32 +212,42 @@ pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
             // =========================================================================
             HttpStepDefinition::new(
                 "step-4-confirm-payment",
-                "4. 凭支付流水与签名提交银行清算核销", HttpRequestTemplate::new(
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/pay/clearing/confirm"),
-                ]))
-            .header(TextTemplate::literal("Content-Type"), TextTemplate::literal("application/json"))
-            // 请求参数完全引用 步骤 3 提交后得到的结果！
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"txn_id":""#),
-                TemplatePart::step_output("step-3-create-payment-txn", "payment_txn_id"),
-                TemplatePart::literal(r#"","verify_sign":""#),
-                TemplatePart::step_output("step-3-create-payment-txn", "pay_signature"),
-                TemplatePart::literal(r#"","receipt_no":"RCPT-BANK-2026-8888","clear_status":"CLEARED"}"#),
-            ])))
+                "4. 凭支付流水与签名提交银行清算核销",
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/pay/clearing/confirm"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                .json_value_body(JsonTemplate::object([
+                    (
+                        "txn_id",
+                        JsonTemplate::step_output("step-3-create-payment-txn", "payment_txn_id"),
+                    ),
+                    (
+                        "verify_sign",
+                        JsonTemplate::step_output("step-3-create-payment-txn", "pay_signature"),
+                    ),
+                    ("receipt_no", JsonTemplate::literal("RCPT-BANK-2026-8888")),
+                    ("clear_status", JsonTemplate::literal("CLEARED")),
+                ])),
+            )
             .check(ResponseCheck::StatusEquals(200))
             // 验证核销接口收到正确的支付流水号
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.txn_id".to_owned(),
-                expected: TextTemplate::parts([
-                    TemplatePart::step_output("step-3-create-payment-txn", "payment_txn_id"),
-                ]),
+                expected: JsonTemplate::step_output("step-3-create-payment-txn", "payment_txn_id"),
             })
             // 导出最终清算回执号
-            .export(ResponseExport::json("clearing_receipt_no", "$.json.receipt_no")),
-
+            .export(ResponseExport::json(
+                "clearing_receipt_no",
+                "$.json.receipt_no",
+            )),
             // =========================================================================
             // 步骤 5: 仓储履约发货与开票（Fulfillment & Dispatch）
             // 关键依赖：汇总前面所有步骤产出的关键字段！
@@ -223,55 +259,61 @@ pub(crate) fn multi_hop_commerce_definition() -> FlowDefinition {
             // =========================================================================
             HttpStepDefinition::new(
                 "step-5-fulfillment-dispatch",
-                "5. 汇总全链路单据，通知仓库发货", HttpRequestTemplate::new(
-                HttpMethod::POST,
-                TextTemplate::parts([
-                    TemplatePart::input("host"),
-                    TemplatePart::literal("/anything/warehouse/dispatch"),
-                ]))
-            .header(
-                TextTemplate::literal("Authorization"),
-                TextTemplate::parts([
-                    TemplatePart::literal("Bearer "),
-                    TemplatePart::step_output("step-1-auth", "auth_token"),
-                ]),
+                "5. 汇总全链路单据，通知仓库发货",
+                HttpRequestTemplate::new(
+                    HttpMethod::POST,
+                    TextTemplate::parts([
+                        TemplatePart::input("host"),
+                        TemplatePart::literal("/anything/warehouse/dispatch"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Authorization"),
+                    TextTemplate::parts([
+                        TemplatePart::literal("Bearer "),
+                        TemplatePart::step_output("step-1-auth", "auth_token"),
+                    ]),
+                )
+                .header(
+                    TextTemplate::literal("Content-Type"),
+                    TextTemplate::literal("application/json"),
+                )
+                .json_value_body(JsonTemplate::object([
+                    (
+                        "order_id",
+                        JsonTemplate::step_output("step-2-create-draft-order", "draft_order_id"),
+                    ),
+                    (
+                        "payment_txn_id",
+                        JsonTemplate::step_output("step-3-create-payment-txn", "payment_txn_id"),
+                    ),
+                    (
+                        "receipt_no",
+                        JsonTemplate::step_output("step-4-confirm-payment", "clearing_receipt_no"),
+                    ),
+                    ("destination", JsonTemplate::input("shipping_address")),
+                ])),
             )
-            .header(TextTemplate::literal("Content-Type"), TextTemplate::literal("application/json"))
-            // 终极汇总报文：跨步骤级联组装！
-            .json_body(TextTemplate::parts([
-                TemplatePart::literal(r#"{"order_id":""#),
-                TemplatePart::step_output("step-2-create-draft-order", "draft_order_id"),
-                TemplatePart::literal(r#"","payment_txn_id":""#),
-                TemplatePart::step_output("step-3-create-payment-txn", "payment_txn_id"),
-                TemplatePart::literal(r#"","receipt_no":""#),
-                TemplatePart::step_output("step-4-confirm-payment", "clearing_receipt_no"),
-                TemplatePart::literal(r#"","destination":""#),
-                TemplatePart::input("shipping_address"),
-                TemplatePart::literal(r#""}"#),
-            ])))
             .check(ResponseCheck::StatusEquals(200))
             // 全链路严格断言验证：检查发货单据中各个单号是否完全吻合
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.order_id".to_owned(),
-                expected: TextTemplate::parts([
-                    TemplatePart::step_output("step-2-create-draft-order", "draft_order_id"),
-                ]),
+                expected: JsonTemplate::step_output("step-2-create-draft-order", "draft_order_id"),
             })
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.payment_txn_id".to_owned(),
-                expected: TextTemplate::parts([
-                    TemplatePart::step_output("step-3-create-payment-txn", "payment_txn_id"),
-                ]),
+                expected: JsonTemplate::step_output("step-3-create-payment-txn", "payment_txn_id"),
             })
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.receipt_no".to_owned(),
-                expected: TextTemplate::parts([
-                    TemplatePart::step_output("step-4-confirm-payment", "clearing_receipt_no"),
-                ]),
+                expected: JsonTemplate::step_output(
+                    "step-4-confirm-payment",
+                    "clearing_receipt_no",
+                ),
             }),
         ],
-    outputs: Vec::new(),
-}
+        outputs: Vec::new(),
+    }
 }
 
 #[test]

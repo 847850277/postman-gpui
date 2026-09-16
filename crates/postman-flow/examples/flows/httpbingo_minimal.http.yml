@@ -31,32 +31,31 @@ flow:
       kind: status
     - equals:
         literal: POST
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.method
     - equals:
         input: client
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.client
     - equals:
         output:
           name: correlation_id
           step: generate-correlation-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.correlation_id
     id: echo-http-request
     name: Reuse the correlation id
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"client":"'
-          - input: client
-          - literal: '","correlation_id":"'
-          - output:
-              name: correlation_id
-              step: generate-correlation-id
-          - literal: '"}'
+          object:
+            client:
+              input: client
+            correlation_id:
+              output:
+                name: correlation_id
+                step: generate-correlation-id
       headers:
       - name:
           literal: Accept

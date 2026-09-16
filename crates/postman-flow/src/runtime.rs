@@ -170,14 +170,14 @@ impl<T: HttpTransport> RunMachine<T> {
             step_id = %step.id,
             step_name = %step.name,
             method = %request.method,
-            url = %self.context.redact(&request.url),
+            url = %self.context.redact_url(&request.url),
             "executing HTTP step"
         );
         for (name, value) in &request.headers {
             tracing::debug!(
                 step_id = %step.id,
                 header = %name,
-                value = %self.context.redact(value),
+                value = %self.context.redact_header(name, value),
                 "request header"
             );
         }
@@ -214,7 +214,7 @@ impl<T: HttpTransport> RunMachine<T> {
                     tracing::debug!(
                         step_id = %step.id,
                         header = %name,
-                        value = %self.context.redact(value),
+                        value = %self.context.redact_header(name, value),
                         "response header"
                     );
                 }
@@ -696,10 +696,24 @@ impl RunContext {
             .values()
             .chain(self.outputs.values())
             .filter(|value| value.sensitive)
-            .map(|value| value_as_text(&value.value))
+            .flat_map(|value| {
+                let raw = value_as_text(&value.value);
+                let encoded = if raw.is_empty() {
+                    String::new()
+                } else {
+                    serde_json::to_string(&value.value).unwrap_or_default()
+                };
+                let unquoted =
+                    if encoded.len() >= 2 && encoded.starts_with('"') && encoded.ends_with('"') {
+                        encoded[1..encoded.len() - 1].to_string()
+                    } else {
+                        String::new()
+                    };
+                [raw, encoded, unquoted]
+            })
             .filter(|value| !value.is_empty())
             .collect::<Vec<_>>();
-        secrets.sort_by_key(|value| std::cmp::Reverse(value.len()));
+        secrets.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
         secrets.dedup();
 
         secrets
@@ -707,6 +721,84 @@ impl RunContext {
             .fold(message.to_owned(), |redacted, secret| {
                 redacted.replace(&secret, "[REDACTED]")
             })
+    }
+
+    fn redact_header(&self, name: &str, value: &str) -> String {
+        if is_sensitive_name(name) {
+            "[REDACTED]".to_string()
+        } else {
+            self.redact(value)
+        }
+    }
+
+    fn redact_url(&self, url: &str) -> String {
+        let sanitized = sanitize_url_for_log(url);
+        self.redact(&sanitized)
+    }
+}
+
+fn is_sensitive_name(name: &str) -> bool {
+    let compact_name: String = name
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect();
+    matches!(
+        compact_name.as_str(),
+        "authorization"
+            | "proxyauthorization"
+            | "cookie"
+            | "cookies"
+            | "setcookie"
+            | "apikey"
+            | "session"
+            | "sessionid"
+    ) || compact_name.contains("token")
+        || compact_name.contains("secret")
+        || compact_name.contains("password")
+        || compact_name.contains("credential")
+        || compact_name.contains("apikey")
+}
+
+fn sanitize_url_for_log(value: &str) -> String {
+    if let Ok(url) = url::Url::parse(value) {
+        if let Some(host) = url.host_str() {
+            let mut output = format!("{}://{host}", url.scheme());
+            if let Some(port) = url.port() {
+                output.push_str(&format!(":{port}"));
+            }
+            output.push_str(url.path());
+            sanitize_query_and_fragment(&url, &mut output);
+            return output;
+        }
+    } else if let Ok(base) = url::Url::parse("http://dummy.invalid") {
+        if let Ok(url) = base.join(value) {
+            let mut output = url.path().to_string();
+            sanitize_query_and_fragment(&url, &mut output);
+            return output;
+        }
+    }
+    value.to_string()
+}
+
+fn sanitize_query_and_fragment(url: &url::Url, output: &mut String) {
+    let query = url
+        .query_pairs()
+        .map(|(name, value)| {
+            let value = if is_sensitive_name(&name) {
+                "[REDACTED]".to_string()
+            } else {
+                value.into_owned()
+            };
+            format!("{name}={value}")
+        })
+        .collect::<Vec<_>>();
+    if !query.is_empty() {
+        output.push('?');
+        output.push_str(&query.join("&"));
+    }
+    if url.fragment().is_some() {
+        output.push_str("#[REDACTED]");
     }
 }
 
@@ -754,4 +846,117 @@ fn bind_inputs(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContext, Flo
         inputs,
         outputs: BTreeMap::new(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_url_for_log_userinfo_and_query() {
+        let url = "https://user:secretpass@example.com/api/v1/users?token=super_secret&page=2&api_key=key123&name=john";
+        let sanitized = sanitize_url_for_log(url);
+        assert_eq!(
+            sanitized,
+            "https://example.com/api/v1/users?token=[REDACTED]&page=2&api_key=[REDACTED]&name=john"
+        );
+        assert!(!sanitized.contains("secretpass"));
+        assert!(!sanitized.contains("user:"));
+        assert!(!sanitized.contains("super_secret"));
+        assert!(!sanitized.contains("key123"));
+    }
+
+    #[test]
+    fn test_sanitize_url_for_log_fragments_and_relative() {
+        let url_with_frag = "https://example.com/docs#sensitive_anchor";
+        assert_eq!(
+            sanitize_url_for_log(url_with_frag),
+            "https://example.com/docs#[REDACTED]"
+        );
+
+        let relative = "/api/v1/search?secret_token=topsecret&q=rust";
+        assert_eq!(
+            sanitize_url_for_log(relative),
+            "/api/v1/search?secret_token=[REDACTED]&q=rust"
+        );
+    }
+
+    #[test]
+    fn test_redact_json_escaped_secret() {
+        let mut inputs = BTreeMap::new();
+        inputs.insert(
+            "password".to_string(),
+            BoundValue {
+                value: Value::String("p\"a\\s:s".to_string()),
+                sensitive: true,
+            },
+        );
+        let context = RunContext {
+            inputs,
+            outputs: BTreeMap::new(),
+        };
+
+        // Raw occurrence
+        let raw_text = "The password is p\"a\\s:s";
+        assert_eq!(context.redact(raw_text), "The password is [REDACTED]");
+
+        // Serialized as full JSON field
+        let json_body = r#"{"user":"alice","password":"p\"a\\s:s"}"#;
+        assert_eq!(
+            context.redact(json_body),
+            r#"{"user":"alice","password":[REDACTED]}"#
+        );
+
+        // Substring inside a JSON string
+        let nested_json = r#"{"note":"Your secret was p\"a\\s:s, please remember"}"#;
+        assert_eq!(
+            context.redact(nested_json),
+            r#"{"note":"Your secret was [REDACTED], please remember"}"#
+        );
+    }
+
+    #[test]
+    fn test_redact_url_with_sensitive_context_values() {
+        let mut inputs = BTreeMap::new();
+        inputs.insert(
+            "tenant".to_string(),
+            BoundValue {
+                value: Value::String("tenant_private_123".to_string()),
+                sensitive: true,
+            },
+        );
+        let context = RunContext {
+            inputs,
+            outputs: BTreeMap::new(),
+        };
+
+        let url =
+            "https://admin:pass@example.com/api/tenant_private_123/list?token=tok789&limit=10";
+        let redacted = context.redact_url(url);
+        assert_eq!(
+            redacted,
+            "https://example.com/api/[REDACTED]/list?token=[REDACTED]&limit=10"
+        );
+    }
+
+    #[test]
+    fn test_redact_header() {
+        let context = RunContext {
+            inputs: BTreeMap::new(),
+            outputs: BTreeMap::new(),
+        };
+        assert_eq!(
+            context.redact_header("Authorization", "Bearer secret123"),
+            "[REDACTED]"
+        );
+        assert_eq!(
+            context.redact_header("x-api-key", "key-value"),
+            "[REDACTED]"
+        );
+        assert_eq!(context.redact_header("Cookie", "session=xyz"), "[REDACTED]");
+        assert_eq!(
+            context.redact_header("Content-Type", "application/json"),
+            "application/json"
+        );
+    }
 }

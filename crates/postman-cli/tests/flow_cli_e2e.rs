@@ -78,7 +78,7 @@ fn flow_file_drives_real_transport_and_produces_json_report() {
     checks:
     - kind: status
       equals: 200
-    - kind: jsonpath_template
+    - kind: jsonpath
       path: $.status
       equals:
         literal: created
@@ -192,7 +192,7 @@ fn flow_assertion_failure_returns_exit_code_one() {
         - input: host
         - literal: /status
     checks:
-    - kind: jsonpath_template
+    - kind: jsonpath
       path: $.code
       equals:
         literal: '200'

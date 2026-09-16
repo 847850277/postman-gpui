@@ -3,8 +3,8 @@ mod compile;
 use futures::StreamExt;
 use postman_flow::{
     execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
-    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
-    TextTemplate,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport,
+    TemplatePart, TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -78,29 +78,26 @@ pub(crate) fn httpbingo_definition() -> FlowDefinition {
                     TextTemplate::literal("Content-Type"),
                     TextTemplate::literal("application/json"),
                 )
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal("{\"client\":\""),
-                    TemplatePart::input("client"),
-                    TemplatePart::literal("\",\"correlation_id\":\""),
-                    TemplatePart::step_output("generate-correlation-id", "correlation_id"),
-                    TemplatePart::literal("\"}"),
+                .json_value_body(JsonTemplate::object([
+                    ("client", JsonTemplate::input("client")),
+                    (
+                        "correlation_id",
+                        JsonTemplate::step_output("generate-correlation-id", "correlation_id"),
+                    ),
                 ])),
             )
             .check(ResponseCheck::StatusEquals(200))
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.method".to_owned(),
-                expected: TextTemplate::literal("POST"),
+                expected: JsonTemplate::literal("POST"),
             })
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.client".to_owned(),
-                expected: TextTemplate::parts([TemplatePart::input("client")]),
+                expected: JsonTemplate::input("client"),
             })
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.correlation_id".to_owned(),
-                expected: TextTemplate::parts([TemplatePart::step_output(
-                    "generate-correlation-id",
-                    "correlation_id",
-                )]),
+                expected: JsonTemplate::step_output("generate-correlation-id", "correlation_id"),
             }),
         ],
         outputs: Vec::new(),

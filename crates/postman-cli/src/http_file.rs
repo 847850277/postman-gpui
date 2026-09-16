@@ -26,11 +26,16 @@ impl HttpFile {
         let mut seen_ids = BTreeSet::new();
         for (i, request) in self.requests.iter().enumerate() {
             let line = request.source_line;
-            let step_id = if request.name.is_empty() || seen_ids.contains(&request.name) {
+            let mut step_id = if request.name.is_empty() || seen_ids.contains(&request.name) {
                 format!("step_{}", i + 1)
             } else {
                 request.name.clone()
             };
+            let mut suffix = i + 1;
+            while seen_ids.contains(&step_id) {
+                suffix += 1;
+                step_id = format!("step_{suffix}");
+            }
             seen_ids.insert(step_id.clone());
             let step_name = step_id.clone();
 
@@ -1087,5 +1092,24 @@ GET https://example.com/three/{{id}}
                 TemplatePart::step_output("second", "id"),
             ]
         );
+    }
+
+    #[test]
+    fn generated_step_ids_do_not_collide_with_explicit_names() {
+        let file = parse_http_file(
+            r#"
+### step_2
+GET https://example.com/one
+
+### step_2
+GET https://example.com/two
+"#,
+        )
+        .expect("collision fixture should parse");
+        let flow = file
+            .to_flow_definition()
+            .expect("fallback step ID must not collide with explicit step_2");
+        assert_eq!(flow.steps[0].id, "step_2");
+        assert_eq!(flow.steps[1].id, "step_3");
     }
 }

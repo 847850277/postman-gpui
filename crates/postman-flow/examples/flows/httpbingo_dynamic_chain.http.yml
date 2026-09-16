@@ -74,23 +74,23 @@ flow:
         output:
           name: id
           step: allocate-order-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.order_id
     - equals:
         input: customer
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.customer
     - equals:
         input: quantity
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.quantity
     - equals:
         input: amount_minor
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.amount_minor
     - equals:
         input: metadata
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.metadata
     exports:
     - name: order_id
@@ -172,19 +172,19 @@ flow:
         output:
           name: order_id
           step: order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.order_id
     - equals:
         output:
           name: amount_minor
           step: order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.amount_minor
     - equals:
         output:
           name: id
           step: allocate-payment-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.payment_id
     exports:
     - name: payment_id
@@ -264,19 +264,19 @@ flow:
         output:
           name: order_id
           step: order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.order_id
     - equals:
         output:
           name: payment_id
           step: payment
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.payment_id
     - equals:
         output:
           name: id
           step: allocate-receipt-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.receipt_id
     exports:
     - name: receipt_id
@@ -332,41 +332,41 @@ flow:
         output:
           name: document
           step: order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.order
     - equals:
         output:
           name: document
           step: payment
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.payment
     - equals:
         output:
           name: document
           step: settlement
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.settlement
     - equals:
         output:
           name: id
           step: allocate-order-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.settlement.order_id
     - equals:
         output:
           name: id
           step: allocate-payment-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.settlement.payment_id
     - equals:
         output:
           name: id
           step: allocate-receipt-id
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.settlement.receipt_id
     - equals:
         input: address
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.address
     id: dispatch
     name: dispatch

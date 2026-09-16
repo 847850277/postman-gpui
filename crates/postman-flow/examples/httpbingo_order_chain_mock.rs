@@ -3,8 +3,8 @@ mod compile;
 use futures::StreamExt;
 use postman_flow::{
     execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
-    HttpRequestTemplate, HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart,
-    TextTemplate,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport,
+    TemplatePart, TextTemplate,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -144,13 +144,10 @@ pub(crate) fn order_business_chain_definition() -> FlowDefinition {
                     TextTemplate::literal("Content-Type"),
                     TextTemplate::literal("application/json"),
                 )
-                // 模拟查询条件，并生成一个模拟订单号 "ORD-2026-999"
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal(r#"{"customer":""#),
-                    TemplatePart::input("customer"),
-                    TemplatePart::literal(r#"","school":""#),
-                    TemplatePart::input("school"),
-                    TemplatePart::literal(r#"","order_id":"ORD-2026-999"}"#),
+                .json_value_body(JsonTemplate::object([
+                    ("customer", JsonTemplate::input("customer")),
+                    ("school", JsonTemplate::input("school")),
+                    ("order_id", JsonTemplate::literal("ORD-2026-999")),
                 ])),
             )
             .check(ResponseCheck::StatusEquals(200))
@@ -181,31 +178,25 @@ pub(crate) fn order_business_chain_definition() -> FlowDefinition {
                     TextTemplate::literal("Content-Type"),
                     TextTemplate::literal("application/json"),
                 )
-                // 关键：Body 组合步骤 2 导出的 target_order_id、输入的 school、输入的 customer
-                .json_body(TextTemplate::parts([
-                    TemplatePart::literal(r#"{"source_order_id":""#),
-                    TemplatePart::step_output("step-filter-orders", "target_order_id"),
-                    TemplatePart::literal(r#"","target_school":""#),
-                    TemplatePart::input("school"),
-                    TemplatePart::literal(r#"","customer_name":""#),
-                    TemplatePart::input("customer"),
-                    TemplatePart::literal(r#""}"#),
+                .json_value_body(JsonTemplate::object([
+                    (
+                        "source_order_id",
+                        JsonTemplate::step_output("step-filter-orders", "target_order_id"),
+                    ),
+                    ("target_school", JsonTemplate::input("school")),
+                    ("customer_name", JsonTemplate::input("customer")),
                 ])),
             )
             // 断言 1：状态码必须为 200
             .check(ResponseCheck::StatusEquals(200))
             // 断言 2：验证步骤 2 的订单号是否正确注入到步骤 3 的请求体中
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.source_order_id".to_owned(),
-                expected: TextTemplate::parts([TemplatePart::step_output(
-                    "step-filter-orders",
-                    "target_order_id",
-                )]),
+                expected: JsonTemplate::step_output("step-filter-orders", "target_order_id"),
             })
-            // 断言 3：验证学校是否正确注入
-            .check(ResponseCheck::JsonPathEquals {
+            .check(ResponseCheck::JsonValueEquals {
                 path: "$.json.target_school".to_owned(),
-                expected: TextTemplate::parts([TemplatePart::input("school")]),
+                expected: JsonTemplate::input("school"),
             }),
         ],
         outputs: Vec::new(),

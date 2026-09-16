@@ -4,9 +4,7 @@
 
 mod support;
 
-use postman_flow::{
-    FlowDefinition, FlowInputSpec, FlowInputs, JsonTemplate, ResponseExport, TemplatePart,
-};
+use postman_flow::{FlowDefinition, FlowInputSpec, FlowInputs, JsonTemplate, ResponseExport};
 use postman_http::request::HttpMethod;
 use serde_json::{json, Value};
 
@@ -79,7 +77,7 @@ pub(crate) fn json_values_definition() -> FlowDefinition {
     );
     for name in FIELDS {
         first = first
-            .check(equals(&format!("$.json.{name}"), TemplatePart::input(name)))
+            .check(equals(&format!("$.json.{name}"), JsonTemplate::input(name)))
             .export(ResponseExport::json(name, format!("$.json.{name}")));
     }
     first = first.export(ResponseExport::json("document", "$.json"));
@@ -123,18 +121,18 @@ pub(crate) fn json_values_definition() -> FlowDefinition {
     )
     .check(equals(
         "$.json.document",
-        TemplatePart::step_output("send-values", "document"),
+        JsonTemplate::step_output("send-values", "document"),
     ))
-    .check(equals("$.json.nested[0]", TemplatePart::input("integer")))
-    .check(equals("$.json.nested[1].text", TemplatePart::input("text")))
+    .check(equals("$.json.nested[0]", JsonTemplate::input("integer")))
+    .check(equals("$.json.nested[1].text", JsonTemplate::input("text")))
     .check(equals(
         "$.json.nested[1].optional",
-        TemplatePart::input("optional"),
+        JsonTemplate::input("optional"),
     ));
     for name in FIELDS {
         second = second.check(equals(
             &format!("$.json.fields.{name}"),
-            TemplatePart::input(name),
+            JsonTemplate::input(name),
         ));
     }
 
@@ -150,7 +148,7 @@ pub(crate) fn json_values_definition() -> FlowDefinition {
 mod tests {
     use postman_flow::{
         compile_flow, ApiCatalog, BodyTemplate, CompileEnvironment, FlowEvent, StepOutcome,
-        TextTemplate,
+        TemplatePart, TextTemplate,
     };
 
     use super::*;
@@ -217,7 +215,7 @@ mod tests {
                         "/anything/root",
                         JsonTemplate::input("value"),
                     )
-                    .check(equals("$.json", TemplatePart::input("value")))
+                    .check(equals("$.json", JsonTemplate::input("value")))
                     .export(ResponseExport::json("value", "$.json")),
                     json_request(
                         "copy",
@@ -225,7 +223,7 @@ mod tests {
                         "/anything/root-copy",
                         JsonTemplate::step_output("seed", "value"),
                     )
-                    .check(equals("$.json", TemplatePart::input("value"))),
+                    .check(equals("$.json", JsonTemplate::input("value"))),
                 ],
                 outputs: Vec::new(),
             };

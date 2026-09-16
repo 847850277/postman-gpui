@@ -41,12 +41,19 @@ flow:
     name: 2. 创建交易草稿订单
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"buyer_id":"'
-          - input: user_id
-          - literal: '","sku_id":"SKU-IPHONE-16","quantity":1,"order_id":"ORD-2026-9001","amount":"7999.00"}'
+          object:
+            amount:
+              literal: '7999.00'
+            buyer_id:
+              input: user_id
+            order_id:
+              literal: ORD-2026-9001
+            quantity:
+              literal: 1
+            sku_id:
+              literal: SKU-IPHONE-16
       headers:
       - name:
           literal: Authorization
@@ -73,7 +80,7 @@ flow:
         output:
           name: draft_order_id
           step: step-2-create-draft-order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.target_order_id
     exports:
     - name: payment_txn_id
@@ -84,18 +91,23 @@ flow:
     name: 3. 根据草稿订单发起支付申请
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"target_order_id":"'
-          - output:
-              name: draft_order_id
-              step: step-2-create-draft-order
-          - literal: '","pay_amount":"'
-          - output:
-              name: total_amount
-              step: step-2-create-draft-order
-          - literal: '","channel":"ALIPAY","gateway_txn_id":"TXN-PAY-556677","signature":"SIG-SEC-XYZ999"}'
+          object:
+            channel:
+              literal: ALIPAY
+            gateway_txn_id:
+              literal: TXN-PAY-556677
+            pay_amount:
+              output:
+                name: total_amount
+                step: step-2-create-draft-order
+            signature:
+              literal: SIG-SEC-XYZ999
+            target_order_id:
+              output:
+                name: draft_order_id
+                step: step-2-create-draft-order
       headers:
       - name:
           literal: Authorization
@@ -122,7 +134,7 @@ flow:
         output:
           name: payment_txn_id
           step: step-3-create-payment-txn
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.txn_id
     exports:
     - name: clearing_receipt_no
@@ -131,18 +143,21 @@ flow:
     name: 4. 凭支付流水与签名提交银行清算核销
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"txn_id":"'
-          - output:
-              name: payment_txn_id
-              step: step-3-create-payment-txn
-          - literal: '","verify_sign":"'
-          - output:
-              name: pay_signature
-              step: step-3-create-payment-txn
-          - literal: '","receipt_no":"RCPT-BANK-2026-8888","clear_status":"CLEARED"}'
+          object:
+            clear_status:
+              literal: CLEARED
+            receipt_no:
+              literal: RCPT-BANK-2026-8888
+            txn_id:
+              output:
+                name: payment_txn_id
+                step: step-3-create-payment-txn
+            verify_sign:
+              output:
+                name: pay_signature
+                step: step-3-create-payment-txn
       headers:
       - name:
           literal: Content-Type
@@ -161,42 +176,41 @@ flow:
         output:
           name: draft_order_id
           step: step-2-create-draft-order
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.order_id
     - equals:
         output:
           name: payment_txn_id
           step: step-3-create-payment-txn
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.payment_txn_id
     - equals:
         output:
           name: clearing_receipt_no
           step: step-4-confirm-payment
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.receipt_no
     id: step-5-fulfillment-dispatch
     name: 5. 汇总全链路单据，通知仓库发货
     request:
       body:
-        kind: json_template
+        kind: json
         value:
-          concat:
-          - literal: '{"order_id":"'
-          - output:
-              name: draft_order_id
-              step: step-2-create-draft-order
-          - literal: '","payment_txn_id":"'
-          - output:
-              name: payment_txn_id
-              step: step-3-create-payment-txn
-          - literal: '","receipt_no":"'
-          - output:
-              name: clearing_receipt_no
-              step: step-4-confirm-payment
-          - literal: '","destination":"'
-          - input: shipping_address
-          - literal: '"}'
+          object:
+            destination:
+              input: shipping_address
+            order_id:
+              output:
+                name: draft_order_id
+                step: step-2-create-draft-order
+            payment_txn_id:
+              output:
+                name: payment_txn_id
+                step: step-3-create-payment-txn
+            receipt_no:
+              output:
+                name: clearing_receipt_no
+                step: step-4-confirm-payment
       headers:
       - name:
           literal: Authorization

@@ -39,43 +39,43 @@ flow:
       kind: status
     - equals:
         input: text
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.text
     - equals:
         input: integer
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.integer
     - equals:
         input: decimal
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.decimal
     - equals:
         input: enabled
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.enabled
     - equals:
         input: optional
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.optional
     - equals:
         input: object
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.object
     - equals:
         input: array
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.array
     - equals:
         input: numeric_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.numeric_string
     - equals:
         input: boolean_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.boolean_string
     - equals:
         input: null_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.null_string
     exports:
     - name: text
@@ -149,59 +149,59 @@ flow:
         output:
           name: document
           step: send-values
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.document
     - equals:
         input: integer
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.nested[0]
     - equals:
         input: text
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.nested[1].text
     - equals:
         input: optional
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.nested[1].optional
     - equals:
         input: text
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.text
     - equals:
         input: integer
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.integer
     - equals:
         input: decimal
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.decimal
     - equals:
         input: enabled
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.enabled
     - equals:
         input: optional
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.optional
     - equals:
         input: object
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.object
     - equals:
         input: array
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.array
     - equals:
         input: numeric_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.numeric_string
     - equals:
         input: boolean_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.boolean_string
     - equals:
         input: null_string
-      kind: jsonpath_template
+      kind: jsonpath
       path: $.json.fields.null_string
     id: reuse-values
     name: reuse-values

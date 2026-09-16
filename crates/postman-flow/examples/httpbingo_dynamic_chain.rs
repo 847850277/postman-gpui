@@ -82,15 +82,15 @@ pub(crate) fn dynamic_chain_definition() -> FlowDefinition {
             )
             .check(equals(
                 "$.json.order_id",
-                TemplatePart::step_output("allocate-order-id", "id"),
+                JsonTemplate::step_output("allocate-order-id", "id"),
             ))
-            .check(equals("$.json.customer", TemplatePart::input("customer")))
-            .check(equals("$.json.quantity", TemplatePart::input("quantity")))
+            .check(equals("$.json.customer", JsonTemplate::input("customer")))
+            .check(equals("$.json.quantity", JsonTemplate::input("quantity")))
             .check(equals(
                 "$.json.amount_minor",
-                TemplatePart::input("amount_minor"),
+                JsonTemplate::input("amount_minor"),
             ))
-            .check(equals("$.json.metadata", TemplatePart::input("metadata")))
+            .check(equals("$.json.metadata", JsonTemplate::input("metadata")))
             .export(ResponseExport::json("order_id", "$.json.order_id"))
             .export(ResponseExport::json("amount_minor", "$.json.amount_minor"))
             .export(ResponseExport::json("document", "$.json")),
@@ -112,15 +112,15 @@ pub(crate) fn dynamic_chain_definition() -> FlowDefinition {
             )
             .check(equals(
                 "$.json.order_id",
-                TemplatePart::step_output("order", "order_id"),
+                JsonTemplate::step_output("order", "order_id"),
             ))
             .check(equals(
                 "$.json.amount_minor",
-                TemplatePart::step_output("order", "amount_minor"),
+                JsonTemplate::step_output("order", "amount_minor"),
             ))
             .check(equals(
                 "$.json.payment_id",
-                TemplatePart::step_output("allocate-payment-id", "id"),
+                JsonTemplate::step_output("allocate-payment-id", "id"),
             ))
             .export(ResponseExport::json("payment_id", "$.json.payment_id"))
             .export(ResponseExport::json("document", "$.json")),
@@ -142,15 +142,15 @@ pub(crate) fn dynamic_chain_definition() -> FlowDefinition {
             )
             .check(equals(
                 "$.json.order_id",
-                TemplatePart::step_output("order", "order_id"),
+                JsonTemplate::step_output("order", "order_id"),
             ))
             .check(equals(
                 "$.json.payment_id",
-                TemplatePart::step_output("payment", "payment_id"),
+                JsonTemplate::step_output("payment", "payment_id"),
             ))
             .check(equals(
                 "$.json.receipt_id",
-                TemplatePart::step_output("allocate-receipt-id", "id"),
+                JsonTemplate::step_output("allocate-receipt-id", "id"),
             ))
             .export(ResponseExport::json("receipt_id", "$.json.receipt_id"))
             .export(ResponseExport::json("document", "$.json")),
@@ -169,29 +169,29 @@ pub(crate) fn dynamic_chain_definition() -> FlowDefinition {
             )
             .check(equals(
                 "$.json.order",
-                TemplatePart::step_output("order", "document"),
+                JsonTemplate::step_output("order", "document"),
             ))
             .check(equals(
                 "$.json.payment",
-                TemplatePart::step_output("payment", "document"),
+                JsonTemplate::step_output("payment", "document"),
             ))
             .check(equals(
                 "$.json.settlement",
-                TemplatePart::step_output("settlement", "document"),
+                JsonTemplate::step_output("settlement", "document"),
             ))
             .check(equals(
                 "$.json.settlement.order_id",
-                TemplatePart::step_output("allocate-order-id", "id"),
+                JsonTemplate::step_output("allocate-order-id", "id"),
             ))
             .check(equals(
                 "$.json.settlement.payment_id",
-                TemplatePart::step_output("allocate-payment-id", "id"),
+                JsonTemplate::step_output("allocate-payment-id", "id"),
             ))
             .check(equals(
                 "$.json.settlement.receipt_id",
-                TemplatePart::step_output("allocate-receipt-id", "id"),
+                JsonTemplate::step_output("allocate-receipt-id", "id"),
             ))
-            .check(equals("$.json.address", TemplatePart::input("address"))),
+            .check(equals("$.json.address", JsonTemplate::input("address"))),
         ],
         outputs: Vec::new(),
     }
