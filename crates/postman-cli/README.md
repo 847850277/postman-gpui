@@ -4,6 +4,28 @@
 `postman-g`. Both file kinds compile to a `postman-flow` plan and run through the shared
 `postman-http` / `postman-request` transport.
 
+## Installation
+
+### One-line installer (macOS & Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh | bash
+```
+
+### Install with Cargo
+
+```bash
+# Install from GitHub repository
+cargo install --git https://github.com/847850277/postman-gpui postman-cli --bin postman-g
+
+# Or install from local workspace
+cargo install --path crates/postman-cli --bin postman-g
+```
+
+### Prebuilt binaries
+
+Download standalone `postman-g` binaries from [GitHub Releases](https://github.com/847850277/postman-gpui/releases).
+
 Run the checked-in HTTPBingo capability matrix:
 
 ```bash
