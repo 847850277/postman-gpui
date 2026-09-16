@@ -1,0 +1,92 @@
+@host = https://httpbingo.org
+
+### JSON request body
+# @assert status == 200
+# @assert jsonpath "$.json.client" == "postman-cli"
+# @assert jsonpath "$.json.count" == 2
+POST {{host}}/anything/body-json
+Content-Type: application/json
+
+{"client":"postman-cli","count":2}
+
+### Raw request body
+# @assert status == 200
+# @assert jsonpath "$.data" == "raw-headless-payload"
+POST {{host}}/anything/body-raw
+Content-Type: text/plain; charset=utf-8
+
+raw-headless-payload
+
+### URL encoded form
+# @assert status == 200
+# @assert jsonpath "$.form.project[0]" == "postman-gpui"
+# @assert jsonpath "$.form.mode[0]" == "headless"
+POST {{host}}/post
+Content-Type: application/x-www-form-urlencoded
+
+project=postman-gpui&mode=headless
+
+### HTML form fixture
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+# @assert body contains "action=\"/post\""
+GET {{host}}/forms/post
+
+### JSON response
+# @assert status == 200
+# @assert header "content-type" contains "application/json"
+# @assert jsonpath "$.slideshow.title" == "Sample Slide Show"
+GET {{host}}/json
+
+### XML response
+# @assert status == 200
+# @assert header "content-type" contains "application/xml"
+# @assert body contains "slideshow"
+GET {{host}}/xml
+
+### HTML response
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+# @assert body contains "Herman Melville"
+GET {{host}}/html
+
+### UTF-8 response
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+# @assert body contains "UTF-8"
+GET {{host}}/encoding/utf8
+
+### Base64 compatibility decode endpoint
+# @assert status == 200
+# @assert body contains "headless-matrix"
+GET {{host}}/base64/aGVhZGxlc3MtbWF0cml4
+
+### Explicit Base64 decode endpoint
+# @assert status == 200
+# @assert body contains "headless-matrix"
+GET {{host}}/base64/decode/aGVhZGxlc3MtbWF0cml4
+
+### Base64 encode endpoint
+# @assert status == 200
+# @assert body contains "aGVhZGxlc3MtbWF0cml4"
+GET {{host}}/base64/encode/headless-matrix
+
+### Generated links
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+# @assert body contains "/links/2/1"
+GET {{host}}/links/2/0
+
+### Generated links with default offset
+# @assert status == 200
+# @assert header "content-type" contains "text/html"
+# @assert body contains "/links/2/1"
+GET {{host}}/links/2
+
+### Raw upload endpoint
+# @assert status == 200
+# @assert jsonpath "$.method" == "POST"
+POST {{host}}/upload
+Content-Type: text/plain
+
+headless-upload

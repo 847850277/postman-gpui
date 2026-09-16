@@ -1,0 +1,89 @@
+@host = https://httpbingo.org
+
+### Empty status response
+# @assert status == 204
+GET {{host}}/status/204
+
+### Non-success status response
+# @assert status == 418
+GET {{host}}/status/418
+
+### Dynamic response header
+# @assert status == 200
+# @assert header "x-e2e" contains "matrix"
+GET {{host}}/response-headers?X-E2E=matrix
+
+### Cacheable response
+# @assert status == 200
+# @assert header "cache-control" contains "max-age=60"
+GET {{host}}/cache/60
+
+### Generic cache validation endpoint
+# @assert status == 200
+# @assert header "last-modified" exists
+# @assert header "etag" exists
+GET {{host}}/cache
+
+### Generic cache conditional response
+# @assert status == 304
+GET {{host}}/cache
+If-None-Match: headless-cache-probe
+
+### ETag response
+# @assert status == 200
+# @assert header "etag" contains "headless-etag"
+GET {{host}}/etag/headless-etag
+
+### Conditional ETag response
+# @assert status == 304
+GET {{host}}/etag/headless-etag
+If-None-Match: "headless-etag"
+
+### ASCII byte range
+# @assert status == 206
+# @assert header "content-range" contains "bytes 10-19/64"
+# @assert body contains "klmnopqrst"
+GET {{host}}/range/64
+Range: bytes=10-19
+
+### Robots policy
+# @assert status == 200
+# @assert body contains "User-agent"
+GET {{host}}/robots.txt
+
+### Deny policy fixture
+# @assert status == 200
+# @assert body contains "YOU SHOULDN'T BE HERE"
+GET {{host}}/deny
+
+### Hostname diagnostics
+# @assert status == 200
+# @assert body contains "hostname"
+GET {{host}}/hostname
+
+### Origin diagnostics
+# @assert status == 200
+# @assert body contains "origin"
+GET {{host}}/ip
+
+### Server environment diagnostics
+# @assert status == 200
+# @assert jsonpath "$.env" == null
+GET {{host}}/env
+
+### Raw request dump
+# @assert status == 200
+# @assert body contains "/dump/request"
+GET {{host}}/dump/request
+X-Dump-Marker: matrix
+
+### UUID response shape
+# @assert status == 200
+# @assert header "content-type" contains "application/json"
+# @assert body contains "uuid"
+GET {{host}}/uuid
+
+### Service version
+# @assert status == 200
+# @assert jsonpath "$.service" == "go-httpbin"
+GET {{host}}/version
