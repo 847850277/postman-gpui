@@ -1,11 +1,292 @@
-use std::{collections::BTreeMap, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
+use postman_flow::{
+    BodyTemplate, FlowDefinition, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
+    HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart, TextTemplate, ValueReference,
+};
+pub use postman_flow::{ExpectedError, RequestOptionOverrides};
 use postman_http::request::{HttpMethod, RedirectPolicy, RequestBody, MAX_REDIRECT_HOPS};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpFile {
     pub variables: BTreeMap<String, String>,
     pub requests: Vec<HttpFileRequest>,
+}
+
+impl HttpFile {
+    pub fn to_flow_definition(&self) -> Result<FlowDefinition, ParseError> {
+        let mut captured = BTreeMap::new();
+        let mut referenced_inputs = BTreeSet::new();
+        let mut steps = Vec::with_capacity(self.requests.len());
+        let mut outputs = BTreeMap::new();
+
+        let mut seen_ids = BTreeSet::new();
+        for (i, request) in self.requests.iter().enumerate() {
+            let line = request.source_line;
+            let step_id = if request.name.is_empty() || seen_ids.contains(&request.name) {
+                format!("step_{}", i + 1)
+            } else {
+                request.name.clone()
+            };
+            seen_ids.insert(step_id.clone());
+            let step_name = step_id.clone();
+
+            let url = parse_text_template(
+                &request.url,
+                &captured,
+                &self.variables,
+                &mut referenced_inputs,
+                &mut Vec::new(),
+                line,
+            )?;
+            let mut template = HttpRequestTemplate::new(request.method, url);
+            for (h_name, h_val) in &request.headers {
+                template = template.header(
+                    parse_text_template(
+                        h_name,
+                        &captured,
+                        &self.variables,
+                        &mut referenced_inputs,
+                        &mut Vec::new(),
+                        line,
+                    )?,
+                    parse_text_template(
+                        h_val,
+                        &captured,
+                        &self.variables,
+                        &mut referenced_inputs,
+                        &mut Vec::new(),
+                        line,
+                    )?,
+                );
+            }
+
+            template.body = match &request.body {
+                RequestBody::None => BodyTemplate::None,
+                RequestBody::Json(raw) => BodyTemplate::Json(parse_text_template(
+                    raw,
+                    &captured,
+                    &self.variables,
+                    &mut referenced_inputs,
+                    &mut Vec::new(),
+                    line,
+                )?),
+                RequestBody::Raw(raw) => BodyTemplate::Raw(parse_text_template(
+                    raw,
+                    &captured,
+                    &self.variables,
+                    &mut referenced_inputs,
+                    &mut Vec::new(),
+                    line,
+                )?),
+                RequestBody::UrlEncoded(raw) => BodyTemplate::UrlEncoded(parse_text_template(
+                    raw,
+                    &captured,
+                    &self.variables,
+                    &mut referenced_inputs,
+                    &mut Vec::new(),
+                    line,
+                )?),
+                RequestBody::Multipart(_) => {
+                    return Err(ParseError::new(
+                        line,
+                        "parsed multipart parts are not supported by the first headless slice",
+                    ));
+                }
+            };
+
+            template.options = request.options;
+
+            let mut step = HttpStepDefinition::new(&step_id, step_name, template);
+
+            for assertion in &request.assertions {
+                let check = match assertion {
+                    Assertion::StatusEquals(status) => ResponseCheck::StatusEquals(*status),
+                    Assertion::RedirectsEquals(count) => ResponseCheck::RedirectsEquals(*count),
+                    Assertion::ErrorEquals(err) => ResponseCheck::ErrorEquals(*err),
+                    Assertion::HeaderExists { name } => {
+                        ResponseCheck::HeaderExists { name: name.clone() }
+                    }
+                    Assertion::HeaderContains { name, expected } => {
+                        let expected_str = strip_surrounding_quotes(expected);
+                        ResponseCheck::HeaderContains {
+                            name: name.clone(),
+                            expected: parse_text_template(
+                                expected_str,
+                                &captured,
+                                &self.variables,
+                                &mut referenced_inputs,
+                                &mut Vec::new(),
+                                line,
+                            )?,
+                        }
+                    }
+                    Assertion::BodyContains { expected } => {
+                        let expected_str = strip_surrounding_quotes(expected);
+                        ResponseCheck::BodyContains {
+                            expected: parse_text_template(
+                                expected_str,
+                                &captured,
+                                &self.variables,
+                                &mut referenced_inputs,
+                                &mut Vec::new(),
+                                line,
+                            )?,
+                        }
+                    }
+                    Assertion::JsonPathEquals { path, expected } => ResponseCheck::JsonPathEquals {
+                        path: path.clone(),
+                        expected: parse_text_template(
+                            expected,
+                            &captured,
+                            &self.variables,
+                            &mut referenced_inputs,
+                            &mut Vec::new(),
+                            line,
+                        )?,
+                    },
+                };
+                step = step.check(check);
+            }
+
+            for capture in &request.captures {
+                step = step.export(ResponseExport::json(&capture.name, &capture.path));
+                captured.insert(
+                    capture.name.clone(),
+                    (step_id.clone(), capture.name.clone()),
+                );
+                outputs.insert(
+                    capture.name.clone(),
+                    FlowOutputSpec {
+                        name: capture.name.clone(),
+                        value: ValueReference::StepOutput {
+                            step_id: step_id.clone(),
+                            name: capture.name.clone(),
+                        },
+                    },
+                );
+            }
+
+            steps.push(step);
+        }
+
+        let mut inputs = Vec::new();
+        for (k, v) in &self.variables {
+            inputs.push(FlowInputSpec::with_default(
+                k.clone(),
+                serde_json::Value::String(v.clone()),
+            ));
+        }
+        for ref_input in referenced_inputs {
+            if !self.variables.contains_key(&ref_input) {
+                inputs.push(FlowInputSpec::required(ref_input));
+            }
+        }
+
+        Ok(FlowDefinition {
+            name: "http_file".to_owned(),
+            inputs,
+            steps,
+            outputs: outputs.into_values().collect(),
+        })
+    }
+
+    pub fn into_flow_definition(self) -> Result<FlowDefinition, ParseError> {
+        self.to_flow_definition()
+    }
+}
+
+fn strip_surrounding_quotes(s: &str) -> &str {
+    let trimmed = s.trim();
+    if trimmed.len() >= 2 && trimmed.starts_with('"') && trimmed.ends_with('"') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    }
+}
+
+const MAX_VARIABLE_EXPANSION_DEPTH: usize = 16;
+
+fn parse_text_template(
+    template: &str,
+    captured: &BTreeMap<String, (String, String)>,
+    file_variables: &BTreeMap<String, String>,
+    referenced_inputs: &mut BTreeSet<String>,
+    expanding: &mut Vec<String>,
+    line: usize,
+) -> Result<TextTemplate, ParseError> {
+    if expanding.len() > MAX_VARIABLE_EXPANSION_DEPTH {
+        return Err(ParseError::new(
+            line,
+            "variable interpolation exceeded 16 expansions (possible cycle)",
+        ));
+    }
+
+    let mut parts = Vec::new();
+    let mut remaining = template;
+
+    while let Some(open) = remaining.find("{{") {
+        if open > 0 {
+            parts.push(TemplatePart::Literal(remaining[..open].to_owned()));
+        }
+        let after_open = &remaining[open + 2..];
+        let Some(close) = after_open.find("}}") else {
+            return Err(ParseError::new(line, "unclosed variable expression"));
+        };
+        let name = after_open[..close].trim();
+        if name.is_empty() {
+            return Err(ParseError::new(line, "empty variable expression"));
+        }
+
+        if let Some((step_id, export_name)) = captured.get(name) {
+            parts.push(TemplatePart::StepOutput {
+                step_id: step_id.clone(),
+                name: export_name.clone(),
+            });
+        } else if expanding.iter().any(|current| current == name) {
+            let mut cycle = expanding.clone();
+            cycle.push(name.to_owned());
+            return Err(ParseError::new(
+                line,
+                format!(
+                    "variable interpolation contains a cycle: {}",
+                    cycle.join(" -> ")
+                ),
+            ));
+        } else if let Some(value) = file_variables.get(name) {
+            if value.contains("{{") {
+                expanding.push(name.to_owned());
+                let nested = parse_text_template(
+                    value,
+                    captured,
+                    file_variables,
+                    referenced_inputs,
+                    expanding,
+                    line,
+                )?;
+                expanding.pop();
+                parts.extend(nested.parts);
+            } else {
+                referenced_inputs.insert(name.to_owned());
+                parts.push(TemplatePart::Input(name.to_owned()));
+            }
+        } else {
+            referenced_inputs.insert(name.to_owned());
+            parts.push(TemplatePart::Input(name.to_owned()));
+        }
+
+        remaining = &after_open[close + 2..];
+    }
+    if !remaining.is_empty() {
+        parts.push(TemplatePart::Literal(remaining.to_owned()));
+    }
+    if parts.is_empty() {
+        parts.push(TemplatePart::Literal(String::new()));
+    }
+    Ok(TextTemplate::parts(parts))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,24 +311,6 @@ pub enum Assertion {
     HeaderContains { name: String, expected: String },
     BodyContains { expected: String },
     JsonPathEquals { path: String, expected: String },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExpectedError {
-    Timeout,
-    RedirectLimit,
-    Network,
-    InvalidRequest,
-    InvalidResponse,
-    ResponseTooLarge,
-    Cancelled,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct RequestOptionOverrides {
-    pub timeout_ms: Option<u64>,
-    pub redirect_policy: Option<RedirectPolicy>,
-    pub max_redirect_hops: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -720,5 +983,99 @@ Accept: application/json
             let error = parse_http_file(source).expect_err("invalid option must fail parsing");
             assert!(error.message.contains(expected), "{error}");
         }
+    }
+
+    #[test]
+    fn nested_file_variables_inline_into_the_using_template() {
+        let file = parse_http_file(
+            "@base = https://example.com\n@url = {{base}}/api\nGET {{url}}/items\n",
+        )
+        .expect("nested file variables should parse");
+        let flow = file
+            .to_flow_definition()
+            .expect("nested file variables should compile to a flow");
+        let url = match &flow.steps[0].request {
+            postman_flow::HttpRequestSource::Inline(request) => &request.url,
+            postman_flow::HttpRequestSource::Api(_) => panic!("expected an inline request"),
+        };
+        assert_eq!(
+            url.parts,
+            [
+                TemplatePart::input("base"),
+                TemplatePart::literal("/api"),
+                TemplatePart::literal("/items"),
+            ]
+        );
+    }
+
+    #[test]
+    fn thirty_two_occurrences_of_a_file_variable_do_not_hit_the_nesting_limit() {
+        let template = "{{value}}".repeat(32);
+        let file = parse_http_file(&format!("@value = x\nGET https://example.com/{template}\n"))
+            .expect("repeated interpolation should parse");
+        file.to_flow_definition()
+            .expect("occurrence count is not expansion depth");
+    }
+
+    #[test]
+    fn cyclic_file_variables_fail_conversion() {
+        let file = parse_http_file("@cycle = {{cycle}}\nGET {{cycle}}\n")
+            .expect("cyclic variables should parse as source");
+        let error = file
+            .to_flow_definition()
+            .expect_err("a self-referential variable must not loop forever");
+        assert!(error.message.contains("cycle"), "{error}");
+    }
+
+    #[test]
+    fn unclosed_and_empty_expressions_fail_conversion() {
+        let unclosed = parse_http_file("GET https://example.com/{{host\n")
+            .expect("unclosed expressions should parse as source");
+        let error = unclosed
+            .to_flow_definition()
+            .expect_err("unclosed interpolation must fail conversion");
+        assert!(error.message.contains("unclosed"), "{error}");
+
+        let empty = parse_http_file("GET https://example.com/{{}}\n")
+            .expect("empty expressions should parse as source");
+        let error = empty
+            .to_flow_definition()
+            .expect_err("empty interpolation must fail conversion");
+        assert!(error.message.contains("empty"), "{error}");
+    }
+
+    #[test]
+    fn recapturing_the_same_name_keeps_the_latest_step_output() {
+        let file = parse_http_file(
+            r#"
+### first
+# @capture id = jsonpath "$.id"
+GET https://example.com/one
+
+### second
+# @capture id = jsonpath "$.id"
+GET https://example.com/two/{{id}}
+
+### third
+GET https://example.com/three/{{id}}
+"#,
+        )
+        .expect("recapture fixture should parse");
+        let flow = file
+            .to_flow_definition()
+            .expect("recapture should not produce duplicate flow outputs");
+        assert_eq!(flow.outputs.len(), 1);
+        assert_eq!(flow.outputs[0].name, "id");
+        let url = match &flow.steps[2].request {
+            postman_flow::HttpRequestSource::Inline(request) => &request.url,
+            postman_flow::HttpRequestSource::Api(_) => panic!("expected an inline request"),
+        };
+        assert_eq!(
+            url.parts,
+            [
+                TemplatePart::literal("https://example.com/three/"),
+                TemplatePart::step_output("second", "id"),
+            ]
+        );
     }
 }

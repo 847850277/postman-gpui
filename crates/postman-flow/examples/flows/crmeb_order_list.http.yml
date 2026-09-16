@@ -1,0 +1,103 @@
+flow:
+  inputs:
+  - default: https://v6.crmeb.net
+    name: host
+  - default: demo
+    name: account
+  - default: crmeb.com
+    name: pwd
+    sensitive: true
+  - default: blockPuzzle
+    name: captchaType
+  - default: ''
+    name: captchaVerification
+  name: crmeb_order_list
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: key
+      path: $.data.key
+      sensitive: true
+    id: pre-step-login
+    name: 0. 登陆前置获取key
+    request:
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /adminapi/login/info
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: token
+      path: $.data.token
+      sensitive: true
+    id: step-login
+    name: 1. 用户登录（获取 Token）
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            account:
+              input: account
+            captchaType:
+              input: captchaType
+            captchaVerification:
+              input: captchaVerification
+            key:
+              output:
+                name: key
+                step: pre-step-login
+            pwd:
+              input: pwd
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /adminapi/login
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        literal: '200'
+      kind: jsonpath_template
+      path: $.status
+    id: order-list
+    name: 2. 订单列表
+    request:
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authori-zation
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: token
+              step: step-login
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /adminapi/order/list?page=1&limit=15&status=&pay_type=&data=&real_name=&field_key=all&type=
+schema_version: 1

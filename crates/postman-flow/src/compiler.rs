@@ -161,6 +161,42 @@ pub fn compile_flow(
                         });
                     }
                 }
+                ResponseCheck::HeaderExists { name } => {
+                    if name.trim().is_empty() {
+                        compiler.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at.child("name"),
+                            "header name cannot be empty",
+                        );
+                    }
+                    checks.push(CompiledCheck::HeaderExists { name: name.clone() });
+                }
+                ResponseCheck::HeaderContains { name, expected } => {
+                    if name.trim().is_empty() {
+                        compiler.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at.child("name"),
+                            "header name cannot be empty",
+                        );
+                    }
+                    compiler.text(expected, &inputs, &available, &at.child("equals"));
+                    checks.push(CompiledCheck::HeaderContains {
+                        name: name.clone(),
+                        expected: expected.clone(),
+                    });
+                }
+                ResponseCheck::BodyContains { expected } => {
+                    compiler.text(expected, &inputs, &available, &at.child("equals"));
+                    checks.push(CompiledCheck::BodyContains {
+                        expected: expected.clone(),
+                    });
+                }
+                ResponseCheck::RedirectsEquals(value) => {
+                    checks.push(CompiledCheck::Redirects(*value));
+                }
+                ResponseCheck::ErrorEquals(expected) => {
+                    checks.push(CompiledCheck::Error(*expected));
+                }
             }
         }
         let mut names = HashSet::new();

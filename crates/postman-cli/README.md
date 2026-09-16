@@ -1,7 +1,8 @@
 # postman-cli
 
-`postman-cli` is the UI-free `.http` host for the shared `postman-http` contract and the
-`postman-request` transport.
+`postman-cli` is the UI-free host for `.http` files and native `.http.yml` flows. The binary is
+`postman-g`. Both file kinds compile to a `postman-flow` plan and run through the shared
+`postman-http` / `postman-request` transport.
 
 Run the checked-in HTTPBingo capability matrix:
 
@@ -9,21 +10,27 @@ Run the checked-in HTTPBingo capability matrix:
 cargo httpbingo-headless
 ```
 
-Run one or more files/directories and override a file variable:
+Run one or more files/directories and override a binding:
 
 ```bash
 cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/flow.http.yml --input client=hello
 cargo run --locked -p postman-cli -- run tests/smoke.http tests/regression/
+cargo run --locked -p postman-cli -- run path/to/flow.http.yml --check
 ```
 
-Directories are searched recursively for `.http` files and run in sorted path order. All files in
-one invocation share the same HTTP session, so cookie flows can span files. A failure stops the
-remaining requests in that file while independent files still run and appear in the suite report.
+`--var` and `--input` are aliases. Directories are searched recursively for `.http`, `.http.yml`,
+`.http.yaml`, `.flow.yml`, and `.flow.yaml` files and run in sorted path order. Plain `.yml` files
+are ignored. All files in one invocation share the same HTTP session, so cookie flows can span
+files. A failure stops the remaining requests in that file while independent files still run and
+appear in the suite report. Extra bindings that a file did not declare are ignored, so a mixed
+directory can share one `--var host=...`.
 
-Add `--json` for a versioned machine-readable suite report, `--timeout-ms N` for a default request deadline, or
-`--no-follow-redirects` to return the first redirect response. A passing file exits with code `0`,
-an assertion or transport failure exits with code `1`, and invalid CLI/file input exits with code
-`2`.
+`--check` parses and compiles without creating a transport or sending requests. Add `--json` for a
+versioned machine-readable suite report, `--timeout-ms N` for a default request deadline,
+`--no-follow-redirects` to return the first redirect response, or `-v`/`--verbose` for Flow debug
+logs on stderr. A passing file exits with code `0`, an assertion or transport failure exits with
+code `1`, and invalid CLI/file/compile input exits with code `2`.
 
 ## Supported `.http` subset
 
@@ -60,16 +67,11 @@ Supported assertion forms are `status == CODE`, `redirects == COUNT`,
 `jsonpath "$.path[0]" == VALUE`. An expected transport error is a passing flow step, so timeout and
 redirect-limit behavior can be tested without making the whole suite fail.
 
-## HTTPBingo coverage
+## Execution and Exit Codes
 
-`cargo httpbingo-headless` executes 6 focused files and 67 live requests. The checked-in
-[`coverage.json`](tests/fixtures/httpbingo/coverage.json) inventories all 58 endpoint families from
-a pinned go-httpbin revision: 45 are fully covered, 6 are exercised with documented limitations,
-6 need a new client/model capability, and `/brotli` is intentionally unavailable upstream. A
-deterministic test verifies that the inventory remains complete and that every covered entry points
-to executable `.http` evidence.
+- `0`: All requests in all suites passed.
+- `1`: One or more assertions failed or unexpected transport errors occurred.
+- `2`: CLI argument error, file read failure, or YAML/HTTP syntax compilation error.
 
-The remaining model gaps are lossless binary responses, Digest authentication, incremental stream
-events/chunks, HTTP trailers, multipart external-file syntax, and WebSocket frames. Arbitrary
-JavaScript, branching, and parallel requests also remain outside this slice; unsupported syntax
-returns a source-located diagnostic.
+This exit code contract allows `postman-g` to integrate seamlessly into CI/CD pipelines (e.g. GitHub Actions) and automated test platforms.
+

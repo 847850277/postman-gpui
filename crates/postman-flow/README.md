@@ -22,23 +22,21 @@ pub fn execute_flow<T: HttpTransport>(
 
 ## 运行 YAML
 
-在仓库根目录运行：
+产品入口是 `postman-g`（crate：`postman-cli`）。`.http` 与 `.http.yml` 都编译为同一份 FlowPlan：
 
 ~~~sh
-# 静态检查，不创建 transport、不发请求，也不要求运行输入。
-cargo run --locked -p postman-flow --example run_yaml -- \
+cargo run --locked -p postman-cli -- run \
   crates/postman-flow/examples/flows/httpbingo_catalog.http.yml --check
 
-# 读取 YAML、编译、连接真实 HTTPBingo，并打印事件及具名返回值。
-cargo run --locked -p postman-flow --example run_yaml -- \
+cargo run --locked -p postman-cli -- run \
   crates/postman-flow/examples/flows/httpbingo_catalog.http.yml \
   --input client=hello
 ~~~
 
---input NAME=JSON_OR_TEXT 可以重复使用，名称不能重复。合法 JSON 保留原类型，
-否则作为文本。例如 --input optional=null；传数字样式的字符串可用
---input 'client="00123"'。每个 HTTP 请求超时为 15 秒，失败退出码非零。
-run_yaml 是此 crate 的示例入口；现有 postman-cli 的 .http 命令尚未迁移。
+`--input` 与 `--var` 等价。对象、数组、布尔、null、带引号的 JSON 字符串，以及无前导零的整型
+会保留 JSON 类型；`00123` 仍是文本。未声明的输入会被忽略。`--check` 只编译，不发请求。
+
+`run_yaml` 示例仍可用于直接驱动本 crate 的 API，行为与上面的 `postman-g run` 相同。
 
 examples/flows 中有 6 份文档：
 
@@ -221,7 +219,8 @@ write_flow_yaml 使用规范化格式输出，并验证输出可再次读取。
 GUI 若需要保留用户手写的原文格式，需要另行保存语法树／源码映射。
 
 首版执行顺序 HTTP 流程。分支、循环、并行、重试、API 类型 schema、任意精度数值、
-完整 JSONPath，以及 GUI 和 CLI 产品接入不在本次实现内。
+完整 JSONPath，以及 GUI 接入不在本次实现内。`postman-g`（`postman-cli`）已作为 `.http` / `.http.yml`
+的无界面宿主。
 
 执行返回静态分派的 impl Stream，没有为流额外分配 Box，也不要求 transport 为 'static。
 宿主自行选择运行时，用 std::pin::pin! 配合 .next() 或直接消费 .try_collect()。

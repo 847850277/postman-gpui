@@ -404,3 +404,127 @@ async fn transport_may_borrow_local_state_without_boxing_the_flow_stream() {
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
+
+#[tokio::test]
+async fn response_header_body_and_redirect_checks() {
+    let definition = FlowDefinition {
+        name: "checks_test".into(),
+        inputs: vec![],
+        steps: vec![HttpStepDefinition::new(
+            "step1",
+            "Check headers and body",
+            HttpRequestTemplate::new(
+                HttpMethod::GET,
+                TextTemplate::literal("http://localhost/test"),
+            ),
+        )
+        .check(ResponseCheck::StatusEquals(200))
+        .check(ResponseCheck::HeaderExists {
+            name: "Content-Type".into(),
+        })
+        .check(ResponseCheck::HeaderContains {
+            name: "Content-Type".into(),
+            expected: TextTemplate::literal("application/json"),
+        })
+        .check(ResponseCheck::BodyContains {
+            expected: TextTemplate::literal("hello world"),
+        })
+        .check(ResponseCheck::RedirectsEquals(0))],
+        outputs: vec![],
+    };
+
+    let res = HttpResponse::new(
+        200,
+        vec![(
+            "Content-Type".into(),
+            "application/json; charset=utf-8".into(),
+        )],
+        "{\"msg\": \"hello world\"}".into(),
+    );
+    let events = run(
+        compile(&definition),
+        FlowInputs::new(),
+        FakeTransport::new([Ok(res)]),
+    )
+    .await;
+
+    assert!(matches!(
+        events.last(),
+        Some(FlowEvent::FlowFinished { success: true, .. })
+    ));
+}
+
+#[tokio::test]
+async fn expected_error_check_succeeds_on_matching_transport_error() {
+    let definition = FlowDefinition {
+        name: "error_test".into(),
+        inputs: vec![],
+        steps: vec![HttpStepDefinition::new(
+            "step1",
+            "Expect timeout",
+            HttpRequestTemplate::new(
+                HttpMethod::GET,
+                TextTemplate::literal("http://localhost/timeout"),
+            ),
+        )
+        .check(ResponseCheck::ErrorEquals(ExpectedError::Timeout))],
+        outputs: vec![],
+    };
+
+    let events = run(
+        compile(&definition),
+        FlowInputs::new(),
+        FakeTransport::new([Err(HttpError::Timeout { timeout_ms: 50 })]),
+    )
+    .await;
+
+    assert!(matches!(
+        events.last(),
+        Some(FlowEvent::FlowFinished { success: true, .. })
+    ));
+}
+
+#[tokio::test]
+async fn step_level_request_options_override_session_defaults() {
+    let definition = FlowDefinition {
+        name: "options_test".into(),
+        inputs: vec![],
+        steps: vec![HttpStepDefinition::new(
+            "step1",
+            "With custom timeout",
+            HttpRequestTemplate::new(
+                HttpMethod::GET,
+                TextTemplate::literal("http://localhost/slow"),
+            )
+            .options(RequestOptionOverrides {
+                timeout_ms: Some(1500),
+                redirect_policy: Some(postman_http::request::RedirectPolicy::DoNotFollow),
+                max_redirect_hops: Some(3),
+            }),
+        )
+        .check(ResponseCheck::StatusEquals(200))],
+        outputs: vec![],
+    };
+
+    let transport = FakeTransport::new([response(json!({"ok": true}))]);
+    let session = FlowSessionEnvironment::new(FlowInputs::new());
+    let events = execute_flow(compile(&definition), transport.clone(), session)
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap();
+
+    assert!(matches!(
+        events.last(),
+        Some(FlowEvent::FlowFinished { success: true, .. })
+    ));
+
+    let requests = transport.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].1.timeout_ms, Some(1500));
+    assert_eq!(
+        requests[0].1.redirect_policy,
+        postman_http::request::RedirectPolicy::DoNotFollow
+    );
+    assert_eq!(requests[0].1.max_redirect_hops, 3);
+}

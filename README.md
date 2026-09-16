@@ -59,15 +59,16 @@ On macOS, build a universal package with:
 python3 scripts/release.py package --universal-macos
 ```
 
-## Headless `.http` runner
+## Headless `.http` / `.http.yml` runner
 
-The UI-free runner parses checked-in `.http` files or directories, executes requests sequentially through
-the same `postman-http` and `postman-request` crates as the desktop application, and exits non-zero
-when transport or declarative assertions fail.
+The UI-free runner compiles `.http` files and native `.http.yml` flows to the same `postman-flow`
+plan, executes them through the desktop application's `postman-http` / `postman-request` transport,
+and exits non-zero when transport or declarative assertions fail.
 
 ```bash
 cargo httpbingo-headless
 cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/flow.http.yml --input client=hello
 cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
 ```
 

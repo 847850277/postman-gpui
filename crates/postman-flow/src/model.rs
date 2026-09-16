@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt};
 
-use postman_http::request::{HttpMethod, RequestBody};
+use postman_http::request::{HttpMethod, RedirectPolicy, RequestBody};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// A validated run receives values for these named inputs. `None` means the input is required.
@@ -52,6 +53,18 @@ impl FlowInputs {
     pub fn with(mut self, name: impl Into<String>, value: impl Into<Value>) -> Self {
         self.insert(name, value);
         self
+    }
+
+    /// Drop bindings the plan did not declare so a mixed suite can share CLI flags.
+    pub fn declared_only(&self, declared: impl Fn(&str) -> bool) -> Self {
+        Self {
+            values: self
+                .values
+                .iter()
+                .filter(|(name, _)| declared(name.as_str()))
+                .map(|(name, value)| (name.clone(), value.clone()))
+                .collect(),
+        }
     }
 }
 
@@ -108,6 +121,13 @@ impl HttpStepDefinition {
         self.exports.push(export);
         self
     }
+
+    pub fn options(mut self, options: RequestOptionOverrides) -> Self {
+        if let HttpRequestSource::Inline(ref mut template) = self.request {
+            template.options = options;
+        }
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,12 +177,40 @@ impl ApiCall {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RequestOptionOverrides {
+    pub timeout_ms: Option<u64>,
+    pub redirect_policy: Option<RedirectPolicy>,
+    pub max_redirect_hops: Option<u32>,
+}
+
+impl RequestOptionOverrides {
+    pub fn is_empty(&self) -> bool {
+        self.timeout_ms.is_none()
+            && self.redirect_policy.is_none()
+            && self.max_redirect_hops.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExpectedError {
+    Timeout,
+    RedirectLimit,
+    Network,
+    InvalidRequest,
+    InvalidResponse,
+    ResponseTooLarge,
+    Cancelled,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpRequestTemplate {
     pub method: HttpMethod,
     pub url: TextTemplate,
     pub headers: Vec<(TextTemplate, TextTemplate)>,
     pub body: BodyTemplate,
+    pub options: RequestOptionOverrides,
 }
 
 impl HttpRequestTemplate {
@@ -172,7 +220,13 @@ impl HttpRequestTemplate {
             url,
             headers: Vec::new(),
             body: BodyTemplate::None,
+            options: RequestOptionOverrides::default(),
         }
+    }
+
+    pub fn options(mut self, options: RequestOptionOverrides) -> Self {
+        self.options = options;
+        self
     }
 
     pub fn header(mut self, name: TextTemplate, value: TextTemplate) -> Self {
@@ -280,6 +334,18 @@ pub enum ResponseCheck {
         path: String,
         expected: JsonTemplate,
     },
+    HeaderExists {
+        name: String,
+    },
+    HeaderContains {
+        name: String,
+        expected: TextTemplate,
+    },
+    BodyContains {
+        expected: TextTemplate,
+    },
+    RedirectsEquals(usize),
+    ErrorEquals(ExpectedError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

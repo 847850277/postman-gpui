@@ -1,4 +1,5 @@
-//! Run or statically check one native .http.yml document.
+//! Library-oriented example for one native .http.yml document.
+//! The product entry point is `postman-g run` from postman-cli.
 use std::{collections::HashSet, env, fs};
 
 use futures::StreamExt;
@@ -11,6 +12,13 @@ use postman_request::RequestClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("postman_flow=debug,info")),
+        )
+        .init();
+
     let mut args = env::args().skip(1);
     let path = args
         .next()

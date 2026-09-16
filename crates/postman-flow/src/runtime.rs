@@ -7,14 +7,14 @@ use futures::{stream, Stream};
 use postman_http::{
     request::{Request, RequestBody, RequestOptions},
     response::HttpResponse,
-    HttpTransport,
+    HttpError, HttpTransport,
 };
 use serde_json::Value;
 
 use crate::{
     plan::{CompiledCheck, CompiledExport},
-    FlowEvent, FlowInputs, FlowOutputs, FlowPlan, FlowValue, HttpRequestTemplate, JsonTemplate,
-    StepOutcome, TemplatePart, TextTemplate, ValueReference,
+    ExpectedError, FlowEvent, FlowInputs, FlowOutputs, FlowPlan, FlowValue, HttpRequestTemplate,
+    JsonTemplate, StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
 
 /// Stable dependencies and policies shared by every step in one run.
@@ -191,11 +191,18 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         }
 
-        let response = match self
-            .transport
-            .execute(request, self.environment.request_options)
-            .await
-        {
+        let mut options = self.environment.request_options;
+        if let Some(timeout_ms) = step.request.options.timeout_ms {
+            options.timeout_ms = Some(timeout_ms);
+        }
+        if let Some(policy) = step.request.options.redirect_policy {
+            options.redirect_policy = policy;
+        }
+        if let Some(max_hops) = step.request.options.max_redirect_hops {
+            options.max_redirect_hops = max_hops;
+        }
+
+        let response = match self.transport.execute(request, options).await {
             Ok(response) => {
                 tracing::info!(
                     step_id = %step.id,
@@ -221,6 +228,36 @@ impl<T: HttpTransport> RunMachine<T> {
                 response
             }
             Err(error) => {
+                let has_expected_error = step
+                    .checks
+                    .iter()
+                    .any(|check| matches!(check, CompiledCheck::Error(_)));
+                if has_expected_error {
+                    let mut checks_succeeded = true;
+                    for check in &step.checks {
+                        let result = evaluate_error_check(check, &error);
+                        checks_succeeded &= result.success;
+                        self.pending.push_back(FlowEvent::CheckFinished {
+                            step_id: step.id.clone(),
+                            check: result.description,
+                            success: result.success,
+                            message: result.message.map(|message| self.context.redact(&message)),
+                        });
+                    }
+                    if checks_succeeded && step.exports.is_empty() {
+                        self.pending.push_back(FlowEvent::StepFinished {
+                            step_id: step.id,
+                            outcome: StepOutcome::Succeeded,
+                        });
+                        self.step_index += 1;
+                        self.phase = if self.step_index < self.plan.steps.len() {
+                            RunPhase::StepStart
+                        } else {
+                            RunPhase::FlowFinish
+                        };
+                        return;
+                    }
+                }
                 tracing::error!(
                     step_id = %step.id,
                     error = %self.context.redact(&error.to_string()),
@@ -337,10 +374,10 @@ fn evaluate_check(
     response: &HttpResponse,
     context: &RunContext,
 ) -> CheckResult {
-    let (path, expected) = match check {
+    match check {
         CompiledCheck::Status(expected) => {
             let success = response.status == *expected;
-            return CheckResult {
+            CheckResult {
                 description: format!("status == {expected}"),
                 success,
                 message: (!success).then(|| {
@@ -349,27 +386,189 @@ fn evaluate_check(
                         response.status
                     )
                 }),
-            };
+            }
         }
-        CompiledCheck::JsonText { path, expected } => (path, context.resolve_expected(expected)),
-        CompiledCheck::JsonValue { path, expected } => (path, context.resolve_json(expected)),
-    };
-    let description = format!("jsonpath {:?} == expected value", path.source());
-    let outcome = (|| {
-        let expected = expected?;
-        let body = serde_json::from_str::<Value>(&response.body)
-            .map_err(|_| "response body is not valid JSON".to_owned())?;
-        let actual = path.resolve(&body)?;
-        if actual == &expected {
-            Ok(())
-        } else {
-            Err("JSONPath value did not equal the expected value".to_owned())
+        CompiledCheck::Redirects(expected) => {
+            let count = response
+                .redirect_chain
+                .iter()
+                .filter(|hop| (300..400).contains(&hop.status) && hop.location.is_some())
+                .count();
+            let success = count == *expected;
+            CheckResult {
+                description: format!("redirects == {expected}"),
+                success,
+                message: (!success)
+                    .then(|| format!("response redirect count was {count}, expected {expected}")),
+            }
         }
-    })();
-    CheckResult {
-        description,
-        success: outcome.is_ok(),
-        message: outcome.err(),
+        CompiledCheck::HeaderExists { name } => {
+            let success = response
+                .headers
+                .iter()
+                .any(|(actual_name, _)| actual_name.eq_ignore_ascii_case(name));
+            CheckResult {
+                description: format!("header \"{name}\" exists"),
+                success,
+                message: (!success).then(|| format!("response header \"{name}\" was not present")),
+            }
+        }
+        CompiledCheck::HeaderContains { name, expected } => {
+            let description = format!("header \"{name}\" contains expected value");
+            let outcome = (|| {
+                let expected = context.render(expected)?;
+                let matches = response.headers.iter().any(|(actual_name, value)| {
+                    actual_name.eq_ignore_ascii_case(name) && value.contains(&expected)
+                });
+                if matches {
+                    Ok(())
+                } else {
+                    Err("response header did not contain the expected value".to_owned())
+                }
+            })();
+            CheckResult {
+                description,
+                success: outcome.is_ok(),
+                message: outcome.err(),
+            }
+        }
+        CompiledCheck::BodyContains { expected } => {
+            let description = "body contains expected value".to_owned();
+            let outcome = (|| {
+                let expected = context.render(expected)?;
+                if response.body.contains(&expected) {
+                    Ok(())
+                } else {
+                    Err("response body did not contain the expected value".to_owned())
+                }
+            })();
+            CheckResult {
+                description,
+                success: outcome.is_ok(),
+                message: outcome.err(),
+            }
+        }
+        CompiledCheck::Error(expected) => CheckResult {
+            description: format!("error == {}", expected_error_name(*expected)),
+            success: false,
+            message: Some("request completed without the expected transport error".to_owned()),
+        },
+        CompiledCheck::JsonText { path, expected } => {
+            let description = format!("jsonpath {:?} == expected value", path.source());
+            let outcome = (|| {
+                let expected = context.resolve_expected(expected)?;
+                let body = serde_json::from_str::<Value>(&response.body)
+                    .map_err(|_| "response body is not valid JSON".to_owned())?;
+                let actual = path.resolve(&body)?;
+                if actual == &expected {
+                    Ok(())
+                } else {
+                    Err("JSONPath value did not equal the expected value".to_owned())
+                }
+            })();
+            CheckResult {
+                description,
+                success: outcome.is_ok(),
+                message: outcome.err(),
+            }
+        }
+        CompiledCheck::JsonValue { path, expected } => {
+            let description = format!("jsonpath {:?} == expected value", path.source());
+            let outcome = (|| {
+                let expected = context.resolve_json(expected)?;
+                let body = serde_json::from_str::<Value>(&response.body)
+                    .map_err(|_| "response body is not valid JSON".to_owned())?;
+                let actual = path.resolve(&body)?;
+                if actual == &expected {
+                    Ok(())
+                } else {
+                    Err("JSONPath value did not equal the expected value".to_owned())
+                }
+            })();
+            CheckResult {
+                description,
+                success: outcome.is_ok(),
+                message: outcome.err(),
+            }
+        }
+    }
+}
+
+fn evaluate_error_check(check: &CompiledCheck, error: &HttpError) -> CheckResult {
+    match check {
+        CompiledCheck::Error(expected) => {
+            let success = expected_error_matches(*expected, error);
+            CheckResult {
+                description: format!("error == {}", expected_error_name(*expected)),
+                success,
+                message: (!success).then(|| {
+                    "transport error kind did not equal the expected error kind".to_owned()
+                }),
+            }
+        }
+        check => CheckResult {
+            description: check_description(check),
+            success: false,
+            message: Some(
+                "request failed before this response check could be evaluated".to_owned(),
+            ),
+        },
+    }
+}
+
+fn expected_error_matches(expected: ExpectedError, actual: &HttpError) -> bool {
+    matches!(
+        (expected, actual),
+        (ExpectedError::Timeout, HttpError::Timeout { .. })
+            | (
+                ExpectedError::RedirectLimit,
+                HttpError::RedirectLimitExceeded { .. }
+            )
+            | (ExpectedError::Network, HttpError::Network(_))
+            | (
+                ExpectedError::InvalidRequest,
+                HttpError::EmptyUrl | HttpError::InvalidRequest(_)
+            )
+            | (
+                ExpectedError::InvalidResponse,
+                HttpError::InvalidResponse(_)
+            )
+            | (
+                ExpectedError::ResponseTooLarge,
+                HttpError::ResponseTooLarge { .. }
+            )
+            | (ExpectedError::Cancelled, HttpError::Cancelled)
+    )
+}
+
+fn expected_error_name(error: ExpectedError) -> &'static str {
+    match error {
+        ExpectedError::Timeout => "timeout",
+        ExpectedError::RedirectLimit => "redirect-limit",
+        ExpectedError::Network => "network",
+        ExpectedError::InvalidRequest => "invalid-request",
+        ExpectedError::InvalidResponse => "invalid-response",
+        ExpectedError::ResponseTooLarge => "response-too-large",
+        ExpectedError::Cancelled => "cancelled",
+    }
+}
+
+fn check_description(check: &CompiledCheck) -> String {
+    match check {
+        CompiledCheck::Status(expected) => format!("status == {expected}"),
+        CompiledCheck::Redirects(expected) => format!("redirects == {expected}"),
+        CompiledCheck::HeaderExists { name } => format!("header \"{name}\" exists"),
+        CompiledCheck::HeaderContains { name, .. } => {
+            format!("header \"{name}\" contains expected value")
+        }
+        CompiledCheck::BodyContains { .. } => "body contains expected value".to_owned(),
+        CompiledCheck::JsonText { path, .. } => {
+            format!("jsonpath {:?} == expected value", path.source())
+        }
+        CompiledCheck::JsonValue { path, .. } => {
+            format!("jsonpath {:?} == expected value", path.source())
+        }
+        CompiledCheck::Error(expected) => format!("error == {}", expected_error_name(*expected)),
     }
 }
 

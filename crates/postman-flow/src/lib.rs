@@ -21,10 +21,10 @@ pub use document::{
     NodePosition, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
-    ApiCall, BodyTemplate, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowOutputSpec,
-    FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
-    JsonTemplate, ResponseCheck, ResponseExport, StepOutcome, TemplatePart, TextTemplate,
-    ValueReference,
+    ApiCall, BodyTemplate, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs,
+    FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate,
+    HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
+    StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
 pub use plan::FlowPlan;
 pub use runtime::{execute_flow, FlowError, FlowSessionEnvironment};

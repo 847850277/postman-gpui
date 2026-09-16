@@ -5,12 +5,14 @@ use std::{
     process::ExitCode,
 };
 
-use postman_cli::{parse_http_file, HeadlessRunner, HttpFile, RunReport};
+use postman_cli::{
+    check_flow, compile_http_file, parse_http_file, run_flow, HeadlessRunner, RunReport,
+};
 use postman_http::request::{RedirectPolicy, RequestOptions};
 use postman_request::RequestClient;
 use serde::Serialize;
 
-const USAGE: &str = "Usage: postman run <file-or-directory>... [--var name=value]... [--timeout-ms N] [--no-follow-redirects] [--json]";
+const USAGE: &str = "Usage: postman-g run <file-or-directory>... [--var name=value]... [--input name=value]... [--check] [--timeout-ms N] [--no-follow-redirects] [--json] [-v|--verbose]";
 
 struct RunArguments {
     paths: Vec<PathBuf>,
@@ -18,11 +20,20 @@ struct RunArguments {
     timeout_ms: Option<u64>,
     follow_redirects: bool,
     json: bool,
+    check: bool,
+    verbose: bool,
 }
 
-struct ParsedFile {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum FileKind {
+    Http,
+    Flow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct DiscoveredFile {
     path: PathBuf,
-    file: HttpFile,
+    kind: FileKind,
 }
 
 #[derive(Serialize)]
@@ -60,18 +71,48 @@ async fn execute(arguments: Vec<String>) -> Result<bool, String> {
     }
 
     let arguments = parse_arguments(arguments)?;
-    let paths = discover_http_files(&arguments.paths)?;
-    let files = paths
-        .into_iter()
-        .map(|path| {
-            let source = fs::read_to_string(&path)
-                .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-            let file =
-                parse_http_file(&source).map_err(|error| format!("{}:{error}", path.display()))?;
-            Ok(ParsedFile { path, file })
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let client = RequestClient::try_new(concat!("postman-cli/", env!("CARGO_PKG_VERSION")))
+    if arguments.verbose || env::var_os("RUST_LOG").is_some() {
+        let default_filter = if arguments.verbose {
+            "postman_flow=debug,postman_cli=debug,info"
+        } else {
+            "info"
+        };
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default_filter)),
+            )
+            .with_writer(std::io::stderr)
+            .try_init();
+    }
+    let files = discover_files(&arguments.paths)?;
+
+    if arguments.check {
+        for file in &files {
+            let source = fs::read_to_string(&file.path)
+                .map_err(|error| format!("cannot read {}: {error}", file.path.display()))?;
+            match file.kind {
+                FileKind::Http => {
+                    let parsed = parse_http_file(&source)
+                        .map_err(|error| format!("{}:{error}", file.path.display()))?;
+                    compile_http_file(&parsed)
+                        .map_err(|error| format!("{}:{error}", file.path.display()))?;
+                    println!(
+                        "OK: {} ({} requests)",
+                        file.path.display(),
+                        parsed.requests.len()
+                    );
+                }
+                FileKind::Flow => {
+                    let check = check_flow(&source, &file.path)?;
+                    println!("OK: {} ({} steps)", check.name, check.step_count);
+                }
+            }
+        }
+        return Ok(true);
+    }
+
+    let client = RequestClient::try_new(concat!("postman-g/", env!("CARGO_PKG_VERSION")))
         .map_err(|error| format!("cannot initialize HTTP transport: {error}"))?;
     let options = RequestOptions {
         timeout_ms: arguments.timeout_ms,
@@ -82,12 +123,33 @@ async fn execute(arguments: Vec<String>) -> Result<bool, String> {
         },
         ..RequestOptions::default()
     };
-    let runner = HeadlessRunner::new(client).with_options(options);
+    let runner = HeadlessRunner::new(client.clone()).with_options(options);
     let mut reports = Vec::with_capacity(files.len());
-    for parsed in files {
-        let report = runner.run(&parsed.file, &arguments.variables).await;
+    for file in files {
+        let source = fs::read_to_string(&file.path)
+            .map_err(|error| format!("cannot read {}: {error}", file.path.display()))?;
+        let report = match file.kind {
+            FileKind::Http => {
+                let parsed = parse_http_file(&source)
+                    .map_err(|error| format!("{}:{error}", file.path.display()))?;
+                runner
+                    .run(&parsed, &arguments.variables)
+                    .await
+                    .map_err(|error| format!("{}:{error}", file.path.display()))?
+            }
+            FileKind::Flow => {
+                run_flow(
+                    client.clone(),
+                    &file.path,
+                    &source,
+                    &arguments.variables,
+                    options,
+                )
+                .await?
+            }
+        };
         reports.push(FileReport {
-            path: parsed.path.display().to_string(),
+            path: file.path.display().to_string(),
             report,
         });
     }
@@ -122,21 +184,25 @@ fn parse_arguments(arguments: Vec<String>) -> Result<RunArguments, String> {
     let mut timeout_ms = None;
     let mut follow_redirects = true;
     let mut json = false;
+    let mut check = false;
+    let mut verbose = false;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
-            "--var" => {
+            "-v" | "--verbose" => verbose = true,
+            "--var" | "--input" => {
                 let assignment = arguments
                     .next()
-                    .ok_or_else(|| "`--var` requires `name=value`".to_owned())?;
+                    .ok_or_else(|| format!("`{argument}` requires `name=value`"))?;
                 let (name, value) = assignment
                     .split_once('=')
-                    .ok_or_else(|| "`--var` requires `name=value`".to_owned())?;
+                    .ok_or_else(|| format!("`{argument}` requires `name=value`"))?;
                 if name.is_empty() {
-                    return Err("`--var` name cannot be empty".to_owned());
+                    return Err(format!("`{argument}` name cannot be empty"));
                 }
                 variables.insert(name.to_owned(), value.to_owned());
             }
+            "--check" => check = true,
             "--timeout-ms" => {
                 let value = arguments
                     .next()
@@ -159,7 +225,9 @@ fn parse_arguments(arguments: Vec<String>) -> Result<RunArguments, String> {
     }
 
     if paths.is_empty() {
-        return Err(format!("missing .http file or directory path\n{USAGE}"));
+        return Err(format!(
+            "missing .http or .http.yml file or directory path\n{USAGE}"
+        ));
     }
 
     Ok(RunArguments {
@@ -168,25 +236,47 @@ fn parse_arguments(arguments: Vec<String>) -> Result<RunArguments, String> {
         timeout_ms,
         follow_redirects,
         json,
+        check,
+        verbose,
     })
 }
 
-fn discover_http_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
+fn classify_file(path: &Path) -> Option<FileKind> {
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if name.ends_with(".http.yml")
+        || name.ends_with(".http.yaml")
+        || name.ends_with(".flow.yml")
+        || name.ends_with(".flow.yaml")
+    {
+        Some(FileKind::Flow)
+    } else if name.ends_with(".http") {
+        Some(FileKind::Http)
+    } else {
+        None
+    }
+}
+
+fn discover_files(paths: &[PathBuf]) -> Result<Vec<DiscoveredFile>, String> {
     let mut files = BTreeSet::new();
     for path in paths {
-        collect_http_files(path, &mut files)?;
+        collect_files(path, &mut files)?;
     }
     if files.is_empty() {
-        return Err("no .http files were found in the supplied paths".to_owned());
+        return Err("no .http or .http.yml files were found in the supplied paths".to_owned());
     }
     Ok(files.into_iter().collect())
 }
 
-fn collect_http_files(path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<(), String> {
+fn collect_files(path: &Path, files: &mut BTreeSet<DiscoveredFile>) -> Result<(), String> {
     let metadata = fs::metadata(path)
         .map_err(|error| format!("cannot inspect {}: {error}", path.display()))?;
     if metadata.is_file() {
-        files.insert(path.to_path_buf());
+        let kind = classify_file(path)
+            .ok_or_else(|| format!("{} is not a .http or .http.yml file", path.display()))?;
+        files.insert(DiscoveredFile {
+            path: path.to_path_buf(),
+            kind,
+        });
         return Ok(());
     }
     if !metadata.is_dir() {
@@ -210,13 +300,12 @@ fn collect_http_files(path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<(), 
         }
         let entry_path = entry.path();
         if file_type.is_dir() {
-            collect_http_files(&entry_path, files)?;
-        } else if entry_path
-            .extension()
-            .and_then(|extension| extension.to_str())
-            == Some("http")
-        {
-            files.insert(entry_path);
+            collect_files(&entry_path, files)?;
+        } else if let Some(kind) = classify_file(&entry_path) {
+            files.insert(DiscoveredFile {
+                path: entry_path,
+                kind,
+            });
         }
     }
     Ok(())

@@ -108,5 +108,15 @@ pub(crate) fn crmeb_order_list_definition() -> FlowDefinition {
             })
         ],
     outputs: Vec::new(),
+    }
 }
+
+#[test]
+fn native_yaml_compiles_to_the_same_plan_as_the_rust_definition() {
+    let document =
+        postman_flow::parse_flow_yaml(include_str!("flows/crmeb_order_list.http.yml")).unwrap();
+    let environment = postman_flow::CompileEnvironment::default();
+    let native = postman_flow::compile_flow(&document.flow, &document.apis, &environment).unwrap();
+    let compiled = compile::compile_example(&crmeb_order_list_definition()).unwrap();
+    assert_eq!(native, compiled);
 }

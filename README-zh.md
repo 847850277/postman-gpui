@@ -54,18 +54,19 @@ python3 scripts/release.py package
 python3 scripts/release.py package --universal-macos
 ```
 
-## 无界面 `.http` Runner
+## 无界面 `.http` / `.http.yml` Runner
 
-无界面 Runner 会解析仓库内的一个或多个 `.http` 文件/目录，通过桌面应用同样使用的 `postman-http` 和
-`postman-request` crates 顺序执行请求；传输或声明式断言失败时返回非零退出码。
+无界面 Runner 会把 `.http` 文件和原生 `.http.yml` 流程编译成同一份 `postman-flow` 计划，通过桌面应用
+同样使用的 `postman-http` 和 `postman-request` crates 顺序执行；传输或声明式断言失败时返回非零退出码。
 
 ```bash
 cargo httpbingo-headless
 cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/flow.http.yml --input client=hello
 cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
 ```
 
-目录会递归发现并按路径排序执行 `.http` 文件，同一次运行共享 Cookie 会话。当前 HTTPBingo
+目录会递归发现并按路径排序执行 `.http` / `.http.yml` 文件，同一次运行共享 Cookie 会话。当前 HTTPBingo
 矩阵包含 6 个场景文件、67 个真实请求，并盘点了上游全部 58 个端点族：45 个完整覆盖、6 个
 带明确限制的部分覆盖、6 个等待模型能力，另有 `/brotli` 在服务端本身未实现。
 

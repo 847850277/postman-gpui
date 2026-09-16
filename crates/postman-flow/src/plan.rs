@@ -1,6 +1,6 @@
 use crate::{
-    json_path::JsonPath, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate, JsonTemplate,
-    TextTemplate,
+    json_path::JsonPath, ExpectedError, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
+    JsonTemplate, TextTemplate,
 };
 
 /// Owned, statically validated snapshot. Public code cannot construct or modify a plan.
@@ -47,6 +47,18 @@ pub(crate) enum CompiledCheck {
         path: JsonPath,
         expected: JsonTemplate,
     },
+    HeaderExists {
+        name: String,
+    },
+    HeaderContains {
+        name: String,
+        expected: TextTemplate,
+    },
+    BodyContains {
+        expected: TextTemplate,
+    },
+    Redirects(usize),
+    Error(ExpectedError),
 }
 
 #[derive(Debug, Clone, PartialEq)]

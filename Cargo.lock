@@ -4434,13 +4434,17 @@ dependencies = [
 name = "postman-cli"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "mockito",
+ "postman-flow",
  "postman-http",
  "postman-request",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

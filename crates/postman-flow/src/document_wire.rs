@@ -7,9 +7,10 @@ use serde_json::Value;
 
 use super::{EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
 use crate::{
-    ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, FlowDefinition, FlowInputSpec,
+    ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, ExpectedError, FlowDefinition, FlowInputSpec,
     FlowOutputSpec, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition, JsonTemplate,
-    ResponseCheck, ResponseExport, TemplatePart, TextTemplate, ValueReference,
+    RequestOptionOverrides, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    ValueReference,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -36,7 +37,7 @@ struct Flow {
     name: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     inputs: Vec<Input>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     steps: Vec<Step>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     outputs: Vec<Output>,
@@ -83,6 +84,8 @@ enum Request {
         headers: Vec<Header>,
         #[serde(default, skip_serializing_if = "Body::is_none")]
         body: Body,
+        #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
+        options: WireRequestOptions,
     },
     Api {
         api: String,
@@ -168,6 +171,11 @@ enum Check {
     Status { equals: u16 },
     Jsonpath { path: String, equals: Json },
     JsonpathTemplate { path: String, equals: Text },
+    HeaderExists { name: String },
+    HeaderContains { name: String, equals: Text },
+    BodyContains { equals: Text },
+    Redirects { equals: usize },
+    Error { equals: ExpectedError },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -201,6 +209,70 @@ struct Api {
     request: ApiRequest,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum WireRedirectPolicy {
+    Follow,
+    DoNotFollow,
+}
+
+impl From<postman_http::request::RedirectPolicy> for WireRedirectPolicy {
+    fn from(policy: postman_http::request::RedirectPolicy) -> Self {
+        match policy {
+            postman_http::request::RedirectPolicy::Follow => Self::Follow,
+            postman_http::request::RedirectPolicy::DoNotFollow => Self::DoNotFollow,
+        }
+    }
+}
+
+impl From<WireRedirectPolicy> for postman_http::request::RedirectPolicy {
+    fn from(policy: WireRedirectPolicy) -> Self {
+        match policy {
+            WireRedirectPolicy::Follow => Self::Follow,
+            WireRedirectPolicy::DoNotFollow => Self::DoNotFollow,
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireRequestOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    redirect_policy: Option<WireRedirectPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_redirect_hops: Option<u32>,
+}
+
+impl WireRequestOptions {
+    fn is_empty(&self) -> bool {
+        self.timeout_ms.is_none()
+            && self.redirect_policy.is_none()
+            && self.max_redirect_hops.is_none()
+    }
+}
+
+impl From<RequestOptionOverrides> for WireRequestOptions {
+    fn from(options: RequestOptionOverrides) -> Self {
+        Self {
+            timeout_ms: options.timeout_ms,
+            redirect_policy: options.redirect_policy.map(Into::into),
+            max_redirect_hops: options.max_redirect_hops,
+        }
+    }
+}
+
+impl From<WireRequestOptions> for RequestOptionOverrides {
+    fn from(options: WireRequestOptions) -> Self {
+        Self {
+            timeout_ms: options.timeout_ms,
+            redirect_policy: options.redirect_policy.map(Into::into),
+            max_redirect_hops: options.max_redirect_hops,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ApiRequest {
@@ -210,6 +282,8 @@ struct ApiRequest {
     headers: Vec<Header>,
     #[serde(default, skip_serializing_if = "Body::is_none")]
     body: Body,
+    #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
+    options: WireRequestOptions,
 }
 
 impl From<Document> for FlowDocument {
@@ -388,11 +462,13 @@ impl From<Request> for HttpRequestSource {
                 url,
                 headers,
                 body,
+                options,
             } => HttpRequestTemplate::from(ApiRequest {
                 method,
                 url,
                 headers,
                 body,
+                options,
             })
             .into(),
             Request::Api { api, bindings } => ApiCall {
@@ -416,12 +492,14 @@ impl From<&HttpRequestSource> for Request {
                     url,
                     headers,
                     body,
+                    options,
                 } = value.into();
                 Self::Http {
                     method,
                     url,
                     headers,
                     body,
+                    options,
                 }
             }
             HttpRequestSource::Api(value) => Self::Api {
@@ -447,6 +525,7 @@ impl From<ApiRequest> for HttpRequestTemplate {
                 .map(|header| (header.name.into(), header.value.into()))
                 .collect(),
             body: value.body.into(),
+            options: value.options.into(),
         }
     }
 }
@@ -465,6 +544,7 @@ impl From<&HttpRequestTemplate> for ApiRequest {
                 })
                 .collect(),
             body: (&value.body).into(),
+            options: value.options.into(),
         }
     }
 }
@@ -589,6 +669,16 @@ impl From<Check> for ResponseCheck {
                 path,
                 expected: equals.into(),
             },
+            Check::HeaderExists { name } => Self::HeaderExists { name },
+            Check::HeaderContains { name, equals } => Self::HeaderContains {
+                name,
+                expected: equals.into(),
+            },
+            Check::BodyContains { equals } => Self::BodyContains {
+                expected: equals.into(),
+            },
+            Check::Redirects { equals } => Self::RedirectsEquals(equals),
+            Check::Error { equals } => Self::ErrorEquals(equals),
         }
     }
 }
@@ -605,6 +695,16 @@ impl From<&ResponseCheck> for Check {
                 path: path.clone(),
                 equals: expected.into(),
             },
+            ResponseCheck::HeaderExists { name } => Self::HeaderExists { name: name.clone() },
+            ResponseCheck::HeaderContains { name, expected } => Self::HeaderContains {
+                name: name.clone(),
+                equals: expected.into(),
+            },
+            ResponseCheck::BodyContains { expected } => Self::BodyContains {
+                equals: expected.into(),
+            },
+            ResponseCheck::RedirectsEquals(equals) => Self::Redirects { equals: *equals },
+            ResponseCheck::ErrorEquals(equals) => Self::Error { equals: *equals },
         }
     }
 }

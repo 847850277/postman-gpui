@@ -1,13 +1,28 @@
 use std::collections::BTreeMap;
 
-use postman_http::{
-    request::{Request, RequestBody, RequestOptions},
-    HttpError, HttpResponse, HttpTransport,
-};
+use postman_flow::{compile_flow, ApiCatalog, CompileEnvironment, FlowInputs, FlowPlan};
+use postman_http::{request::RequestOptions, HttpTransport};
 use serde::Serialize;
-use serde_json::Value;
 
-use crate::{Assertion, Capture, ExpectedError, HttpFile, HttpFileRequest, RequestOptionOverrides};
+use crate::{flow_runner::run_flow_plan, HttpFile};
+
+pub fn compile_http_file(file: &HttpFile) -> Result<FlowPlan, String> {
+    let definition = file
+        .to_flow_definition()
+        .map_err(|error| error.to_string())?;
+    compile_flow(
+        &definition,
+        &ApiCatalog::new(),
+        &CompileEnvironment::default(),
+    )
+    .map_err(|diagnostics| {
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RunReport {
@@ -40,7 +55,7 @@ pub struct HeadlessRunner<T> {
 
 impl<T> HeadlessRunner<T>
 where
-    T: HttpTransport,
+    T: HttpTransport + Clone,
 {
     pub fn new(transport: T) -> Self {
         Self {
@@ -54,462 +69,20 @@ where
         self
     }
 
-    pub async fn run(&self, file: &HttpFile, overrides: &BTreeMap<String, String>) -> RunReport {
-        let mut variables = file.variables.clone();
-        variables.extend(overrides.clone());
-        let mut requests = Vec::with_capacity(file.requests.len());
-
-        for request_spec in &file.requests {
-            let request = match prepare_request(request_spec, &variables) {
-                Ok(request) => request,
-                Err(error) => {
-                    requests.push(failed_request_report(&request_spec.name, None, None, error));
-                    break;
-                }
-            };
-
-            let options = merge_request_options(self.options, request_spec.options);
-            let response = match self.transport.execute(request, options).await {
-                Ok(response) => response,
-                Err(error) => {
-                    let assertion_reports = request_spec
-                        .assertions
-                        .iter()
-                        .map(|assertion| evaluate_error_assertion(assertion, &error))
-                        .collect::<Vec<_>>();
-                    let has_expected_error = request_spec
-                        .assertions
-                        .iter()
-                        .any(|assertion| matches!(assertion, Assertion::ErrorEquals(_)));
-                    let success = has_expected_error
-                        && request_spec.captures.is_empty()
-                        && assertion_reports.iter().all(|assertion| assertion.success);
-                    requests.push(RequestReport {
-                        name: request_spec.name.clone(),
-                        success,
-                        status: None,
-                        elapsed_ms: None,
-                        assertions: assertion_reports,
-                        captures: Vec::new(),
-                        error: (!success).then(|| redact(&error.to_string(), &variables)),
-                    });
-                    if success {
-                        continue;
-                    }
-                    break;
-                }
-            };
-
-            let assertion_reports = request_spec
-                .assertions
-                .iter()
-                .map(|assertion| evaluate_assertion(assertion, &response, &variables))
-                .collect::<Vec<_>>();
-            let assertion_failure = assertion_reports.iter().any(|assertion| !assertion.success);
-
-            let mut captured_values = Vec::with_capacity(request_spec.captures.len());
-            let mut capture_names = Vec::with_capacity(request_spec.captures.len());
-            let mut capture_error = None;
-            for capture in &request_spec.captures {
-                match extract_capture(capture, &response) {
-                    Ok(value) => {
-                        capture_names.push(capture.name.clone());
-                        captured_values.push((capture.name.clone(), value));
-                    }
-                    Err(error) => {
-                        capture_error = Some(error);
-                        break;
-                    }
-                }
-            }
-
-            let success = !assertion_failure && capture_error.is_none();
-            let report = RequestReport {
-                name: request_spec.name.clone(),
-                success,
-                status: Some(response.status),
-                elapsed_ms: Some(response.elapsed_ms),
-                assertions: assertion_reports,
-                captures: capture_names,
-                error: capture_error,
-            };
-            requests.push(report);
-
-            if !success {
-                break;
-            }
-            variables.extend(captured_values);
+    pub async fn run(
+        &self,
+        file: &HttpFile,
+        overrides: &BTreeMap<String, String>,
+    ) -> Result<RunReport, String> {
+        let plan = compile_http_file(file)?;
+        let mut merged = file.variables.clone();
+        merged.extend(overrides.clone());
+        let mut inputs = FlowInputs::new();
+        for (name, value) in merged {
+            inputs.insert(name, value);
         }
-
-        RunReport {
-            success: requests.len() == file.requests.len()
-                && requests.iter().all(|request| request.success),
-            requests,
-        }
+        run_flow_plan(self.transport.clone(), plan, inputs, self.options).await
     }
-}
-
-fn merge_request_options(
-    defaults: RequestOptions,
-    overrides: RequestOptionOverrides,
-) -> RequestOptions {
-    RequestOptions {
-        timeout_ms: overrides.timeout_ms.or(defaults.timeout_ms),
-        redirect_policy: overrides
-            .redirect_policy
-            .unwrap_or(defaults.redirect_policy),
-        max_redirect_hops: overrides
-            .max_redirect_hops
-            .unwrap_or(defaults.max_redirect_hops),
-    }
-}
-
-fn prepare_request(
-    request_spec: &HttpFileRequest,
-    variables: &BTreeMap<String, String>,
-) -> Result<Request, String> {
-    let mut request = Request::new(
-        request_spec.method,
-        render_template(&request_spec.url, variables)?,
-    );
-    request.headers = request_spec
-        .headers
-        .iter()
-        .map(|(name, value)| {
-            Ok((
-                render_template(name, variables)?,
-                render_template(value, variables)?,
-            ))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    request.body = match &request_spec.body {
-        RequestBody::None => RequestBody::None,
-        RequestBody::Json(body) => RequestBody::Json(render_template(body, variables)?),
-        RequestBody::Raw(body) => RequestBody::Raw(render_template(body, variables)?),
-        RequestBody::UrlEncoded(body) => RequestBody::UrlEncoded(render_template(body, variables)?),
-        RequestBody::Multipart(_) => {
-            return Err(
-                "parsed multipart parts are not supported by the first headless slice".into(),
-            )
-        }
-    };
-    Ok(request)
-}
-
-fn evaluate_assertion(
-    assertion: &Assertion,
-    response: &HttpResponse,
-    variables: &BTreeMap<String, String>,
-) -> AssertionReport {
-    match assertion {
-        Assertion::StatusEquals(expected) => assertion_report(
-            format!("status == {expected}"),
-            response.status == *expected,
-            "response status did not equal the expected status",
-        ),
-        Assertion::RedirectsEquals(expected) => assertion_report(
-            format!("redirects == {expected}"),
-            redirect_count(response) == *expected,
-            "response redirect count did not equal the expected count",
-        ),
-        Assertion::ErrorEquals(expected) => failed_assertion(
-            format!("error == {}", expected_error_name(*expected)),
-            "request completed without the expected transport error".to_owned(),
-        ),
-        Assertion::HeaderExists { name } => assertion_report(
-            format!("header \"{name}\" exists"),
-            response
-                .headers
-                .iter()
-                .any(|(actual_name, _)| actual_name.eq_ignore_ascii_case(name)),
-            "response header was not present",
-        ),
-        Assertion::HeaderContains { name, expected } => {
-            let expression = format!("header \"{name}\" contains expected value");
-            let expected = match render_expected_string(expected, variables) {
-                Ok(expected) => expected,
-                Err(error) => return failed_assertion(expression, error),
-            };
-            let matches = response.headers.iter().any(|(actual_name, value)| {
-                actual_name.eq_ignore_ascii_case(name) && value.contains(&expected)
-            });
-            assertion_report(
-                expression,
-                matches,
-                "response header did not contain the expected value",
-            )
-        }
-        Assertion::BodyContains { expected } => {
-            let expression = "body contains expected value".to_owned();
-            let expected = match render_expected_string(expected, variables) {
-                Ok(expected) => expected,
-                Err(error) => return failed_assertion(expression, error),
-            };
-            assertion_report(
-                expression,
-                response.body.contains(&expected),
-                "response body did not contain the expected value",
-            )
-        }
-        Assertion::JsonPathEquals { path, expected } => {
-            let expression = format!("jsonpath \"{path}\" equals expected value");
-            let expected = match render_template(expected, variables) {
-                Ok(expected) => parse_expected_json(&expected),
-                Err(error) => return failed_assertion(expression, error),
-            };
-            let body = match serde_json::from_str::<Value>(&response.body) {
-                Ok(body) => body,
-                Err(_) => {
-                    return failed_assertion(
-                        expression,
-                        "response body is not valid JSON".to_owned(),
-                    )
-                }
-            };
-            let actual = match json_path(&body, path) {
-                Ok(actual) => actual,
-                Err(error) => return failed_assertion(expression, error),
-            };
-            assertion_report(
-                expression,
-                actual == &expected,
-                "JSONPath value did not equal the expected value",
-            )
-        }
-    }
-}
-
-fn evaluate_error_assertion(assertion: &Assertion, error: &HttpError) -> AssertionReport {
-    match assertion {
-        Assertion::ErrorEquals(expected) => assertion_report(
-            format!("error == {}", expected_error_name(*expected)),
-            expected_error_matches(*expected, error),
-            "transport error kind did not equal the expected error kind",
-        ),
-        assertion => failed_assertion(
-            assertion_expression(assertion),
-            "request failed before this response assertion could be evaluated".to_owned(),
-        ),
-    }
-}
-
-fn assertion_expression(assertion: &Assertion) -> String {
-    match assertion {
-        Assertion::StatusEquals(expected) => format!("status == {expected}"),
-        Assertion::RedirectsEquals(expected) => format!("redirects == {expected}"),
-        Assertion::ErrorEquals(expected) => format!("error == {}", expected_error_name(*expected)),
-        Assertion::HeaderExists { name } => format!("header \"{name}\" exists"),
-        Assertion::HeaderContains { name, .. } => {
-            format!("header \"{name}\" contains expected value")
-        }
-        Assertion::BodyContains { .. } => "body contains expected value".to_owned(),
-        Assertion::JsonPathEquals { path, .. } => {
-            format!("jsonpath \"{path}\" equals expected value")
-        }
-    }
-}
-
-fn expected_error_matches(expected: ExpectedError, actual: &HttpError) -> bool {
-    matches!(
-        (expected, actual),
-        (ExpectedError::Timeout, HttpError::Timeout { .. })
-            | (
-                ExpectedError::RedirectLimit,
-                HttpError::RedirectLimitExceeded { .. }
-            )
-            | (ExpectedError::Network, HttpError::Network(_))
-            | (
-                ExpectedError::InvalidRequest,
-                HttpError::EmptyUrl | HttpError::InvalidRequest(_)
-            )
-            | (
-                ExpectedError::InvalidResponse,
-                HttpError::InvalidResponse(_)
-            )
-            | (
-                ExpectedError::ResponseTooLarge,
-                HttpError::ResponseTooLarge { .. }
-            )
-            | (ExpectedError::Cancelled, HttpError::Cancelled)
-    )
-}
-
-fn expected_error_name(error: ExpectedError) -> &'static str {
-    match error {
-        ExpectedError::Timeout => "timeout",
-        ExpectedError::RedirectLimit => "redirect-limit",
-        ExpectedError::Network => "network",
-        ExpectedError::InvalidRequest => "invalid-request",
-        ExpectedError::InvalidResponse => "invalid-response",
-        ExpectedError::ResponseTooLarge => "response-too-large",
-        ExpectedError::Cancelled => "cancelled",
-    }
-}
-
-fn redirect_count(response: &HttpResponse) -> usize {
-    response
-        .redirect_chain
-        .iter()
-        .filter(|hop| (300..400).contains(&hop.status) && hop.location.is_some())
-        .count()
-}
-
-fn extract_capture(capture: &Capture, response: &HttpResponse) -> Result<String, String> {
-    let body = serde_json::from_str::<Value>(&response.body)
-        .map_err(|_| format!("capture `{}` requires a JSON response body", capture.name))?;
-    let value = json_path(&body, &capture.path).map_err(|error| {
-        format!(
-            "capture `{}` could not resolve {}: {error}",
-            capture.name, capture.path
-        )
-    })?;
-    Ok(match value {
-        Value::String(value) => value.clone(),
-        value => value.to_string(),
-    })
-}
-
-fn render_template(template: &str, variables: &BTreeMap<String, String>) -> Result<String, String> {
-    let mut rendered = template.to_owned();
-    for _ in 0..16 {
-        let (next, replaced) = render_template_pass(&rendered, variables)?;
-        if !replaced {
-            return Ok(rendered);
-        }
-        if next == rendered {
-            return Err("variable interpolation contains a cycle".to_owned());
-        }
-        rendered = next;
-    }
-    Err("variable interpolation exceeded 16 expansions (possible cycle)".to_owned())
-}
-
-fn render_template_pass(
-    template: &str,
-    variables: &BTreeMap<String, String>,
-) -> Result<(String, bool), String> {
-    let mut rendered = String::with_capacity(template.len());
-    let mut remaining = template;
-    let mut replaced = false;
-
-    while let Some(open) = remaining.find("{{") {
-        rendered.push_str(&remaining[..open]);
-        let expression = &remaining[open + 2..];
-        let close = expression
-            .find("}}")
-            .ok_or_else(|| "unclosed variable expression".to_owned())?;
-        let name = expression[..close].trim();
-        if name.is_empty() {
-            return Err("empty variable expression".to_owned());
-        }
-        let value = variables
-            .get(name)
-            .ok_or_else(|| format!("missing variable `{name}`"))?;
-        rendered.push_str(value);
-        remaining = &expression[close + 2..];
-        replaced = true;
-    }
-    rendered.push_str(remaining);
-
-    Ok((rendered, replaced))
-}
-
-fn render_expected_string(
-    expected: &str,
-    variables: &BTreeMap<String, String>,
-) -> Result<String, String> {
-    let rendered = render_template(expected, variables)?;
-    Ok(match serde_json::from_str::<Value>(&rendered) {
-        Ok(Value::String(value)) => value,
-        Ok(value) => value.to_string(),
-        Err(_) => rendered,
-    })
-}
-
-fn parse_expected_json(expected: &str) -> Value {
-    serde_json::from_str(expected).unwrap_or_else(|_| Value::String(expected.to_owned()))
-}
-
-fn json_path<'value>(root: &'value Value, path: &str) -> Result<&'value Value, String> {
-    let mut remaining = path
-        .strip_prefix('$')
-        .ok_or_else(|| format!("JSONPath `{path}` must start with `$`"))?;
-    let mut current = root;
-
-    while !remaining.is_empty() {
-        if let Some(after_dot) = remaining.strip_prefix('.') {
-            let end = after_dot.find(['.', '[']).unwrap_or(after_dot.len());
-            let key = &after_dot[..end];
-            if key.is_empty() {
-                return Err(format!("JSONPath `{path}` contains an empty object key"));
-            }
-            current = current
-                .get(key)
-                .ok_or_else(|| format!("JSONPath `{path}` did not find object key `{key}`"))?;
-            remaining = &after_dot[end..];
-            continue;
-        }
-
-        if let Some(after_bracket) = remaining.strip_prefix('[') {
-            let end = after_bracket
-                .find(']')
-                .ok_or_else(|| format!("JSONPath `{path}` contains an unterminated array index"))?;
-            let index = after_bracket[..end]
-                .parse::<usize>()
-                .map_err(|_| format!("JSONPath `{path}` contains a non-numeric array index"))?;
-            current = current
-                .get(index)
-                .ok_or_else(|| format!("JSONPath `{path}` did not find array index {index}"))?;
-            remaining = &after_bracket[end + 1..];
-            continue;
-        }
-
-        return Err(format!("unsupported JSONPath syntax in `{path}`"));
-    }
-
-    Ok(current)
-}
-
-fn assertion_report(expression: String, success: bool, failure_message: &str) -> AssertionReport {
-    AssertionReport {
-        expression,
-        success,
-        message: (!success).then(|| failure_message.to_owned()),
-    }
-}
-
-fn failed_assertion(expression: String, message: String) -> AssertionReport {
-    AssertionReport {
-        expression,
-        success: false,
-        message: Some(message),
-    }
-}
-
-fn failed_request_report(
-    name: &str,
-    status: Option<u16>,
-    elapsed_ms: Option<u128>,
-    error: String,
-) -> RequestReport {
-    RequestReport {
-        name: name.to_owned(),
-        success: false,
-        status,
-        elapsed_ms,
-        assertions: Vec::new(),
-        captures: Vec::new(),
-        error: Some(error),
-    }
-}
-
-fn redact(message: &str, variables: &BTreeMap<String, String>) -> String {
-    variables
-        .values()
-        .filter(|value| value.len() >= 3)
-        .fold(message.to_owned(), |redacted, value| {
-            redacted.replace(value, "[REDACTED]")
-        })
 }
 
 #[cfg(test)]
@@ -519,7 +92,10 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use postman_http::HttpError;
+    use postman_http::{
+        request::{Request, RequestBody},
+        HttpError, HttpResponse,
+    };
 
     use super::*;
     use crate::parse_http_file;
@@ -622,7 +198,8 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport.clone())
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("the compiled .http file should run");
 
         assert!(report.success, "{report:#?}");
         assert_eq!(report.requests.len(), 2);
@@ -651,7 +228,8 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport.clone())
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("assertion failures are a run report, not a compile error");
 
         assert!(!report.success);
         assert_eq!(report.requests.len(), 1);
@@ -660,23 +238,33 @@ Authorization: Bearer {{secret}}
     }
 
     #[tokio::test]
-    async fn transport_errors_are_redacted_with_known_variable_values() {
+    async fn nested_file_variables_are_expanded_against_overrides() {
         let file = parse_http_file(
-            "@token = top-secret-token\n### request\nGET https://example.com/{{token}}\n",
+            "@base = https://example.com\n@url = {{base}}/anything\n# @assert status == 200\nGET {{url}}\n",
         )
-        .expect("the redaction fixture should parse");
-        let transport = FakeTransport::new([Err(HttpError::network(
-            "failed to request https://example.com/top-secret-token",
-        ))]);
+        .expect("the nested variable fixture should parse");
+        let transport = FakeTransport::new([Ok(HttpResponse::new(200, Vec::new(), String::new()))]);
+        let overrides = BTreeMap::from([("base".to_owned(), "https://other.test".to_owned())]);
 
-        let report = HeadlessRunner::new(transport)
+        let report = HeadlessRunner::new(transport.clone())
+            .run(&file, &overrides)
+            .await
+            .expect("nested file variables should compile");
+
+        assert!(report.success, "{report:#?}");
+        assert_eq!(transport.requests()[0].url, "https://other.test/anything");
+    }
+
+    #[tokio::test]
+    async fn cyclic_file_variables_are_compile_errors() {
+        let file = parse_http_file("@cycle = {{cycle}}\nGET {{cycle}}\n")
+            .expect("cyclic source should parse");
+        let transport = FakeTransport::new([]);
+        let error = HeadlessRunner::new(transport)
             .run(&file, &BTreeMap::new())
-            .await;
-        let serialized = serde_json::to_string(&report).expect("the report should serialize");
-
-        assert!(!report.success);
-        assert!(!serialized.contains("top-secret-token"));
-        assert!(serialized.contains("[REDACTED]"));
+            .await
+            .expect_err("cycles must fail before any request");
+        assert!(error.contains("cycle"), "{error}");
     }
 
     #[tokio::test]
@@ -692,7 +280,8 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport.clone())
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("expected-error flow should compile");
 
         assert!(report.success, "{report:#?}");
         assert_eq!(report.requests.len(), 2);
@@ -714,7 +303,8 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport)
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("unexpected transport errors are a run report");
 
         assert!(!report.success);
         assert!(!report.requests[0].assertions[0].success);
@@ -742,7 +332,8 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport)
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("redirect assertion should compile");
 
         assert!(report.success, "{report:#?}");
     }
@@ -760,29 +351,9 @@ Authorization: Bearer {{secret}}
 
         let report = HeadlessRunner::new(transport)
             .run(&file, &BTreeMap::new())
-            .await;
+            .await
+            .expect("header assertion should compile");
 
         assert!(report.success, "{report:#?}");
-    }
-
-    #[test]
-    fn one_interpolation_pass_replaces_more_than_sixteen_occurrences() {
-        let variables = BTreeMap::from([("value".to_owned(), "x".to_owned())]);
-        let template = "{{value}}".repeat(32);
-
-        let rendered = render_template(&template, &variables)
-            .expect("the expansion limit should measure nesting, not occurrence count");
-
-        assert_eq!(rendered, "x".repeat(32));
-    }
-
-    #[test]
-    fn cyclic_variable_expansion_returns_an_actionable_error() {
-        let variables = BTreeMap::from([("cycle".to_owned(), "{{cycle}}".to_owned())]);
-
-        let error = render_template("{{cycle}}", &variables)
-            .expect_err("a self-referential variable must not loop forever");
-
-        assert!(error.contains("cycle"));
     }
 }
