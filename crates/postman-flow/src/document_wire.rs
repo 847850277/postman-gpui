@@ -170,7 +170,6 @@ struct Ref {
 enum Check {
     Status { equals: u16 },
     Jsonpath { path: String, equals: Json },
-    JsonpathTemplate { path: String, equals: Text },
     HeaderExists { name: String },
     HeaderContains { name: String, equals: Text },
     BodyContains { equals: Text },
@@ -665,10 +664,6 @@ impl From<Check> for ResponseCheck {
                 path,
                 expected: equals.into(),
             },
-            Check::JsonpathTemplate { path, equals } => Self::JsonPathEquals {
-                path,
-                expected: equals.into(),
-            },
             Check::HeaderExists { name } => Self::HeaderExists { name },
             Check::HeaderContains { name, equals } => Self::HeaderContains {
                 name,
@@ -688,10 +683,6 @@ impl From<&ResponseCheck> for Check {
         match value {
             ResponseCheck::StatusEquals(equals) => Self::Status { equals: *equals },
             ResponseCheck::JsonValueEquals { path, expected } => Self::Jsonpath {
-                path: path.clone(),
-                equals: expected.into(),
-            },
-            ResponseCheck::JsonPathEquals { path, expected } => Self::JsonpathTemplate {
                 path: path.clone(),
                 equals: expected.into(),
             },

@@ -143,15 +143,6 @@ pub fn compile_flow(
                     }
                     checks.push(CompiledCheck::Status(*value));
                 }
-                ResponseCheck::JsonPathEquals { path, expected } => {
-                    compiler.text(expected, &inputs, &available, &at.child("equals"));
-                    if let Some(path) = compiler.path(path, &at.child("path")) {
-                        checks.push(CompiledCheck::JsonText {
-                            path,
-                            expected: expected.clone(),
-                        });
-                    }
-                }
                 ResponseCheck::JsonValueEquals { path, expected } => {
                     compiler.json(expected, &inputs, &available, &at.child("equals"), 0);
                     if let Some(path) = compiler.path(path, &at.child("path")) {

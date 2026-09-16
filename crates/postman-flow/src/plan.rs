@@ -39,10 +39,6 @@ pub(crate) struct HttpStepPlan {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CompiledCheck {
     Status(u16),
-    JsonText {
-        path: JsonPath,
-        expected: TextTemplate,
-    },
     JsonValue {
         path: JsonPath,
         expected: JsonTemplate,

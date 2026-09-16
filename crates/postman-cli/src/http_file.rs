@@ -5,7 +5,8 @@ use std::{
 
 use postman_flow::{
     BodyTemplate, FlowDefinition, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
-    HttpStepDefinition, ResponseCheck, ResponseExport, TemplatePart, TextTemplate, ValueReference,
+    HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
+    ValueReference,
 };
 pub use postman_flow::{ExpectedError, RequestOptionOverrides};
 use postman_http::request::{HttpMethod, RedirectPolicy, RequestBody, MAX_REDIRECT_HOPS};
@@ -142,17 +143,18 @@ impl HttpFile {
                             )?,
                         }
                     }
-                    Assertion::JsonPathEquals { path, expected } => ResponseCheck::JsonPathEquals {
-                        path: path.clone(),
-                        expected: parse_text_template(
-                            expected,
-                            &captured,
-                            &self.variables,
-                            &mut referenced_inputs,
-                            &mut Vec::new(),
-                            line,
-                        )?,
-                    },
+                    Assertion::JsonPathEquals { path, expected } => {
+                        ResponseCheck::JsonValueEquals {
+                            path: path.clone(),
+                            expected: parse_jsonpath_expected(
+                                expected,
+                                &captured,
+                                &self.variables,
+                                &mut referenced_inputs,
+                                line,
+                            )?,
+                        }
+                    }
                 };
                 step = step.check(check);
             }
@@ -302,6 +304,56 @@ fn parse_text_template(
         parts.push(TemplatePart::Literal(String::new()));
     }
     Ok(TextTemplate::parts(parts))
+}
+
+fn parse_jsonpath_expected(
+    expected: &str,
+    captured: &BTreeMap<String, (String, String)>,
+    file_variables: &BTreeMap<String, String>,
+    referenced_inputs: &mut BTreeSet<String>,
+    line: usize,
+) -> Result<JsonTemplate, ParseError> {
+    if let Ok(serde_json::Value::String(inner)) =
+        serde_json::from_str::<serde_json::Value>(expected)
+    {
+        if inner.contains("{{") {
+            let template = parse_text_template(
+                &inner,
+                captured,
+                file_variables,
+                referenced_inputs,
+                &mut Vec::new(),
+                line,
+            )?;
+            return Ok(text_template_to_json_expected(template));
+        }
+        return Ok(JsonTemplate::literal(inner));
+    }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(expected) {
+        return Ok(JsonTemplate::literal(value));
+    }
+    let template = parse_text_template(
+        expected,
+        captured,
+        file_variables,
+        referenced_inputs,
+        &mut Vec::new(),
+        line,
+    )?;
+    Ok(text_template_to_json_expected(template))
+}
+
+fn text_template_to_json_expected(template: TextTemplate) -> JsonTemplate {
+    match template.parts.as_slice() {
+        [TemplatePart::Input(name)] => JsonTemplate::input(name.clone()),
+        [TemplatePart::StepOutput { step_id, name }] => {
+            JsonTemplate::step_output(step_id.clone(), name.clone())
+        }
+        [TemplatePart::Literal(value)] => serde_json::from_str::<serde_json::Value>(value)
+            .map(JsonTemplate::literal)
+            .unwrap_or_else(|_| JsonTemplate::literal(value.clone())),
+        _ => JsonTemplate::String(template),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1057,6 +1109,72 @@ Accept: application/json
             .to_flow_definition()
             .expect_err("empty interpolation must fail conversion");
         assert!(error.message.contains("empty"), "{error}");
+    }
+
+    #[test]
+    fn jsonpath_assertions_lower_to_typed_json_equals() {
+        let file = parse_http_file(
+            r#"
+### seed
+# @capture id = jsonpath "$.id"
+# @assert jsonpath "$.count" == 2
+# @assert jsonpath "$.ok" == true
+# @assert jsonpath "$.missing" == null
+# @assert jsonpath "$.name" == "GET"
+# @assert jsonpath "$.empty" == {}
+GET https://example.com/seed
+
+### echo
+# @assert jsonpath "$.json.id" == "{{id}}"
+GET https://example.com/echo
+"#,
+        )
+        .expect("jsonpath fixture should parse");
+        let flow = file
+            .to_flow_definition()
+            .expect("jsonpath assertions should lower to typed JSON");
+        assert_eq!(
+            flow.steps[0].checks[0],
+            ResponseCheck::JsonValueEquals {
+                path: "$.count".into(),
+                expected: JsonTemplate::literal(2_i64),
+            }
+        );
+        assert_eq!(
+            flow.steps[0].checks[1],
+            ResponseCheck::JsonValueEquals {
+                path: "$.ok".into(),
+                expected: JsonTemplate::literal(true),
+            }
+        );
+        assert_eq!(
+            flow.steps[0].checks[2],
+            ResponseCheck::JsonValueEquals {
+                path: "$.missing".into(),
+                expected: JsonTemplate::literal(serde_json::Value::Null),
+            }
+        );
+        assert_eq!(
+            flow.steps[0].checks[3],
+            ResponseCheck::JsonValueEquals {
+                path: "$.name".into(),
+                expected: JsonTemplate::literal("GET"),
+            }
+        );
+        assert_eq!(
+            flow.steps[0].checks[4],
+            ResponseCheck::JsonValueEquals {
+                path: "$.empty".into(),
+                expected: JsonTemplate::literal(serde_json::json!({})),
+            }
+        );
+        assert_eq!(
+            flow.steps[1].checks[0],
+            ResponseCheck::JsonValueEquals {
+                path: "$.json.id".into(),
+                expected: JsonTemplate::step_output("seed", "id"),
+            }
+        );
     }
 
     #[test]

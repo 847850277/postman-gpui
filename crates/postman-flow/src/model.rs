@@ -325,11 +325,6 @@ impl BodyTemplate {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResponseCheck {
     StatusEquals(u16),
-    JsonPathEquals {
-        path: String,
-        expected: TextTemplate,
-    },
-    /// Typed equality without text-to-JSON coercion.
     JsonValueEquals {
         path: String,
         expected: JsonTemplate,

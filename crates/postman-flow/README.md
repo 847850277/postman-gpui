@@ -175,8 +175,7 @@ checks:
 ~~~
 
 jsonpath 的 equals 是类型明确的 JSON 表达式，字符串 "123" 与数字 123 不同。
-jsonpath_template 接受文本表达式，保留早期 Rust 示例的“渲染后尝试解析 JSON”
-比较语义；新文档优先使用 jsonpath。
+`.http` 的 `@assert jsonpath` 在编译时降成同一种检查。
 
 JSONPath 支持根 $、点分隔对象键和非负数组索引，如 $.items[0].id，
 不支持通配符或过滤表达式。节点 exports 提取值，流程 outputs 声明返回哪些
