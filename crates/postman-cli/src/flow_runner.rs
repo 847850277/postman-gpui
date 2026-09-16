@@ -93,6 +93,8 @@ pub async fn run_flow_plan<T: HttpTransport>(
     let mut requests = Vec::new();
     let mut current_request: Option<RequestReport> = None;
     let mut flow_success = false;
+    let mut reported_outputs = BTreeMap::new();
+    let mut redacted_outputs = Vec::new();
 
     while let Some(event) = events.next().await {
         let event = event.map_err(|error| format!("{error}"))?;
@@ -154,8 +156,19 @@ pub async fn run_flow_plan<T: HttpTransport>(
                     requests.push(req);
                 }
             }
-            FlowEvent::FlowFinished { success, .. } => {
+            FlowEvent::FlowFinished { success, outputs } => {
                 flow_success = success;
+                if success {
+                    for (name, output) in outputs {
+                        let value = if output.is_sensitive() {
+                            redacted_outputs.push(name.clone());
+                            Value::String("[REDACTED]".into())
+                        } else {
+                            output.value().clone()
+                        };
+                        reported_outputs.insert(name, value);
+                    }
+                }
             }
             _ => {}
         }
@@ -164,6 +177,8 @@ pub async fn run_flow_plan<T: HttpTransport>(
     Ok(RunReport {
         success: flow_success,
         requests,
+        outputs: reported_outputs,
+        redacted_outputs,
     })
 }
 

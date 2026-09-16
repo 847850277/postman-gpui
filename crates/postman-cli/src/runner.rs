@@ -28,6 +28,10 @@ pub fn compile_http_file(file: &HttpFile) -> Result<FlowPlan, String> {
 pub struct RunReport {
     pub success: bool,
     pub requests: Vec<RequestReport>,
+    /// Declared flow returns. Sensitive values are replaced before entering the report.
+    pub outputs: BTreeMap<String, serde_json::Value>,
+    /// Distinguishes redacted values from an ordinary literal "[REDACTED]" string.
+    pub redacted_outputs: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -212,7 +216,11 @@ Authorization: Bearer {{secret}}
         );
         let serialized = serde_json::to_string(&report).expect("the report should serialize");
         assert!(!serialized.contains("do-not-print-this"));
-        assert!(!serialized.contains("flow-123"));
+        assert_eq!(
+            report.outputs["correlation_id"],
+            serde_json::json!("flow-123")
+        );
+        assert!(report.redacted_outputs.is_empty());
     }
 
     #[tokio::test]

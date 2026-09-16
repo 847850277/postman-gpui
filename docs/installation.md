@@ -66,9 +66,38 @@ To build on Debian/Ubuntu, install the development packages used by GPUI:
 
 ```bash
 sudo apt update
-sudo apt install build-essential clang cmake libasound2-dev libfontconfig1-dev \
-  libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libvulkan1 pkg-config
+  sudo apt install build-essential clang cmake libasound2-dev libfontconfig1-dev \
+    libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libvulkan1 pkg-config
 ```
+
+## Postman CLI (`postman-g`)
+
+`postman-g` is the headless CLI runner for `.http` requests and `.http.yml` workflows.
+
+### One-line installer (macOS & Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh | bash
+```
+
+### Install with Cargo
+
+```bash
+# Install directly from GitHub
+cargo install --git https://github.com/847850277/postman-gpui postman-cli --bin postman-g
+
+# Or build from local checkout
+cargo install --path crates/postman-cli --bin postman-g
+```
+
+### Download prebuilt binary
+
+Download standalone prebuilt binaries from [GitHub Releases](https://github.com/847850277/postman-gpui/releases):
+- macOS (universal): `postman-g-macos-universal.tar.gz`
+- Linux (x86_64): `postman-g-linux-x86_64.tar.gz`
+- Windows (x86_64): `postman-g-windows-x86_64.zip`
+
+Extract and place `postman-g` in your system `PATH` (such as `~/.cargo/bin` or `/usr/local/bin`).
 
 ## Verify a download
 

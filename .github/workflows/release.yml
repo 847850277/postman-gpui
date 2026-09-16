@@ -167,17 +167,48 @@ jobs:
         if: runner.os == 'macOS'
         run: python scripts/release.py package --platform macos --universal-macos --formats app,dmg
 
+      - name: Build and package universal macOS postman-g binary
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          cargo build --locked --release -p postman-cli --bin postman-g --target x86_64-apple-darwin
+          cargo build --locked --release -p postman-cli --bin postman-g --target aarch64-apple-darwin
+          mkdir -p dist/postman-g-bin
+          lipo -create -output dist/postman-g-bin/postman-g +            target/x86_64-apple-darwin/release/postman-g +            target/aarch64-apple-darwin/release/postman-g
+          chmod +x dist/postman-g-bin/postman-g
+          tar -czf dist/postman-g-macos-universal.tar.gz -C dist/postman-g-bin postman-g
+          rm -rf dist/postman-g-bin
+
       - name: Build and package Windows installer
         if: runner.os == 'Windows'
         run: >-
           python scripts/release.py package --platform windows
           --target x86_64-pc-windows-msvc --formats nsis
 
+      - name: Build and package Windows postman-g binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --locked --release -p postman-cli --bin postman-g
+          Compress-Archive -Path target\release\postman-g.exe -DestinationPath dist\postman-g-windows-x86_64.zip
+
       - name: Build and package Linux application
         if: runner.os == 'Linux'
         run: >-
           python scripts/release.py package --platform linux
           --target x86_64-unknown-linux-gnu --formats appimage,deb
+
+      - name: Build and package Linux postman-g binary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cargo build --locked --release -p postman-cli --bin postman-g
+          mkdir -p dist/postman-g-bin
+          cp target/release/postman-g dist/postman-g-bin/
+          chmod +x dist/postman-g-bin/postman-g
+          tar -czf dist/postman-g-linux-x86_64.tar.gz -C dist/postman-g-bin postman-g
+          rm -rf dist/postman-g-bin
 
       - name: Validate macOS package structure and signature
         if: runner.os == 'macOS'
@@ -292,6 +323,7 @@ jobs:
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+            dist/*.tar.gz
             dist/BUILD-INFO-*.txt
 
   publish:
@@ -316,6 +348,9 @@ jobs:
           test -n "$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)"
           test -n "$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
           test -n "$(find dist -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-macos-universal.tar.gz' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-linux-x86_64.tar.gz' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-windows-x86_64.zip' -print -quit)"
           test "$(find dist -maxdepth 1 -type f -name 'BUILD-INFO-*.txt' | wc -l | tr -d ' ')" = "3"
 
       - name: Generate SHA-256 checksums
