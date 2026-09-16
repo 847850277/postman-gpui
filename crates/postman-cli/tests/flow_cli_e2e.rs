@@ -108,6 +108,14 @@ schema_version: 1
         serde_json::from_slice(&output.stdout).expect("stdout should be a JSON report");
     assert_eq!(report["success"], true);
     assert_eq!(report["schema_version"], 1);
+    assert_eq!(
+        report["files"][0]["report"]["outputs"],
+        serde_json::json!({})
+    );
+    assert_eq!(
+        report["files"][0]["report"]["redacted_outputs"],
+        serde_json::json!([])
+    );
     let requests = report["files"][0]["report"]["requests"].as_array().unwrap();
     assert_eq!(requests.len(), 2);
     assert_eq!(requests[0]["name"], "get-uuid (Get UUID)");

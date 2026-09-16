@@ -2,9 +2,9 @@
 mod compile;
 use futures::StreamExt;
 use postman_flow::{
-    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowSessionEnvironment,
-    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck, ResponseExport,
-    TemplatePart, TextTemplate,
+    execute_flow, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs, FlowOutputSpec,
+    FlowSessionEnvironment, HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck,
+    ResponseExport, TemplatePart, TextTemplate, ValueReference,
 };
 use postman_http::request::HttpMethod;
 use postman_request::RequestClient;
@@ -106,8 +106,15 @@ pub(crate) fn crmeb_order_list_definition() -> FlowDefinition {
                 path: "$.status".to_string(),
                 expected: JsonTemplate::literal(200_i64),
             })
+            .export(ResponseExport::json("order_data", "$.data"))
         ],
-    outputs: Vec::new(),
+        outputs: vec![FlowOutputSpec {
+            name: "order_data".into(),
+            value: ValueReference::StepOutput {
+                step_id: "order-list".into(),
+                name: "order_data".into(),
+            },
+        }],
     }
 }
 

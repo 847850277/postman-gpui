@@ -67,6 +67,41 @@ Supported assertion forms are `status == CODE`, `redirects == COUNT`,
 `jsonpath "$.path[0]" == VALUE`. An expected transport error is a passing flow step, so timeout and
 redirect-limit behavior can be tested without making the whole suite fail.
 
+## Flow return values
+
+Each file's report includes an outputs object and a redacted_outputs array. These are additive
+fields in the version 1 suite report. Native YAML returns the values declared in flow.outputs;
+the .http adapter declares its captures as flow outputs, so those values are now reported too.
+Objects, arrays, numbers, booleans, null and strings retain their JSON types.
+
+~~~json
+{
+  "success": true,
+  "requests": [],
+  "outputs": {
+    "order_data": {"count": 1, "list": [{"id": "00123", "paid": true}]},
+    "token": "[REDACTED]"
+  },
+  "redacted_outputs": ["token"]
+}
+~~~
+
+In --json mode, read these fields at files[i].report.outputs and
+files[i].report.redacted_outputs. Human-readable reports print an OUTPUT line for each return.
+Sensitive values, as marked by a Flow input or export's sensitive: true, are replaced with
+the string "[REDACTED]" before the RunReport is constructed. The redacted_outputs list
+distinguishes these from an ordinary literal "[REDACTED]" value. An output object marked
+sensitive is redacted as a whole; unmarked output values are returned unchanged.
+Failed flows and flows without declared returns have empty output maps.
+
+The CRMEB YAML/Rust example now exports $.data from order-list as order_data.
+It does not declare its intermediate login key or token as flow returns. To run the YAML:
+
+~~~sh
+cargo run --locked -p postman-cli -- run \
+  crates/postman-flow/examples/flows/crmeb_order_list.http.yml --json
+~~~
+
 ## Execution and Exit Codes
 
 - `0`: All requests in all suites passed.
@@ -74,4 +109,3 @@ redirect-limit behavior can be tested without making the whole suite fail.
 - `2`: CLI argument error, file read failure, or YAML/HTTP syntax compilation error.
 
 This exit code contract allows `postman-g` to integrate seamlessly into CI/CD pipelines (e.g. GitHub Actions) and automated test platforms.
-

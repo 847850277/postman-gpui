@@ -1,0 +1,49 @@
+schema_version: 1
+flow:
+  name: flow-output-report
+  inputs:
+  - name: host
+  - name: token
+    sensitive: true
+  - name: optional
+    default: null
+  - name: marker
+    default: '[REDACTED]'
+  steps:
+  - id: fetch
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /result
+      headers:
+      - name: { literal: Authorization }
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.ok
+      equals: { literal: true }
+    exports:
+    - name: data
+      path: $.data
+    - name: private
+      path: $.secret
+      sensitive: true
+  outputs:
+  - name: data
+    value: { output: { step: fetch, name: data } }
+  - name: secret_response
+    value: { output: { step: fetch, name: private } }
+  - name: secret_input
+    value: { input: token }
+  - name: optional
+    value: { input: optional }
+  - name: marker
+    value: { input: marker }

@@ -336,6 +336,9 @@ fn print_human_report(report: &SuiteReport) {
                 println!("  {error}");
             }
         }
+        for (name, value) in &file.report.outputs {
+            println!("  OUTPUT {name}: {value}");
+        }
     }
 
     let passed = report

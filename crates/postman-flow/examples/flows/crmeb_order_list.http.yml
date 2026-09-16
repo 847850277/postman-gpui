@@ -12,6 +12,12 @@ flow:
   - default: ''
     name: captchaVerification
   name: crmeb_order_list
+  outputs:
+  - name: order_data
+    value:
+      output:
+        step: order-list
+        name: order_data
   steps:
   - checks:
     - equals: 200
@@ -79,6 +85,9 @@ flow:
       kind: jsonpath
       path: $.status
     id: order-list
+    exports:
+    - name: order_data
+      path: $.data
     name: 2. 订单列表
     request:
       headers:

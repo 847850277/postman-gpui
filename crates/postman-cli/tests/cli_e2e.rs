@@ -54,6 +54,10 @@ fn http_file_drives_the_real_transport_without_linking_gpui() {
     assert_eq!(report["success"], true);
     assert_eq!(report["schema_version"], 1);
     assert_eq!(
+        report["files"][0]["report"]["outputs"]["correlation_id"],
+        "flow-123"
+    );
+    assert_eq!(
         report["files"][0]["report"]["requests"]
             .as_array()
             .map(Vec::len),
