@@ -453,25 +453,6 @@ fn evaluate_check(
             success: false,
             message: Some("request completed without the expected transport error".to_owned()),
         },
-        CompiledCheck::JsonText { path, expected } => {
-            let description = format!("jsonpath {:?} == expected value", path.source());
-            let outcome = (|| {
-                let expected = context.resolve_expected(expected)?;
-                let body = serde_json::from_str::<Value>(&response.body)
-                    .map_err(|_| "response body is not valid JSON".to_owned())?;
-                let actual = path.resolve(&body)?;
-                if actual == &expected {
-                    Ok(())
-                } else {
-                    Err("JSONPath value did not equal the expected value".to_owned())
-                }
-            })();
-            CheckResult {
-                description,
-                success: outcome.is_ok(),
-                message: outcome.err(),
-            }
-        }
         CompiledCheck::JsonValue { path, expected } => {
             let description = format!("jsonpath {:?} == expected value", path.source());
             let outcome = (|| {
@@ -562,9 +543,6 @@ fn check_description(check: &CompiledCheck) -> String {
             format!("header \"{name}\" contains expected value")
         }
         CompiledCheck::BodyContains { .. } => "body contains expected value".to_owned(),
-        CompiledCheck::JsonText { path, .. } => {
-            format!("jsonpath {:?} == expected value", path.source())
-        }
         CompiledCheck::JsonValue { path, .. } => {
             format!("jsonpath {:?} == expected value", path.source())
         }
@@ -668,26 +646,6 @@ impl RunContext {
             }
         }
         Ok(rendered)
-    }
-
-    fn resolve_expected(&self, template: &TextTemplate) -> Result<Value, String> {
-        match template.parts.as_slice() {
-            [TemplatePart::Input(name)] => self
-                .inputs
-                .get(name)
-                .map(|value| value.value.clone())
-                .ok_or_else(|| format!("input `{name}` is not bound")),
-            [TemplatePart::StepOutput { step_id, name }] => self
-                .outputs
-                .get(&(step_id.clone(), name.clone()))
-                .map(|value| value.value.clone())
-                .ok_or_else(|| format!("output `{step_id}.{name}` is not available at runtime")),
-            _ => {
-                let rendered = self.render(template)?;
-                Ok(serde_json::from_str(&rendered)
-                    .unwrap_or_else(|_| Value::String(rendered.to_owned())))
-            }
-        }
     }
 
     fn redact(&self, message: &str) -> String {
