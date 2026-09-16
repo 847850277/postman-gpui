@@ -1,13 +1,14 @@
 [workspace]
 members = [
     ".",
+    "crates/postman-cli",
+    "crates/postman-flow",
     "crates/postman-http",
     "crates/postman-request"
 ]
 resolver = "2"
 
 [workspace.package]
-name = "postman-gpui"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.97"

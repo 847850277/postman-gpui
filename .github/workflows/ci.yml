@@ -114,13 +114,20 @@ jobs:
       run: cargo fmt -- --check
 
     - name: Run clippy
-      run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+    - name: Verify headless dependency boundary
+      run: |
+        if cargo tree -p postman-cli | grep -E '(^|[[:space:]])gpui(_platform)? v'; then
+          echo "postman-cli must not depend on GPUI"
+          exit 1
+        fi
 
     - name: Build project
-      run: cargo build --locked --verbose
+      run: cargo build --locked --workspace --verbose
 
     - name: Run all tests
-      run: cargo test --locked --all-targets --all-features --verbose
+      run: cargo test --locked --workspace --all-targets --all-features --verbose
 
     - name: Build release
       run: cargo build --locked --release --verbose

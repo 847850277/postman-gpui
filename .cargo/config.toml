@@ -1,4 +1,5 @@
 [alias]
 scenarios = "test --test request_scenarios"
 httpbingo-scenarios = "test --test httpbingo_scenarios -- --test-threads=1"
+httpbingo-headless = "run --locked -p postman-cli -- run crates/postman-cli/tests/fixtures/httpbingo"
 history-persistence = "test --locked --test history_persistence --test persistence_e2e -- --test-threads=1"

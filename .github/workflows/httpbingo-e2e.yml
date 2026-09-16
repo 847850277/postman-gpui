@@ -24,7 +24,36 @@ env:
   RUST_TOOLCHAIN: "1.97.0"
 
 jobs:
-  httpbingo-e2e:
+  headless-httpbingo-e2e:
+    name: Headless .http → HTTPBingo
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+
+      - name: Cache Cargo dependencies and build output
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-httpbingo-headless-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-httpbingo-headless-
+            ${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Run headless .http capability matrix against HTTPBingo
+        run: cargo httpbingo-headless
+
+  postman-app-httpbingo-e2e:
     name: Real PostmanApp → HTTPBingo
     runs-on: macos-latest
     timeout-minutes: 15

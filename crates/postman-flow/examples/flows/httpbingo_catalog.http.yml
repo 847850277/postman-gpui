@@ -1,0 +1,81 @@
+schema_version: 1
+apis:
+  httpbingo.uuid:
+    parameters: [host]
+    request:
+      method: GET
+      url:
+        concat:
+          - input: host
+          - literal: /uuid
+      headers:
+        - name: { literal: Accept }
+          value: { literal: application/json }
+flow:
+  name: httpbingo-catalog
+  inputs:
+    - name: host
+      default: https://httpbingo.org
+    - name: client
+      default: postman-flow-yaml
+    - name: optional
+      default: null
+  steps:
+    - id: seed
+      request:
+        kind: api
+        api: httpbingo.uuid
+        bindings:
+          host: { input: host }
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: correlation_id
+          path: $.uuid
+    - id: echo
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/yaml/
+            - output: { step: seed, name: correlation_id }
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              client: { input: client }
+              correlation_id:
+                output: { step: seed, name: correlation_id }
+              optional: { input: optional }
+              literal_data:
+                literal: { input: this-is-data }
+      checks:
+        - kind: status
+          equals: 200
+        - kind: jsonpath
+          path: $.json.client
+          equals: { input: client }
+        - kind: jsonpath
+          path: $.json.correlation_id
+          equals: { output: { step: seed, name: correlation_id } }
+        - kind: jsonpath
+          path: $.json.optional
+          equals: { literal: null }
+      exports:
+        - name: document
+          path: $.json
+  outputs:
+    - name: correlation_id
+      value: { output: { step: seed, name: correlation_id } }
+    - name: document
+      value: { output: { step: echo, name: document } }
+editor:
+  nodes:
+    seed: { x: 100, y: 150 }
+    echo: { x: 420, y: 150 }

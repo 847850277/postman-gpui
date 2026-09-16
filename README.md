@@ -59,12 +59,30 @@ On macOS, build a universal package with:
 python3 scripts/release.py package --universal-macos
 ```
 
+## Headless `.http` / `.http.yml` runner
+
+The UI-free runner compiles `.http` files and native `.http.yml` flows to the same `postman-flow`
+plan, executes them through the desktop application's `postman-http` / `postman-request` transport,
+and exits non-zero when transport or declarative assertions fail.
+
+```bash
+cargo httpbingo-headless
+cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/flow.http.yml --input client=hello
+cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
+```
+
+See the [headless runner reference](crates/postman-cli/README.md) for supported syntax, captures,
+assertions, JSON reports, per-request timeouts/redirect options, and the 58-family HTTPBingo
+coverage matrix.
+
 ## Verify
 
 ```bash
 cargo fmt -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked --all-targets --all-features
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace --all-targets --all-features
+cargo httpbingo-headless
 cargo httpbingo-scenarios
 python3 -m unittest discover -s scripts/tests
 ```
@@ -74,8 +92,9 @@ python3 -m unittest discover -s scripts/tests
 The v0.1.0 scope is tracked by
 [#50](https://github.com/847850277/postman-gpui/issues/50). Binary downloads, file-backed response
 saving, and streaming response progress remain intentionally pending in
-[#69](https://github.com/847850277/postman-gpui/issues/69) while the reusable HTTP-core architecture
-for future CLI and performance-testing use cases is designed.
+[#69](https://github.com/847850277/postman-gpui/issues/69). The initial reusable HTTP core and
+headless `.http` runner are tracked by
+[#171](https://github.com/847850277/postman-gpui/issues/171).
 
 See [CHANGELOG.md](CHANGELOG.md), the [live editor synchronization audit](docs/autofill-contract.md),
 the [release runbook](docs/releasing.md), and the

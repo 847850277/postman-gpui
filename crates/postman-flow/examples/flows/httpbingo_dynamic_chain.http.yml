@@ -1,0 +1,415 @@
+flow:
+  inputs:
+  - default: https://httpbingo.org
+    name: host
+  - default: 张"三"
+    name: customer
+  - default: |-
+      实验小学
+      二楼\东侧
+    name: address
+  - default: 2
+    name: quantity
+  - default: 129900
+    name: amount_minor
+  - default:
+      gift: false
+      note: null
+    name: metadata
+  name: httpbingo-dynamic-chain
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: token
+      path: $.uuid
+      sensitive: true
+    id: auth
+    name: auth
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: id
+      path: $.uuid
+    id: allocate-order-id
+    name: allocate-order-id
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: id
+          step: allocate-order-id
+      kind: jsonpath
+      path: $.json.order_id
+    - equals:
+        input: customer
+      kind: jsonpath
+      path: $.json.customer
+    - equals:
+        input: quantity
+      kind: jsonpath
+      path: $.json.quantity
+    - equals:
+        input: amount_minor
+      kind: jsonpath
+      path: $.json.amount_minor
+    - equals:
+        input: metadata
+      kind: jsonpath
+      path: $.json.metadata
+    exports:
+    - name: order_id
+      path: $.json.order_id
+    - name: amount_minor
+      path: $.json.amount_minor
+    - name: document
+      path: $.json
+    id: order
+    name: order
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            amount_minor:
+              input: amount_minor
+            customer:
+              input: customer
+            metadata:
+              input: metadata
+            order_id:
+              output:
+                name: id
+                step: allocate-order-id
+            quantity:
+              input: quantity
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: token
+              step: auth
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/orders
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: id
+      path: $.uuid
+    id: allocate-payment-id
+    name: allocate-payment-id
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: order_id
+          step: order
+      kind: jsonpath
+      path: $.json.order_id
+    - equals:
+        output:
+          name: amount_minor
+          step: order
+      kind: jsonpath
+      path: $.json.amount_minor
+    - equals:
+        output:
+          name: id
+          step: allocate-payment-id
+      kind: jsonpath
+      path: $.json.payment_id
+    exports:
+    - name: payment_id
+      path: $.json.payment_id
+    - name: document
+      path: $.json
+    id: payment
+    name: payment
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            amount_minor:
+              output:
+                name: amount_minor
+                step: order
+            order_id:
+              output:
+                name: order_id
+                step: order
+            payment_id:
+              output:
+                name: id
+                step: allocate-payment-id
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: token
+              step: auth
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/payments
+  - checks:
+    - equals: 200
+      kind: status
+    exports:
+    - name: id
+      path: $.uuid
+    id: allocate-receipt-id
+    name: allocate-receipt-id
+    request:
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /uuid
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: order_id
+          step: order
+      kind: jsonpath
+      path: $.json.order_id
+    - equals:
+        output:
+          name: payment_id
+          step: payment
+      kind: jsonpath
+      path: $.json.payment_id
+    - equals:
+        output:
+          name: id
+          step: allocate-receipt-id
+      kind: jsonpath
+      path: $.json.receipt_id
+    exports:
+    - name: receipt_id
+      path: $.json.receipt_id
+    - name: document
+      path: $.json
+    id: settlement
+    name: settlement
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            order_id:
+              output:
+                name: order_id
+                step: order
+            payment_id:
+              output:
+                name: payment_id
+                step: payment
+            receipt_id:
+              output:
+                name: id
+                step: allocate-receipt-id
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: token
+              step: auth
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/settlements
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: document
+          step: order
+      kind: jsonpath
+      path: $.json.order
+    - equals:
+        output:
+          name: document
+          step: payment
+      kind: jsonpath
+      path: $.json.payment
+    - equals:
+        output:
+          name: document
+          step: settlement
+      kind: jsonpath
+      path: $.json.settlement
+    - equals:
+        output:
+          name: id
+          step: allocate-order-id
+      kind: jsonpath
+      path: $.json.settlement.order_id
+    - equals:
+        output:
+          name: id
+          step: allocate-payment-id
+      kind: jsonpath
+      path: $.json.settlement.payment_id
+    - equals:
+        output:
+          name: id
+          step: allocate-receipt-id
+      kind: jsonpath
+      path: $.json.settlement.receipt_id
+    - equals:
+        input: address
+      kind: jsonpath
+      path: $.json.address
+    id: dispatch
+    name: dispatch
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            address:
+              input: address
+            order:
+              output:
+                name: document
+                step: order
+            payment:
+              output:
+                name: document
+                step: payment
+            settlement:
+              output:
+                name: document
+                step: settlement
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              name: token
+              step: auth
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/dispatch
+schema_version: 1

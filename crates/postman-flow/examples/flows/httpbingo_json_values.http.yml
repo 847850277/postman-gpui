@@ -1,0 +1,290 @@
+flow:
+  inputs:
+  - default: https://httpbingo.org
+    name: host
+  - default: "张\"三\"\n二楼\\东侧\t收件 😀"
+    name: text
+  - default: 42
+    name: integer
+  - default: 19.95
+    name: decimal
+  - default: true
+    name: enabled
+  - default: null
+    name: optional
+  - default:
+      active: false
+      missing: null
+      name: 实验"小学"
+    name: object
+  - default:
+    - 7
+    - false
+    - null
+    - '00123'
+    - line: |-
+        第一行
+        第二行
+    name: array
+  - default: '00123'
+    name: numeric_string
+  - default: 'true'
+    name: boolean_string
+  - default: 'null'
+    name: null_string
+  name: httpbingo-json-values
+  steps:
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        input: text
+      kind: jsonpath
+      path: $.json.text
+    - equals:
+        input: integer
+      kind: jsonpath
+      path: $.json.integer
+    - equals:
+        input: decimal
+      kind: jsonpath
+      path: $.json.decimal
+    - equals:
+        input: enabled
+      kind: jsonpath
+      path: $.json.enabled
+    - equals:
+        input: optional
+      kind: jsonpath
+      path: $.json.optional
+    - equals:
+        input: object
+      kind: jsonpath
+      path: $.json.object
+    - equals:
+        input: array
+      kind: jsonpath
+      path: $.json.array
+    - equals:
+        input: numeric_string
+      kind: jsonpath
+      path: $.json.numeric_string
+    - equals:
+        input: boolean_string
+      kind: jsonpath
+      path: $.json.boolean_string
+    - equals:
+        input: null_string
+      kind: jsonpath
+      path: $.json.null_string
+    exports:
+    - name: text
+      path: $.json.text
+    - name: integer
+      path: $.json.integer
+    - name: decimal
+      path: $.json.decimal
+    - name: enabled
+      path: $.json.enabled
+    - name: optional
+      path: $.json.optional
+    - name: object
+      path: $.json.object
+    - name: array
+      path: $.json.array
+    - name: numeric_string
+      path: $.json.numeric_string
+    - name: boolean_string
+      path: $.json.boolean_string
+    - name: null_string
+      path: $.json.null_string
+    - name: document
+      path: $.json
+    id: send-values
+    name: send-values
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            array:
+              input: array
+            boolean_string:
+              input: boolean_string
+            decimal:
+              input: decimal
+            enabled:
+              input: enabled
+            integer:
+              input: integer
+            null_string:
+              input: null_string
+            numeric_string:
+              input: numeric_string
+            object:
+              input: object
+            optional:
+              input: optional
+            text:
+              input: text
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/json-values
+  - checks:
+    - equals: 200
+      kind: status
+    - equals:
+        output:
+          name: document
+          step: send-values
+      kind: jsonpath
+      path: $.json.document
+    - equals:
+        input: integer
+      kind: jsonpath
+      path: $.json.nested[0]
+    - equals:
+        input: text
+      kind: jsonpath
+      path: $.json.nested[1].text
+    - equals:
+        input: optional
+      kind: jsonpath
+      path: $.json.nested[1].optional
+    - equals:
+        input: text
+      kind: jsonpath
+      path: $.json.fields.text
+    - equals:
+        input: integer
+      kind: jsonpath
+      path: $.json.fields.integer
+    - equals:
+        input: decimal
+      kind: jsonpath
+      path: $.json.fields.decimal
+    - equals:
+        input: enabled
+      kind: jsonpath
+      path: $.json.fields.enabled
+    - equals:
+        input: optional
+      kind: jsonpath
+      path: $.json.fields.optional
+    - equals:
+        input: object
+      kind: jsonpath
+      path: $.json.fields.object
+    - equals:
+        input: array
+      kind: jsonpath
+      path: $.json.fields.array
+    - equals:
+        input: numeric_string
+      kind: jsonpath
+      path: $.json.fields.numeric_string
+    - equals:
+        input: boolean_string
+      kind: jsonpath
+      path: $.json.fields.boolean_string
+    - equals:
+        input: null_string
+      kind: jsonpath
+      path: $.json.fields.null_string
+    id: reuse-values
+    name: reuse-values
+    request:
+      body:
+        kind: json
+        value:
+          object:
+            document:
+              output:
+                name: document
+                step: send-values
+            fields:
+              object:
+                array:
+                  output:
+                    name: array
+                    step: send-values
+                boolean_string:
+                  output:
+                    name: boolean_string
+                    step: send-values
+                decimal:
+                  output:
+                    name: decimal
+                    step: send-values
+                enabled:
+                  output:
+                    name: enabled
+                    step: send-values
+                integer:
+                  output:
+                    name: integer
+                    step: send-values
+                null_string:
+                  output:
+                    name: null_string
+                    step: send-values
+                numeric_string:
+                  output:
+                    name: numeric_string
+                    step: send-values
+                object:
+                  output:
+                    name: object
+                    step: send-values
+                optional:
+                  output:
+                    name: optional
+                    step: send-values
+                text:
+                  output:
+                    name: text
+                    step: send-values
+            nested:
+              array:
+              - output:
+                  name: integer
+                  step: send-values
+              - object:
+                  optional:
+                    output:
+                      name: optional
+                      step: send-values
+                  text:
+                    output:
+                      name: text
+                      step: send-values
+            '{{literal.key}}':
+              literal: '{{not_a_variable}}'
+      headers:
+      - name:
+          literal: Accept
+        value:
+          literal: application/json
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /anything/flow/reuse-values
+schema_version: 1
