@@ -175,7 +175,9 @@ jobs:
           cargo build --locked --release -p postman-cli --bin postman-g --target x86_64-apple-darwin
           cargo build --locked --release -p postman-cli --bin postman-g --target aarch64-apple-darwin
           mkdir -p dist/postman-g-bin
-          lipo -create -output dist/postman-g-bin/postman-g +            target/x86_64-apple-darwin/release/postman-g +            target/aarch64-apple-darwin/release/postman-g
+          lipo -create -output dist/postman-g-bin/postman-g \
+            target/x86_64-apple-darwin/release/postman-g \
+            target/aarch64-apple-darwin/release/postman-g
           chmod +x dist/postman-g-bin/postman-g
           tar -czf dist/postman-g-macos-universal.tar.gz -C dist/postman-g-bin postman-g
           rm -rf dist/postman-g-bin
