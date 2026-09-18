@@ -26,12 +26,6 @@ cargo install --path crates/postman-cli --bin postman-g
 
 Download standalone `postman-g` binaries from [GitHub Releases](https://github.com/847850277/postman-gpui/releases).
 
-Run the checked-in HTTPBingo capability matrix:
-
-```bash
-cargo httpbingo-headless
-```
-
 Run one or more files/directories and override a binding:
 
 ```bash
