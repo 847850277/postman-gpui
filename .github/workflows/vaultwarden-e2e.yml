@@ -17,14 +17,23 @@ on:
       - '.github/workflows/vaultwarden-e2e.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: vaultwarden-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: '1'
   RUST_TOOLCHAIN: '1.97.0'
 
 jobs:
   vaultwarden-e2e:
     name: Vaultwarden API E2E Suite
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     services:
       vaultwarden:
@@ -75,12 +84,13 @@ jobs:
           echo "Vaultwarden service timed out" >&2
           exit 1
 
-      - name: Run Vaultwarden E2E Integration Test Suite
+      - name: Run Cargo Vaultwarden Integration Tests
         env:
           VAULTWARDEN_URL: 'http://127.0.0.1:8088'
         run: cargo test --locked -p postman-flow-e2e --test vaultwarden_e2e -- --nocapture
 
-      - name: Run Full Flow Suite via postman-g CLI
+      - name: Run All Vaultwarden E2E Flow Suites via postman-g
         run: |
-          target/debug/postman-g run crates/postman-flow-e2e/suites/vaultwarden/flows/login.http.yml --input host=http://127.0.0.1:8088 --json
-          target/debug/postman-g run crates/postman-flow-e2e/suites/vaultwarden/flows/send.http.yml --input host=http://127.0.0.1:8088 --json
+          target/debug/postman-g run crates/postman-flow-e2e/suites/vaultwarden/flows \
+            --input host=http://127.0.0.1:8088 \
+            --json
