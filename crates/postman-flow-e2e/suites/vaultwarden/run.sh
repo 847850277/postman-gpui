@@ -19,6 +19,9 @@ CONTAINER_NAME="postman_flow_e2e_vw_$PORT"
 TARGET_PATH="$DIR/flows"
 PASS_ARGS=()
 
+# Dynamic deletion date for Send tests (always 7 days in the future, within Vaultwarden's 31-day limit)
+DELETION_DATE="$(date -u -v+7d "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -d "+7 days" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+
 for arg in "$@"; do
     if [[ "$arg" == -* ]]; then
         PASS_ARGS+=("$arg")
@@ -32,7 +35,7 @@ done
 # If VAULTWARDEN_URL is set directly, use it without spinning up local container
 if [ -n "${VAULTWARDEN_URL:-}" ]; then
     echo "==> Using external Vaultwarden URL: $VAULTWARDEN_URL"
-    "$POSTMAN_G" run "$TARGET_PATH" --input host="$VAULTWARDEN_URL" "${PASS_ARGS[@]}"
+    "$POSTMAN_G" run "$TARGET_PATH" --input host="$VAULTWARDEN_URL" --input deletion_date="$DELETION_DATE" "${PASS_ARGS[@]}"
     exit 0
 fi
 
@@ -77,4 +80,4 @@ if [ "$READY" != "true" ]; then
 fi
 
 echo "==> Executing Vaultwarden E2E API flow suites via postman-g..."
-"$POSTMAN_G" run "$TARGET_PATH" --input host="http://127.0.0.1:$PORT" "${PASS_ARGS[@]}"
+"$POSTMAN_G" run "$TARGET_PATH" --input host="http://127.0.0.1:$PORT" --input deletion_date="$DELETION_DATE" "${PASS_ARGS[@]}"

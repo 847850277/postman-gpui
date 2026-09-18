@@ -5,6 +5,8 @@ flow:
     default: http://127.0.0.1:8088
   - name: email
     default: send_user@example.com
+  - name: deletion_date
+    default: "2026-09-25T00:00:00Z"
   steps:
   - id: prelogin
     name: 1. Prelogin
@@ -114,20 +116,25 @@ flow:
               step: login
               name: auth_token
       body:
-        kind: raw
+        kind: json
         value:
-          literal: |
-            {
-              "type": 0,
-              "name": "Test Send",
-              "notes": "Shared note",
-              "text": {
-                "text": "Hello, this is secure shared text!"
-              },
-              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
-              "deletionDate": "2026-09-25T00:00:00Z",
-              "disabled": false
-            }
+          object:
+            type:
+              literal: 0
+            name:
+              literal: "Test Send"
+            notes:
+              literal: "Shared note"
+            text:
+              object:
+                text:
+                  literal: "Hello, this is secure shared text!"
+            key:
+              literal: "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            deletionDate:
+              input: deletion_date
+            disabled:
+              literal: false
     checks:
     - kind: status
       equals: 200
@@ -204,20 +211,25 @@ flow:
               step: login
               name: auth_token
       body:
-        kind: raw
+        kind: json
         value:
-          literal: |
-            {
-              "type": 0,
-              "name": "Secret Password Send",
-              "password": "Password123!",
-              "text": {
-                "text": "Confidential content"
-              },
-              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
-              "deletionDate": "2026-09-25T00:00:00Z",
-              "disabled": false
-            }
+          object:
+            type:
+              literal: 0
+            name:
+              literal: "Secret Password Send"
+            password:
+              literal: "Password123!"
+            text:
+              object:
+                text:
+                  literal: "Confidential content"
+            key:
+              literal: "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            deletionDate:
+              input: deletion_date
+            disabled:
+              literal: false
     checks:
     - kind: status
       equals: 200
@@ -373,4 +385,3 @@ flow:
     - kind: status
       equals: 200
 schema_version: 1
-

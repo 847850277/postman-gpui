@@ -8,6 +8,8 @@ flow:
     default: pol_owner@example.com
   - name: member_email
     default: pol_member@example.com
+  - name: deletion_date
+    default: "2026-09-25T00:00:00Z"
 
   steps:
   # Phase 1: Setup Owner and Member Accounts
@@ -538,20 +540,25 @@ flow:
               step: step-6-login-member
               name: member_token
       body:
-        kind: raw
+        kind: json
         value:
-          literal: |
-            {
-              "type": 0,
-              "name": "Restricted Send",
-              "notes": "Should be blocked",
-              "text": {
-                "text": "Secret"
-              },
-              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
-              "deletionDate": "2026-09-25T00:00:00Z",
-              "disabled": false
-            }
+          object:
+            type:
+              literal: 0
+            name:
+              literal: "Restricted Send"
+            notes:
+              literal: "Should be blocked"
+            text:
+              object:
+                text:
+                  literal: "Secret"
+            key:
+              literal: "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            deletionDate:
+              input: deletion_date
+            disabled:
+              literal: false
     checks:
     - kind: status
       equals: 400
@@ -806,20 +813,25 @@ flow:
               step: step-6-login-member
               name: member_token
       body:
-        kind: raw
+        kind: json
         value:
-          literal: |
-            {
-              "type": 0,
-              "name": "Allowed Send",
-              "notes": "Allowed after policy disabled",
-              "text": {
-                "text": "Unlocked content"
-              },
-              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
-              "deletionDate": "2026-09-25T00:00:00Z",
-              "disabled": false
-            }
+          object:
+            type:
+              literal: 0
+            name:
+              literal: "Allowed Send"
+            notes:
+              literal: "Allowed after policy disabled"
+            text:
+              object:
+                text:
+                  literal: "Unlocked content"
+            key:
+              literal: "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            deletionDate:
+              input: deletion_date
+            disabled:
+              literal: false
     checks:
     - kind: status
       equals: 200
