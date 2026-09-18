@@ -72,7 +72,8 @@ async fn execute(arguments: Vec<String>) -> Result<bool, String> {
 
     let arguments = parse_arguments(arguments)?;
     if arguments.verbose {
-        let env_filter = tracing_subscriber::EnvFilter::new("postman_flow=debug,postman_cli=debug,info");
+        let env_filter =
+            tracing_subscriber::EnvFilter::new("postman_flow=debug,postman_cli=debug,info");
         let _ = tracing_subscriber::fmt()
             .with_env_filter(env_filter)
             .with_writer(std::io::stderr)
