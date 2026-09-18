@@ -173,6 +173,43 @@ body:
 Invalid literal JSON is rejected at compile time; runtime rendering errors fail the step before
 sending the HTTP request. `body` can be omitted or set to `kind: none`.
 
+## Conditional Execution (`when` and `coalesce`)
+
+Steps can declare an execution guard using `when`. If the condition evaluates to `false`,
+the step is skipped without sending an HTTP request, its checks and exports are bypassed,
+and a `StepSkipped` event is emitted.
+
+```yaml
+- id: branch-paid
+  name: Paid branch (status == 2)
+  when:
+    eq:
+      - output: { step: query-status, name: status }
+      - literal: 2
+  request: ...
+```
+
+Supported condition operators:
+- `eq`, `ne`: `[left, right]` (equality / inequality)
+- `gt`, `gte`, `lt`, `lte`: `[left, right]` (numeric and lexicographic ordering)
+- `in`: `[item, collection]` (array element membership or substring check)
+- `and`: list of sub-conditions (all must evaluate to true)
+- `or`: list of sub-conditions (at least one must evaluate to true)
+- `not`: negates an inner condition
+
+### Result Convergence with `coalesce`
+
+When downstream steps or flow `outputs` need to consume a value produced across mutually exclusive
+conditional branches, use `coalesce` to select the first available candidate:
+
+```yaml
+invoice:
+  coalesce:
+    - output: { step: branch-paid, name: invoice }
+    - output: { step: branch-unpaid, name: invoice }
+    - literal: "INV-DEFAULT"
+```
+
 ## Assertions and Outputs
 
 ```yaml

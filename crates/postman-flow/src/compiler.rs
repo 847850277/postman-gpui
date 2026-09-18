@@ -5,9 +5,9 @@ use std::{
 
 use crate::{
     json_path::JsonPath,
-    plan::{CompiledCheck, CompiledExport, HttpStepPlan},
-    ApiCatalog, BodyTemplate, FlowDefinition, FlowPlan, HttpRequestSource, HttpRequestTemplate,
-    JsonTemplate, ResponseCheck, TemplatePart, TextTemplate, ValueReference,
+    plan::{CompiledCheck, CompiledCondition, CompiledExport, HttpStepPlan},
+    ApiCatalog, BodyTemplate, ConditionExpr, FlowDefinition, FlowPlan, HttpRequestSource,
+    HttpRequestTemplate, JsonTemplate, ResponseCheck, TemplatePart, TextTemplate, ValueReference,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -129,6 +129,9 @@ pub fn compile_flow(
         if let Some(request) = &request {
             compiler.request(request, &inputs, &available, &location.child("request"));
         }
+        let when = step.when.as_ref().and_then(|expr| {
+            compiler.condition(expr, &inputs, &available, &location.child("when"), 0)
+        });
         let mut checks = Vec::new();
         for (index, check) in step.checks.iter().enumerate() {
             let at = location.child(format!("checks[{index}]"));
@@ -208,6 +211,7 @@ pub fn compile_flow(
             steps.push(HttpStepPlan {
                 id: step.id.clone(),
                 name: step.name.clone(),
+                when,
                 request,
                 checks,
                 exports,
@@ -218,12 +222,7 @@ pub fn compile_flow(
     for (index, output) in source.outputs.iter().enumerate() {
         let at = DiagnosticLocation::root(&format!("flow.outputs[{index}]"));
         compiler.unique(&output.name, &mut output_names, &at.child("name"));
-        match &output.value {
-            ValueReference::Input(name) => compiler.input(name, &inputs, &at.child("value")),
-            ValueReference::StepOutput { step_id, name } => {
-                compiler.output(step_id, name, &available, &at.child("value"))
-            }
-        }
+        compiler.value_reference(&output.value, &inputs, &available, &at.child("value"));
     }
     if compiler.errors.is_empty() {
         Ok(FlowPlan {
@@ -296,6 +295,25 @@ impl Compiler {
         outputs: &Outputs,
         at: &DiagnosticLocation,
     ) {
+        self.text_at_depth(value, inputs, outputs, at, 0);
+    }
+
+    fn text_at_depth(
+        &mut self,
+        value: &TextTemplate,
+        inputs: &HashSet<String>,
+        outputs: &Outputs,
+        at: &DiagnosticLocation,
+        depth: usize,
+    ) {
+        if depth > 64 {
+            self.error(
+                DiagnosticCode::ExpressionTooDeep,
+                at,
+                "text expressions may nest at most 64 levels",
+            );
+            return;
+        }
         for (index, part) in value.parts.iter().enumerate() {
             let at = at.child(format!("parts[{index}]"));
             match part {
@@ -303,6 +321,19 @@ impl Compiler {
                 TemplatePart::Input(name) => self.input(name, inputs, &at),
                 TemplatePart::StepOutput { step_id, name } => {
                     self.output(step_id, name, outputs, &at)
+                }
+                TemplatePart::Coalesce(candidates) => {
+                    if candidates.is_empty() {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at,
+                            "coalesce requires at least one candidate",
+                        );
+                    }
+                    for (idx, c) in candidates.iter().enumerate() {
+                        let c_at = at.child(format!("coalesce[{idx}]"));
+                        self.text_at_depth(c, inputs, outputs, &c_at, depth + 1);
+                    }
                 }
             }
         }
@@ -328,6 +359,24 @@ impl Compiler {
             JsonTemplate::String(value) => self.text(value, inputs, outputs, &at.child("string")),
             JsonTemplate::Input(name) => self.input(name, inputs, at),
             JsonTemplate::StepOutput { step_id, name } => self.output(step_id, name, outputs, at),
+            JsonTemplate::Coalesce(candidates) => {
+                if candidates.is_empty() {
+                    self.error(
+                        DiagnosticCode::InvalidRequest,
+                        at,
+                        "coalesce requires at least one candidate",
+                    );
+                }
+                for (idx, candidate) in candidates.iter().enumerate() {
+                    self.json(
+                        candidate,
+                        inputs,
+                        outputs,
+                        &at.child(format!("coalesce[{idx}]")),
+                        depth + 1,
+                    );
+                }
+            }
             JsonTemplate::Object(fields) => {
                 for (name, value) in fields {
                     self.json(
@@ -358,6 +407,127 @@ impl Compiler {
             Err(message) => {
                 self.error(DiagnosticCode::InvalidJsonPath, at, message);
                 None
+            }
+        }
+    }
+    fn value_reference(
+        &mut self,
+        value: &ValueReference,
+        inputs: &HashSet<String>,
+        outputs: &Outputs,
+        at: &DiagnosticLocation,
+    ) {
+        match value {
+            ValueReference::Input(name) => self.input(name, inputs, at),
+            ValueReference::StepOutput { step_id, name } => self.output(step_id, name, outputs, at),
+            ValueReference::Literal(_) => {}
+            ValueReference::Coalesce(candidates) => {
+                if candidates.is_empty() {
+                    self.error(
+                        DiagnosticCode::InvalidRequest,
+                        at,
+                        "coalesce requires at least one candidate",
+                    );
+                }
+                for (idx, candidate) in candidates.iter().enumerate() {
+                    self.value_reference(
+                        candidate,
+                        inputs,
+                        outputs,
+                        &at.child(format!("coalesce[{idx}]")),
+                    );
+                }
+            }
+        }
+    }
+    fn condition(
+        &mut self,
+        expr: &ConditionExpr,
+        inputs: &HashSet<String>,
+        outputs: &Outputs,
+        at: &DiagnosticLocation,
+        depth: usize,
+    ) -> Option<CompiledCondition> {
+        if depth > 64 {
+            self.error(
+                DiagnosticCode::ExpressionTooDeep,
+                at,
+                "conditions may nest at most 64 levels",
+            );
+            return None;
+        }
+        match expr {
+            ConditionExpr::Eq(l, r) => {
+                self.json(l, inputs, outputs, &at.child("eq[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("eq[1]"), depth + 1);
+                Some(CompiledCondition::Eq(l.clone(), r.clone()))
+            }
+            ConditionExpr::Ne(l, r) => {
+                self.json(l, inputs, outputs, &at.child("ne[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("ne[1]"), depth + 1);
+                Some(CompiledCondition::Ne(l.clone(), r.clone()))
+            }
+            ConditionExpr::Gt(l, r) => {
+                self.json(l, inputs, outputs, &at.child("gt[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("gt[1]"), depth + 1);
+                Some(CompiledCondition::Gt(l.clone(), r.clone()))
+            }
+            ConditionExpr::Gte(l, r) => {
+                self.json(l, inputs, outputs, &at.child("gte[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("gte[1]"), depth + 1);
+                Some(CompiledCondition::Gte(l.clone(), r.clone()))
+            }
+            ConditionExpr::Lt(l, r) => {
+                self.json(l, inputs, outputs, &at.child("lt[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("lt[1]"), depth + 1);
+                Some(CompiledCondition::Lt(l.clone(), r.clone()))
+            }
+            ConditionExpr::Lte(l, r) => {
+                self.json(l, inputs, outputs, &at.child("lte[0]"), depth + 1);
+                self.json(r, inputs, outputs, &at.child("lte[1]"), depth + 1);
+                Some(CompiledCondition::Lte(l.clone(), r.clone()))
+            }
+            ConditionExpr::In(item, coll) => {
+                self.json(item, inputs, outputs, &at.child("in[0]"), depth + 1);
+                self.json(coll, inputs, outputs, &at.child("in[1]"), depth + 1);
+                Some(CompiledCondition::In(item.clone(), coll.clone()))
+            }
+            ConditionExpr::And(items) => {
+                let compiled = items
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, item)| {
+                        self.condition(
+                            item,
+                            inputs,
+                            outputs,
+                            &at.child(format!("and[{idx}]")),
+                            depth + 1,
+                        )
+                    })
+                    .collect();
+                Some(CompiledCondition::And(compiled))
+            }
+            ConditionExpr::Or(items) => {
+                let compiled = items
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, item)| {
+                        self.condition(
+                            item,
+                            inputs,
+                            outputs,
+                            &at.child(format!("or[{idx}]")),
+                            depth + 1,
+                        )
+                    })
+                    .collect();
+                Some(CompiledCondition::Or(compiled))
+            }
+            ConditionExpr::Not(inner) => {
+                let compiled =
+                    self.condition(inner, inputs, outputs, &at.child("not"), depth + 1)?;
+                Some(CompiledCondition::Not(Box::new(compiled)))
             }
         }
     }
@@ -527,6 +697,12 @@ fn substitute_text(
 ) -> TextTemplate {
     TextTemplate::parts(value.parts.iter().flat_map(|part| match part {
         TemplatePart::Input(name) => bindings[name].parts.clone(),
+        TemplatePart::Coalesce(candidates) => vec![TemplatePart::Coalesce(
+            candidates
+                .iter()
+                .map(|candidate| substitute_text(candidate, bindings))
+                .collect(),
+        )],
         _ => vec![part.clone()],
     }))
 }
@@ -544,6 +720,12 @@ fn substitute_json(
             _ => JsonTemplate::String(bindings[name].clone()),
         },
         JsonTemplate::String(value) => JsonTemplate::String(substitute_text(value, bindings)),
+        JsonTemplate::Coalesce(candidates) => JsonTemplate::Coalesce(
+            candidates
+                .iter()
+                .map(|c| substitute_json(c, bindings))
+                .collect(),
+        ),
         JsonTemplate::Object(fields) => JsonTemplate::object(
             fields
                 .iter()

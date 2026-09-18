@@ -315,7 +315,13 @@ fn print_human_report(report: &SuiteReport) {
     for file in &report.files {
         println!("\n==> {}", file.path);
         for request in &file.report.requests {
-            let marker = if request.success { "PASS" } else { "FAIL" };
+            let marker = if request.skipped {
+                "SKIPPED"
+            } else if request.success {
+                "PASS"
+            } else {
+                "FAIL"
+            };
             match (request.status, request.elapsed_ms) {
                 (Some(status), Some(elapsed_ms)) => {
                     println!("{marker} {} — {status} ({elapsed_ms} ms)", request.name);
@@ -345,16 +351,30 @@ fn print_human_report(report: &SuiteReport) {
         .files
         .iter()
         .flat_map(|file| &file.report.requests)
-        .filter(|request| request.success)
+        .filter(|request| request.success && !request.skipped)
+        .count();
+    let skipped = report
+        .files
+        .iter()
+        .flat_map(|file| &file.report.requests)
+        .filter(|request| request.skipped)
         .count();
     let total = report
         .files
         .iter()
         .map(|file| file.report.requests.len())
         .sum::<usize>();
-    println!(
-        "\n{}: {passed}/{total} request(s) passed across {} file(s)",
-        if report.success { "PASS" } else { "FAIL" },
-        report.files.len()
-    );
+    if skipped > 0 {
+        println!(
+            "\n{}: {passed}/{total} request(s) passed, {skipped} skipped across {} file(s)",
+            if report.success { "PASS" } else { "FAIL" },
+            report.files.len()
+        );
+    } else {
+        println!(
+            "\n{}: {passed}/{total} request(s) passed across {} file(s)",
+            if report.success { "PASS" } else { "FAIL" },
+            report.files.len()
+        );
+    }
 }

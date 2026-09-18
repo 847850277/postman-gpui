@@ -7,10 +7,10 @@ use serde_json::Value;
 
 use super::{EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
 use crate::{
-    ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, ExpectedError, FlowDefinition, FlowInputSpec,
-    FlowOutputSpec, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition, JsonTemplate,
-    RequestOptionOverrides, ResponseCheck, ResponseExport, TemplatePart, TextTemplate,
-    ValueReference,
+    ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition,
+    FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
+    JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport, TemplatePart,
+    TextTemplate, ValueReference,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -67,6 +67,8 @@ struct Step {
     id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    when: Option<ConditionWire>,
     request: Request,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     checks: Vec<Check>,
@@ -138,27 +140,44 @@ impl Body {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum ConditionWire {
+    Eq(Json, Json),
+    Ne(Json, Json),
+    Gt(Json, Json),
+    Gte(Json, Json),
+    Lt(Json, Json),
+    Lte(Json, Json),
+    In(Json, Json),
+    And(Vec<ConditionWire>),
+    Or(Vec<ConditionWire>),
+    Not(Box<ConditionWire>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum Text {
     Literal(String),
     Input(String),
     Output(Ref),
+    Coalesce(Vec<Text>),
     Concat(Vec<Text>),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum Json {
     Literal(Value),
     String(Text),
     Input(String),
     Output(Ref),
+    Coalesce(Vec<Json>),
     Object(BTreeMap<String, Json>),
     Array(Vec<Json>),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct Ref {
     step: String,
@@ -198,6 +217,8 @@ struct Output {
 enum Reference {
     Input(String),
     Output(Ref),
+    Literal(Value),
+    Coalesce(Vec<Reference>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -319,6 +340,7 @@ impl From<Document> for FlowDocument {
                     .map(|step| HttpStepDefinition {
                         name: step.name.unwrap_or_else(|| step.id.clone()),
                         id: step.id,
+                        when: step.when.map(Into::into),
                         request: step.request.into(),
                         checks: step.checks.into_iter().map(Into::into).collect(),
                         exports: step
@@ -338,13 +360,7 @@ impl From<Document> for FlowDocument {
                     .into_iter()
                     .map(|output| FlowOutputSpec {
                         name: output.name,
-                        value: match output.value {
-                            Reference::Input(name) => ValueReference::Input(name),
-                            Reference::Output(value) => ValueReference::StepOutput {
-                                step_id: value.step,
-                                name: value.name,
-                            },
-                        },
+                        value: output.value.into(),
                     })
                     .collect(),
             },
@@ -390,6 +406,7 @@ impl From<&FlowDocument> for Document {
                     .map(|step| Step {
                         id: step.id.clone(),
                         name: Some(step.name.clone()),
+                        when: step.when.as_ref().map(Into::into),
                         request: (&step.request).into(),
                         checks: step.checks.iter().map(Into::into).collect(),
                         exports: step
@@ -409,15 +426,7 @@ impl From<&FlowDocument> for Document {
                     .iter()
                     .map(|output| Output {
                         name: output.name.clone(),
-                        value: match &output.value {
-                            ValueReference::Input(name) => Reference::Input(name.clone()),
-                            ValueReference::StepOutput { step_id, name } => {
-                                Reference::Output(Ref {
-                                    step: step_id.clone(),
-                                    name: name.clone(),
-                                })
-                            }
-                        },
+                        value: (&output.value).into(),
                     })
                     .collect(),
             },
@@ -557,6 +566,9 @@ impl From<Text> for TextTemplate {
                 step_id: value.step,
                 name: value.name,
             }]),
+            Text::Coalesce(items) => Self::parts([TemplatePart::Coalesce(
+                items.into_iter().map(Self::from).collect(),
+            )]),
             Text::Concat(items) => {
                 Self::parts(items.into_iter().flat_map(|item| Self::from(item).parts))
             }
@@ -564,20 +576,24 @@ impl From<Text> for TextTemplate {
     }
 }
 
+fn part_to_text(part: &TemplatePart) -> Text {
+    match part {
+        TemplatePart::Literal(value) => Text::Literal(value.clone()),
+        TemplatePart::Input(name) => Text::Input(name.clone()),
+        TemplatePart::StepOutput { step_id, name } => Text::Output(Ref {
+            step: step_id.clone(),
+            name: name.clone(),
+        }),
+        TemplatePart::Coalesce(items) => Text::Coalesce(items.iter().map(Text::from).collect()),
+    }
+}
+
 impl From<&TextTemplate> for Text {
     fn from(value: &TextTemplate) -> Self {
-        let part = |part: &TemplatePart| match part {
-            TemplatePart::Literal(value) => Self::Literal(value.clone()),
-            TemplatePart::Input(name) => Self::Input(name.clone()),
-            TemplatePart::StepOutput { step_id, name } => Self::Output(Ref {
-                step: step_id.clone(),
-                name: name.clone(),
-            }),
-        };
         if let [single] = value.parts.as_slice() {
-            part(single)
+            part_to_text(single)
         } else {
-            Self::Concat(value.parts.iter().map(part).collect())
+            Self::Concat(value.parts.iter().map(part_to_text).collect())
         }
     }
 }
@@ -592,6 +608,7 @@ impl From<Json> for JsonTemplate {
                 step_id: value.step,
                 name: value.name,
             },
+            Json::Coalesce(items) => Self::Coalesce(items.into_iter().map(Into::into).collect()),
             Json::Object(fields) => Self::Object(
                 fields
                     .into_iter()
@@ -613,6 +630,7 @@ impl From<&JsonTemplate> for Json {
                 step: step_id.clone(),
                 name: name.clone(),
             }),
+            JsonTemplate::Coalesce(items) => Self::Coalesce(items.iter().map(Into::into).collect()),
             JsonTemplate::Object(fields) => Self::Object(
                 fields
                     .iter()
@@ -696,6 +714,71 @@ impl From<&ResponseCheck> for Check {
             },
             ResponseCheck::RedirectsEquals(equals) => Self::Redirects { equals: *equals },
             ResponseCheck::ErrorEquals(equals) => Self::Error { equals: *equals },
+        }
+    }
+}
+impl From<Reference> for ValueReference {
+    fn from(value: Reference) -> Self {
+        match value {
+            Reference::Input(name) => ValueReference::Input(name),
+            Reference::Output(value) => ValueReference::StepOutput {
+                step_id: value.step,
+                name: value.name,
+            },
+            Reference::Literal(v) => ValueReference::Literal(v),
+            Reference::Coalesce(items) => {
+                ValueReference::Coalesce(items.into_iter().map(Into::into).collect())
+            }
+        }
+    }
+}
+
+impl From<&ValueReference> for Reference {
+    fn from(value: &ValueReference) -> Self {
+        match value {
+            ValueReference::Input(name) => Reference::Input(name.clone()),
+            ValueReference::StepOutput { step_id, name } => Reference::Output(Ref {
+                step: step_id.clone(),
+                name: name.clone(),
+            }),
+            ValueReference::Literal(v) => Reference::Literal(v.clone()),
+            ValueReference::Coalesce(items) => {
+                Reference::Coalesce(items.iter().map(Into::into).collect())
+            }
+        }
+    }
+}
+
+impl From<ConditionWire> for ConditionExpr {
+    fn from(wire: ConditionWire) -> Self {
+        match wire {
+            ConditionWire::Eq(l, r) => Self::Eq(l.into(), r.into()),
+            ConditionWire::Ne(l, r) => Self::Ne(l.into(), r.into()),
+            ConditionWire::Gt(l, r) => Self::Gt(l.into(), r.into()),
+            ConditionWire::Gte(l, r) => Self::Gte(l.into(), r.into()),
+            ConditionWire::Lt(l, r) => Self::Lt(l.into(), r.into()),
+            ConditionWire::Lte(l, r) => Self::Lte(l.into(), r.into()),
+            ConditionWire::In(l, r) => Self::In(l.into(), r.into()),
+            ConditionWire::And(items) => Self::And(items.into_iter().map(Into::into).collect()),
+            ConditionWire::Or(items) => Self::Or(items.into_iter().map(Into::into).collect()),
+            ConditionWire::Not(inner) => Self::Not(Box::new((*inner).into())),
+        }
+    }
+}
+
+impl From<&ConditionExpr> for ConditionWire {
+    fn from(expr: &ConditionExpr) -> Self {
+        match expr {
+            ConditionExpr::Eq(l, r) => Self::Eq(l.into(), r.into()),
+            ConditionExpr::Ne(l, r) => Self::Ne(l.into(), r.into()),
+            ConditionExpr::Gt(l, r) => Self::Gt(l.into(), r.into()),
+            ConditionExpr::Gte(l, r) => Self::Gte(l.into(), r.into()),
+            ConditionExpr::Lt(l, r) => Self::Lt(l.into(), r.into()),
+            ConditionExpr::Lte(l, r) => Self::Lte(l.into(), r.into()),
+            ConditionExpr::In(l, r) => Self::In(l.into(), r.into()),
+            ConditionExpr::And(items) => Self::And(items.iter().map(Into::into).collect()),
+            ConditionExpr::Or(items) => Self::Or(items.iter().map(Into::into).collect()),
+            ConditionExpr::Not(inner) => Self::Not(Box::new((&**inner).into())),
         }
     }
 }

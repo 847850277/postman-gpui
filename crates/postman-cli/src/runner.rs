@@ -38,11 +38,17 @@ pub struct RunReport {
 pub struct RequestReport {
     pub name: String,
     pub success: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub skipped: bool,
     pub status: Option<u16>,
     pub elapsed_ms: Option<u128>,
     pub assertions: Vec<AssertionReport>,
     pub captures: Vec<String>,
     pub error: Option<String>,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

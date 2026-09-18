@@ -114,7 +114,7 @@ fn schema_errors_reject_unknown_fields_kinds_methods_and_ambiguous_expressions()
         },
         |value| value["flow"]["steps"][1]["checks"][0]["kind"] = json!("javascript"),
         |value| value["flow"]["steps"][1]["checks"][1]["kind"] = json!("jsonpath_template"),
-        |value| value["flow"]["outputs"][0]["value"] = json!({"literal": "unsupported"}),
+        |value| value["flow"]["outputs"][0]["value"] = json!({"unknown_kind": "unsupported"}),
         |value| value["editor"]["nodes"]["seed"]["z"] = json!(1),
     ] {
         let error = altered(mutate).unwrap_err();

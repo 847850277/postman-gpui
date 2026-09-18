@@ -1,0 +1,191 @@
+schema_version: 1
+flow:
+  name: httpbingo-branching
+  inputs:
+    - name: host
+      default: https://httpbingo.org
+    - name: status
+      default: 2
+  steps:
+    - id: query-status
+      name: 1. 查询订单状态
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/order-status
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              order_id: { literal: ORD-2026-8888 }
+              status: { input: status }
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: status
+          path: $.json.status
+        - name: order_id
+          path: $.json.order_id
+
+    - id: branch-paid
+      name: 2A. 已付款处理 (status == 2)
+      when:
+        eq:
+          - output: { step: query-status, name: status }
+          - literal: 2
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/fulfill
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              order_id: { output: { step: query-status, name: order_id } }
+              action: { literal: SHIP_IMMEDIATELY }
+              invoice_no: { literal: INV-PAID-999 }
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: invoice
+          path: $.json.invoice_no
+        - name: action
+          path: $.json.action
+
+    - id: branch-unpaid
+      name: 2B. 待付款催付 (status == 1)
+      when:
+        eq:
+          - output: { step: query-status, name: status }
+          - literal: 1
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/reminder
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              order_id: { output: { step: query-status, name: order_id } }
+              action: { literal: SEND_REMINDER_SMS }
+              invoice_no: { literal: INV-PENDING-000 }
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: invoice
+          path: $.json.invoice_no
+        - name: action
+          path: $.json.action
+
+    - id: branch-other
+      name: 2C. 其它异常状态处理 (status not in [1, 2])
+      when:
+        not:
+          in:
+            - output: { step: query-status, name: status }
+            - literal: [1, 2]
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/audit
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              order_id: { output: { step: query-status, name: order_id } }
+              action: { literal: LOG_UNKNOWN_STATUS }
+              invoice_no: { literal: INV-AUDIT-NONE }
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: invoice
+          path: $.json.invoice_no
+        - name: action
+          path: $.json.action
+
+    - id: notify-summary
+      name: 3. 汇总并发送结果通知 (汇聚各分支结果)
+      request:
+        kind: http
+        method: POST
+        url:
+          concat:
+            - input: host
+            - literal: /anything/notify
+        headers:
+          - name: { literal: Content-Type }
+            value: { literal: application/json }
+        body:
+          kind: json
+          value:
+            object:
+              order_id: { output: { step: query-status, name: order_id } }
+              resolved_invoice:
+                coalesce:
+                  - output: { step: branch-paid, name: invoice }
+                  - output: { step: branch-unpaid, name: invoice }
+                  - output: { step: branch-other, name: invoice }
+                  - literal: INV-FALLBACK
+              resolved_action:
+                coalesce:
+                  - output: { step: branch-paid, name: action }
+                  - output: { step: branch-unpaid, name: action }
+                  - output: { step: branch-other, name: action }
+                  - literal: NO_ACTION
+      checks:
+        - kind: status
+          equals: 200
+      exports:
+        - name: summary
+          path: $.json
+
+  outputs:
+    - name: final_invoice
+      value:
+        coalesce:
+          - output: { step: branch-paid, name: invoice }
+          - output: { step: branch-unpaid, name: invoice }
+          - output: { step: branch-other, name: invoice }
+          - literal: INV-NONE
+    - name: final_action
+      value:
+        coalesce:
+          - output: { step: branch-paid, name: action }
+          - output: { step: branch-unpaid, name: action }
+          - output: { step: branch-other, name: action }
+editor:
+  nodes:
+    query-status: { x: 100, y: 200 }
+    branch-paid: { x: 400, y: 100 }
+    branch-unpaid: { x: 400, y: 200 }
+    branch-other: { x: 400, y: 300 }
+    notify-summary: { x: 700, y: 200 }
+
