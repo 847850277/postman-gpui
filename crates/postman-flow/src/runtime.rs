@@ -12,7 +12,7 @@ use postman_http::{
 use serde_json::Value;
 
 use crate::{
-    plan::{CompiledCheck, CompiledExport},
+    plan::{CompiledCheck, CompiledCondition, CompiledExport},
     ExpectedError, FlowEvent, FlowInputs, FlowOutputs, FlowPlan, FlowValue, HttpRequestTemplate,
     JsonTemplate, StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
@@ -127,6 +127,34 @@ impl<T: HttpTransport> RunMachine<T> {
                 }
                 RunPhase::StepStart => {
                     let step = &self.plan.steps[self.step_index];
+                    if let Some(when) = &step.when {
+                        match evaluate_condition(when, &self.context) {
+                            Ok(false) => {
+                                let event = FlowEvent::StepSkipped {
+                                    step_id: step.id.clone(),
+                                    name: step.name.clone(),
+                                    reason: "condition evaluated to false".to_owned(),
+                                };
+                                self.step_index += 1;
+                                self.phase = if self.step_index < self.plan.steps.len() {
+                                    RunPhase::StepStart
+                                } else {
+                                    RunPhase::FlowFinish
+                                };
+                                return Some(Ok(event));
+                            }
+                            Ok(true) => {}
+                            Err(error) => {
+                                let step_id = step.id.clone();
+                                let name = step.name.clone();
+                                self.fail_step(
+                                    &step_id,
+                                    format!("failed to evaluate condition: {}", error),
+                                );
+                                return Some(Ok(FlowEvent::StepStarted { step_id, name }));
+                            }
+                        }
+                    }
                     self.phase = RunPhase::ExecuteStep;
                     return Some(Ok(FlowEvent::StepStarted {
                         step_id: step.id.clone(),
@@ -573,21 +601,38 @@ struct RunContext {
 }
 
 impl RunContext {
+    fn resolve_value_ref(&self, reference: &ValueReference) -> Option<BoundValue> {
+        match reference {
+            ValueReference::Input(name) => self.inputs.get(name).cloned(),
+            ValueReference::StepOutput { step_id, name } => {
+                self.outputs.get(&(step_id.clone(), name.clone())).cloned()
+            }
+            ValueReference::Literal(value) => Some(BoundValue {
+                value: value.clone(),
+                sensitive: false,
+            }),
+            ValueReference::Coalesce(candidates) => {
+                for candidate in candidates {
+                    if let Some(val) = self.resolve_value_ref(candidate) {
+                        return Some(val);
+                    }
+                }
+                None
+            }
+        }
+    }
+
     fn flow_outputs(&self, plan: &FlowPlan) -> Result<FlowOutputs, String> {
         plan.outputs
             .iter()
             .map(|output| {
-                let value = match &output.value {
-                    ValueReference::Input(name) => self.inputs.get(name),
-                    ValueReference::StepOutput { step_id, name } => {
-                        self.outputs.get(&(step_id.clone(), name.clone()))
-                    }
-                }
-                .ok_or_else(|| format!("compiled flow output '{}' is unavailable", output.name))?;
+                let value = self.resolve_value_ref(&output.value).ok_or_else(|| {
+                    format!("compiled flow output '{}' is unavailable", output.name)
+                })?;
                 Ok((
                     output.name.clone(),
                     FlowValue {
-                        value: value.value.clone(),
+                        value: value.value,
                         sensitive: value.sensitive,
                     },
                 ))
@@ -609,6 +654,14 @@ impl RunContext {
                 .get(&(step_id.clone(), name.clone()))
                 .map(|value| value.value.clone())
                 .ok_or_else(|| format!("output `{step_id}.{name}` is not available at runtime")),
+            JsonTemplate::Coalesce(candidates) => {
+                for candidate in candidates {
+                    if let Ok(val) = self.resolve_json(candidate) {
+                        return Ok(val);
+                    }
+                }
+                Err("none of the coalesce candidates were available at runtime".to_owned())
+            }
             JsonTemplate::Object(fields) => fields
                 .iter()
                 .map(|(name, value)| Ok((name.clone(), self.resolve_json(value)?)))
@@ -622,28 +675,40 @@ impl RunContext {
         }
     }
 
+    fn render_part(&self, part: &TemplatePart) -> Result<String, String> {
+        match part {
+            TemplatePart::Literal(value) => Ok(value.clone()),
+            TemplatePart::Input(name) => {
+                let value = self
+                    .inputs
+                    .get(name)
+                    .ok_or_else(|| format!("input `{name}` is not bound"))?;
+                Ok(value_as_text(&value.value))
+            }
+            TemplatePart::StepOutput { step_id, name } => {
+                let value = self
+                    .outputs
+                    .get(&(step_id.clone(), name.clone()))
+                    .ok_or_else(|| {
+                        format!("output `{step_id}.{name}` is not available at runtime")
+                    })?;
+                Ok(value_as_text(&value.value))
+            }
+            TemplatePart::Coalesce(candidates) => {
+                for candidate in candidates {
+                    if let Ok(s) = self.render(candidate) {
+                        return Ok(s);
+                    }
+                }
+                Err("none of the coalesce candidates were available at runtime".to_owned())
+            }
+        }
+    }
+
     fn render(&self, template: &TextTemplate) -> Result<String, String> {
         let mut rendered = String::new();
         for part in &template.parts {
-            match part {
-                TemplatePart::Literal(value) => rendered.push_str(value),
-                TemplatePart::Input(name) => {
-                    let value = self
-                        .inputs
-                        .get(name)
-                        .ok_or_else(|| format!("input `{name}` is not bound"))?;
-                    rendered.push_str(&value_as_text(&value.value));
-                }
-                TemplatePart::StepOutput { step_id, name } => {
-                    let value = self
-                        .outputs
-                        .get(&(step_id.clone(), name.clone()))
-                        .ok_or_else(|| {
-                            format!("output `{step_id}.{name}` is not available at runtime")
-                        })?;
-                    rendered.push_str(&value_as_text(&value.value));
-                }
-            }
+            rendered.push_str(&self.render_part(part)?);
         }
         Ok(rendered)
     }
@@ -806,9 +871,192 @@ fn bind_inputs(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContext, Flo
     })
 }
 
+fn evaluate_condition(condition: &CompiledCondition, context: &RunContext) -> Result<bool, String> {
+    match condition {
+        CompiledCondition::Eq(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            Ok(values_equal(&l, &r))
+        }
+        CompiledCondition::Ne(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            Ok(!values_equal(&l, &r))
+        }
+        CompiledCondition::Gt(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            compare_values(&l, &r).map(|cmp| cmp == std::cmp::Ordering::Greater)
+        }
+        CompiledCondition::Gte(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            compare_values(&l, &r).map(|cmp| cmp != std::cmp::Ordering::Less)
+        }
+        CompiledCondition::Lt(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            compare_values(&l, &r).map(|cmp| cmp == std::cmp::Ordering::Less)
+        }
+        CompiledCondition::Lte(left, right) => {
+            let l = context.resolve_json(left)?;
+            let r = context.resolve_json(right)?;
+            compare_values(&l, &r).map(|cmp| cmp != std::cmp::Ordering::Greater)
+        }
+        CompiledCondition::In(item, collection) => {
+            let it = context.resolve_json(item)?;
+            let coll = context.resolve_json(collection)?;
+            match coll {
+                Value::Array(arr) => Ok(arr.iter().any(|elem| values_equal(&it, elem))),
+                Value::String(s) => {
+                    if let Value::String(sub) = it {
+                        Ok(s.contains(&sub))
+                    } else {
+                        Ok(s.contains(&value_as_text(&it)))
+                    }
+                }
+                _ => Err(
+                    "`in` condition expects an array or string on the right-hand side".to_owned(),
+                ),
+            }
+        }
+        CompiledCondition::And(conditions) => {
+            for c in conditions {
+                if !evaluate_condition(c, context)? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+        CompiledCondition::Or(conditions) => {
+            for c in conditions {
+                if evaluate_condition(c, context)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        CompiledCondition::Not(inner) => {
+            let res = evaluate_condition(inner, context)?;
+            Ok(!res)
+        }
+    }
+}
+
+fn values_equal(a: &Value, b: &Value) -> bool {
+    if a == b {
+        return true;
+    }
+    match (a, b) {
+        (Value::Number(a), Value::Number(b)) => compare_numbers(a, b).is_eq(),
+        (Value::Number(n), Value::String(s)) | (Value::String(s), Value::Number(n)) => {
+            parse_condition_number(s).is_some_and(|parsed| compare_numbers(n, &parsed).is_eq())
+        }
+        (Value::Bool(b), Value::String(s)) | (Value::String(s), Value::Bool(b)) => {
+            if let Ok(parsed) = s.parse::<bool>() {
+                return parsed == *b;
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+fn compare_values(a: &Value, b: &Value) -> Result<std::cmp::Ordering, String> {
+    match (a, b) {
+        (Value::Number(n1), Value::Number(n2)) => Ok(compare_numbers(n1, n2)),
+        (Value::String(s1), Value::String(s2)) => Ok(s1.cmp(s2)),
+        (Value::Number(n), Value::String(s)) => {
+            let parsed =
+                parse_condition_number(s).ok_or("cannot compare non-numeric string to number")?;
+            Ok(compare_numbers(n, &parsed))
+        }
+        (Value::String(s), Value::Number(n)) => {
+            let parsed =
+                parse_condition_number(s).ok_or("cannot compare non-numeric string to number")?;
+            Ok(compare_numbers(&parsed, n))
+        }
+        _ => Err(format!(
+            "cannot compare values of types {:?} and {:?}",
+            a, b
+        )),
+    }
+}
+
+fn parse_condition_number(text: &str) -> Option<serde_json::Number> {
+    if let Ok(value) = text.parse::<i64>() {
+        return Some(value.into());
+    }
+    if let Ok(value) = text.parse::<u64>() {
+        return Some(value.into());
+    }
+    serde_json::Number::from_f64(text.parse().ok()?)
+}
+
+fn compare_numbers(a: &serde_json::Number, b: &serde_json::Number) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    fn integer(n: &serde_json::Number) -> Option<i128> {
+        n.as_i64()
+            .map(i128::from)
+            .or_else(|| n.as_u64().map(i128::from))
+    }
+    // Compare the integer to the float's integral and fractional parts without
+    // rounding the integer to f64 (which loses bits above 2^53).
+    fn integer_float(i: i128, f: f64) -> Ordering {
+        if f >= 2_f64.powi(127) {
+            return Ordering::Less;
+        }
+        if f < -2_f64.powi(127) {
+            return Ordering::Greater;
+        }
+        i.cmp(&(f as i128))
+            .then_with(|| 0.0_f64.partial_cmp(&f.fract()).expect("finite JSON number"))
+    }
+    match (integer(a), integer(b)) {
+        (Some(a), Some(b)) => a.cmp(&b),
+        (Some(a), None) => integer_float(a, b.as_f64().unwrap()),
+        (None, Some(b)) => integer_float(b, a.as_f64().unwrap()).reverse(),
+        (None, None) => a
+            .as_f64()
+            .unwrap()
+            .partial_cmp(&b.as_f64().unwrap())
+            .unwrap(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn condition_numbers_preserve_integer_precision() {
+        use serde_json::json;
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        let cases = [
+            (json!(u64::MAX), json!(u64::MAX - 1), Greater),
+            (json!(u64::MAX), json!(i64::MAX), Greater),
+            (json!(-1), json!(u64::MAX), Less),
+            (json!(u64::MAX), json!((u64::MAX - 1).to_string()), Greater),
+            (json!((u64::MAX - 1).to_string()), json!(u64::MAX), Less),
+            (
+                json!(9007199254740993_u64),
+                json!(9007199254740992.0),
+                Greater,
+            ),
+            (json!(u64::MAX), json!(18446744073709551616.0), Less),
+            (json!(1), json!(1.5), Less),
+            (json!(-1), json!(-1.5), Greater),
+            (json!(1), json!(1.0), Equal),
+            (json!(0), json!("0.00000000000000001"), Less),
+        ];
+        for (a, b, expected) in cases {
+            assert_eq!(compare_values(&a, &b).unwrap(), expected, "{a} vs {b}");
+            assert_eq!(compare_values(&b, &a).unwrap(), expected.reverse());
+            assert_eq!(values_equal(&a, &b), expected == Equal, "{a} vs {b}");
+        }
+        assert!(compare_values(&json!(1), &json!("NaN")).is_err());
+        assert!(compare_values(&json!(1), &json!("inf")).is_err());
+    }
 
     #[test]
     fn test_sanitize_url_for_log_userinfo_and_query() {

@@ -21,8 +21,8 @@ pub use document::{
     NodePosition, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
-    ApiCall, BodyTemplate, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec, FlowInputs,
-    FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate,
+    ApiCall, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec,
+    FlowInputs, FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate,
     HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
     StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };

@@ -92,6 +92,7 @@ impl FlowDefinition {
 pub struct HttpStepDefinition {
     pub id: String,
     pub name: String,
+    pub when: Option<ConditionExpr>,
     pub request: HttpRequestSource,
     pub checks: Vec<ResponseCheck>,
     pub exports: Vec<ResponseExport>,
@@ -106,10 +107,16 @@ impl HttpStepDefinition {
         Self {
             id: id.into(),
             name: name.into(),
+            when: None,
             request: request.into(),
             checks: Vec::new(),
             exports: Vec::new(),
         }
+    }
+
+    pub fn when(mut self, condition: ConditionExpr) -> Self {
+        self.when = Some(condition);
+        self
     }
 
     pub fn check(mut self, check: ResponseCheck) -> Self {
@@ -269,6 +276,7 @@ pub enum JsonTemplate {
         step_id: String,
         name: String,
     },
+    Coalesce(Vec<JsonTemplate>),
     Object(BTreeMap<String, JsonTemplate>),
     Array(Vec<JsonTemplate>),
 }
@@ -287,6 +295,10 @@ impl JsonTemplate {
             step_id: step_id.into(),
             name: name.into(),
         }
+    }
+
+    pub fn coalesce(candidates: impl IntoIterator<Item = Self>) -> Self {
+        Self::Coalesce(candidates.into_iter().collect())
     }
 
     pub fn object<K: Into<String>>(fields: impl IntoIterator<Item = (K, Self)>) -> Self {
@@ -390,6 +402,7 @@ pub enum TemplatePart {
     Literal(String),
     Input(String),
     StepOutput { step_id: String, name: String },
+    Coalesce(Vec<TextTemplate>),
 }
 
 impl TemplatePart {
@@ -407,6 +420,15 @@ impl TemplatePart {
             name: name.into(),
         }
     }
+
+    pub fn coalesce(candidates: impl IntoIterator<Item = Self>) -> Self {
+        Self::Coalesce(
+            candidates
+                .into_iter()
+                .map(|part| TextTemplate::parts([part]))
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -415,13 +437,33 @@ pub enum StepOutcome {
     Failed { message: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ValueReference {
     Input(String),
     StepOutput { step_id: String, name: String },
+    Literal(Value),
+    Coalesce(Vec<ValueReference>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl ValueReference {
+    pub fn input(name: impl Into<String>) -> Self {
+        Self::Input(name.into())
+    }
+    pub fn step_output(step_id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self::StepOutput {
+            step_id: step_id.into(),
+            name: name.into(),
+        }
+    }
+    pub fn literal(value: impl Into<Value>) -> Self {
+        Self::Literal(value.into())
+    }
+    pub fn coalesce(candidates: impl IntoIterator<Item = Self>) -> Self {
+        Self::Coalesce(candidates.into_iter().collect())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct FlowOutputSpec {
     pub name: String,
     pub value: ValueReference,
@@ -466,6 +508,11 @@ pub enum FlowEvent {
         step_id: String,
         name: String,
     },
+    StepSkipped {
+        step_id: String,
+        name: String,
+        reason: String,
+    },
     ResponseReceived {
         step_id: String,
         status: u16,
@@ -489,4 +536,59 @@ pub enum FlowEvent {
         success: bool,
         outputs: FlowOutputs,
     },
+}
+/// A boolean condition expression evaluated before executing a step.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionExpr {
+    Eq(JsonTemplate, JsonTemplate),
+    Ne(JsonTemplate, JsonTemplate),
+    Gt(JsonTemplate, JsonTemplate),
+    Gte(JsonTemplate, JsonTemplate),
+    Lt(JsonTemplate, JsonTemplate),
+    Lte(JsonTemplate, JsonTemplate),
+    In(JsonTemplate, JsonTemplate),
+    And(Vec<ConditionExpr>),
+    Or(Vec<ConditionExpr>),
+    Not(Box<ConditionExpr>),
+}
+
+impl ConditionExpr {
+    pub fn eq(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Eq(left.into(), right.into())
+    }
+    pub fn ne(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Ne(left.into(), right.into())
+    }
+    pub fn gt(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Gt(left.into(), right.into())
+    }
+    pub fn gte(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Gte(left.into(), right.into())
+    }
+    pub fn lt(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Lt(left.into(), right.into())
+    }
+    pub fn lte(left: impl Into<JsonTemplate>, right: impl Into<JsonTemplate>) -> Self {
+        Self::Lte(left.into(), right.into())
+    }
+    pub fn is_in(item: impl Into<JsonTemplate>, collection: impl Into<JsonTemplate>) -> Self {
+        Self::In(item.into(), collection.into())
+    }
+    pub fn and(conditions: impl IntoIterator<Item = ConditionExpr>) -> Self {
+        Self::And(conditions.into_iter().collect())
+    }
+    pub fn or(conditions: impl IntoIterator<Item = ConditionExpr>) -> Self {
+        Self::Or(conditions.into_iter().collect())
+    }
+    #[allow(clippy::should_implement_trait)]
+    pub fn not(condition: ConditionExpr) -> Self {
+        Self::Not(Box::new(condition))
+    }
+}
+
+impl std::ops::Not for ConditionExpr {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        Self::Not(Box::new(self))
+    }
 }

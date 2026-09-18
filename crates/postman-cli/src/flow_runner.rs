@@ -108,11 +108,33 @@ pub async fn run_flow_plan<T: HttpTransport>(
                 current_request = Some(RequestReport {
                     name: display_name,
                     success: false,
+                    skipped: false,
                     status: None,
                     elapsed_ms: None,
                     assertions: Vec::new(),
                     captures: Vec::new(),
                     error: None,
+                });
+            }
+            FlowEvent::StepSkipped {
+                step_id,
+                name,
+                reason,
+            } => {
+                let display_name = if name.is_empty() || name == step_id {
+                    step_id
+                } else {
+                    format!("{step_id} ({name})")
+                };
+                requests.push(RequestReport {
+                    name: display_name,
+                    success: true,
+                    skipped: true,
+                    status: None,
+                    elapsed_ms: None,
+                    assertions: Vec::new(),
+                    captures: Vec::new(),
+                    error: Some(format!("Skipped: {reason}")),
                 });
             }
             FlowEvent::ResponseReceived {

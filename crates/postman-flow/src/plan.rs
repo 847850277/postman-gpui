@@ -31,9 +31,24 @@ impl FlowPlan {
 pub(crate) struct HttpStepPlan {
     pub id: String,
     pub name: String,
+    pub when: Option<CompiledCondition>,
     pub request: HttpRequestTemplate,
     pub checks: Vec<CompiledCheck>,
     pub exports: Vec<CompiledExport>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum CompiledCondition {
+    Eq(JsonTemplate, JsonTemplate),
+    Ne(JsonTemplate, JsonTemplate),
+    Gt(JsonTemplate, JsonTemplate),
+    Gte(JsonTemplate, JsonTemplate),
+    Lt(JsonTemplate, JsonTemplate),
+    Lte(JsonTemplate, JsonTemplate),
+    In(JsonTemplate, JsonTemplate),
+    And(Vec<CompiledCondition>),
+    Or(Vec<CompiledCondition>),
+    Not(Box<CompiledCondition>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

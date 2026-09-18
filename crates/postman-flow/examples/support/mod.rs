@@ -98,6 +98,13 @@ pub async fn run_live(
             FlowEvent::StepFinished { step_id, outcome } => {
                 tracing::info!(step_id = %step_id, ?outcome, "⏹ 步骤完成");
             }
+            FlowEvent::StepSkipped {
+                step_id,
+                name,
+                reason,
+            } => {
+                tracing::info!(step_id = %step_id, step_name = %name, reason = %reason, "⏭ 步骤跳过");
+            }
             FlowEvent::FlowFinished {
                 success: finished, ..
             } => {
