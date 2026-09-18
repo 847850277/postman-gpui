@@ -1,0 +1,364 @@
+schema_version: 1
+flow:
+  name: vaultwarden-login-smtp-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: smtp_user@example.com
+
+  steps:
+  # Phase 1: User Registration and Profile Discovery
+  - id: step-1-prelogin
+    name: 1. Prelogin
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "smtp_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register
+    name: 2. Account Registration
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "smtp_user@example.com",
+              "name": "SMTP Test User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login
+    name: 3. Login
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=smtp_user%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=66666666-6666-6666-6666-666666666666&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: auth_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-get-profile
+    name: 4. Verify Account Profile (Email Unverified by Default)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/profile
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: smtp_user@example.com
+    - kind: jsonpath
+      path: $.emailVerified
+      equals:
+        literal: true
+    exports:
+    - name: user_id
+      path: $.id
+
+  # Phase 2: Email 2FA Provider Configuration & Negative Password Check
+  - id: step-5-get-email-2fa-status
+    name: 5. Query Email 2FA Settings
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/two-factor/get-email
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: twoFactorEmail
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: false
+
+  - id: step-6-get-email-2fa-wrong-password
+    name: 6. Negative Test - Query Email 2FA With Wrong Password (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/two-factor/get-email
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "d3Jvbmc="
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid password
+
+  # Phase 3: Email Verification Contract Boundaries
+  - id: step-7-send-verify-email-boundary
+    name: 7. Boundary Test - Request Verification Email Without Active SMTP (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/verify-email
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Cannot verify email address
+
+  - id: step-8-verify-token-user-not-found
+    name: 8. Negative Test - Verify Email Token With Non-Existent User ID (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/verify-email-token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "userId": "00000000-0000-0000-0000-000000000000",
+              "token": "dummy_token"
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: User doesn't exist
+
+  - id: step-9-verify-token-invalid-claim
+    name: 9. Negative Test - Verify Email Token With Invalid Claim Signature (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/verify-email-token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          concat:
+          - literal: '{"userId":"'
+          - output:
+              step: step-4-get-profile
+              name: user_id
+          - literal: '","token":"invalid_email_token_string"}'
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid claim
+
+  # Phase 4: Email 2FA Feature Flag Boundaries (Disabled When No SMTP Configured)
+  - id: step-10-send-email-login-boundary
+    name: 10. Boundary Test - Request Email 2FA Login Code When Disabled (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/two-factor/send-email-login
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "smtp_user@example.com",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Email 2FA is disabled
+
+  - id: step-11-send-email-setup-boundary
+    name: 11. Boundary Test - Request Email 2FA Setup Code When Disabled (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/two-factor/send-email
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "smtp_user@example.com",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Email 2FA is disabled

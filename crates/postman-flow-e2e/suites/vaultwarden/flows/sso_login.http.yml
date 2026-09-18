@@ -1,0 +1,260 @@
+schema_version: 1
+flow:
+  name: vaultwarden-sso-login-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: sso_user@example.com
+
+  steps:
+  # Phase 1: Standard Password Login Baseline (No SSO Mode)
+  - id: step-1-prelogin
+    name: 1. Prelogin
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "sso_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register
+    name: 2. Register User
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "sso_user@example.com",
+              "name": "SSO Baseline User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login
+    name: 3. Login with Master Password (Baseline)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=sso_user%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=12121212-1212-1212-1212-121212121212&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: auth_token
+      path: $.access_token
+      sensitive: true
+
+  # Phase 2: SSO Domain and Organization Verification Endpoints
+  - id: step-4-get-sso-verified-domain
+    name: 4. Discover SSO Domain Verification Configuration
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/domain/sso/verified
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: list
+    - kind: jsonpath
+      path: $.data[0].organizationIdentifier
+      equals:
+        literal: 00000000-01DC-01DC-01DC-000000000000
+
+  - id: step-5-get-sso-auto-enroll-status
+    name: 5. Query SSO Auto-Enroll Status
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/00000000-01DC-01DC-01DC-000000000000/auto-enroll-status
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.id
+      equals:
+        literal: 00000000-01DC-01DC-01DC-000000000000
+    - kind: jsonpath
+      path: $.resetPasswordEnabled
+      equals:
+        literal: false
+
+  # Phase 3: SSO Boundary Tests (Disabled in Default Instance)
+  - id: step-6-sso-prevalidate-boundary
+    name: 6. Boundary Test - SSO Prevalidation When Disabled (400)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /identity/sso/prevalidate
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: SSO sign-in is not available
+
+  - id: step-7-authorization-code-grant-boundary
+    name: 7. Boundary Test - OAuth2 Authorization Code Exchange When SSO Disabled (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=authorization_code&client_id=web&code=test_auth_code&code_verifier=test_code_verifier&device_identifier=12121212-1212-1212-1212-121212121212&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: SSO sign-in is not available
+
+  - id: step-8-client-credentials-invalid
+    name: 8. Negative Test - OAuth2 Client Credentials With Malformed Client ID (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=client_credentials&client_id=organization.dummy&client_secret=invalid_secret&scope=api&device_identifier=12121212-1212-1212-1212-121212121212&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Malformed client_id
+
+  - id: step-9-unsupported-grant-type
+    name: 9. Negative Test - OAuth2 Unsupported Grant Type (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=unsupported_test_grant&client_id=web
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid type

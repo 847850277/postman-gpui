@@ -1,0 +1,162 @@
+flow:
+  name: vaultwarden-login-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: user1@example.com
+  steps:
+  - id: step-1-prelogin
+    name: 1. Prelogin KDF Parameter Negotiation
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "user1@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.kdf
+      equals:
+        literal: 0
+
+  - id: step-2-register
+    name: 2. Account Registration
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "user1@example.com",
+              "name": "Test User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login-success
+    name: 3. Master Password Login (OAuth2 Token Exchange)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=user1%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=d290f1ee-6c54-4b01-90e6-d701748f0851&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.token_type
+      equals:
+        literal: Bearer
+    exports:
+    - name: auth_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-get-profile
+    name: 4. Verify Authenticated Profile via Bearer Token
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/profile
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-success
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: user1@example.com
+
+  - id: step-5-login-failure
+    name: 5. Negative Test - Invalid Password Rejection
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=user1%40example.com&password=wrongpasswordhash&scope=api%20offline_access&client_id=web&device_identifier=d290f1ee-6c54-4b01-90e6-d701748f0851&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: error
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Username or password is incorrect. Try again
+schema_version: 1
+

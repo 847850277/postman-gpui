@@ -1,0 +1,683 @@
+schema_version: 1
+flow:
+  name: vaultwarden-folders-management-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: folder_user@example.com
+
+  steps:
+  # Phase 1: User Account Preparation
+  - id: step-1-prelogin
+    name: 1. Prelogin
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "folder_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register
+    name: 2. Account Registration
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "folder_user@example.com",
+              "name": "Folder User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login
+    name: 3. Login
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=folder_user%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=41414141-4141-4141-4141-414141414141&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: auth_token
+      path: $.access_token
+      sensitive: true
+
+  # Phase 2: Folder CRUD Lifecycle
+  - id: step-4-list-initial-folders
+    name: 4. Query Initial Folders (Empty List)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: list
+
+  - id: step-5-create-folder-1
+    name: 5. Create Folder 'Finance & Banking'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Finance & Banking"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: folder
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Finance & Banking
+    exports:
+    - name: folder_1_id
+      path: $.id
+
+  - id: step-6-create-folder-2
+    name: 6. Create Folder 'Development'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Development"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: folder
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Development
+    exports:
+    - name: folder_2_id
+      path: $.id
+
+  - id: step-7-read-folder-1
+    name: 7. Read Folder 1 Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/
+        - output:
+            step: step-5-create-folder-1
+            name: folder_1_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Finance & Banking
+
+  - id: step-8-read-folder-2
+    name: 8. Read Folder 2 Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/
+        - output:
+            step: step-6-create-folder-2
+            name: folder_2_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Development
+
+  # Phase 3: Cipher Organization and Folder Relocation
+  - id: step-9-create-cipher-in-folder-1
+    name: 9. Create Login Cipher Assigned to Folder 1
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          concat:
+          - literal: '{"type":1,"name":"Bank Account Credentials","notes":"Secure banking login","folderId":"'
+          - output:
+              step: step-5-create-folder-1
+              name: folder_1_id
+          - literal: '","login":{"username":"bank_user","password":"bank_password"}}'
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Bank Account Credentials
+    exports:
+    - name: cipher_id
+      path: $.id
+
+  - id: step-10-verify-cipher-in-folder-1
+    name: 10. Verify Cipher Belongs to Folder 1
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-9-create-cipher-in-folder-1
+            name: cipher_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-11-move-cipher-to-folder-2
+    name: 11. Move Cipher from Folder 1 to Folder 2
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-9-create-cipher-in-folder-1
+            name: cipher_id
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          concat:
+          - literal: '{"type":1,"name":"Bank Account Credentials (Moved)","notes":"Moved to dev","folderId":"'
+          - output:
+              step: step-6-create-folder-2
+              name: folder_2_id
+          - literal: '","login":{"username":"bank_user","password":"bank_password"}}'
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Bank Account Credentials (Moved)
+
+  - id: step-12-rename-folder-2
+    name: 12. Rename Folder 2 to 'Work & Development'
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/
+        - output:
+            step: step-6-create-folder-2
+            name: folder_2_id
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Work & Development"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Work & Development
+
+  # Phase 4: Full Vault Sync Consistency
+  - id: step-13-verify-vault-sync
+    name: 13. Verify Full Vault Sync Contains Updated Folders and Ciphers
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/sync
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.profile.email
+      equals:
+        literal: folder_user@example.com
+
+  # Phase 5: Negative Security and Validation Checks
+  - id: step-14-get-nonexistent-folder
+    name: 14. Negative Test - Query Non-Existent Folder (400)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/00000000-0000-0000-0000-000000000000
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid folder
+
+  - id: step-15-update-nonexistent-folder
+    name: 15. Negative Test - Update Non-Existent Folder (400)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/00000000-0000-0000-0000-000000000000
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Ghost Folder"
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid folder
+
+  - id: step-16-delete-nonexistent-folder
+    name: 16. Negative Test - Delete Non-Existent Folder (400)
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/00000000-0000-0000-0000-000000000000
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Invalid folder
+
+  - id: step-17-unauthenticated-folder-access
+    name: 17. Negative Test - Unauthenticated Folder Access (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders
+    checks:
+    - kind: status
+      equals: 401
+
+  # Phase 6: Folder Deletion and Orphan Cipher Preservation
+  - id: step-18-delete-folder-1
+    name: 18. Delete Folder 1
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/
+        - output:
+            step: step-5-create-folder-1
+            name: folder_1_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-19-delete-folder-2
+    name: 19. Delete Folder 2 (Parent of Cipher)
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/folders/
+        - output:
+            step: step-6-create-folder-2
+            name: folder_2_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-20-verify-cipher-preserved
+    name: 20. Verify Cipher Remains in Vault After Folder Deletion
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-9-create-cipher-in-folder-1
+            name: cipher_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Bank Account Credentials (Moved)
+
+  - id: step-21-delete-cipher
+    name: 21. Clean Up - Delete Cipher
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-9-create-cipher-in-folder-1
+            name: cipher_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-22-verify-cipher-deleted
+    name: 22. Verify Cipher Completely Deleted (400)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-9-create-cipher-in-folder-1
+            name: cipher_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Cipher doesn't exist
+

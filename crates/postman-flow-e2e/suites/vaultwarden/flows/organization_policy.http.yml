@@ -1,0 +1,945 @@
+schema_version: 1
+flow:
+  name: vaultwarden-organization-policy-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: owner_email
+    default: pol_owner@example.com
+  - name: member_email
+    default: pol_member@example.com
+
+  steps:
+  # Phase 1: Setup Owner and Member Accounts
+  - id: step-1-prelogin-owner
+    name: 1. Prelogin Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "pol_owner@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register-owner
+    name: 2. Register Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "pol_owner@example.com",
+              "name": "Policy Owner",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login-owner
+    name: 3. Login Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=pol_owner%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=88888888-8888-8888-8888-888888888888&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: owner_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-prelogin-member
+    name: 4. Prelogin Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "pol_member@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-5-register-member
+    name: 5. Register Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "pol_member@example.com",
+              "name": "Policy Member",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-6-login-member
+    name: 6. Login Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=pol_member%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=99999999-9999-9999-9999-999999999999&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: member_token
+      path: $.access_token
+      sensitive: true
+
+  # Phase 2: Create Organization and Enroll Member
+  - id: step-7-create-organization
+    name: 7. Create Organization 'Policy Org'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Policy Org",
+              "billingEmail": "pol_owner@example.com",
+              "collectionName": "Default collection",
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "planType": 0
+            }
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: org_id
+      path: $.id
+
+  - id: step-8-invite-member
+    name: 8. Invite Member to Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "emails": ["pol_member@example.com"],
+              "groups": [],
+              "type": 2,
+              "collections": []
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-9-get-members
+    name: 9. Read Organization Members (Get Member ID)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: member_id
+      path: $.data[1].id
+
+  - id: step-10-confirm-member
+    name: 10. Confirm Member Admission
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-9-get-members
+            name: member_id
+        - literal: /confirm
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "key": "0.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 3: Inspect and Update Master Password Policy
+  - id: step-11-list-policies
+    name: 11. List Initial Organization Policies
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: list
+
+  - id: step-12-get-master-password-policy
+    name: 12. Read Master Password Policy Before Enable
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/1
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: false
+
+  - id: step-13-update-master-password-policy
+    name: "13. Enable Master Password Policy (minLength: 42)"
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/1
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": true,
+                "data": {
+                  "minComplexity": 0,
+                  "minLength": 42
+                }
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: true
+
+  - id: step-14-verify-master-password-policy
+    name: 14. Verify Master Password Policy Enabled
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/1
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: true
+
+  # Phase 4: Enforce DisableSend Policy (Type 6)
+  - id: step-15-enable-disable-send-policy
+    name: 15. Enable DisableSend Policy (Type 6)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/6
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": true,
+                "data": null
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: true
+
+  - id: step-16-member-send-blocked
+    name: 16. Negative Test - Member Creation of Send Blocked by Policy (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/sends
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "type": 0,
+              "name": "Restricted Send",
+              "notes": "Should be blocked",
+              "text": {
+                "text": "Secret"
+              },
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "deletionDate": "2026-09-25T00:00:00Z",
+              "disabled": false
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Due to an Enterprise Policy, you are only able to delete an existing Send.
+
+  # Phase 5: Enforce Personal Ownership Policy (Type 5)
+  - id: step-17-enable-personal-ownership-policy
+    name: 17. Enable Personal Ownership Policy (Type 5)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/5
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": true,
+                "data": null
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: true
+
+  - id: step-18-member-personal-cipher-blocked
+    name: 18. Negative Test - Member Saving Personal Item Blocked by Policy (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "type": 1,
+              "name": "Restricted Personal Password",
+              "notes": "Should be blocked by personal ownership policy",
+              "login": {
+                "username": "user",
+                "password": "password"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Due to an Enterprise Policy, you are restricted from saving items to your personal vault.
+
+  # Phase 6: Disable Policies and Verify Permissive Operations
+  - id: step-19-disable-personal-ownership-policy
+    name: 19. Disable Personal Ownership Policy
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/5
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": false,
+                "data": null
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: false
+
+  - id: step-20-member-cipher-allowed
+    name: 20. Verify Member Can Now Create Personal Password Item
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "type": 1,
+              "name": "Allowed Personal Password",
+              "notes": "Allowed after policy disabled",
+              "login": {
+                "username": "member_user",
+                "password": "member_password"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Allowed Personal Password
+    exports:
+    - name: created_cipher_id
+      path: $.id
+
+  - id: step-21-disable-send-policy
+    name: 21. Disable DisableSend Policy
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /policies/6
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": false,
+                "data": null
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: false
+
+  - id: step-22-member-send-allowed
+    name: 22. Verify Member Can Now Create Bitwarden Send
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/sends
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "type": 0,
+              "name": "Allowed Send",
+              "notes": "Allowed after policy disabled",
+              "text": {
+                "text": "Unlocked content"
+              },
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "deletionDate": "2026-09-25T00:00:00Z",
+              "disabled": false
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: Allowed Send
+    exports:
+    - name: created_send_id
+      path: $.id
+
+  # Phase 7: Teardown
+  - id: step-23-delete-cipher
+    name: 23. Delete Created Password Item
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/ciphers/
+        - output:
+            step: step-20-member-cipher-allowed
+            name: created_cipher_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-24-delete-send
+    name: 24. Delete Created Send
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/sends/
+        - output:
+            step: step-22-member-send-allowed
+            name: created_send_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-25-delete-organization
+    name: 25. Delete Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-26-verify-organization-deleted
+    name: 26. Verify Organization Is Deleted (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 401

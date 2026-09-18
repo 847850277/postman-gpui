@@ -1,0 +1,43 @@
+# postman-flow-e2e
+
+Real-world, industrial end-to-end integration test suites for [postman-flow](https://github.com/847850277/postman-gpui).
+
+## Overview
+
+Unlike synthetic echo tests (like HTTPBingo), `postman-flow-e2e` tests our Flow engine and `postman-g` CLI against **real-world, open-source production applications** to stress-test and verify:
+- Multi-step cryptographic handshakes and authentication (OAuth2 password grant, KDF salt/iteration negotiation).
+- Stateful business workflows and cross-step dependency propagation.
+- Real-world REST API contracts, headers, status codes, and error models.
+- Data masking and sensitive variable protection contracts.
+
+## Suites
+
+### 1. Vaultwarden (Bitwarden API)
+Located under `suites/vaultwarden/`:
+- **12 Full Workflow Specifications** (`.http.yml`):
+  - `login.http.yml`: Prelogin KDF negotiation, account registration, OAuth2 password grant token exchange, authenticated profile verification, negative password rejection.
+  - `send.http.yml`: Unauthenticated and password-protected Bitwarden Send creation, access control, validation, and deletion.
+  - `cyphers_kdf.http.yml`: PBKDF2 (600,000 / 700,000 iterations) and Argon2id security settings mutation and re-authentication.
+  - `secrets_cipher.http.yml`: Vault cipher lifecycle (type 1 login, type 5 SSH key), soft-delete to trash, restore from trash.
+  - `collection.http.yml`: Organization collection access control and item management.
+  - `organization.http.yml`, `organization_policy.http.yml`, `organization_recovery.http.yml`: Org invites, policy enforcement, recovery keys.
+  - `admin.http.yml`, `two_factor.http.yml`, `sso_login.http.yml`, `login_smtp.http.yml`.
+
+## Running the Suites
+
+### Option 1: Automated Script (Local Development)
+Runs an ephemeral Vaultwarden server on dynamic/designated port with in-memory/temp SQLite, executes all flows via `postman-g`, and cleans up on exit:
+
+```bash
+# Run all suites
+./crates/postman-flow-e2e/suites/vaultwarden/run.sh
+
+# Run a single flow
+./crates/postman-flow-e2e/suites/vaultwarden/run.sh crates/postman-flow-e2e/suites/vaultwarden/flows/login.http.yml
+```
+
+### Option 2: Cargo Integration Test
+```bash
+cargo test -p postman-flow-e2e --test vaultwarden_e2e -- --nocapture
+```
+

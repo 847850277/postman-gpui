@@ -1,0 +1,450 @@
+flow:
+  name: vaultwarden-collection-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: col_user@example.com
+  steps:
+  - id: step-1-prelogin
+    name: 1. Prelogin
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "col_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register
+    name: 2. Register
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "col_user@example.com",
+              "name": "Collection User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login
+    name: 3. Login
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=col_user%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=b590f1ee-6c54-4b01-90e6-d701748f0855&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: auth_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-create-organization
+    name: 4. Create Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "New organisation",
+              "billingEmail": "col_user@example.com",
+              "collectionName": "Default collection",
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "planType": 0
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: organization
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: New organisation
+    exports:
+    - name: org_id
+      path: $.id
+
+  - id: step-5-get-organization
+    name: 5. Read Organization Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: New organisation
+
+  - id: step-6-list-collections
+    name: 6. List Organization Collections
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: list
+
+  - id: step-7-create-custom-collection
+    name: 7. Create Custom Collection 'RandomCollec'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "RandomCollec",
+              "groups": [],
+              "users": []
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: collectionDetails
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: RandomCollec
+    exports:
+    - name: col_id
+      path: $.id
+
+  - id: step-8-read-collection-details
+    name: 8. Read Collection Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections/
+        - output:
+            step: step-7-create-custom-collection
+            name: col_id
+        - literal: /details
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: RandomCollec
+
+  - id: step-9-update-collection
+    name: 9. Update Collection Name
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections/
+        - output:
+            step: step-7-create-custom-collection
+            name: col_id
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "UpdatedCollec",
+              "groups": [],
+              "users": []
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: UpdatedCollec
+
+  - id: step-10-delete-collection
+    name: 10. Delete Collection
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections/
+        - output:
+            step: step-7-create-custom-collection
+            name: col_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-11-verify-collection-deleted
+    name: 11. Verify Collection Is Deleted (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /collections/
+        - output:
+            step: step-7-create-custom-collection
+            name: col_id
+        - literal: /details
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 401
+  - id: step-12-delete-organization
+    name: 12. Delete Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-13-verify-organization-deleted
+    name: 13. Verify Organization Is Deleted (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-4-create-organization
+            name: org_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login
+              name: auth_token
+    checks:
+    - kind: status
+      equals: 401
+schema_version: 1

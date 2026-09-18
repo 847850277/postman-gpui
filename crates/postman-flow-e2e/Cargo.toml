@@ -1,0 +1,23 @@
+[package]
+name = "postman-flow-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Industrial E2E integration test suites for postman-flow with open-source targets"
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+postman-flow = { path = "../postman-flow" }
+postman-cli = { path = "../postman-cli" }
+postman-http = { path = "../postman-http" }
+postman-request = { path = "../postman-request" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "net"] }
+tempfile = "3"
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+reqwest = { version = "0.12", default-features = false }
+

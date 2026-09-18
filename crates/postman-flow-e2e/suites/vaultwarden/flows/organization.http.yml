@@ -1,0 +1,800 @@
+schema_version: 1
+flow:
+  name: vaultwarden-organization-invite-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: owner_email
+    default: org_owner@example.com
+  - name: user2_email
+    default: org_user2@example.com
+  - name: user3_email
+    default: org_user3@example.com
+
+  steps:
+  # Phase 1: Set up existing User 3 (registered before invitation)
+  - id: step-1-prelogin-user3
+    name: 1. Prelogin User 3
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_user3@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register-user3
+    name: 2. Register User 3
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_user3@example.com",
+              "name": "User 3",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login-user3
+    name: 3. Login User 3
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=org_user3%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=33333333-3333-3333-3333-333333333333&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: user3_token
+      path: $.access_token
+      sensitive: true
+
+  # Phase 2: Set up Organization Owner (User 1) and create 'New organisation'
+  - id: step-4-prelogin-owner
+    name: 4. Prelogin Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_owner@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-5-register-owner
+    name: 5. Register Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_owner@example.com",
+              "name": "Org Owner",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-6-login-owner
+    name: 6. Login Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=org_owner%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=11111111-1111-1111-1111-111111111111&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: owner_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-7-create-organization
+    name: 7. Create Organization 'New organisation'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "New organisation",
+              "billingEmail": "org_owner@example.com",
+              "collectionName": "Default collection",
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "planType": 0
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.name
+      equals:
+        literal: New organisation
+    exports:
+    - name: org_id
+      path: $.id
+
+  - id: step-8-list-collections
+    name: 8. List Collections (Get Default Collection ID)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /collections
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[0].name
+      equals:
+        literal: Default collection
+    exports:
+    - name: default_col_id
+      path: $.data[0].id
+
+  # Phase 3: Invite missing User 2 (not registered yet) -> status should be Invited (0)
+  - id: step-9-invite-user2
+    name: 9. Invite Missing User 2
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          concat:
+          - literal: '{"emails":["org_user2@example.com"],"groups":[],"type":2,"collections":[{"id":"'
+          - output:
+              step: step-8-list-collections
+              name: default_col_id
+          - literal: '","readOnly":false,"hidePasswords":false,"manage":false}]}'
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-10-verify-user2-invited
+    name: 10. Verify User 2 Status Is Invited (0)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[1].email
+      equals:
+        literal: org_user2@example.com
+    - kind: jsonpath
+      path: $.data[1].status
+      equals:
+        literal: 0
+    exports:
+    - name: user2_member_id
+      path: $.data[1].id
+
+  # Phase 4: Invite existing User 3 -> status should be Accepted / Needs confirmation (1)
+  - id: step-11-invite-user3
+    name: 11. Invite Existing User 3
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          concat:
+          - literal: '{"emails":["org_user3@example.com"],"groups":[],"type":2,"collections":[{"id":"'
+          - output:
+              step: step-8-list-collections
+              name: default_col_id
+          - literal: '","readOnly":false,"hidePasswords":false,"manage":false}]}'
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-12-verify-user3-needs-confirmation
+    name: 12. Verify User 3 Status Is Needs Confirmation / Accepted (1)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[2].email
+      equals:
+        literal: org_user3@example.com
+    - kind: jsonpath
+      path: $.data[2].status
+      equals:
+        literal: 1
+    exports:
+    - name: user3_member_id
+      path: $.data[2].id
+
+  # Phase 5: Confirm User 3 by Owner -> status becomes Confirmed (2)
+  - id: step-13-confirm-user3
+    name: 13. Confirm User 3
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-12-verify-user3-needs-confirmation
+            name: user3_member_id
+        - literal: /confirm
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "key": "0.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-14-verify-user3-confirmed
+    name: 14. Verify User 3 Status Is Confirmed (2)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[2].status
+      equals:
+        literal: 2
+
+  # Phase 6: User 2 Registers Account -> Membership transitions from Invited (0) to Accepted (1)
+  - id: step-15-prelogin-user2
+    name: 15. Prelogin User 2
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_user2@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-16-register-user2
+    name: 16. Register User 2 (Consumes Invitation)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "org_user2@example.com",
+              "name": "User 2",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-17-login-user2
+    name: 17. Login User 2
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=org_user2%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=22222222-2222-2222-2222-222222222222&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: user2_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-18-verify-user2-accepted
+    name: 18. Verify User 2 Status Is Accepted / Needs Confirmation (1)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[1].status
+      equals:
+        literal: 1
+
+  # Phase 7: Confirm User 2 by Owner -> status becomes Confirmed (2)
+  - id: step-19-confirm-user2
+    name: 19. Confirm User 2
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-10-verify-user2-invited
+            name: user2_member_id
+        - literal: /confirm
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "key": "0.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-20-verify-user2-confirmed
+    name: 20. Verify User 2 Status Is Confirmed (2)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.data[1].status
+      equals:
+        literal: 2
+
+  # Phase 8: Verify Organization and Collection Visibility for User 2 and User 3
+  - id: step-21-verify-org-visible-user2
+    name: 21. Verify Organization & Default Collection Visible for User 2
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/sync
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-17-login-user2
+              name: user2_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.profile.organizations[0].name
+      equals:
+        literal: New organisation
+    - kind: jsonpath
+      path: $.collections[0].name
+      equals:
+        literal: Default collection
+
+  - id: step-22-verify-org-visible-user3
+    name: 22. Verify Organization & Default Collection Visible for User 3
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/sync
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-user3
+              name: user3_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.profile.organizations[0].name
+      equals:
+        literal: New organisation
+    - kind: jsonpath
+      path: $.collections[0].name
+      equals:
+        literal: Default collection
+
+  # Phase 9: Teardown - Delete Organization and Verify Clean Removal
+  - id: step-23-delete-organization
+    name: 23. Delete Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-24-verify-organization-deleted
+    name: 24. Verify Organization Is Deleted (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-7-create-organization
+            name: org_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 401
