@@ -84,13 +84,6 @@ jobs:
           echo "Vaultwarden service timed out" >&2
           exit 1
 
-      - name: Run Cargo Vaultwarden Integration Tests
-        env:
-          VAULTWARDEN_URL: 'http://127.0.0.1:8088'
-        run: cargo test --locked -p postman-flow-e2e --test vaultwarden_e2e -- --nocapture
-
-      - name: Run All Vaultwarden E2E Flow Suites via postman-g
+      - name: Run Vaultwarden Flow E2E Suites
         run: |
-          target/debug/postman-g run crates/postman-flow-e2e/suites/vaultwarden/flows \
-            --input host=http://127.0.0.1:8088 \
-            --json
+          POSTMAN_G="target/debug/postman-g" VAULTWARDEN_URL="http://127.0.0.1:8088" crates/postman-flow-e2e/suites/vaultwarden/run.sh
