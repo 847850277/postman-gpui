@@ -23,23 +23,51 @@ fn http_file_drives_the_real_transport_without_linking_gpui() {
         })))
         .with_status(200)
         .with_header("content-type", "application/json; charset=utf-8")
-        .with_body(
-            r#"{"method":"POST","json":{"client":"postman-gpui-headless","correlation_id":"flow-123"},"marker":"headless-e2e"}"#,
-        )
-        .create();
-    let fixture = format!(
-        "{}/tests/fixtures/httpbingo.http",
-        env!("CARGO_MANIFEST_DIR")
-    );
+       .with_body(
+           r#"{"method":"POST","json":{"client":"postman-gpui-headless","correlation_id":"flow-123"},"marker":"headless-e2e"}"#,
+       )
+       .create();
+    let mut fixture = tempfile::Builder::new()
+        .suffix(".http")
+        .tempfile()
+        .expect("a temporary .http file should open");
+    write!(
+        fixture,
+        r#"@host = {host}
+@client = postman-gpui-headless
+
+### Generate a correlation id
+# @name generate-correlation-id
+# @assert status == 200
+# @assert header "content-type" contains "application/json"
+# @capture correlation_id = jsonpath "$.uuid"
+GET {{{{host}}}}/uuid
+Accept: application/json
+
+### Send a typed request with the captured value
+# @name echo-http-file-request
+# @assert status == 200
+# @assert header "content-type" contains "application/json"
+# @assert jsonpath "$.method" == "POST"
+# @assert jsonpath "$.json.client" == "postman-gpui-headless"
+# @assert jsonpath "$.json.correlation_id" == "{{{{correlation_id}}}}"
+# @assert body contains "headless-e2e"
+POST {{{{host}}}}/anything/headless-e2e/{{{{correlation_id}}}}
+Accept: application/json
+Content-Type: application/json
+X-Postman-E2E: {{{{client}}}}
+
+{{
+  "client": "{{{{client}}}}",
+  "correlation_id": "{{{{correlation_id}}}}"
+}}
+"#,
+        host = server.url()
+    )
+    .expect("the temporary .http file should be writable");
 
     let output = Command::new(env!("CARGO_BIN_EXE_postman-g"))
-        .args([
-            "run",
-            &fixture,
-            "--var",
-            &format!("host={}", server.url()),
-            "--json",
-        ])
+        .args(["run", fixture.path().to_str().unwrap(), "--json"])
         .output()
         .expect("the headless process should start");
 
