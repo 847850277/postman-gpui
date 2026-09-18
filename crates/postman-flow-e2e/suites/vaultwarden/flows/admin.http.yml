@@ -1,0 +1,206 @@
+schema_version: 1
+flow:
+  name: vaultwarden-admin-panel-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: admin_token
+    default: testadmin1234567890
+
+  steps:
+  - id: step-1-admin-unauthenticated
+    name: 1. Negative Test - Access Admin Without Token (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users
+    checks:
+    - kind: status
+      equals: 401
+
+  - id: step-2-admin-login-invalid
+    name: 2. Negative Test - Admin Login With Invalid Token (401)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      body:
+        kind: url_encoded
+        value:
+          literal: token=wrong_admin_token
+    checks:
+    - kind: status
+      equals: 401
+
+  - id: step-3-admin-login-success
+    name: 3. Admin Login With Valid Token
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      body:
+        kind: url_encoded
+        value:
+          concat:
+          - literal: token=
+          - input: admin_token
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-4-list-users
+    name: 4. List All Users Via Admin API
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-5-invite-user
+    name: 5. Invite User Via Admin API
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "admin_invited_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: admin_invited_user@example.com
+    exports:
+    - name: invited_user_id
+      path: $.id
+
+  - id: step-6-disable-user
+    name: 6. Disable User Account
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-5-invite-user
+            name: invited_user_id
+        - literal: /disable
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-7-enable-user
+    name: 7. Re-enable User Account
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-5-invite-user
+            name: invited_user_id
+        - literal: /enable
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-8-delete-user
+    name: 8. Delete User Account
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-5-invite-user
+            name: invited_user_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-9-diagnostics-config
+    name: 9. Inspect Server Diagnostics Config
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/diagnostics/config
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-10-admin-logout
+    name: 10. Admin Logout
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/logout
+    checks:
+    - kind: status
+      equals: 200
+

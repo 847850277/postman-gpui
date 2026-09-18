@@ -1,0 +1,418 @@
+schema_version: 1
+flow:
+  name: vaultwarden-sso-admin-invite-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: admin_token
+    default: testadmin1234567890
+  - name: invitee_email
+    default: admin_sso_invited@example.com
+
+  steps:
+  # Phase 1: Admin Authentication
+  - id: step-1-admin-login
+    name: 1. Admin Login With Valid Admin Token
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      body:
+        kind: url_encoded
+        value:
+          concat:
+          - literal: token=
+          - input: admin_token
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 2: Admin Invites New User and Inspects Invitation
+  - id: step-2-admin-invite
+    name: 2. Admin Invites New User
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "admin_sso_invited@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: admin_sso_invited@example.com
+    exports:
+    - name: invited_user_id
+      path: $.id
+
+  - id: step-3-admin-get-by-mail
+    name: 3. Admin Queries User Details by Email
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/by-mail/admin_sso_invited@example.com
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: admin_sso_invited@example.com
+    - kind: jsonpath
+      path: $.userEnabled
+      equals:
+        literal: true
+
+  - id: step-4-admin-resend-invite
+    name: 4. Admin Resends User Invitation
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /invite/resend
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 3: Invitee Registers Account and Establishes Session
+  - id: step-5-prelogin-invitee
+    name: 5. Invitee Prelogin Parameter Negotiation
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "admin_sso_invited@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-6-register-invitee
+    name: 6. Invitee Account Registration (Redeeming Admin Invitation)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "admin_sso_invited@example.com",
+              "name": "SSO Admin Invitee",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-7-login-invitee
+    name: 7. Invitee Login via Password Grant
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=admin_sso_invited%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=95959595-9595-9595-9595-959595959595&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: user_auth_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-8-verify-profile
+    name: 8. Verify Invitee Profile via Bearer Token
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/profile
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-7-login-invitee
+              name: user_auth_token
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.email
+      equals:
+        literal: admin_sso_invited@example.com
+
+  # Phase 4: Admin Management Operations on Enrolled User
+  - id: step-9-resend-accepted-user-blocked
+    name: 9. Negative Test - Resending Invite to Accepted User Blocked (400)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /invite/resend
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: User already accepted invitation
+
+  - id: step-10-remove-2fa
+    name: 10. Admin Resets User 2FA
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /remove-2fa
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-11-deauth-user
+    name: 11. Admin Deauthorizes User Sessions
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /deauth
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-12-delete-sso-link
+    name: 12. Admin Unlinks User SSO Identity
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /sso
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 5: Negative Security Boundaries
+  - id: step-13-invite-existing-user-conflict
+    name: 13. Negative Test - Inviting Already Registered User Returns Conflict (409)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "admin_sso_invited@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 409
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: User already exists
+
+  - id: step-14-get-nonexistent-user-by-mail
+    name: 14. Negative Test - Query Non-Existent User by Email (404)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/by-mail/nonexistent_user_999@example.com
+    checks:
+    - kind: status
+      equals: 404
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: User doesn't exist
+
+  - id: step-15-delete-sso-nonexistent-user
+    name: 15. Idempotency Test - Delete SSO on Non-Existent User Succeeds (200)
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/00000000-0000-0000-0000-000000000000/sso
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 6: Teardown
+  - id: step-16-delete-user
+    name: 16. Admin Deletes User
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /admin/users/
+        - output:
+            step: step-2-admin-invite
+            name: invited_user_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-17-admin-logout
+    name: 17. Admin Logout
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /admin/logout
+    checks:
+    - kind: status
+      equals: 200

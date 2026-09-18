@@ -71,17 +71,16 @@ async fn execute(arguments: Vec<String>) -> Result<bool, String> {
     }
 
     let arguments = parse_arguments(arguments)?;
-    if arguments.verbose || env::var_os("RUST_LOG").is_some() {
-        let default_filter = if arguments.verbose {
-            "postman_flow=debug,postman_cli=debug,info"
-        } else {
-            "info"
-        };
+    if arguments.verbose {
+        let env_filter =
+            tracing_subscriber::EnvFilter::new("postman_flow=debug,postman_cli=debug,info");
         let _ = tracing_subscriber::fmt()
-            .with_env_filter(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default_filter)),
-            )
+            .with_env_filter(env_filter)
+            .with_writer(std::io::stderr)
+            .try_init();
+    } else if env::var_os("RUST_LOG").is_some() {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
             .with_writer(std::io::stderr)
             .try_init();
     }

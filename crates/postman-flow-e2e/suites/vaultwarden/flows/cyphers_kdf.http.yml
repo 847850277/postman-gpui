@@ -1,0 +1,368 @@
+flow:
+  name: vaultwarden-kdf-security-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: email
+    default: kdf_user@example.com
+  steps:
+  - id: step-1-prelogin-initial
+    name: 1. Initial Prelogin (Default PBKDF2 600,000)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "kdf_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.kdf
+      equals:
+        literal: 0
+
+  - id: step-2-register
+    name: 2. Register User with PBKDF2
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "kdf_user@example.com",
+              "name": "KDF Test User",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "aW5pdGlhbF9wd2RfaGFzaF82MDAwMDA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login-initial
+    name: 3. Login with Initial Credentials
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=kdf_user%40example.com&password=aW5pdGlhbF9wd2RfaGFzaF82MDAwMDA%3D&scope=api%20offline_access&client_id=web&device_identifier=a190f1ee-6c54-4b01-90e6-d701748f0853&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.token_type
+      equals:
+        literal: Bearer
+    exports:
+    - name: initial_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-change-pbkdf2-iterations
+    name: 4. Change PBKDF2 Iterations to 700,000
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/kdf
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-initial
+              name: initial_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "aW5pdGlhbF9wd2RfaGFzaF82MDAwMDA=",
+              "authenticationData": {
+                "salt": "kdf_user@example.com",
+                "kdf": {
+                  "kdfType": 0,
+                  "iterations": 700000
+                },
+                "masterPasswordAuthenticationHash": "bmV3X3B3ZF9oYXNoXzcwMDAwMA=="
+              },
+              "unlockData": {
+                "salt": "kdf_user@example.com",
+                "kdf": {
+                  "kdfType": 0,
+                  "iterations": 700000
+                },
+                "masterKeyWrappedUserKey": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-5-verify-prelogin-pbkdf2
+    name: 5. Verify Prelogin Reports 700,000 Iterations
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "kdf_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.kdf
+      equals:
+        literal: 0
+    - kind: jsonpath
+      path: $.kdfIterations
+      equals:
+        literal: 700000
+
+  - id: step-6-login-pbkdf2-new
+    name: 6. Login with New 700,000 Hash
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=kdf_user%40example.com&password=bmV3X3B3ZF9oYXNoXzcwMDAwMA%3D%3D&scope=api%20offline_access&client_id=web&device_identifier=a190f1ee-6c54-4b01-90e6-d701748f0853&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: pbkdf2_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-7-switch-argon2id
+    name: 7. Switch Encryption KDF to Argon2id (Memory 16MB, Iterations 2)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/kdf
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-pbkdf2-new
+              name: pbkdf2_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "bmV3X3B3ZF9oYXNoXzcwMDAwMA==",
+              "authenticationData": {
+                "salt": "kdf_user@example.com",
+                "kdf": {
+                  "kdfType": 1,
+                  "iterations": 2,
+                  "memory": 16,
+                  "parallelism": 1
+                },
+                "masterPasswordAuthenticationHash": "YXJnb24yX3B3ZF9oYXNoXzE2XzI="
+              },
+              "unlockData": {
+                "salt": "kdf_user@example.com",
+                "kdf": {
+                  "kdfType": 1,
+                  "iterations": 2,
+                  "memory": 16,
+                  "parallelism": 1
+                },
+                "masterKeyWrappedUserKey": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-8-verify-prelogin-argon2id
+    name: 8. Verify Prelogin Reports Argon2id Parameters
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "kdf_user@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.kdf
+      equals:
+        literal: 1
+    - kind: jsonpath
+      path: $.kdfIterations
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.kdfMemory
+      equals:
+        literal: 16
+    - kind: jsonpath
+      path: $.kdfParallelism
+      equals:
+        literal: 1
+
+  - id: step-9-login-argon2id
+    name: 9. Login Successfully with Argon2id Credentials
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=kdf_user%40example.com&password=YXJnb24yX3B3ZF9oYXNoXzE2XzI%3D&scope=api%20offline_access&client_id=web&device_identifier=a190f1ee-6c54-4b01-90e6-d701748f0853&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.token_type
+      equals:
+        literal: Bearer
+
+  - id: step-10-verify-old-hash-rejected
+    name: 10. Negative Test - Old Password Hash Rejected
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=kdf_user%40example.com&password=bmV3X3B3ZF9oYXNoXzcwMDAwMA%3D%3D&scope=api%20offline_access&client_id=web&device_identifier=a190f1ee-6c54-4b01-90e6-d701748f0853&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.object
+      equals:
+        literal: error
+schema_version: 1
+

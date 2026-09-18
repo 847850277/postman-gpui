@@ -1,0 +1,666 @@
+schema_version: 1
+flow:
+  name: vaultwarden-organization-recovery-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:8088
+  - name: owner_email
+    default: rec_owner@example.com
+  - name: member_email
+    default: rec_member@example.com
+
+  steps:
+  # Phase 1: Accounts Setup
+  - id: step-1-prelogin-owner
+    name: 1. Prelogin Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "rec_owner@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-register-owner
+    name: 2. Register Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "rec_owner@example.com",
+              "name": "Recovery Owner",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-3-login-owner
+    name: 3. Login Owner
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=rec_owner%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=55555555-5555-5555-5555-555555555555&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: owner_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-4-prelogin-member
+    name: 4. Prelogin Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/prelogin
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "rec_member@example.com"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-5-register-member
+    name: 5. Register Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/accounts/register
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "email": "rec_member@example.com",
+              "name": "Recovery Member",
+              "kdf": 0,
+              "kdfIterations": 600000,
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-6-login-member
+    name: 6. Login Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /identity/connect/token
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-www-form-urlencoded
+      - name:
+          literal: Bitwarden-Client-Version
+        value:
+          literal: 2024.1.0
+      body:
+        kind: url_encoded
+        value:
+          literal: grant_type=password&username=rec_member%40example.com&password=dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA%3D&scope=api%20offline_access&client_id=web&device_identifier=44444444-4444-4444-4444-444444444444&device_name=firefox&device_type=3
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: member_token
+      path: $.access_token
+      sensitive: true
+
+  - id: step-7-get-member-profile
+    name: 7. Get Member Profile (Export User ID)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/accounts/profile
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: member_user_id
+      path: $.id
+
+  # Phase 2: Organization Setup and Member Enrollment
+  - id: step-8-create-organization
+    name: 8. Create Organization 'Recovery Org'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "name": "Recovery Org",
+              "billingEmail": "rec_owner@example.com",
+              "collectionName": "Default collection",
+              "key": "2.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000",
+              "planType": 0
+            }
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: org_id
+      path: $.id
+
+  - id: step-9-invite-member
+    name: 9. Invite Member to Recovery Org
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/invite
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "emails": ["rec_member@example.com"],
+              "groups": [],
+              "type": 2,
+              "collections": []
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-10-get-members
+    name: 10. Read Members (Capture Member ID)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 200
+    exports:
+    - name: member_id
+      path: $.data[1].id
+
+  - id: step-11-confirm-member
+    name: 11. Confirm Member
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-10-get-members
+            name: member_id
+        - literal: /confirm
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "key": "0.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  # Phase 3: Account Recovery Policy Setup
+  - id: step-12-enable-recovery-policy
+    name: 12. Enable Account Recovery Policy (Type 8 with Auto-Enroll)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /policies/8
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": true,
+                "data": {
+                  "autoEnrollEnabled": true
+                }
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.enabled
+      equals:
+        literal: true
+
+  # Phase 4: Member Account Recovery Key Enrollment
+  - id: step-13-enroll-recovery-key
+    name: 13. Boundary Test - Member Enrolls Recovery Key on Email-Disabled Instance (400)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-7-get-member-profile
+            name: member_user_id
+        - literal: /reset-password-enrollment
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA=",
+              "resetPasswordKey": "0.00000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000"
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Password reset is not supported on an email-disabled instance.
+
+  # Phase 5: Owner Inspects Enrolled Reset Password Details
+  - id: step-14-get-reset-password-details
+    name: 14. Boundary Test - Owner Accesses Reset Details on Email-Disabled Instance (400)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-10-get-members
+            name: member_id
+        - literal: /reset-password-details
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Password reset is not supported on an email-disabled instance.
+
+  # Phase 6: Negative Security Tests
+  - id: step-15-member-cannot-access-reset-details
+    name: 15. Negative Test - Non-Admin Member Cannot Access Reset Details (401/403)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-10-get-members
+            name: member_id
+        - literal: /reset-password-details
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+    checks:
+    - kind: status
+      equals: 401
+
+  - id: step-16-cannot-withdraw-due-to-policy
+    name: 16. Boundary Test - Member Cannot Withdraw Recovery on Email-Disabled Instance (400)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /users/
+        - output:
+            step: step-7-get-member-profile
+            name: member_user_id
+        - literal: /reset-password-enrollment
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-6-login-member
+              name: member_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "resetPasswordKey": ""
+            }
+    checks:
+    - kind: status
+      equals: 400
+    - kind: jsonpath
+      path: $.message
+      equals:
+        literal: Password reset is not supported on an email-disabled instance.
+
+  # Phase 7: Teardown
+  - id: step-17-disable-recovery-policy
+    name: 17. Disable Recovery Policy
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /policies/8
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "policy": {
+                "enabled": false,
+                "data": null
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-18-delete-organization
+    name: 18. Delete Organization
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+        - literal: /delete
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "masterPasswordHash": "dGVzdHBhc3N3b3JkaGFzaDEyMzQ1Njc4OTA="
+            }
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-19-verify-organization-deleted
+    name: 19. Verify Organization Is Deleted (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /api/organizations/
+        - output:
+            step: step-8-create-organization
+            name: org_id
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-login-owner
+              name: owner_token
+    checks:
+    - kind: status
+      equals: 401
