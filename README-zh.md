@@ -79,8 +79,6 @@ cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
 cargo fmt -- --check
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace --all-targets --all-features
-cargo httpbingo-headless
-cargo httpbingo-scenarios
 python3 -m unittest discover -s scripts/tests
 ```
 
