@@ -965,7 +965,13 @@ fn values_equal(a: &Value, b: &Value) -> bool {
 fn compare_values(a: &Value, b: &Value) -> Result<std::cmp::Ordering, String> {
     match (a, b) {
         (Value::Number(n1), Value::Number(n2)) => Ok(compare_numbers(n1, n2)),
-        (Value::String(s1), Value::String(s2)) => Ok(s1.cmp(s2)),
+        (Value::String(s1), Value::String(s2)) => {
+            if let (Some(n1), Some(n2)) = (parse_condition_number(s1), parse_condition_number(s2)) {
+                Ok(compare_numbers(&n1, &n2))
+            } else {
+                Ok(s1.cmp(s2))
+            }
+        }
         (Value::Number(n), Value::String(s)) => {
             let parsed =
                 parse_condition_number(s).ok_or("cannot compare non-numeric string to number")?;
