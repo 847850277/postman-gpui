@@ -1,0 +1,137 @@
+schema_version: 1
+flow:
+  name: meilisearch-hackernews-query-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  # 1. Query index stats to ensure documents are loaded
+  - id: step-1-get-stats
+    name: 1. Get HackerNews Index Stats
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews/stats
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.isIndexing
+      equals:
+        literal: false
+
+  # 2. Search exact item '10,000,001' from HackerNews milestone story
+  - id: step-2-search-milestone
+    name: 2. Search Milestone Story '10,000,001'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "q": "10,000,001",
+              "attributesToHighlight": ["title"]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.hits[0].id
+      equals:
+        literal: 10000001
+    - kind: jsonpath
+      path: $.hits[0].by
+      equals:
+        literal: philtar
+
+  # 3. Filtered Search: Find comments by specific author
+  - id: step-3-search-author-comments
+    name: 3. Search Comments by Author 'jdmichal'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "q": "productivity",
+              "filter": "by = 'jdmichal' AND type = 'comment'"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.hits[0].id
+      equals:
+        literal: 10000016
+    - kind: jsonpath
+      path: $.hits[0].by
+      equals:
+        literal: jdmichal
+
+  # 4. Cleanup: Delete 'hackernews' index
+  - id: step-4-delete-index
+    name: 4. Delete HackerNews Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202

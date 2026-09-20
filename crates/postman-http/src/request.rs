@@ -132,6 +132,7 @@ pub enum RequestBody {
     Json(String),
     Raw(String),
     UrlEncoded(String),
+    File(PathBuf),
     Multipart(Vec<MultipartPart>),
 }
 
@@ -139,7 +140,7 @@ impl RequestBody {
     pub fn as_text(&self) -> Option<&str> {
         match self {
             Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => Some(value),
-            Self::None | Self::Multipart(_) => None,
+            Self::None | Self::File(_) | Self::Multipart(_) => None,
         }
     }
 
@@ -151,6 +152,7 @@ impl RequestBody {
         match self {
             Self::None => true,
             Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.is_empty(),
+            Self::File(_) => false,
             Self::Multipart(parts) => parts.is_empty(),
         }
     }
@@ -159,6 +161,9 @@ impl RequestBody {
         match self {
             Self::None => 0,
             Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.len(),
+            Self::File(path) => std::fs::metadata(path)
+                .map(|m| m.len() as usize)
+                .unwrap_or(0),
             Self::Multipart(parts) => parts
                 .iter()
                 .map(|part| match &part.value {
@@ -173,6 +178,7 @@ impl RequestBody {
         match self {
             Self::None => String::new(),
             Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.clone(),
+            Self::File(path) => format!("@{}", path.display()),
             Self::Multipart(parts) => parts
                 .iter()
                 .map(|part| match &part.value {

@@ -1,0 +1,242 @@
+schema_version: 1
+flow:
+  name: meilisearch-api-keys-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  # 1. Negative Test: Query keys without authorization (401)
+  - id: step-1-unauthorized-access
+    name: 1. Negative Test - Access /keys Without Authorization (401)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /keys
+    checks:
+    - kind: status
+      equals: 401
+    - kind: jsonpath
+      path: $.code
+      equals:
+        literal: missing_authorization_header
+
+  # 2. Query initial keys using Master Key
+  - id: step-2-list-keys
+    name: 2. List Initial API Keys With Master Key
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /keys
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.total
+      equals:
+        literal: 4
+
+  # 3. Create scoped API key (movies index only, search + documents.add)
+  - id: step-3-create-key
+    name: 3. Create Custom Scoped API Key
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /keys
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "description": "E2E Test Movies Scoped Key",
+              "actions": ["search", "documents.add"],
+              "indexes": ["movies"],
+              "expiresAt": null
+            }
+    checks:
+    - kind: status
+      equals: 201
+    - kind: jsonpath
+      path: $.description
+      equals:
+        literal: E2E Test Movies Scoped Key
+    exports:
+    - name: scoped_key
+      path: $.key
+    - name: key_uid
+      path: $.uid
+
+  # 4. Get created API key details
+  - id: step-4-get-key-details
+    name: 4. Get Created Key Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /keys/
+        - output:
+            step: step-3-create-key
+            name: key_uid
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.description
+      equals:
+        literal: E2E Test Movies Scoped Key
+
+  # 5. Negative Test: Scoped key cannot access administrative /keys endpoint (403)
+  - id: step-5-scoped-key-forbidden-on-keys
+    name: 5. Negative Test - Scoped Key Cannot Access /keys (403)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /keys
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - output:
+              step: step-3-create-key
+              name: scoped_key
+    checks:
+    - kind: status
+      equals: 403
+    - kind: jsonpath
+      path: $.code
+      equals:
+        literal: invalid_api_key
+
+  # 6. Update key description
+  - id: step-6-update-key
+    name: 6. Update API Key Description
+    request:
+      kind: http
+      method: PATCH
+      url:
+        concat:
+        - input: host
+        - literal: /keys/
+        - output:
+            step: step-3-create-key
+            name: key_uid
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "description": "Updated E2E Movies Scoped Key"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.description
+      equals:
+        literal: Updated E2E Movies Scoped Key
+
+  # 7. Delete key
+  - id: step-7-delete-key
+    name: 7. Delete API Key
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /keys/
+        - output:
+            step: step-3-create-key
+            name: key_uid
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 204
+
+  # 8. Negative Test: Verify deleted key no longer exists (404)
+  - id: step-8-verify-key-deleted
+    name: 8. Verify Key No Longer Exists (404)
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /keys/
+        - output:
+            step: step-3-create-key
+            name: key_uid
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 404
+    - kind: jsonpath
+      path: $.code
+      equals:
+        literal: api_key_not_found

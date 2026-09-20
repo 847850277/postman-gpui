@@ -188,6 +188,7 @@ impl RequestBodyDraft {
                     })
                     .collect(),
             )),
+            RequestBody::File(path) => Self::Raw(format!("@{}", path.display())),
         }
     }
 

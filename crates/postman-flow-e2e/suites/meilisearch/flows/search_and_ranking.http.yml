@@ -1,0 +1,152 @@
+schema_version: 1
+flow:
+  name: meilisearch-search-and-ranking-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  # 1. Basic Keyword Search
+  - id: step-1-search-keyword
+    name: 1. Search 'Inception' Keyword
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "q": "Inception"
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.hits[0].title
+      equals:
+        literal: Inception
+
+  # 2. Filtered Query
+  - id: step-2-search-filtered
+    name: 2. Search with Filter director = 'Christopher Nolan'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "filter": "director = 'Christopher Nolan' AND release_year > 2009",
+              "sort": ["release_year:asc"]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.estimatedTotalHits
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.hits[0].title
+      equals:
+        literal: Inception
+    - kind: jsonpath
+      path: $.hits[1].title
+      equals:
+        literal: Interstellar
+
+  # 3. Highlighting Search
+  - id: step-3-search-highlight
+    name: 3. Search with Highlighting
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "q": "Dark",
+              "attributesToHighlight": ["title"]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.hits[0]._formatted.title
+      equals:
+        literal: The <em>Dark</em> Knight
+
+  # 4. Delete index
+  - id: step-4-delete-index
+    name: 4. Delete 'movies' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued

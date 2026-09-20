@@ -1,0 +1,144 @@
+schema_version: 1
+flow:
+  name: meilisearch-documents-ingest-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  - id: step-1-health
+    name: 1. Health Check
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /health
+    checks:
+    - kind: status
+      equals: 200
+
+  - id: step-2-create-index
+    name: 2. Create 'movies' Search Index
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "uid": "movies",
+              "primaryKey": "id"
+            }
+    checks:
+    - kind: status
+      equals: 202
+
+  - id: step-3-add-documents
+    name: 3. Ingest Documents into 'movies'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/documents
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            [
+              {
+                "id": 1,
+                "title": "Inception",
+                "director": "Christopher Nolan",
+                "genre": ["Sci-Fi", "Action"],
+                "release_year": 2010
+              },
+              {
+                "id": 2,
+                "title": "Interstellar",
+                "director": "Christopher Nolan",
+                "genre": ["Sci-Fi", "Drama"],
+                "release_year": 2014
+              },
+              {
+                "id": 3,
+                "title": "The Dark Knight",
+                "director": "Christopher Nolan",
+                "genre": ["Action", "Crime"],
+                "release_year": 2008
+              },
+              {
+                "id": 4,
+                "title": "Pulp Fiction",
+                "director": "Quentin Tarantino",
+                "genre": ["Crime", "Drama"],
+                "release_year": 1994
+              }
+            ]
+    checks:
+    - kind: status
+      equals: 202
+
+  - id: step-4-update-settings
+    name: 4. Configure Filterable and Sortable Attributes
+    request:
+      kind: http
+      method: PATCH
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/settings
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "filterableAttributes": ["director", "genre", "release_year"],
+              "sortableAttributes": ["release_year"]
+            }
+    checks:
+    - kind: status
+      equals: 202

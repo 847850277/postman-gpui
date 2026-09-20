@@ -132,6 +132,9 @@ enum Body {
     UrlEncoded {
         value: Text,
     },
+    File {
+        value: Text,
+    },
 }
 
 impl Body {
@@ -650,6 +653,7 @@ impl From<Body> for BodyTemplate {
             Body::JsonTemplate { value } => Self::Json(value.into()),
             Body::Raw { value } => Self::Raw(value.into()),
             Body::UrlEncoded { value } => Self::UrlEncoded(value.into()),
+            Body::File { value } => Self::File(value.into()),
         }
     }
 }
@@ -668,6 +672,9 @@ impl From<&BodyTemplate> for Body {
                 value: value.into(),
             },
             BodyTemplate::UrlEncoded(value) => Self::UrlEncoded {
+                value: value.into(),
+            },
+            BodyTemplate::File(value) => Self::File {
                 value: value.into(),
             },
         }

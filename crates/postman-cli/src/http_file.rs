@@ -96,6 +96,9 @@ impl HttpFile {
                     &mut Vec::new(),
                     line,
                 )?),
+                RequestBody::File(path) => {
+                    BodyTemplate::File(TextTemplate::literal(path.display().to_string()))
+                }
                 RequestBody::Multipart(_) => {
                     return Err(ParseError::new(
                         line,

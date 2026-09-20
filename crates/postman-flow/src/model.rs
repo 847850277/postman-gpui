@@ -262,6 +262,7 @@ pub enum BodyTemplate {
     JsonValue(JsonTemplate),
     Raw(TextTemplate),
     UrlEncoded(TextTemplate),
+    File(TextTemplate),
 }
 
 /// A JSON value expression, independent of a text format or editor. References retain their
@@ -330,6 +331,7 @@ impl BodyTemplate {
             ),
             Self::Raw(template) => RequestBody::Raw(render(template)?),
             Self::UrlEncoded(template) => RequestBody::UrlEncoded(render(template)?),
+            Self::File(template) => RequestBody::File(std::path::PathBuf::from(render(template)?)),
         })
     }
 }
