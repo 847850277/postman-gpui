@@ -1,0 +1,143 @@
+schema_version: 1
+flow:
+  name: meilisearch-hackernews-streaming-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+  - name: dataset_path
+    default: crates/postman-flow-e2e/suites/meilisearch/data/hackernews_sample.ndjson
+
+  steps:
+  # 1. Clean / Delete existing 'hackernews' index if present
+  - id: step-1-clean-index
+    name: 1. Clean 'hackernews' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+
+  # 2. Create 'hackernews' index with 'id' primary key
+  - id: step-2-create-index
+    name: 2. Create 'hackernews' Search Index
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "uid": "hackernews",
+              "primaryKey": "id"
+            }
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+
+  # 3. Stream NDJSON Dataset into 'hackernews' index via File Body
+  - id: step-3-stream-hackernews-dataset
+    name: 3. Stream HackerNews NDJSON Dataset via File Body
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews/documents
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/x-ndjson
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: file
+        value:
+          input: dataset_path
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+    - kind: jsonpath
+      path: $.type
+      equals:
+        literal: documentAdditionOrUpdate
+
+  # 4. Configure Filterable and Searchable Settings
+  - id: step-4-update-settings
+    name: 4. Configure Filterable and Searchable Settings
+    request:
+      kind: http
+      method: PATCH
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews/settings
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "filterableAttributes": ["by", "type"],
+              "searchableAttributes": ["title", "text", "by"]
+            }
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued

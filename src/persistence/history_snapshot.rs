@@ -1213,6 +1213,7 @@ impl TryFrom<&RequestBody> for RequestBodySnapshotV1 {
             RequestBody::Json(value) => Ok(Self::Json(value.clone())),
             RequestBody::Raw(value) => Ok(Self::Raw(value.clone())),
             RequestBody::UrlEncoded(value) => Ok(Self::UrlEncoded(value.clone())),
+            RequestBody::File(path) => Ok(Self::Raw(format!("@{}", path.display()))),
             RequestBody::Multipart(parts) => parts
                 .iter()
                 .map(MultipartPartSnapshotV1::try_from)

@@ -115,6 +115,9 @@ fn format_request_body(body: &RequestBody) -> String {
         RequestBody::Raw(value) => {
             format!("  kind: raw\n  content:\n{}", indent_or_empty(value, 4))
         }
+        RequestBody::File(path) => {
+            format!("  kind: file\n  path: {}", path.display())
+        }
         RequestBody::UrlEncoded(value) => {
             let fields = form_urlencoded::parse(value.as_bytes())
                 .map(|(name, value)| {

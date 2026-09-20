@@ -111,6 +111,13 @@ impl RequestClient {
                 builder.body(body.clone())
             }
 
+            RequestBody::File(path) => {
+                let file = tokio::fs::File::open(path)
+                    .await
+                    .map_err(|err| postman_http::HttpError::invalid_request(format!("cannot open body file {}: {err}", path.display())))?;
+                builder.body(reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)))
+            }
+
             RequestBody::Multipart(parts) => builder.multipart(build_multipart(parts).await?),
         };
 

@@ -23,6 +23,15 @@ Located under `suites/vaultwarden/`:
   - `organization.http.yml`, `organization_policy.http.yml`, `organization_recovery.http.yml`: Org invites, policy enforcement, recovery keys.
   - `admin.http.yml`, `two_factor.http.yml`, `sso_login.http.yml`, `login_smtp.http.yml`.
 
+### 2. Meilisearch (Search & Indexing Engine API)
+Located under `suites/meilisearch/`:
+- **Workflow Specifications** (`.http.yml`):
+  - `api_keys.http.yml`: API Key creation, scoped action/index permissions, bearer authentication, 403 forbidden checks, metadata patch, deletion and 404 verification.
+  - `documents_ingestion.http.yml`: Search index creation (`movies`), batch document ingestion with primary key (`id`), and dynamic filterable/sortable attribute updates.
+  - `search_and_ranking.http.yml`: Keyword search, combined boolean filtering with sorting, and query highlighting (`_formatted.title`).
+  - `hackernews_streaming.http.yml`: Massive NDJSON dataset ingestion via zero-copy streaming file body (`kind: file`), with primary key setup and filter/search attribute indexing.
+  - `hackernews_query.http.yml`: Document count index stats verification, exact milestone story retrieval, and filtered comment author searches.
+
 ## Running the Suites
 
 ### Option 1: Automated Script (Local Development)
@@ -34,10 +43,13 @@ Runs an ephemeral Vaultwarden server on dynamic/designated port with in-memory/t
 
 # Run a single flow
 ./crates/postman-flow-e2e/suites/vaultwarden/run.sh crates/postman-flow-e2e/suites/vaultwarden/flows/login.http.yml
+
+# Run all Meilisearch suites
+./crates/postman-flow-e2e/suites/meilisearch/run.sh
 ```
 
 ### Option 2: Cargo Integration Test
 ```bash
 cargo test -p postman-flow-e2e --test vaultwarden_e2e -- --nocapture
+cargo test -p postman-flow-e2e --test meilisearch_e2e -- --nocapture
 ```
-

@@ -1,3 +1,4 @@
+pub mod meilisearch;
 pub mod vaultwarden;
 
 use std::path::PathBuf;

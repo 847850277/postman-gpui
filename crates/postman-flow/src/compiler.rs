@@ -566,6 +566,7 @@ impl Compiler {
             BodyTemplate::JsonValue(value) => self.json(value, inputs, outputs, &at, 0),
             BodyTemplate::Json(value)
             | BodyTemplate::Raw(value)
+            | BodyTemplate::File(value)
             | BodyTemplate::UrlEncoded(value) => {
                 self.text(value, inputs, outputs, &at);
                 if matches!(&request.body, BodyTemplate::Json(_)) {
@@ -675,6 +676,7 @@ impl Compiler {
             BodyTemplate::JsonValue(value) => {
                 BodyTemplate::JsonValue(substitute_json(value, &call.bindings))
             }
+            BodyTemplate::File(value) => BodyTemplate::File(substitute_text(value, &call.bindings)),
         };
         Some(request)
     }
