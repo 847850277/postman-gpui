@@ -68,7 +68,8 @@ async fn test_meilisearch_e2e_hackernews_streaming_flow() {
 
     let postman_g = find_postman_g();
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let streaming_flow = manifest_dir.join("suites/meilisearch/flows/hackernews_streaming.http.yml");
+    let streaming_flow =
+        manifest_dir.join("suites/meilisearch/flows/hackernews_streaming.http.yml");
     let query_flow = manifest_dir.join("suites/meilisearch/flows/hackernews_query.http.yml");
     let dataset = manifest_dir.join("suites/meilisearch/data/hackernews_sample.ndjson");
 

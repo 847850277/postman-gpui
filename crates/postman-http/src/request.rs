@@ -161,7 +161,9 @@ impl RequestBody {
         match self {
             Self::None => 0,
             Self::Json(value) | Self::Raw(value) | Self::UrlEncoded(value) => value.len(),
-            Self::File(path) => std::fs::metadata(path).map(|m| m.len() as usize).unwrap_or(0),
+            Self::File(path) => std::fs::metadata(path)
+                .map(|m| m.len() as usize)
+                .unwrap_or(0),
             Self::Multipart(parts) => parts
                 .iter()
                 .map(|part| match &part.value {
