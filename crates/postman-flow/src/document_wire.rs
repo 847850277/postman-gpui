@@ -93,23 +93,28 @@ struct Step {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
-    Http {
-        method: Method,
-        url: Text,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        headers: Vec<Header>,
-        #[serde(default, skip_serializing_if = "Body::is_none")]
-        body: Body,
-        #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
-        options: WireRequestOptions,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        auth: Option<WireAuth>,
-    },
+    // Boxed so the HTTP variant stays the same size as the API variant (large_enum_variant).
+    Http(Box<HttpWire>),
     Api {
         api: String,
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         bindings: BTreeMap<String, Text>,
     },
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HttpWire {
+    method: Method,
+    url: Text,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    headers: Vec<Header>,
+    #[serde(default, skip_serializing_if = "Body::is_none")]
+    body: Body,
+    #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
+    options: WireRequestOptions,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auth: Option<WireAuth>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -488,22 +493,25 @@ impl From<HttpMethod> for Method {
 impl From<Request> for HttpRequestSource {
     fn from(value: Request) -> Self {
         match value {
-            Request::Http {
-                method,
-                url,
-                headers,
-                body,
-                options,
-                auth,
-            } => HttpRequestTemplate::from(ApiRequest {
-                method,
-                url,
-                headers,
-                body,
-                options,
-                auth,
-            })
-            .into(),
+            Request::Http(http) => {
+                let HttpWire {
+                    method,
+                    url,
+                    headers,
+                    body,
+                    options,
+                    auth,
+                } = *http;
+                HttpRequestTemplate::from(ApiRequest {
+                    method,
+                    url,
+                    headers,
+                    body,
+                    options,
+                    auth,
+                })
+                .into()
+            }
             Request::Api { api, bindings } => ApiCall {
                 api_id: api,
                 bindings: bindings
@@ -528,14 +536,14 @@ impl From<&HttpRequestSource> for Request {
                     options,
                     auth,
                 } = value.into();
-                Self::Http {
+                Self::Http(Box::new(HttpWire {
                     method,
                     url,
                     headers,
                     body,
                     options,
                     auth,
-                }
+                }))
             }
             HttpRequestSource::Api(value) => Self::Api {
                 api: value.api_id.clone(),
