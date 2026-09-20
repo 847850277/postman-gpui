@@ -191,7 +191,9 @@ impl HttpFile {
             ));
         }
         for ref_input in referenced_inputs {
-            if !self.variables.contains_key(&ref_input) {
+            if !self.variables.contains_key(&ref_input)
+                && !postman_flow::is_builtin_variable(&ref_input)
+            {
                 inputs.push(FlowInputSpec::required(ref_input));
             }
         }
@@ -896,6 +898,9 @@ fn take_quoted<'source>(
 }
 
 fn validate_variable_name(name: &str, line_number: usize) -> Result<(), ParseError> {
+    if postman_flow::is_builtin_variable(name) {
+        return Ok(());
+    }
     if name.is_empty()
         || !name.chars().all(|character| {
             character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.')

@@ -30,7 +30,7 @@ pub fn eval_builtin_variable(name: &str) -> Option<Value> {
         "$randomInt" => {
             use std::collections::hash_map::RandomState;
             use std::hash::{BuildHasher, Hasher};
-            let val = (RandomState::new().build_hasher().finish() % 1000) as u64;
+            let val = RandomState::new().build_hasher().finish() % 1000;
             Some(Value::Number(val.into()))
         }
         _ => None,
@@ -41,35 +41,42 @@ fn compute_hmac_sha256(secret: &str, data: &str) -> String {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
     mac.update(data.as_bytes());
     let result = mac.finalize();
     hex::encode(result.into_bytes())
 }
 
-fn evaluate_calc_in_context(expr: &str, context: &RunContext) -> Result<f64, String> {
-    crate::calc::evaluate_calc(expr, |name| {
-        if let Some((step, out)) = name.split_once(".") {
-            if let Some(val) = context.outputs.get(&(step.to_owned(), out.to_owned())) {
-                return value_to_f64(&val.value);
+fn evaluate_calc_in_context(
+    expr: &str,
+    context: &(impl TemplateContext + ?Sized),
+) -> Result<f64, String> {
+    crate::calc::evaluate_calc(expr, |name| match context.input(name) {
+        Ok(value) => value_to_f64(&value),
+        Err(error) => {
+            if let Some((step, output)) = name.split_once('.') {
+                value_to_f64(&context.output(step, output)?)
+            } else {
+                Err(error)
             }
         }
-        if let Some(val) = context.inputs.get(name) {
-            return value_to_f64(&val.value);
-        }
-        if let Some(val) = eval_builtin_variable(name) {
-            return value_to_f64(&val);
-        }
-        Err(format!("variable '{name}' not found for calc expression"))
-    }).map_err(|e| e.to_string())
+    })
+    .map_err(|e| e.to_string())
 }
 
 fn value_to_f64(val: &Value) -> Result<f64, String> {
     match val {
-        Value::Number(n) => n.as_f64().ok_or_else(|| "number cannot convert to f64".to_owned()),
-        Value::String(s) => s.trim().parse::<f64>().map_err(|e| format!("cannot parse string '{s}' as number: {e}")),
-        _ => Err(format!("cannot use non-numeric value '{val:?}' in calculation")),
+        Value::Number(n) => n
+            .as_f64()
+            .ok_or_else(|| "number cannot convert to f64".to_owned()),
+        Value::String(s) => s
+            .trim()
+            .parse::<f64>()
+            .map_err(|e| format!("cannot parse string '{s}' as number: {e}")),
+        _ => Err(format!(
+            "cannot use non-numeric value '{val:?}' in calculation"
+        )),
     }
 }
 
@@ -87,7 +94,7 @@ use postman_http::{
 use serde_json::Value;
 
 use crate::{
-    plan::{CompiledCheck, CompiledCondition, CompiledExport},
+    plan::{CompiledCheck, CompiledCondition, CompiledExport, CompiledRequest},
     ExpectedError, FlowEvent, FlowInputs, FlowOutputs, FlowPlan, FlowValue, HttpRequestTemplate,
     JsonTemplate, StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
@@ -295,13 +302,13 @@ impl<T: HttpTransport> RunMachine<T> {
         }
 
         let mut options = self.environment.request_options;
-        if let Some(timeout_ms) = step.request.options.timeout_ms {
+        if let Some(timeout_ms) = step.request.template.options.timeout_ms {
             options.timeout_ms = Some(timeout_ms);
         }
-        if let Some(policy) = step.request.options.redirect_policy {
+        if let Some(policy) = step.request.template.options.redirect_policy {
             options.redirect_policy = policy;
         }
-        if let Some(max_hops) = step.request.options.max_redirect_hops {
+        if let Some(max_hops) = step.request.template.options.max_redirect_hops {
             options.max_redirect_hops = max_hops;
         }
 
@@ -443,24 +450,26 @@ impl<T: HttpTransport> RunMachine<T> {
     }
 }
 
-fn prepare_request(step: &HttpRequestTemplate, context: &RunContext) -> Result<Request, String> {
-    let mut url = context.render(&step.url)?;
+fn prepare_request(step: &CompiledRequest, context: &RunContext) -> Result<Request, String> {
+    match &step.bindings {
+        Some(bindings) => render_request(
+            &step.template,
+            &ApiContext {
+                parent: context,
+                bindings,
+            },
+        ),
+        None => render_request(&step.template, context),
+    }
+}
+
+fn render_request(
+    step: &HttpRequestTemplate,
+    context: &impl TemplateContext,
+) -> Result<Request, String> {
+    let url = context.render(&step.url)?;
     if url.trim().is_empty() {
         return Err("rendered request URL is empty".to_owned());
-    }
-
-    if let Some(crate::model::AuthTemplate::HmacSha256 { secret, param }) = &step.auth {
-        let secret_val = context.render(secret)?;
-        let query_str = url.split_once('?').map(|(_, q)| q).unwrap_or("");
-        let sig = compute_hmac_sha256(&secret_val, query_str);
-        if url.contains('?') {
-            url.push('&');
-        } else {
-            url.push('?');
-        }
-        url.push_str(param);
-        url.push('=');
-        url.push_str(&sig);
     }
 
     let mut request = Request::new(step.method, url);
@@ -477,7 +486,57 @@ fn prepare_request(step: &HttpRequestTemplate, context: &RunContext) -> Result<R
             .map_err(|error| format!("rendered JSON request body is invalid: {error}"))?;
     }
 
+    if let Some(crate::model::AuthTemplate::HmacSha256 { secret, param }) = &step.auth {
+        sign_request(&mut request, &context.render(secret)?, param)?;
+    }
+
     Ok(request)
+}
+
+fn sign_request(request: &mut Request, secret: &str, param: &str) -> Result<(), String> {
+    crate::model::validate_signature_param(param)?;
+    let mut url =
+        url::Url::parse(&request.url).map_err(|error| format!("invalid signing URL: {error}"))?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return Err("signing requires an absolute HTTP(S) URL".into());
+    }
+    // The transport uses the same URL serialization. Do not decode/re-encode query pairs,
+    // reorder parameters or include a fragment, which is never sent over HTTP.
+    url.set_fragment(None);
+    let body = match &request.body {
+        RequestBody::None => "",
+        RequestBody::UrlEncoded(body) => body.as_str(),
+        _ => return Err("hmac_sha256 requires an empty or url_encoded body".into()),
+    };
+    if url.query_pairs().any(|(name, _)| name == param)
+        || url::form_urlencoded::parse(body.as_bytes()).any(|(name, _)| name == param)
+    {
+        return Err("request already contains the configured signature parameter".into());
+    }
+    // Binance-style totalParams is query + form body, with no added separator.
+    let payload = format!("{}{body}", url.query().unwrap_or(""));
+    let signature = compute_hmac_sha256(secret, &payload);
+    if let RequestBody::UrlEncoded(body) = &mut request.body {
+        if !body.is_empty() {
+            body.push('&');
+        }
+        body.push_str(&format!("{param}={signature}"));
+        if !request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+        {
+            request.add_header("Content-Type", "application/x-www-form-urlencoded");
+        }
+    } else {
+        let query = match url.query() {
+            Some(query) if !query.is_empty() => format!("{query}&{param}={signature}"),
+            _ => format!("{param}={signature}"),
+        };
+        url.set_query(Some(&query));
+    }
+    request.url = url.to_string();
+    Ok(())
 }
 
 struct CheckResult {
@@ -695,12 +754,13 @@ impl RunContext {
             ValueReference::Input(name) => {
                 if let Some(val) = self.inputs.get(name).cloned() {
                     Some(val)
-                } else if let Some(builtin) = eval_builtin_variable(name) {
-                    Some(BoundValue { value: builtin, sensitive: false })
                 } else {
-                    None
+                    eval_builtin_variable(name).map(|value| BoundValue {
+                        value,
+                        sensitive: false,
+                    })
                 }
-            },
+            }
             ValueReference::StepOutput { step_id, name } => {
                 self.outputs.get(&(step_id.clone(), name.clone())).cloned()
             }
@@ -736,35 +796,28 @@ impl RunContext {
             })
             .collect()
     }
+}
+
+trait TemplateContext {
+    fn input(&self, name: &str) -> Result<Value, String>;
+    fn output(&self, step: &str, name: &str) -> Result<Value, String>;
 
     fn resolve_json(&self, template: &JsonTemplate) -> Result<Value, String> {
         match template {
             JsonTemplate::Literal(value) => Ok(value.clone()),
             JsonTemplate::String(value) => self.render(value).map(Value::String),
-            JsonTemplate::Input(name) => {
-                if let Some(value) = self.inputs.get(name) {
-                    Ok(value.value.clone())
-                } else if let Some(builtin) = eval_builtin_variable(name) {
-                    Ok(builtin)
-                } else {
-                    Err(format!("input `{name}` is not bound"))
-                }
-            }
+            JsonTemplate::Input(name) => self.input(name),
             JsonTemplate::Calc(expr) => {
                 let val = evaluate_calc_in_context(expr, self)?;
                 if val.fract() == 0.0 && val.abs() < 1e15 {
                     Ok(Value::Number((val as i64).into()))
-                } else if let Some(num) = serde_json::Number::from_f64(val) {
-                    Ok(Value::Number(num))
                 } else {
-                    Ok(Value::String(val.to_string()))
+                    serde_json::Number::from_f64(val)
+                        .map(Value::Number)
+                        .ok_or_else(|| "calc result must be finite".into())
                 }
             }
-            JsonTemplate::StepOutput { step_id, name } => self
-                .outputs
-                .get(&(step_id.clone(), name.clone()))
-                .map(|value| value.value.clone())
-                .ok_or_else(|| format!("output `{step_id}.{name}` is not available at runtime")),
+            JsonTemplate::StepOutput { step_id, name } => self.output(step_id, name),
             JsonTemplate::Coalesce(candidates) => {
                 for candidate in candidates {
                     if let Ok(val) = self.resolve_json(candidate) {
@@ -789,15 +842,7 @@ impl RunContext {
     fn render_part(&self, part: &TemplatePart) -> Result<String, String> {
         match part {
             TemplatePart::Literal(value) => Ok(value.clone()),
-            TemplatePart::Input(name) => {
-                if let Some(value) = self.inputs.get(name) {
-                    Ok(value_as_text(&value.value))
-                } else if let Some(builtin) = eval_builtin_variable(name) {
-                    Ok(value_as_text(&builtin))
-                } else {
-                    Err(format!("input `{name}` is not bound"))
-                }
-            }
+            TemplatePart::Input(name) => self.input(name).map(|value| value_as_text(&value)),
             TemplatePart::Calc(expr) => {
                 let val = evaluate_calc_in_context(expr, self)?;
                 if val.fract() == 0.0 && val.abs() < 1e15 {
@@ -806,15 +851,9 @@ impl RunContext {
                     Ok(val.to_string())
                 }
             }
-            TemplatePart::StepOutput { step_id, name } => {
-                let value = self
-                    .outputs
-                    .get(&(step_id.clone(), name.clone()))
-                    .ok_or_else(|| {
-                        format!("output `{step_id}.{name}` is not available at runtime")
-                    })?;
-                Ok(value_as_text(&value.value))
-            }
+            TemplatePart::StepOutput { step_id, name } => self
+                .output(step_id, name)
+                .map(|value| value_as_text(&value)),
             TemplatePart::Coalesce(candidates) => {
                 for candidate in candidates {
                     if let Ok(s) = self.render(candidate) {
@@ -833,7 +872,53 @@ impl RunContext {
         }
         Ok(rendered)
     }
+}
 
+impl TemplateContext for RunContext {
+    fn input(&self, name: &str) -> Result<Value, String> {
+        self.inputs
+            .get(name)
+            .map(|value| value.value.clone())
+            .or_else(|| eval_builtin_variable(name))
+            .ok_or_else(|| format!("input `{name}` is not bound"))
+    }
+
+    fn output(&self, step: &str, name: &str) -> Result<Value, String> {
+        self.outputs
+            .get(&(step.to_owned(), name.to_owned()))
+            .map(|value| value.value.clone())
+            .ok_or_else(|| format!("output `{step}.{name}` is not available at runtime"))
+    }
+}
+
+struct ApiContext<'a> {
+    parent: &'a RunContext,
+    bindings: &'a BTreeMap<String, TextTemplate>,
+}
+
+impl TemplateContext for ApiContext<'_> {
+    fn input(&self, name: &str) -> Result<Value, String> {
+        match self.bindings.get(name) {
+            Some(binding) => match binding.parts.as_slice() {
+                // Preserve the existing typed JSON argument semantics. Resolve lazily so
+                // a missing export can still be handled by a template's coalesce branch.
+                [TemplatePart::Input(name)] => self.parent.input(name),
+                [TemplatePart::StepOutput { step_id, name }] => self.parent.output(step_id, name),
+                _ => self.parent.render(binding).map(Value::String),
+            },
+            None if is_builtin_variable(name) => self.parent.input(name),
+            None => Err(format!("API parameter `{name}` is not bound")),
+        }
+    }
+
+    fn output(&self, step: &str, name: &str) -> Result<Value, String> {
+        Err(format!(
+            "output `{step}.{name}` must be supplied through an API binding"
+        ))
+    }
+}
+
+impl RunContext {
     fn redact(&self, message: &str) -> String {
         let mut secrets = self
             .inputs

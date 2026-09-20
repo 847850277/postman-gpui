@@ -5,9 +5,10 @@ use std::{
 
 use crate::{
     json_path::JsonPath,
-    plan::{CompiledCheck, CompiledCondition, CompiledExport, HttpStepPlan},
-    ApiCatalog, BodyTemplate, ConditionExpr, FlowDefinition, FlowPlan, HttpRequestSource,
-    HttpRequestTemplate, JsonTemplate, ResponseCheck, TemplatePart, TextTemplate, ValueReference,
+    plan::{CompiledCheck, CompiledCondition, CompiledExport, CompiledRequest, HttpStepPlan},
+    ApiCatalog, AuthTemplate, BodyTemplate, ConditionExpr, FlowDefinition, FlowPlan,
+    HttpRequestSource, HttpRequestTemplate, JsonTemplate, ResponseCheck, TemplatePart,
+    TextTemplate, ValueReference,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -25,6 +26,7 @@ pub enum DiagnosticCode {
     UnavailableOutput,
     InvalidJsonPath,
     InvalidRequest,
+    InvalidExpression,
     UnknownApi,
     MissingArgument,
     UnknownArgument,
@@ -75,7 +77,7 @@ impl fmt::Display for Diagnostic {
 }
 
 /// Pure compilation: no session values, file reads, HTTP requests or task spawning.
-/// The resulting plan owns its source and expanded catalog requests.
+/// The resulting plan owns its source, catalog request snapshots and argument bindings.
 pub fn compile_flow(
     source: &FlowDefinition,
     api_catalog: &ApiCatalog,
@@ -126,9 +128,6 @@ pub fn compile_flow(
             &available,
             &location.child("request"),
         );
-        if let Some(request) = &request {
-            compiler.request(request, &inputs, &available, &location.child("request"));
-        }
         let when = step.when.as_ref().and_then(|expr| {
             compiler.condition(expr, &inputs, &available, &location.child("when"), 0)
         });
@@ -321,7 +320,7 @@ impl Compiler {
             let at = at.child(format!("parts[{index}]"));
             match part {
                 TemplatePart::Literal(_) => {}
-                TemplatePart::Calc(_) => {}
+                TemplatePart::Calc(expr) => self.calc(expr, inputs, outputs, &at),
                 TemplatePart::Input(name) => self.input(name, inputs, &at),
                 TemplatePart::StepOutput { step_id, name } => {
                     self.output(step_id, name, outputs, &at)
@@ -360,7 +359,7 @@ impl Compiler {
         }
         match value {
             JsonTemplate::Literal(_) => {}
-            JsonTemplate::Calc(_) => {}
+            JsonTemplate::Calc(expr) => self.calc(expr, inputs, outputs, at),
             JsonTemplate::String(value) => self.text(value, inputs, outputs, &at.child("string")),
             JsonTemplate::Input(name) => self.input(name, inputs, at),
             JsonTemplate::StepOutput { step_id, name } => self.output(step_id, name, outputs, at),
@@ -406,6 +405,29 @@ impl Compiler {
             }
         }
     }
+    fn calc(
+        &mut self,
+        source: &str,
+        inputs: &HashSet<String>,
+        outputs: &Outputs,
+        at: &DiagnosticLocation,
+    ) {
+        match crate::calc::Expression::parse(source) {
+            Ok(expression) => {
+                for name in expression.variables() {
+                    if inputs.contains(name) || crate::runtime::is_builtin_variable(name) {
+                        self.input(name, inputs, at);
+                    } else if let Some((step, output)) = name.split_once('.') {
+                        self.output(step, output, outputs, at);
+                    } else {
+                        self.input(name, inputs, at);
+                    }
+                }
+            }
+            Err(error) => self.error(DiagnosticCode::InvalidExpression, at, error.to_string()),
+        }
+    }
+
     fn path(&mut self, source: &str, at: &DiagnosticLocation) -> Option<JsonPath> {
         match JsonPath::compile(source) {
             Ok(path) => Some(path),
@@ -544,13 +566,7 @@ impl Compiler {
         at: &DiagnosticLocation,
     ) {
         self.text(&request.url, inputs, outputs, &at.child("url"));
-        if literal_text(&request.url).is_some_and(|url| url.trim().is_empty()) {
-            self.error(
-                DiagnosticCode::InvalidRequest,
-                &at.child("url"),
-                "request URL is empty",
-            );
-        }
+        self.request_literals(request, None, at);
         for (index, (name, value)) in request.headers.iter().enumerate() {
             self.text(
                 name,
@@ -565,6 +581,26 @@ impl Compiler {
                 &at.child(format!("headers[{index}].value")),
             );
         }
+        if let Some(AuthTemplate::HmacSha256 { secret, param }) = &request.auth {
+            self.text(secret, inputs, outputs, &at.child("auth.secret"));
+            if let Err(message) = crate::model::validate_signature_param(param) {
+                self.error(
+                    DiagnosticCode::InvalidRequest,
+                    &at.child("auth.param"),
+                    message,
+                );
+            }
+            if !matches!(
+                request.body,
+                BodyTemplate::None | BodyTemplate::UrlEncoded(_)
+            ) {
+                self.error(
+                    DiagnosticCode::InvalidRequest,
+                    &at.child("auth"),
+                    "hmac_sha256 signs URL query parameters and an optional url_encoded body",
+                );
+            }
+        }
         let at = at.child("body.value");
         match &request.body {
             BodyTemplate::None => {}
@@ -574,16 +610,31 @@ impl Compiler {
             | BodyTemplate::File(value)
             | BodyTemplate::UrlEncoded(value) => {
                 self.text(value, inputs, outputs, &at);
-                if matches!(&request.body, BodyTemplate::Json(_)) {
-                    if let Some(literal) = literal_text(value) {
-                        if serde_json::from_str::<serde_json::Value>(&literal).is_err() {
-                            self.error(
-                                DiagnosticCode::InvalidRequest,
-                                &at,
-                                "literal JSON template is not valid JSON",
-                            );
-                        }
-                    }
+            }
+        }
+    }
+
+    fn request_literals(
+        &mut self,
+        request: &HttpRequestTemplate,
+        bindings: Option<&BTreeMap<String, TextTemplate>>,
+        at: &DiagnosticLocation,
+    ) {
+        if literal_text(&request.url, bindings).is_some_and(|url| url.trim().is_empty()) {
+            self.error(
+                DiagnosticCode::InvalidRequest,
+                &at.child("url"),
+                "request URL is empty",
+            );
+        }
+        if let BodyTemplate::Json(value) = &request.body {
+            if let Some(literal) = literal_text(value, bindings) {
+                if serde_json::from_str::<serde_json::Value>(&literal).is_err() {
+                    self.error(
+                        DiagnosticCode::InvalidRequest,
+                        &at.child("body.value"),
+                        "literal JSON template is not valid JSON",
+                    );
                 }
             }
         }
@@ -596,12 +647,16 @@ impl Compiler {
         inputs: &HashSet<String>,
         outputs: &Outputs,
         at: &DiagnosticLocation,
-    ) -> Option<HttpRequestTemplate> {
+    ) -> Option<CompiledRequest> {
         let HttpRequestSource::Api(call) = source else {
             let HttpRequestSource::Inline(request) = source else {
                 unreachable!()
             };
-            return Some(request.clone());
+            self.request(request, inputs, outputs, at);
+            return Some(CompiledRequest {
+                template: request.clone(),
+                bindings: None,
+            });
         };
         for (name, value) in &call.bindings {
             self.text(
@@ -659,88 +714,29 @@ impl Compiler {
         if self.errors.len() != start {
             return None;
         }
-        let mut request = definition.request.clone();
-        request.url = substitute_text(&request.url, &call.bindings);
-        request.headers = request
-            .headers
-            .iter()
-            .map(|(name, value)| {
-                (
-                    substitute_text(name, &call.bindings),
-                    substitute_text(value, &call.bindings),
-                )
-            })
-            .collect();
-        request.body = match &request.body {
-            BodyTemplate::None => BodyTemplate::None,
-            BodyTemplate::Json(value) => BodyTemplate::Json(substitute_text(value, &call.bindings)),
-            BodyTemplate::Raw(value) => BodyTemplate::Raw(substitute_text(value, &call.bindings)),
-            BodyTemplate::UrlEncoded(value) => {
-                BodyTemplate::UrlEncoded(substitute_text(value, &call.bindings))
-            }
-            BodyTemplate::JsonValue(value) => {
-                BodyTemplate::JsonValue(substitute_json(value, &call.bindings))
-            }
-            BodyTemplate::File(value) => BodyTemplate::File(substitute_text(value, &call.bindings)),
-        };
-        Some(request)
+        self.request_literals(
+            &definition.request,
+            Some(&call.bindings),
+            &api_at.child("request"),
+        );
+        Some(CompiledRequest {
+            template: definition.request.clone(),
+            bindings: Some(call.bindings.clone()),
+        })
     }
 }
 
-fn literal_text(value: &TextTemplate) -> Option<String> {
+fn literal_text(
+    value: &TextTemplate,
+    bindings: Option<&BTreeMap<String, TextTemplate>>,
+) -> Option<String> {
     value
         .parts
         .iter()
         .map(|part| match part {
-            TemplatePart::Literal(value) => Some(value.as_str()),
+            TemplatePart::Literal(value) => Some(value.clone()),
+            TemplatePart::Input(name) => literal_text(bindings?.get(name)?, None),
             _ => None,
         })
         .collect()
-}
-
-fn substitute_text(
-    value: &TextTemplate,
-    bindings: &BTreeMap<String, TextTemplate>,
-) -> TextTemplate {
-    TextTemplate::parts(value.parts.iter().flat_map(|part| match part {
-        TemplatePart::Input(name) => bindings[name].parts.clone(),
-        TemplatePart::Coalesce(candidates) => vec![TemplatePart::Coalesce(
-            candidates
-                .iter()
-                .map(|candidate| substitute_text(candidate, bindings))
-                .collect(),
-        )],
-        _ => vec![part.clone()],
-    }))
-}
-
-fn substitute_json(
-    value: &JsonTemplate,
-    bindings: &BTreeMap<String, TextTemplate>,
-) -> JsonTemplate {
-    match value {
-        JsonTemplate::Input(name) => match bindings[name].parts.as_slice() {
-            [TemplatePart::Input(name)] => JsonTemplate::Input(name.clone()),
-            [TemplatePart::StepOutput { step_id, name }] => {
-                JsonTemplate::step_output(step_id, name)
-            }
-            _ => JsonTemplate::String(bindings[name].clone()),
-        },
-        JsonTemplate::String(value) => JsonTemplate::String(substitute_text(value, bindings)),
-        JsonTemplate::Coalesce(candidates) => JsonTemplate::Coalesce(
-            candidates
-                .iter()
-                .map(|c| substitute_json(c, bindings))
-                .collect(),
-        ),
-        JsonTemplate::Object(fields) => JsonTemplate::object(
-            fields
-                .iter()
-                .map(|(name, value)| (name, substitute_json(value, bindings))),
-        ),
-        JsonTemplate::Array(items) => {
-            JsonTemplate::array(items.iter().map(|value| substitute_json(value, bindings)))
-        }
-        _ => value.clone(),
-    }
 }

@@ -169,6 +169,66 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn builtin_variables_run_without_required_inputs() {
+        let file = parse_http_file(
+            "GET https://example.invalid/?ts={{$timestamp_ms}}\nX-Trace: {{$uuid}}\n\n### second\nGET https://example.invalid/?ts={{$timestamp}}\nX-Trace: {{$guid}}\n",
+        ).unwrap();
+        assert!(compile_http_file(&file).unwrap().inputs().is_empty());
+        let transport =
+            FakeTransport::new((0..2).map(|_| Ok(HttpResponse::new(200, vec![], "{}".into()))));
+        let report = HeadlessRunner::new(transport.clone())
+            .run(&file, &BTreeMap::new())
+            .await
+            .unwrap();
+        assert!(report.success);
+        let requests = transport.requests();
+        assert!(
+            requests[0]
+                .url
+                .rsplit_once('=')
+                .unwrap()
+                .1
+                .parse::<u64>()
+                .unwrap()
+                > 1_000_000_000_000
+        );
+        assert!(
+            requests[1]
+                .url
+                .rsplit_once('=')
+                .unwrap()
+                .1
+                .parse::<u64>()
+                .unwrap()
+                < 100_000_000_000
+        );
+        assert_eq!(requests[0].headers[0].1.len(), 36);
+        assert_eq!(requests[1].headers[0].1.len(), 36);
+        assert_ne!(requests[0].headers[0].1, requests[1].headers[0].1);
+    }
+
+    #[tokio::test]
+    async fn explicitly_declared_builtin_defaults_remain_overridable() {
+        let file = parse_http_file(
+            "@$timestamp_ms = 1234\n\nGET https://example.invalid/?ts={{$timestamp_ms}}\n",
+        )
+        .unwrap();
+        let transport = FakeTransport::new([Ok(HttpResponse::new(200, vec![], "{}".into()))]);
+        let report = HeadlessRunner::new(transport.clone())
+            .run(
+                &file,
+                &BTreeMap::from([("$timestamp_ms".into(), "5678".into())]),
+            )
+            .await
+            .unwrap();
+        assert!(report.success);
+        assert_eq!(
+            transport.requests()[0].url,
+            "https://example.invalid/?ts=5678"
+        );
+    }
+
+    #[tokio::test]
     async fn captured_json_value_is_bound_into_the_next_typed_request() {
         let file = parse_http_file(
             r#"

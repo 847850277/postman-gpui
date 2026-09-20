@@ -131,6 +131,64 @@ concat:
 String literals do not evaluate `{{...}}` or other embedded template syntax. `concat` combines
 explicit text parts without URL-encoding; encoded values must be supplied directly.
 
+### Dynamic variables and calculations
+
+Built-ins do not need input declarations. Use `{input: $timestamp_ms}` for Unix milliseconds,
+`{input: $timestamp}` for Unix seconds, `{input: $uuid}` / `{input: $guid}` for UUID v4, and
+`{input: $randomInt}` for an integer from 0 through 999. Each reference is evaluated when used;
+export a returned value if it must be reused across steps. Explicitly declared inputs override
+the corresponding built-ins, which also permits deterministic tests. In `.http` files the same
+variables use interpolation, for example `{{$timestamp_ms}}` or `{{$uuid}}`; an explicit
+`@$timestamp_ms = 1234` declaration can provide an overridable default.
+
+Text and JSON expressions both accept `calc`:
+
+```yaml
+calc: 'floor((step-1.balance * 0.9 * 3) / step-2.price)'
+```
+
+Calculations support `+`, `-`, `*`, `/`, unary signs, parentheses, scientific notation, and the
+single-argument functions `floor`, `ceil`, `round`, and `abs`. Inputs and previous-step exports
+must contain numbers or numeric strings. Bare input names use letters, digits, `_`, and `$`;
+hyphenated step names retain the `step-1.balance` syntax. Subtraction such as `balance-1` and
+`step-1.balance-1` works without spaces. Wrap unusual references in backticks, e.g.
+`` `risk-factor`-1 ``. When a subtraction could also be a hyphenated step reference, use spaces
+(`balance - step.price`) or quote each reference. Declared input names take precedence over
+step-output notation with the same name.
+
+Syntax, function names and references are checked before execution. Expressions are limited to
+64 nested levels, 4096 tokens and 64 KiB. Division by zero, non-finite inputs and arithmetic
+overflow fail the step before its request is sent. Arithmetic uses IEEE-754 `f64`, not exact
+decimal arithmetic; decimal rounding at a boundary requires care.
+
+### HMAC-SHA256 signing
+
+```yaml
+request:
+  kind: http
+  method: GET
+  url:
+    concat:
+      - literal: 'https://example.com/account?timestamp='
+      - input: $timestamp_ms
+  auth:
+    type: hmac_sha256
+    secret: {input: api_secret}
+    param: signature  # optional; defaults to signature
+```
+
+This is Binance-style parameter signing: HMAC-SHA256 over the serialized URL query followed
+directly by the optional `url_encoded` body, with no extra separator. The digest is lowercase
+hex. Query order, duplicate parameters, `+` and existing percent escapes are preserved; URL
+fragments are excluded. With no body, the signature is appended to the query; with a form body,
+it is appended to the body and a form Content-Type is supplied unless one is already set.
+All templates, including the secret, are resolved before signing. The secret is not sent.
+
+The signature parameter must be a nonempty URL-unreserved name and must not already exist in
+the query or form. Other body kinds are rejected for this signing mode. This is not a general
+OAuth2, AWS or arbitrary-body signing implementation. Mark secret inputs `sensitive: true` as
+with other credentials.
+
 Structured JSON bodies:
 
 ```yaml
@@ -241,11 +299,14 @@ Reusable operations can be declared under `apis` in the document or supplied dir
 
 Catalog `parameters` define local names referenced via `input` within the definition. Calling steps
 use `request: { kind: api, api: ID, bindings: ... }`, where bindings evaluate in the caller's scope.
-Compilation substitutes parameters once, preserving runtime input and output references.
+Compilation snapshots and validates both scopes. Bindings resolve lazily in the caller's scope,
+while all expressions in the API request, including `calc` and `auth.secret`, resolve against
+the API parameters and built-ins. Direct input/output bindings preserve their JSON types;
+text bindings render as strings. The request cannot implicitly capture unrelated flow inputs.
 Missing or extra arguments, unknown API IDs, and cross-step references inside definitions produce
 compile diagnostics.
 
-Compiled plans own expanded request snapshots; modifying the source definition, catalog, or layout
+Compiled plans own request and binding snapshots; modifying the source definition, catalog, or layout
 leaves existing plans unchanged. A single plan can be cloned and executed across multiple sessions
 with isolated variable state.
 

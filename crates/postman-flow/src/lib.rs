@@ -22,10 +22,10 @@ pub use document::{
     NodePosition, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
-    ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec,
-    FlowInputs, FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate,
-    HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
-    StepOutcome, TemplatePart, TextTemplate, ValueReference,
+    ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent,
+    FlowInputSpec, FlowInputs, FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck,
+    ResponseExport, StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
 pub use plan::FlowPlan;
-pub use runtime::{execute_flow, FlowError, FlowSessionEnvironment};
+pub use runtime::{execute_flow, is_builtin_variable, FlowError, FlowSessionEnvironment};

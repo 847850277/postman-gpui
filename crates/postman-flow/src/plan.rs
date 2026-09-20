@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     json_path::JsonPath, ExpectedError, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
     JsonTemplate, TextTemplate,
@@ -32,9 +34,16 @@ pub(crate) struct HttpStepPlan {
     pub id: String,
     pub name: String,
     pub when: Option<CompiledCondition>,
-    pub request: HttpRequestTemplate,
+    pub request: CompiledRequest,
     pub checks: Vec<CompiledCheck>,
     pub exports: Vec<CompiledExport>,
+}
+
+/// Catalog bindings keep their caller scope; the template uses only its local parameters.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CompiledRequest {
+    pub template: HttpRequestTemplate,
+    pub bindings: Option<BTreeMap<String, TextTemplate>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

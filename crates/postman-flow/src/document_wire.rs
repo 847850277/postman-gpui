@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use super::{EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 enum WireAuth {
     HmacSha256 {
         secret: Text,
@@ -21,11 +21,10 @@ fn default_signature_param() -> String {
 }
 
 use crate::{
-    AuthTemplate,
-    ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition,
-    FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
-    JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport, TemplatePart,
-    TextTemplate, ValueReference,
+    ApiCall, ApiCatalog, ApiDefinition, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError,
+    FlowDefinition, FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate,
+    HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
+    TemplatePart, TextTemplate, ValueReference,
 };
 
 #[derive(Serialize, Deserialize)]

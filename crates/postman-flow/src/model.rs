@@ -213,10 +213,19 @@ pub enum ExpectedError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuthTemplate {
-    HmacSha256 {
-        secret: TextTemplate,
-        param: String,
-    },
+    HmacSha256 { secret: TextTemplate, param: String },
+}
+
+pub(crate) fn validate_signature_param(param: &str) -> Result<(), String> {
+    if param.is_empty()
+        || !param
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-._~".contains(&b))
+    {
+        Err("signature parameter must be a nonempty URL-unreserved name".into())
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
