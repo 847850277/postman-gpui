@@ -22,6 +22,14 @@ serde_path_to_error = "0.1"
 yaml_serde = "0.10.7"
 tracing = "0.1"
 url = "2"
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"], optional = true }
+flate2 = { version = "1", features = ["rust_backend"], optional = true }
+mysql = { version = "25", default-features = false, optional = true }
+tokio = { version = "1", features = ["rt"], optional = true }
+
+[features]
+default = []
+sql = ["dep:rusqlite", "dep:mysql", "dep:flate2", "dep:tokio"]
 
 [dev-dependencies]
 postman-request = { path = "../postman-request" }

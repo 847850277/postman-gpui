@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     json_path::JsonPath, ExpectedError, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
-    JsonTemplate, TextTemplate,
+    JsonTemplate, SqlQueryTemplate, TextTemplate,
 };
 
 /// Owned, statically validated snapshot. Public code cannot construct or modify a plan.
@@ -41,9 +41,12 @@ pub(crate) struct HttpStepPlan {
 
 /// Catalog bindings keep their caller scope; the template uses only its local parameters.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CompiledRequest {
-    pub template: HttpRequestTemplate,
-    pub bindings: Option<BTreeMap<String, TextTemplate>>,
+pub(crate) enum CompiledRequest {
+    Http {
+        template: HttpRequestTemplate,
+        bindings: Option<BTreeMap<String, TextTemplate>>,
+    },
+    Sql(SqlQueryTemplate),
 }
 
 #[derive(Debug, Clone, PartialEq)]

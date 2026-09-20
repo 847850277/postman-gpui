@@ -24,7 +24,7 @@ use crate::{
     ApiCall, ApiCatalog, ApiDefinition, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError,
     FlowDefinition, FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate,
     HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
-    TemplatePart, TextTemplate, ValueReference,
+    SqlQueryTemplate, TemplatePart, TextTemplate, ValueReference,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -99,6 +99,12 @@ enum Request {
         api: String,
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         bindings: BTreeMap<String, Text>,
+    },
+    Sql {
+        connection: Text,
+        query: Text,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        params: Vec<Text>,
     },
 }
 
@@ -520,6 +526,16 @@ impl From<Request> for HttpRequestSource {
                     .collect(),
             }
             .into(),
+            Request::Sql {
+                connection,
+                query,
+                params,
+            } => SqlQueryTemplate {
+                connection: connection.into(),
+                query: query.into(),
+                params: params.into_iter().map(Into::into).collect(),
+            }
+            .into(),
         }
     }
 }
@@ -552,6 +568,11 @@ impl From<&HttpRequestSource> for Request {
                     .iter()
                     .map(|(name, value)| (name.clone(), value.into()))
                     .collect(),
+            },
+            HttpRequestSource::Sql(sql) => Self::Sql {
+                connection: (&sql.connection).into(),
+                query: (&sql.query).into(),
+                params: sql.params.iter().map(Into::into).collect(),
             },
         }
     }

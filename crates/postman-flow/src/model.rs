@@ -141,6 +141,7 @@ impl HttpStepDefinition {
 pub enum HttpRequestSource {
     Inline(HttpRequestTemplate),
     Api(ApiCall),
+    Sql(SqlQueryTemplate),
 }
 
 impl HttpRequestSource {
@@ -148,6 +149,7 @@ impl HttpRequestSource {
         match self {
             Self::Inline(request) => Some(request),
             Self::Api(_) => None,
+            Self::Sql(_) => None,
         }
     }
 }
@@ -161,6 +163,35 @@ impl From<HttpRequestTemplate> for HttpRequestSource {
 impl From<ApiCall> for HttpRequestSource {
     fn from(value: ApiCall) -> Self {
         Self::Api(value)
+    }
+}
+
+impl From<SqlQueryTemplate> for HttpRequestSource {
+    fn from(value: SqlQueryTemplate) -> Self {
+        Self::Sql(value)
+    }
+}
+
+/// A declarative SQL execution step.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SqlQueryTemplate {
+    pub connection: TextTemplate,
+    pub query: TextTemplate,
+    pub params: Vec<TextTemplate>,
+}
+
+impl SqlQueryTemplate {
+    pub fn new(connection: TextTemplate, query: TextTemplate) -> Self {
+        Self {
+            connection,
+            query,
+            params: Vec::new(),
+        }
+    }
+
+    pub fn param(mut self, param: TextTemplate) -> Self {
+        self.params.push(param);
+        self
     }
 }
 

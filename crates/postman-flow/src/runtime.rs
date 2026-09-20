@@ -268,13 +268,67 @@ impl<T: HttpTransport> RunMachine<T> {
 
     async fn execute_current_step(&mut self) {
         let step = self.plan.steps[self.step_index].clone();
-        let request = match prepare_request(&step.request, &self.context) {
-            Ok(request) => request,
-            Err(message) => {
-                self.fail_step(&step.id, message);
-                return;
+        let response = match &step.request {
+            CompiledRequest::Sql(sql_template) => {
+                #[cfg(feature = "sql")]
+                {
+                let connection_str = match self.context.render(&sql_template.connection) {
+                    Ok(c) => c,
+                    Err(msg) => {
+                        self.fail_step(&step.id, msg);
+                        return;
+                    }
+                };
+                let query_str = match self.context.render(&sql_template.query) {
+                    Ok(q) => q,
+                    Err(msg) => {
+                        self.fail_step(&step.id, msg);
+                        return;
+                    }
+                };
+                let mut params = Vec::with_capacity(sql_template.params.len());
+                for p in &sql_template.params {
+                    match self.context.render(p) {
+                        Ok(val) => params.push(val),
+                        Err(msg) => {
+                            self.fail_step(&step.id, msg);
+                            return;
+                        }
+                    }
+                }
+                tracing::info!(
+                    step_id = %step.id,
+                    step_name = %step.name,
+                    connection = %self.context.redact_url(&connection_str),
+                    query = %query_str,
+                    "executing SQL step"
+                );
+                match crate::sql_executor::execute_sql(&connection_str, &query_str, &params).await {
+                    Ok(resp) => resp,
+                    Err(err) => {
+                        self.fail_step(&step.id, err);
+                        return;
+                    }
+                }
+                }
+                #[cfg(not(feature = "sql"))]
+                {
+                    let _ = sql_template;
+                    self.fail_step(
+                        &step.id,
+                        "SQL steps are disabled because postman-flow was compiled without the 'sql' feature".to_string(),
+                    );
+                    return;
+                }
             }
-        };
+            CompiledRequest::Http { template, bindings } => {
+                let request = match prepare_request(template, bindings.as_ref(), &self.context) {
+                    Ok(request) => request,
+                    Err(message) => {
+                        self.fail_step(&step.id, message);
+                        return;
+                    }
+                };
 
         tracing::info!(
             step_id = %step.id,
@@ -302,17 +356,17 @@ impl<T: HttpTransport> RunMachine<T> {
         }
 
         let mut options = self.environment.request_options;
-        if let Some(timeout_ms) = step.request.template.options.timeout_ms {
+        if let Some(timeout_ms) = template.options.timeout_ms {
             options.timeout_ms = Some(timeout_ms);
         }
-        if let Some(policy) = step.request.template.options.redirect_policy {
+        if let Some(policy) = template.options.redirect_policy {
             options.redirect_policy = policy;
         }
-        if let Some(max_hops) = step.request.template.options.max_redirect_hops {
+        if let Some(max_hops) = template.options.max_redirect_hops {
             options.max_redirect_hops = max_hops;
         }
 
-        let response = match self.transport.execute(request, options).await {
+        match self.transport.execute(request, options).await {
             Ok(response) => {
                 tracing::info!(
                     step_id = %step.id,
@@ -375,6 +429,8 @@ impl<T: HttpTransport> RunMachine<T> {
                 );
                 self.fail_step(&step.id, error.to_string());
                 return;
+            }
+        }
             }
         };
 
@@ -450,16 +506,20 @@ impl<T: HttpTransport> RunMachine<T> {
     }
 }
 
-fn prepare_request(step: &CompiledRequest, context: &RunContext) -> Result<Request, String> {
-    match &step.bindings {
+fn prepare_request(
+    template: &HttpRequestTemplate,
+    bindings: Option<&BTreeMap<String, TextTemplate>>,
+    context: &RunContext,
+) -> Result<Request, String> {
+    match bindings {
         Some(bindings) => render_request(
-            &step.template,
+            template,
             &ApiContext {
                 parent: context,
                 bindings,
             },
         ),
-        None => render_request(&step.template, context),
+        None => render_request(template, context),
     }
 }
 

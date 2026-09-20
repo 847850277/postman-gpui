@@ -7,8 +7,8 @@ use crate::{
     json_path::JsonPath,
     plan::{CompiledCheck, CompiledCondition, CompiledExport, CompiledRequest, HttpStepPlan},
     ApiCatalog, AuthTemplate, BodyTemplate, ConditionExpr, FlowDefinition, FlowPlan,
-    HttpRequestSource, HttpRequestTemplate, JsonTemplate, ResponseCheck, TemplatePart,
-    TextTemplate, ValueReference,
+    HttpRequestSource, HttpRequestTemplate, JsonTemplate, ResponseCheck,
+    TemplatePart, TextTemplate, ValueReference,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -648,16 +648,23 @@ impl Compiler {
         outputs: &Outputs,
         at: &DiagnosticLocation,
     ) -> Option<CompiledRequest> {
-        let HttpRequestSource::Api(call) = source else {
-            let HttpRequestSource::Inline(request) = source else {
-                unreachable!()
-            };
-            self.request(request, inputs, outputs, at);
-            return Some(CompiledRequest {
-                template: request.clone(),
-                bindings: None,
-            });
-        };
+        match source {
+            HttpRequestSource::Inline(request) => {
+                self.request(request, inputs, outputs, at);
+                return Some(CompiledRequest::Http {
+                    template: request.clone(),
+                    bindings: None,
+                });
+            }
+            HttpRequestSource::Sql(sql) => {
+                self.text(&sql.connection, inputs, outputs, &at.child("connection"));
+                self.text(&sql.query, inputs, outputs, &at.child("query"));
+                for (idx, param) in sql.params.iter().enumerate() {
+                    self.text(param, inputs, outputs, &at.child(format!("params[{idx}]")));
+                }
+                return Some(CompiledRequest::Sql(sql.clone()));
+            }
+            HttpRequestSource::Api(call) => {
         for (name, value) in &call.bindings {
             self.text(
                 value,
@@ -719,10 +726,12 @@ impl Compiler {
             Some(&call.bindings),
             &api_at.child("request"),
         );
-        Some(CompiledRequest {
+        Some(CompiledRequest::Http {
             template: definition.request.clone(),
             bindings: Some(call.bindings.clone()),
         })
+            }
+        }
     }
 }
 

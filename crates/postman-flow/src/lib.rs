@@ -12,6 +12,8 @@ mod json_path;
 mod model;
 mod plan;
 mod runtime;
+#[cfg(feature = "sql")]
+pub(crate) mod sql_executor;
 
 pub use catalog::{ApiCatalog, ApiDefinition};
 pub use compiler::{
@@ -25,7 +27,7 @@ pub use model::{
     ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent,
     FlowInputSpec, FlowInputs, FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource,
     HttpRequestTemplate, HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck,
-    ResponseExport, StepOutcome, TemplatePart, TextTemplate, ValueReference,
+    ResponseExport, SqlQueryTemplate, StepOutcome, TemplatePart, TextTemplate, ValueReference,
 };
 pub use plan::FlowPlan;
 pub use runtime::{execute_flow, is_builtin_variable, FlowError, FlowSessionEnvironment};
