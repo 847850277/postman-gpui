@@ -4,6 +4,7 @@
 //! a caller-supplied HTTP transport and session. Version 1 supports ordered HTTP steps;
 //! source documents and optional editor layout remain separate from runtime state.
 
+pub mod calc;
 mod catalog;
 mod compiler;
 mod document;
@@ -21,7 +22,7 @@ pub use document::{
     NodePosition, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
-    ApiCall, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec,
+    ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent, FlowInputSpec,
     FlowInputs, FlowOutputSpec, FlowOutputs, FlowValue, HttpRequestSource, HttpRequestTemplate,
     HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
     StepOutcome, TemplatePart, TextTemplate, ValueReference,

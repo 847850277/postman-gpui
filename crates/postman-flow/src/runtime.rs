@@ -1,3 +1,78 @@
+pub fn is_builtin_variable(name: &str) -> bool {
+    matches!(
+        name,
+        "$timestamp" | "$timestamp_ms" | "$uuid" | "$guid" | "$randomInt"
+    )
+}
+
+pub fn eval_builtin_variable(name: &str) -> Option<Value> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    match name {
+        "$timestamp" => {
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            Some(Value::Number(secs.into()))
+        }
+        "$timestamp_ms" => {
+            let ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            if let Ok(ms_u64) = u64::try_from(ms) {
+                Some(Value::Number(ms_u64.into()))
+            } else {
+                Some(Value::String(ms.to_string()))
+            }
+        }
+        "$uuid" | "$guid" => Some(Value::String(uuid::Uuid::new_v4().to_string())),
+        "$randomInt" => {
+            use std::collections::hash_map::RandomState;
+            use std::hash::{BuildHasher, Hasher};
+            let val = (RandomState::new().build_hasher().finish() % 1000) as u64;
+            Some(Value::Number(val.into()))
+        }
+        _ => None,
+    }
+}
+
+fn compute_hmac_sha256(secret: &str, data: &str) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .expect("HMAC can take key of any size");
+    mac.update(data.as_bytes());
+    let result = mac.finalize();
+    hex::encode(result.into_bytes())
+}
+
+fn evaluate_calc_in_context(expr: &str, context: &RunContext) -> Result<f64, String> {
+    crate::calc::evaluate_calc(expr, |name| {
+        if let Some((step, out)) = name.split_once(".") {
+            if let Some(val) = context.outputs.get(&(step.to_owned(), out.to_owned())) {
+                return value_to_f64(&val.value);
+            }
+        }
+        if let Some(val) = context.inputs.get(name) {
+            return value_to_f64(&val.value);
+        }
+        if let Some(val) = eval_builtin_variable(name) {
+            return value_to_f64(&val);
+        }
+        Err(format!("variable '{name}' not found for calc expression"))
+    }).map_err(|e| e.to_string())
+}
+
+fn value_to_f64(val: &Value) -> Result<f64, String> {
+    match val {
+        Value::Number(n) => n.as_f64().ok_or_else(|| "number cannot convert to f64".to_owned()),
+        Value::String(s) => s.trim().parse::<f64>().map_err(|e| format!("cannot parse string '{s}' as number: {e}")),
+        _ => Err(format!("cannot use non-numeric value '{val:?}' in calculation")),
+    }
+}
+
 use std::{
     collections::{BTreeMap, VecDeque},
     fmt,
@@ -369,9 +444,23 @@ impl<T: HttpTransport> RunMachine<T> {
 }
 
 fn prepare_request(step: &HttpRequestTemplate, context: &RunContext) -> Result<Request, String> {
-    let url = context.render(&step.url)?;
+    let mut url = context.render(&step.url)?;
     if url.trim().is_empty() {
         return Err("rendered request URL is empty".to_owned());
+    }
+
+    if let Some(crate::model::AuthTemplate::HmacSha256 { secret, param }) = &step.auth {
+        let secret_val = context.render(secret)?;
+        let query_str = url.split_once('?').map(|(_, q)| q).unwrap_or("");
+        let sig = compute_hmac_sha256(&secret_val, query_str);
+        if url.contains('?') {
+            url.push('&');
+        } else {
+            url.push('?');
+        }
+        url.push_str(param);
+        url.push('=');
+        url.push_str(&sig);
     }
 
     let mut request = Request::new(step.method, url);
@@ -603,7 +692,15 @@ struct RunContext {
 impl RunContext {
     fn resolve_value_ref(&self, reference: &ValueReference) -> Option<BoundValue> {
         match reference {
-            ValueReference::Input(name) => self.inputs.get(name).cloned(),
+            ValueReference::Input(name) => {
+                if let Some(val) = self.inputs.get(name).cloned() {
+                    Some(val)
+                } else if let Some(builtin) = eval_builtin_variable(name) {
+                    Some(BoundValue { value: builtin, sensitive: false })
+                } else {
+                    None
+                }
+            },
             ValueReference::StepOutput { step_id, name } => {
                 self.outputs.get(&(step_id.clone(), name.clone())).cloned()
             }
@@ -644,11 +741,25 @@ impl RunContext {
         match template {
             JsonTemplate::Literal(value) => Ok(value.clone()),
             JsonTemplate::String(value) => self.render(value).map(Value::String),
-            JsonTemplate::Input(name) => self
-                .inputs
-                .get(name)
-                .map(|value| value.value.clone())
-                .ok_or_else(|| format!("input `{name}` is not bound")),
+            JsonTemplate::Input(name) => {
+                if let Some(value) = self.inputs.get(name) {
+                    Ok(value.value.clone())
+                } else if let Some(builtin) = eval_builtin_variable(name) {
+                    Ok(builtin)
+                } else {
+                    Err(format!("input `{name}` is not bound"))
+                }
+            }
+            JsonTemplate::Calc(expr) => {
+                let val = evaluate_calc_in_context(expr, self)?;
+                if val.fract() == 0.0 && val.abs() < 1e15 {
+                    Ok(Value::Number((val as i64).into()))
+                } else if let Some(num) = serde_json::Number::from_f64(val) {
+                    Ok(Value::Number(num))
+                } else {
+                    Ok(Value::String(val.to_string()))
+                }
+            }
             JsonTemplate::StepOutput { step_id, name } => self
                 .outputs
                 .get(&(step_id.clone(), name.clone()))
@@ -679,11 +790,21 @@ impl RunContext {
         match part {
             TemplatePart::Literal(value) => Ok(value.clone()),
             TemplatePart::Input(name) => {
-                let value = self
-                    .inputs
-                    .get(name)
-                    .ok_or_else(|| format!("input `{name}` is not bound"))?;
-                Ok(value_as_text(&value.value))
+                if let Some(value) = self.inputs.get(name) {
+                    Ok(value_as_text(&value.value))
+                } else if let Some(builtin) = eval_builtin_variable(name) {
+                    Ok(value_as_text(&builtin))
+                } else {
+                    Err(format!("input `{name}` is not bound"))
+                }
+            }
+            TemplatePart::Calc(expr) => {
+                let val = evaluate_calc_in_context(expr, self)?;
+                if val.fract() == 0.0 && val.abs() < 1e15 {
+                    Ok((val as i64).to_string())
+                } else {
+                    Ok(val.to_string())
+                }
             }
             TemplatePart::StepOutput { step_id, name } => {
                 let value = self

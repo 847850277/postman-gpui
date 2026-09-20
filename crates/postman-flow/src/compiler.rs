@@ -271,6 +271,9 @@ impl Compiler {
         }
     }
     fn input(&mut self, name: &str, inputs: &HashSet<String>, at: &DiagnosticLocation) {
+        if crate::runtime::is_builtin_variable(name) {
+            return;
+        }
         if !inputs.contains(name) {
             self.error(
                 DiagnosticCode::UnknownInput,
@@ -318,6 +321,7 @@ impl Compiler {
             let at = at.child(format!("parts[{index}]"));
             match part {
                 TemplatePart::Literal(_) => {}
+                TemplatePart::Calc(_) => {}
                 TemplatePart::Input(name) => self.input(name, inputs, &at),
                 TemplatePart::StepOutput { step_id, name } => {
                     self.output(step_id, name, outputs, &at)
@@ -356,6 +360,7 @@ impl Compiler {
         }
         match value {
             JsonTemplate::Literal(_) => {}
+            JsonTemplate::Calc(_) => {}
             JsonTemplate::String(value) => self.text(value, inputs, outputs, &at.child("string")),
             JsonTemplate::Input(name) => self.input(name, inputs, at),
             JsonTemplate::StepOutput { step_id, name } => self.output(step_id, name, outputs, at),

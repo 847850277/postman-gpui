@@ -211,6 +211,14 @@ pub enum ExpectedError {
     Cancelled,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuthTemplate {
+    HmacSha256 {
+        secret: TextTemplate,
+        param: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpRequestTemplate {
     pub method: HttpMethod,
@@ -218,6 +226,7 @@ pub struct HttpRequestTemplate {
     pub headers: Vec<(TextTemplate, TextTemplate)>,
     pub body: BodyTemplate,
     pub options: RequestOptionOverrides,
+    pub auth: Option<AuthTemplate>,
 }
 
 impl HttpRequestTemplate {
@@ -228,6 +237,7 @@ impl HttpRequestTemplate {
             headers: Vec::new(),
             body: BodyTemplate::None,
             options: RequestOptionOverrides::default(),
+            auth: None,
         }
     }
 
@@ -280,6 +290,7 @@ pub enum JsonTemplate {
     Coalesce(Vec<JsonTemplate>),
     Object(BTreeMap<String, JsonTemplate>),
     Array(Vec<JsonTemplate>),
+    Calc(String),
 }
 
 impl JsonTemplate {
@@ -405,6 +416,7 @@ pub enum TemplatePart {
     Input(String),
     StepOutput { step_id: String, name: String },
     Coalesce(Vec<TextTemplate>),
+    Calc(String),
 }
 
 impl TemplatePart {

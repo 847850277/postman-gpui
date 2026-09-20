@@ -6,7 +6,22 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use super::{EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum WireAuth {
+    HmacSha256 {
+        secret: Text,
+        #[serde(default = "default_signature_param")]
+        param: String,
+    },
+}
+
+fn default_signature_param() -> String {
+    "signature".to_string()
+}
+
 use crate::{
+    AuthTemplate,
     ApiCall, ApiCatalog, ApiDefinition, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition,
     FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
     JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport, TemplatePart,
@@ -88,6 +103,8 @@ enum Request {
         body: Body,
         #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
         options: WireRequestOptions,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        auth: Option<WireAuth>,
     },
     Api {
         api: String,
@@ -166,6 +183,7 @@ enum Text {
     Output(Ref),
     Coalesce(Vec<Text>),
     Concat(Vec<Text>),
+    Calc(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -178,6 +196,7 @@ enum Json {
     Coalesce(Vec<Json>),
     Object(BTreeMap<String, Json>),
     Array(Vec<Json>),
+    Calc(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -307,6 +326,8 @@ struct ApiRequest {
     body: Body,
     #[serde(default, skip_serializing_if = "WireRequestOptions::is_empty")]
     options: WireRequestOptions,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auth: Option<WireAuth>,
 }
 
 impl From<Document> for FlowDocument {
@@ -474,12 +495,14 @@ impl From<Request> for HttpRequestSource {
                 headers,
                 body,
                 options,
+                auth,
             } => HttpRequestTemplate::from(ApiRequest {
                 method,
                 url,
                 headers,
                 body,
                 options,
+                auth,
             })
             .into(),
             Request::Api { api, bindings } => ApiCall {
@@ -504,6 +527,7 @@ impl From<&HttpRequestSource> for Request {
                     headers,
                     body,
                     options,
+                    auth,
                 } = value.into();
                 Self::Http {
                     method,
@@ -511,6 +535,7 @@ impl From<&HttpRequestSource> for Request {
                     headers,
                     body,
                     options,
+                    auth,
                 }
             }
             HttpRequestSource::Api(value) => Self::Api {
@@ -537,6 +562,7 @@ impl From<ApiRequest> for HttpRequestTemplate {
                 .collect(),
             body: value.body.into(),
             options: value.options.into(),
+            auth: value.auth.map(Into::into),
         }
     }
 }
@@ -556,6 +582,7 @@ impl From<&HttpRequestTemplate> for ApiRequest {
                 .collect(),
             body: (&value.body).into(),
             options: value.options.into(),
+            auth: value.auth.as_ref().map(Into::into),
         }
     }
 }
@@ -575,6 +602,7 @@ impl From<Text> for TextTemplate {
             Text::Concat(items) => {
                 Self::parts(items.into_iter().flat_map(|item| Self::from(item).parts))
             }
+            Text::Calc(expr) => Self::parts([TemplatePart::Calc(expr)]),
         }
     }
 }
@@ -588,6 +616,7 @@ fn part_to_text(part: &TemplatePart) -> Text {
             name: name.clone(),
         }),
         TemplatePart::Coalesce(items) => Text::Coalesce(items.iter().map(Text::from).collect()),
+        TemplatePart::Calc(expr) => Text::Calc(expr.clone()),
     }
 }
 
@@ -619,6 +648,7 @@ impl From<Json> for JsonTemplate {
                     .collect(),
             ),
             Json::Array(items) => Self::Array(items.into_iter().map(Into::into).collect()),
+            Json::Calc(expr) => Self::Calc(expr),
         }
     }
 }
@@ -641,6 +671,7 @@ impl From<&JsonTemplate> for Json {
                     .collect(),
             ),
             JsonTemplate::Array(items) => Self::Array(items.iter().map(Into::into).collect()),
+            JsonTemplate::Calc(expr) => Self::Calc(expr.clone()),
         }
     }
 }
@@ -786,6 +817,28 @@ impl From<&ConditionExpr> for ConditionWire {
             ConditionExpr::And(items) => Self::And(items.iter().map(Into::into).collect()),
             ConditionExpr::Or(items) => Self::Or(items.iter().map(Into::into).collect()),
             ConditionExpr::Not(inner) => Self::Not(Box::new((&**inner).into())),
+        }
+    }
+}
+
+impl From<WireAuth> for AuthTemplate {
+    fn from(value: WireAuth) -> Self {
+        match value {
+            WireAuth::HmacSha256 { secret, param } => Self::HmacSha256 {
+                secret: secret.into(),
+                param,
+            },
+        }
+    }
+}
+
+impl From<&AuthTemplate> for WireAuth {
+    fn from(value: &AuthTemplate) -> Self {
+        match value {
+            AuthTemplate::HmacSha256 { secret, param } => Self::HmacSha256 {
+                secret: secret.into(),
+                param: param.clone(),
+            },
         }
     }
 }

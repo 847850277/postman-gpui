@@ -9,6 +9,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+uuid = { version = "1", features = ["v4"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+
 futures = "0.3"
 postman-http = { path = "../postman-http" }
 serde_json = "1"

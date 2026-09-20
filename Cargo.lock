@@ -4500,15 +4500,19 @@ name = "postman-flow"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "hex",
+ "hmac",
  "postman-http",
  "postman-request",
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
  "yaml_serde",
 ]
 
