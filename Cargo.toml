@@ -12,7 +12,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.97"
+rust-version = "1.90"
 authors = ["847850277"]
 description = "A native, cross-platform HTTP client built with Rust and GPUI"
 license = "MIT"
