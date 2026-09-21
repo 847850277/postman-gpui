@@ -111,7 +111,7 @@ flow:
       equals:
         literal: 4
 
-  # 3. Vector Similarity Search (Unfiltered Top-2 Nearest Neighbors)
+  # 3. Vector Similarity Search via /points/query (Unfiltered Top-2 Nearest Neighbors)
   - id: step-3-vector-search-unfiltered
     name: 3. Unfiltered Vector Search for Top-2 Candidates
     request:
@@ -120,7 +120,7 @@ flow:
       url:
         concat:
         - input: host
-        - literal: /collections/test_vectors/points/search
+        - literal: /collections/test_vectors/points/query
       headers:
       - name:
           literal: Content-Type
@@ -131,7 +131,7 @@ flow:
         value:
           literal: |
             {
-              "vector": [0.2, 0.1, 0.9, 0.7],
+              "query": [0.2, 0.1, 0.9, 0.7],
               "limit": 2,
               "with_payload": true
             }
@@ -143,11 +143,11 @@ flow:
       equals:
         literal: ok
     - kind: jsonpath
-      path: $.result[0].id
+      path: $.result.points[0].id
       equals:
         literal: 4
     - kind: jsonpath
-      path: $.result[0].payload.city
+      path: $.result.points[0].payload.city
       equals:
         literal: Tokyo
 
@@ -160,7 +160,7 @@ flow:
       url:
         concat:
         - input: host
-        - literal: /collections/test_vectors/points/search
+        - literal: /collections/test_vectors/points/query
       headers:
       - name:
           literal: Content-Type
@@ -171,7 +171,7 @@ flow:
         value:
           literal: |
             {
-              "vector": [0.2, 0.1, 0.9, 0.7],
+              "query": [0.2, 0.1, 0.9, 0.7],
               "filter": {
                 "must": [
                   {
@@ -193,15 +193,15 @@ flow:
       equals:
         literal: ok
     - kind: jsonpath
-      path: $.result[0].id
+      path: $.result.points[0].id
       equals:
         literal: 2
     - kind: jsonpath
-      path: $.result[0].payload.city
+      path: $.result.points[0].payload.city
       equals:
         literal: London
 
-  # 5. Vector Search with Numerical Range Filter ('price' <= 5.0)
+  # 5. Vector Search with Numeric Range Filter ('price' <= 5.0)
   - id: step-5-vector-search-range-filter
     name: 5. Vector Search with Numeric Range Filter ('price' <= 5.0)
     request:
@@ -210,7 +210,7 @@ flow:
       url:
         concat:
         - input: host
-        - literal: /collections/test_vectors/points/search
+        - literal: /collections/test_vectors/points/query
       headers:
       - name:
           literal: Content-Type
@@ -221,7 +221,7 @@ flow:
         value:
           literal: |
             {
-              "vector": [0.2, 0.1, 0.9, 0.7],
+              "query": [0.2, 0.1, 0.9, 0.7],
               "filter": {
                 "must": [
                   {
@@ -243,11 +243,83 @@ flow:
       equals:
         literal: ok
     - kind: jsonpath
-      path: $.result[0].id
+      path: $.result.points[0].id
       equals:
         literal: 1
     - kind: jsonpath
-      path: $.result[0].payload.city
+      path: $.result.points[0].payload.city
       equals:
         literal: Berlin
+
+  # 6. Vector Search with 'should' and 'must_not' Combined Filter
+  - id: step-6-vector-search-should-must-not
+    name: 6. Vector Search with Combined 'should' and 'must_not'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/query
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "query": [0.2, 0.1, 0.9, 0.7],
+              "filter": {
+                "must_not": [
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "Tokyo"
+                    }
+                  }
+                ],
+                "should": [
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "Berlin"
+                    }
+                  },
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "London"
+                    }
+                  }
+                ]
+              },
+              "limit": 2,
+              "with_payload": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.points[0].id
+      equals:
+        literal: 1
+    - kind: jsonpath
+      path: $.result.points[0].payload.city
+      equals:
+        literal: Berlin
+    - kind: jsonpath
+      path: $.result.points[1].id
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.result.points[1].payload.city
+      equals:
+        literal: London
 

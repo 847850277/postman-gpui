@@ -21,9 +21,9 @@ async fn test_qdrant_e2e_full_suite() {
     let flows_dir = manifest_dir.join("suites/qdrant/flows");
 
     let suites = [
-        ("collections_lifecycle.http.yml", 7),
-        ("points_and_vector_search.http.yml", 5),
-        ("payload_crud_and_cleanup.http.yml", 6),
+        ("collections_lifecycle.http.yml", 8),
+        ("points_and_vector_search.http.yml", 6),
+        ("payload_crud_and_cleanup.http.yml", 8),
     ];
 
     for (file_name, expected_requests) in suites {

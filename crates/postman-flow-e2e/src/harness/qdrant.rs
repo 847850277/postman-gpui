@@ -83,7 +83,8 @@ impl QdrantServer {
             let _ = Box::leak(Box::new(temp_dir));
 
             let mut cmd = Command::new(&binary);
-            cmd.arg(format!("--uri=http://127.0.0.1:{}", port))
+            cmd.env("QDRANT__SERVICE__HTTP_PORT", port.to_string())
+                .env("QDRANT__STORAGE__STORAGE_PATH", db_path.display().to_string())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
 

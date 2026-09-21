@@ -2,7 +2,7 @@
 set -eo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$DIR/../../../.." && pwd)"
 
 # Ensure common binary directories are in PATH
 export PATH="$HOME/.cargo/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
@@ -40,10 +40,7 @@ for arg in "$@"; do
     fi
 done
 
-# Clean up any lingering container or process on this port
-if command -v lsof >/dev/null 2>&1; then
-    lsof -ti :"$PORT" | xargs kill -9 2>/dev/null || true
-fi
+# Clean up any lingering container owned by this script
 docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
 
 echo "==> Starting ephemeral Qdrant instance on port $PORT..."
