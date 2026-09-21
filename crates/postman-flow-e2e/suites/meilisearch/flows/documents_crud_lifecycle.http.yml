@@ -1,0 +1,266 @@
+schema_version: 1
+flow:
+  name: meilisearch-documents-crud-lifecycle-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  # 1. Clean / Delete existing 'books' index if present
+  - id: step-1-clean-index
+    name: 1. Clean 'books' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+
+  # 2. Create 'books' search index with primaryKey 'id'
+  - id: step-2-create-index
+    name: 2. Create 'books' Search Index
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "uid": "books",
+              "primaryKey": "id"
+            }
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+
+  # 3. Create initial documents (POST /indexes/books/documents)
+  - id: step-3-create-documents
+    name: 3. Create Initial Book Documents
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books/documents
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            [
+              {
+                "id": 101,
+                "title": "Rust in Action",
+                "author": "Tim McNamara",
+                "price": 45,
+                "stock": 10
+              },
+              {
+                "id": 102,
+                "title": "Programming Rust",
+                "author": "Jim Blandy",
+                "price": 60,
+                "stock": 5
+              },
+              {
+                "id": 103,
+                "title": "The Rust Programming Language",
+                "author": "Steve Klabnik",
+                "price": 35,
+                "stock": 0
+              }
+            ]
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+    - kind: jsonpath
+      path: $.type
+      equals:
+        literal: documentAdditionOrUpdate
+
+  # 4. Partial update of document #101 (PUT /indexes/books/documents)
+  # Updates price to 49 and adds 'discounted': true without wiping other fields
+  - id: step-4-partial-update
+    name: 4. Partial Update Book 101 (PUT /indexes/books/documents)
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books/documents
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            [
+              {
+                "id": 101,
+                "price": 49,
+                "discounted": true
+              }
+            ]
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+    - kind: jsonpath
+      path: $.type
+      equals:
+        literal: documentAdditionOrUpdate
+
+  # 5. Delete single document #102 by ID (DELETE /indexes/books/documents/102)
+  - id: step-5-delete-single-document
+    name: 5. Delete Document 102 by ID
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books/documents/102
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+    - kind: jsonpath
+      path: $.type
+      equals:
+        literal: documentDeletion
+
+  # 6. Batch delete documents (POST /indexes/books/documents/delete-batch)
+  # Deleting #103
+  - id: step-6-batch-delete-documents
+    name: 6. Batch Delete Document 103 by ID Array
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books/documents/delete-batch
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            [103]
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+    - kind: jsonpath
+      path: $.type
+      equals:
+        literal: documentDeletion
+
+  # 7. Clean up 'books' index
+  - id: step-7-delete-index
+    name: 7. Delete 'books' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/books
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: enqueued
+

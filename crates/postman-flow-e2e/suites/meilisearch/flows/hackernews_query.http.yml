@@ -114,24 +114,3 @@ flow:
       path: $.hits[0].by
       equals:
         literal: jdmichal
-
-  # 4. Cleanup: Delete 'hackernews' index
-  - id: step-4-delete-index
-    name: 4. Delete HackerNews Index
-    request:
-      kind: http
-      method: DELETE
-      url:
-        concat:
-        - input: host
-        - literal: /indexes/hackernews
-      headers:
-      - name:
-          literal: Authorization
-        value:
-          concat:
-          - literal: 'Bearer '
-          - input: master_key
-    checks:
-    - kind: status
-      equals: 202

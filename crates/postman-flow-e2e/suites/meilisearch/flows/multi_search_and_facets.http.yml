@@ -1,0 +1,209 @@
+schema_version: 1
+flow:
+  name: meilisearch-multi-search-and-facets-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:7700
+  - name: master_key
+    default: masterKey12345678901234567890
+
+  steps:
+  # 1. Facet Distribution & Numeric Stats on 'movies' index
+  - id: step-1-facet-distribution
+    name: 1. Facet Distribution & Stats Query on 'movies'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "q": "",
+              "facets": ["genre", "release_year"]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.estimatedTotalHits
+      equals:
+        literal: 4
+    - kind: jsonpath
+      path: $.facetDistribution.genre.Action
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.facetDistribution.genre.Crime
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.facetDistribution.genre.Drama
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.facetStats.release_year.min
+      equals:
+        literal: 1994.0
+    - kind: jsonpath
+      path: $.facetStats.release_year.max
+      equals:
+        literal: 2014.0
+
+  # 2. Filtered Facet Search on 'movies' index (Action movies category)
+  - id: step-2-filtered-facets
+    name: 2. Filtered Facet Search for Action Movies
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies/search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "filter": "genre = 'Action'",
+              "facets": ["genre", "release_year"]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.estimatedTotalHits
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.facetDistribution.genre.Action
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.facetStats.release_year.min
+      equals:
+        literal: 2008.0
+
+  # 3. Federated Multi-Search across 'movies' and 'hackernews' in single HTTP request
+  - id: step-3-federated-multi-search
+    name: 3. Federated Multi-Search across 'movies' and 'hackernews'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /multi-search
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "queries": [
+                {
+                  "indexUid": "movies",
+                  "q": "Nolan",
+                  "limit": 2
+                },
+                {
+                  "indexUid": "hackernews",
+                  "q": "launch",
+                  "limit": 2
+                }
+              ]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.results[0].indexUid
+      equals:
+        literal: movies
+    - kind: jsonpath
+      path: $.results[0].hits[0].director
+      equals:
+        literal: Christopher Nolan
+    - kind: jsonpath
+      path: $.results[1].indexUid
+      equals:
+        literal: hackernews
+
+  # 4. Clean up 'movies' index
+  - id: step-4-delete-movies-index
+    name: 4. Delete 'movies' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/movies
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+
+  # 5. Clean up 'hackernews' index
+  - id: step-5-delete-hackernews-index
+    name: 5. Delete 'hackernews' Index
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /indexes/hackernews
+      headers:
+      - name:
+          literal: Authorization
+        value:
+          concat:
+          - literal: 'Bearer '
+          - input: master_key
+    checks:
+    - kind: status
+      equals: 202
+

@@ -125,28 +125,3 @@ flow:
       path: $.hits[0]._formatted.title
       equals:
         literal: The <em>Dark</em> Knight
-
-  # 4. Delete index
-  - id: step-4-delete-index
-    name: 4. Delete 'movies' Index
-    request:
-      kind: http
-      method: DELETE
-      url:
-        concat:
-        - input: host
-        - literal: /indexes/movies
-      headers:
-      - name:
-          literal: Authorization
-        value:
-          concat:
-          - literal: 'Bearer '
-          - input: master_key
-    checks:
-    - kind: status
-      equals: 202
-    - kind: jsonpath
-      path: $.status
-      equals:
-        literal: enqueued

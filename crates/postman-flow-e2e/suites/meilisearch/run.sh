@@ -32,7 +32,7 @@ DATASET="$DIR/data/hackernews_sample.ndjson"
 
 TARGET_PATH=""
 PASS_ARGS=()
-for arg in "$@"; do
+for arg in "${PASS_ARGS[@]}"; do
     if [[ "$arg" == -* ]]; then
         PASS_ARGS+=("$arg")
     elif [ -z "$TARGET_PATH" ] && [ -e "$arg" ]; then
@@ -74,9 +74,10 @@ if [ "$READY" != "true" ]; then
     exit 1
 fi
 
-# 4. If a specific target flow file or path was specified, execute it directly
-if [ -n "$TARGET_PATH" ]; then
-    echo "==> Running specified flow: $TARGET_PATH..."
+# 4. If a specific target flow file was specified, execute it directly.
+# (If directory "flows" or "." was passed, fall through to sequential suites with task draining)
+if [ -n "$TARGET_PATH" ] && [ -f "$TARGET_PATH" ]; then
+    echo "==> Running specified flow file: $TARGET_PATH..."
     "$POSTMAN_G" run "$TARGET_PATH"         --input host="http://127.0.0.1:$PORT"         --input master_key="$MASTER_KEY"         --input dataset_path="$DATASET"         "${PASS_ARGS[@]}"
     exit 0
 fi
@@ -93,20 +94,26 @@ wait_tasks_drained() {
 
 # 5. Default: Execute all flow suites in sequence
 echo "==> Running Flow Suite 1: API Keys..."
-"$POSTMAN_G" run "$DIR/flows/api_keys.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "$@"
+"$POSTMAN_G" run "$DIR/flows/api_keys.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
 
 echo "==> Running Flow Suite 2: Movies Documents Ingestion..."
-"$POSTMAN_G" run "$DIR/flows/documents_ingestion.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "$@"
+"$POSTMAN_G" run "$DIR/flows/documents_ingestion.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
 
 wait_tasks_drained
 
 echo "==> Running Flow Suite 3: Movies Search & Ranking..."
-"$POSTMAN_G" run "$DIR/flows/search_and_ranking.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "$@"
+"$POSTMAN_G" run "$DIR/flows/search_and_ranking.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
 
-echo "==> Running Flow Suite 4: HackerNews Streaming Dataset Ingestion (File Body)..."
-"$POSTMAN_G" run "$DIR/flows/hackernews_streaming.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" --input dataset_path="$DATASET" "$@"
+echo "==> Running Flow Suite 4: Documents CRUD Lifecycle..."
+"$POSTMAN_G" run "$DIR/flows/documents_crud_lifecycle.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
+
+echo "==> Running Flow Suite 5: HackerNews Streaming Dataset Ingestion (File Body)..."
+"$POSTMAN_G" run "$DIR/flows/hackernews_streaming.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" --input dataset_path="$DATASET" "${PASS_ARGS[@]}"
 
 wait_tasks_drained
 
-echo "==> Running Flow Suite 5: HackerNews Search, Filter & Highlighting..."
-"$POSTMAN_G" run "$DIR/flows/hackernews_query.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "$@"
+echo "==> Running Flow Suite 6: HackerNews Search, Filter & Highlighting..."
+"$POSTMAN_G" run "$DIR/flows/hackernews_query.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
+
+echo "==> Running Flow Suite 7: Multi-Search & Facets Distribution..."
+"$POSTMAN_G" run "$DIR/flows/multi_search_and_facets.http.yml" --input host="http://127.0.0.1:$PORT" --input master_key="$MASTER_KEY" "${PASS_ARGS[@]}"
