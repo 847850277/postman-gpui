@@ -73,4 +73,3 @@ async fn test_qdrant_e2e_full_suite() {
         }
     }
 }
-
