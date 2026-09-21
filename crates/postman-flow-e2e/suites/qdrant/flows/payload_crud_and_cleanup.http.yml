@@ -1,0 +1,188 @@
+schema_version: 1
+flow:
+  name: qdrant-payload-crud-and-cleanup-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:6333
+
+  steps:
+  # 1. Retrieve Single Point by ID
+  - id: step-1-get-point
+    name: 1. Get Point 1 Details
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/1
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.id
+      equals:
+        literal: 1
+    - kind: jsonpath
+      path: $.result.payload.city
+      equals:
+        literal: Berlin
+
+  # 2. Set/Update Payload on Point 1 (add rating and featured flag)
+  - id: step-2-set-payload
+    name: 2. Set Payload Fields on Point 1
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/payload?wait=true
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "payload": {
+                "rating": 5,
+                "featured": true
+              },
+              "points": [1]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.status
+      equals:
+        literal: completed
+
+  # 3. Verify Updated Payload on Point 1
+  - id: step-3-verify-updated-payload
+    name: 3. Verify Updated Payload on Point 1
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/1
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.result.payload.rating
+      equals:
+        literal: 5
+    - kind: jsonpath
+      path: $.result.payload.featured
+      equals:
+        literal: true
+    - kind: jsonpath
+      path: $.result.payload.city
+      equals:
+        literal: Berlin
+
+  # 4. Delete Points by ID Array (Delete Point 2 and Point 3)
+  - id: step-4-delete-points
+    name: 4. Delete Points 2 and 3 by ID Array
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/delete?wait=true
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "points": [2, 3]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.status
+      equals:
+        literal: completed
+
+  # 5. Verify Point Count Reduced (from 4 to 2)
+  - id: step-5-verify-count-after-delete
+    name: 5. Verify Point Count After Deletion
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/count
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "exact": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.count
+      equals:
+        literal: 2
+
+  # 6. Final Clean: Delete 'test_vectors' Collection
+  - id: step-6-delete-collection
+    name: 6. Delete 'test_vectors' Collection
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result
+      equals:
+        literal: true
+

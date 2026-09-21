@@ -1,3 +1,4 @@
+pub mod qdrant;
 pub mod meilisearch;
 pub mod vaultwarden;
 
