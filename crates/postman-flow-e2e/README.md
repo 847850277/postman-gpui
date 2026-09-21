@@ -32,6 +32,13 @@ Located under `suites/meilisearch/`:
   - `hackernews_streaming.http.yml`: Massive NDJSON dataset ingestion via zero-copy streaming file body (`kind: file`), with primary key setup and filter/search attribute indexing.
   - `hackernews_query.http.yml`: Document count index stats verification, exact milestone story retrieval, and filtered comment author searches.
 
+### 3. Qdrant (Vector Search Engine API)
+Located under `suites/qdrant/`:
+- **Workflow Specifications** (`.http.yml`):
+  - `collections_lifecycle.http.yml`: Health/readiness checks (`/readyz`), collection creation with vector dimensions (4D) and distance metrics (`Cosine`, `Dot`), cluster parameters verification, collections enumeration, and cleanup.
+  - `points_and_vector_search.http.yml`: Batch point upsert with embeddings and metadata payloads (`city`, `price`, `count`), exact point counting, approximate nearest neighbor (ANN) vector search, vector search with payload exact-match filter (`must: city == London`), and numeric range filter (`price <= 5.0`).
+  - `payload_crud_and_cleanup.http.yml`: Point retrieval by ID, dynamic payload modification (setting rating/featured flags), verified payload inspection, point batch deletion by ID array, and collection deletion.
+
 ## Running the Suites
 
 ### Option 1: Automated Script (Local Development)
@@ -46,10 +53,15 @@ Runs an ephemeral Vaultwarden server on dynamic/designated port with in-memory/t
 
 # Run all Meilisearch suites
 ./crates/postman-flow-e2e/suites/meilisearch/run.sh
+
+# Run all Qdrant vector database suites
+./crates/postman-flow-e2e/suites/qdrant/run.sh
+
 ```
 
 ### Option 2: Cargo Integration Test
 ```bash
 cargo test -p postman-flow-e2e --test vaultwarden_e2e -- --nocapture
 cargo test -p postman-flow-e2e --test meilisearch_e2e -- --nocapture
+cargo test -p postman-flow-e2e --test qdrant_e2e -- --nocapture
 ```

@@ -1,0 +1,217 @@
+schema_version: 1
+flow:
+  name: qdrant-collections-lifecycle-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:6333
+
+  steps:
+  # 1. Health and Readiness Probe
+  - id: step-1-ready-check
+    name: 1. Health and Readiness Check
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /readyz
+    checks:
+    - kind: status
+      equals: 200
+
+  # 2. Create 'test_vectors' Collection with 4D Cosine Metric
+  - id: step-2-create-collection
+    name: 2. Create 4-Dimensional Cosine Collection
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "vectors": {
+                "size": 4,
+                "distance": "Cosine"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result
+      equals:
+        literal: true
+
+  # 3. Get Collection Info and Verify Vector Configuration
+  - id: step-3-get-collection-info
+    name: 3. Verify Collection Parameters and Status
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.status
+      equals:
+        literal: green
+    - kind: jsonpath
+      path: $.result.config.params.vectors.size
+      equals:
+        literal: 4
+    - kind: jsonpath
+      path: $.result.config.params.vectors.distance
+      equals:
+        literal: Cosine
+
+  # 4. Create Secondary Collection with Dot Product Distance Metric
+  - id: step-4-create-dot-collection
+    name: 4. Create Auxiliary Dot Product Collection
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_dot_collection
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "vectors": {
+                "size": 4,
+                "distance": "Dot"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+
+  # 5. Create Third Collection with Euclid Distance Metric
+  - id: step-5-create-euclid-collection
+    name: 5. Create Auxiliary Euclidean Distance Collection
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_euclid_collection
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "vectors": {
+                "size": 4,
+                "distance": "Euclid"
+              }
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+
+  # 6. List Collections and Verify All Exist
+  - id: step-6-list-collections
+    name: 6. List All Collections
+    request:
+      kind: http
+      method: GET
+      url:
+        concat:
+        - input: host
+        - literal: /collections
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+
+  # 7. Delete Auxiliary Dot Collection
+  - id: step-7-delete-dot-collection
+    name: 7. Delete Auxiliary Dot Collection
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_dot_collection
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result
+      equals:
+        literal: true
+
+  # 8. Delete Auxiliary Euclid Collection
+  - id: step-8-delete-euclid-collection
+    name: 8. Delete Auxiliary Euclid Collection
+    request:
+      kind: http
+      method: DELETE
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_euclid_collection
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result
+      equals:
+        literal: true
+

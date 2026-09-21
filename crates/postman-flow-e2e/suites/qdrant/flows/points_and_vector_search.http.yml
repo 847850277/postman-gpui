@@ -1,0 +1,325 @@
+schema_version: 1
+flow:
+  name: qdrant-points-and-vector-search-e2e
+  inputs:
+  - name: host
+    default: http://127.0.0.1:6333
+
+  steps:
+  # 1. Upsert Points with Vectors and Rich Payloads
+  - id: step-1-upsert-points
+    name: 1. Upsert Batch Points with Vectors and Payloads
+    request:
+      kind: http
+      method: PUT
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points?wait=true
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "points": [
+                {
+                  "id": 1,
+                  "vector": [0.05, 0.61, 0.76, 0.74],
+                  "payload": {
+                    "city": "Berlin",
+                    "price": 1.99,
+                    "count": 10
+                  }
+                },
+                {
+                  "id": 2,
+                  "vector": [0.19, 0.81, 0.75, 0.11],
+                  "payload": {
+                    "city": "London",
+                    "price": 8.99,
+                    "count": 20
+                  }
+                },
+                {
+                  "id": 3,
+                  "vector": [0.36, 0.55, 0.47, 0.94],
+                  "payload": {
+                    "city": "Moscow",
+                    "price": 4.50,
+                    "count": 30
+                  }
+                },
+                {
+                  "id": 4,
+                  "vector": [0.18, 0.01, 0.85, 0.80],
+                  "payload": {
+                    "city": "Tokyo",
+                    "price": 12.00,
+                    "count": 5
+                  }
+                }
+              ]
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.status
+      equals:
+        literal: completed
+
+  # 2. Count Total Points in Collection
+  - id: step-2-count-points
+    name: 2. Count Total Points in Collection
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/count
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "exact": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.count
+      equals:
+        literal: 4
+
+  # 3. Vector Similarity Search via /points/query (Unfiltered Top-2 Nearest Neighbors)
+  - id: step-3-vector-search-unfiltered
+    name: 3. Unfiltered Vector Search for Top-2 Candidates
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/query
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "query": [0.2, 0.1, 0.9, 0.7],
+              "limit": 2,
+              "with_payload": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.points[0].id
+      equals:
+        literal: 4
+    - kind: jsonpath
+      path: $.result.points[0].payload.city
+      equals:
+        literal: Tokyo
+
+  # 4. Vector Search with Payload Exact Match Filter ('city' == 'London')
+  - id: step-4-vector-search-filtered-match
+    name: 4. Vector Search with 'city' == 'London' Filter
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/query
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "query": [0.2, 0.1, 0.9, 0.7],
+              "filter": {
+                "must": [
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "London"
+                    }
+                  }
+                ]
+              },
+              "limit": 1,
+              "with_payload": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.points[0].id
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.result.points[0].payload.city
+      equals:
+        literal: London
+
+  # 5. Vector Search with Numeric Range Filter ('price' <= 5.0)
+  - id: step-5-vector-search-range-filter
+    name: 5. Vector Search with Numeric Range Filter ('price' <= 5.0)
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/query
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "query": [0.2, 0.1, 0.9, 0.7],
+              "filter": {
+                "must": [
+                  {
+                    "key": "price",
+                    "range": {
+                      "lte": 5.0
+                    }
+                  }
+                ]
+              },
+              "limit": 2,
+              "with_payload": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.points[0].id
+      equals:
+        literal: 1
+    - kind: jsonpath
+      path: $.result.points[0].payload.city
+      equals:
+        literal: Berlin
+
+  # 6. Vector Search with 'should' and 'must_not' Combined Filter
+  - id: step-6-vector-search-should-must-not
+    name: 6. Vector Search with Combined 'should' and 'must_not'
+    request:
+      kind: http
+      method: POST
+      url:
+        concat:
+        - input: host
+        - literal: /collections/test_vectors/points/query
+      headers:
+      - name:
+          literal: Content-Type
+        value:
+          literal: application/json
+      body:
+        kind: raw
+        value:
+          literal: |
+            {
+              "query": [0.2, 0.1, 0.9, 0.7],
+              "filter": {
+                "must_not": [
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "Tokyo"
+                    }
+                  }
+                ],
+                "should": [
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "Berlin"
+                    }
+                  },
+                  {
+                    "key": "city",
+                    "match": {
+                      "value": "London"
+                    }
+                  }
+                ]
+              },
+              "limit": 2,
+              "with_payload": true
+            }
+    checks:
+    - kind: status
+      equals: 200
+    - kind: jsonpath
+      path: $.status
+      equals:
+        literal: ok
+    - kind: jsonpath
+      path: $.result.points[0].id
+      equals:
+        literal: 1
+    - kind: jsonpath
+      path: $.result.points[0].payload.city
+      equals:
+        literal: Berlin
+    - kind: jsonpath
+      path: $.result.points[1].id
+      equals:
+        literal: 2
+    - kind: jsonpath
+      path: $.result.points[1].payload.city
+      equals:
+        literal: London
+
