@@ -417,6 +417,13 @@ with isolated variable state.
 - `FlowError::InvalidInputs`: Missing required inputs or undeclared inputs supplied at runtime.
 - Stream `InvariantViolation`: Internal invariant violation of a compiled plan.
 
+Step shapes are checked before normalization: HTTP steps require `request`, `for_each` requires
+`items`, `as`, and `steps`, and `repeat_until` requires `until` and `steps`. Missing or null required
+fields and fields belonging to another step kind produce schema errors with their field paths.
+HTTP exports require `path`; collection exports require `collect`. Structurally complete drafts
+(such as empty loop bodies or unresolved references) can still round-trip and are rejected by the
+compiler until completed.
+
 Unknown fields, unsupported versions, duplicate mapping keys, custom YAML tags, non-string mapping keys,
 and non-finite numbers are rejected. YAML merge keys (`<<`) are not expanded and remain ordinary keys in
 literal JSON objects. Document size is limited to 2 MiB and 96 nesting levels; JSON expressions are
