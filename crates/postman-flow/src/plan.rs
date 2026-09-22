@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     json_path::JsonPath, ExpectedError, FlowInputSpec, FlowOutputSpec, HttpRequestTemplate,
-    JsonTemplate, TextTemplate,
+    JsonTemplate, LoopErrorPolicy, TextTemplate,
 };
 
 /// Owned, statically validated snapshot. Public code cannot construct or modify a plan.
@@ -34,9 +34,55 @@ pub(crate) struct HttpStepPlan {
     pub id: String,
     pub name: String,
     pub when: Option<CompiledCondition>,
-    pub request: CompiledRequest,
-    pub checks: Vec<CompiledCheck>,
-    pub exports: Vec<CompiledExport>,
+    pub action: CompiledStepAction,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum CompiledStepAction {
+    Http {
+        request: CompiledRequest,
+        checks: Vec<CompiledCheck>,
+        exports: Vec<CompiledExport>,
+    },
+    ForEach(ForEachPlan),
+    RepeatUntil(RepeatUntilPlan),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CompiledCollection {
+    pub name: String,
+    pub step_id: String,
+    pub output: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ForEachPlan {
+    pub items: JsonTemplate,
+    pub item_name: String,
+    pub index_name: Option<String>,
+    pub max_iterations: usize,
+    pub on_error: LoopErrorPolicy,
+    pub steps: Vec<HttpStepPlan>,
+    pub collect: Vec<CompiledCollection>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct RepeatUntilPlan {
+    pub max_iterations: usize,
+    pub interval_ms: u64,
+    pub timeout_ms: u64,
+    pub until: CompiledCondition,
+    pub fail_when: Option<CompiledCondition>,
+    pub carry: Vec<CompiledCarry>,
+    pub steps: Vec<HttpStepPlan>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CompiledCarry {
+    pub name: String,
+    pub initial: JsonTemplate,
+    pub step_id: String,
+    pub output: String,
 }
 
 /// Catalog bindings keep their caller scope; the template uses only its local parameters.

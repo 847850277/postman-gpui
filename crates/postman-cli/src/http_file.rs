@@ -1071,7 +1071,7 @@ Accept: application/json
             .expect("nested file variables should compile to a flow");
         let url = match &flow.steps[0].request {
             postman_flow::HttpRequestSource::Inline(request) => &request.url,
-            postman_flow::HttpRequestSource::Api(_) => panic!("expected an inline request"),
+            _ => panic!("expected an inline request"),
         };
         assert_eq!(
             url.parts,
@@ -1209,7 +1209,7 @@ GET https://example.com/three/{{id}}
         assert_eq!(flow.outputs[0].name, "id");
         let url = match &flow.steps[2].request {
             postman_flow::HttpRequestSource::Inline(request) => &request.url,
-            postman_flow::HttpRequestSource::Api(_) => panic!("expected an inline request"),
+            _ => panic!("expected an inline request"),
         };
         assert_eq!(
             url.parts,

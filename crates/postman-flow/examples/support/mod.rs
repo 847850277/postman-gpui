@@ -105,6 +105,11 @@ pub async fn run_live(
             } => {
                 tracing::info!(step_id = %step_id, step_name = %name, reason = %reason, "⏭ 步骤跳过");
             }
+            FlowEvent::LoopStarted { .. }
+            | FlowEvent::IterationStarted { .. }
+            | FlowEvent::IterationFinished { .. }
+            | FlowEvent::LoopWaiting { .. }
+            | FlowEvent::LoopFinished { .. } => {}
             FlowEvent::FlowFinished {
                 success: finished, ..
             } => {

@@ -24,6 +24,8 @@ const MINIMAL_EXAMPLE: &str =
     include_str!("../../postman-flow/examples/flows/httpbingo_minimal.http.yml");
 const CATALOG_EXAMPLE: &str =
     include_str!("../../postman-flow/examples/flows/httpbingo_catalog.http.yml");
+const LOOPS_EXAMPLE: &str =
+    include_str!("../../postman-flow/examples/flows/httpbingo_loops.http.yml");
 const DEFAULT_MAX_STEPS: usize = 256;
 
 #[derive(Clone)]
@@ -101,15 +103,24 @@ impl FlowMcpServer {
                     request_kind: match step.request {
                         HttpRequestSource::Inline(_) => "http",
                         HttpRequestSource::Api(_) => "api",
+                        HttpRequestSource::ForEach(_) => "for_each",
+                        HttpRequestSource::RepeatUntil(_) => "repeat_until",
                     }
                     .to_owned(),
                     conditional: step.when.is_some(),
                     checks: step.checks.len(),
-                    exports: step
-                        .exports
-                        .iter()
-                        .map(|export| export.name.clone())
-                        .collect(),
+                    exports: match &step.request {
+                        HttpRequestSource::ForEach(loop_step) => loop_step
+                            .collect
+                            .iter()
+                            .map(|export| export.name.clone())
+                            .collect(),
+                        _ => step
+                            .exports
+                            .iter()
+                            .map(|export| export.name.clone())
+                            .collect(),
+                    },
                 })
                 .collect(),
             outputs: plan
@@ -260,7 +271,10 @@ impl FlowMcpServer {
             schema: dsl_schema(),
             rules: vec![
                 "Use explicit expression objects such as {\"literal\": ...}, {\"input\": \"name\"}, and {\"output\": {\"step\": \"id\", \"name\": \"field\"}}.".to_owned(),
-                "A step may reference only inputs and exports from earlier steps.".to_owned(),
+                "A step may reference only inputs, loop-local bindings, and exports that are available in its lexical scope.".to_owned(),
+                "Use for_each for bounded arrays and repeat_until for bounded polling; use carry for explicit cross-iteration state.".to_owned(),
+                "Quote large integer amounts and high-precision decimals in when comparisons to preserve precision. A collect source skipped by when contributes no value; fail_when takes precedence over until.".to_owned(),
+                "Polling bodies must contain idempotent reads, never approval, signing, or transaction broadcast.".to_owned(),
                 "Never place API keys, private keys, passwords, or wallet secrets in a flow document; use sensitive runtime inputs.".to_owned(),
                 "Call validate_flow before create_flow when iterating on a draft.".to_owned(),
             ],
@@ -290,6 +304,11 @@ impl FlowMcpServer {
                 "api_catalog",
                 "Declare and call reusable API definitions",
                 CATALOG_EXAMPLE,
+            ),
+            (
+                "bounded_loops",
+                "Iterate over a collection and poll an idempotent endpoint",
+                LOOPS_EXAMPLE,
             ),
         ]
         .into_iter()
@@ -574,9 +593,17 @@ mod tests {
         let schema = server.get_dsl_schema().0;
         assert_eq!(schema.schema_version, 1);
         assert_eq!(schema.schema["properties"]["schema_version"]["const"], 1);
+        assert_eq!(
+            schema.schema["$defs"]["for_each_step"]["properties"]["kind"]["const"],
+            "for_each"
+        );
+        assert_eq!(
+            schema.schema["$defs"]["repeat_until_step"]["properties"]["kind"]["const"],
+            "repeat_until"
+        );
 
         let examples = server.list_flow_examples().unwrap().0.examples;
-        assert_eq!(examples.len(), 2);
+        assert_eq!(examples.len(), 3);
         assert!(examples.iter().all(|example| example.document.is_object()));
     }
 
