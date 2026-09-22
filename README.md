@@ -76,6 +76,20 @@ See the [headless runner reference](crates/postman-cli/README.md) for supported 
 assertions, JSON reports, per-request timeouts/redirect options, and the 58-family HTTPBingo
 coverage matrix.
 
+## MCP server for Agent-generated flows
+
+`postman-flow-mcp` exposes the Flow v1 schema, reference, validated examples, compiler diagnostics,
+inspection, and canonical YAML creation over MCP stdio. Agents submit structured JSON documents;
+the server compiles them before writing and confines file access to the configured workspace root.
+It does not execute network requests.
+
+```bash
+cargo run --locked -p postman-flow-mcp -- --root /absolute/path/to/flow-project
+```
+
+See the [MCP server reference](crates/postman-flow-mcp/README.md) for its six tools and client
+configuration.
+
 ## Verify
 
 ```bash

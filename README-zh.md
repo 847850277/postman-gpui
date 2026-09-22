@@ -73,6 +73,18 @@ cargo run --locked -p postman-cli -- run path/to/smoke.http path/to/regression/
 支持的语法、响应捕获、断言、JSON 报告、逐请求超时/重定向参数和覆盖矩阵见
 [Headless Runner 说明](crates/postman-cli/README.md)。
 
+## 供 Agent 生成 Flow 的 MCP Server
+
+`postman-flow-mcp` 通过 MCP stdio 暴露 Flow v1 Schema、完整参考、已验证示例、编译诊断、结构检查和
+规范化 YAML 创建能力。Agent 提交结构化 JSON 文档，服务端编译通过后才写入文件，并将全部文件访问
+限制在配置的工作目录中；该服务不会执行网络请求。
+
+```bash
+cargo run --locked -p postman-flow-mcp -- --root /absolute/path/to/flow-project
+```
+
+六个 MCP 工具和客户端配置见 [MCP Server 说明](crates/postman-flow-mcp/README.md)。
+
 ## 验证
 
 ```bash
