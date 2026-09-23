@@ -1,4 +1,14 @@
 schema_version: 1
+apis:
+  get-task:
+    parameters: [host, master_key, task_uid]
+    request:
+      method: GET
+      url:
+        concat: [{input: host}, {literal: /tasks/}, {input: task_uid}]
+      headers:
+      - name: {literal: Authorization}
+        value: {concat: [{literal: 'Bearer '}, {input: master_key}]}
 flow:
   name: meilisearch-documents-ingest-e2e
   inputs:
@@ -52,6 +62,34 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-2-create-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-2-create-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-2-create-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-2-create-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-2-create-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   - id: step-3-add-documents
     name: 3. Ingest Documents into 'movies'
@@ -110,6 +148,34 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-3-add-documents
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-3-add-documents, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-3-add-documents, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-3-add-documents
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-3-add-documents, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   - id: step-4-update-settings
     name: 4. Configure Filterable and Sortable Attributes
@@ -142,3 +208,31 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-4-update-settings
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-4-update-settings, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-4-update-settings, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-4-update-settings
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-4-update-settings, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status

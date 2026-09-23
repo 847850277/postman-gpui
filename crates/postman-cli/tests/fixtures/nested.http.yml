@@ -1,0 +1,29 @@
+schema_version: 1
+flow:
+  name: nested loop reports
+  inputs:
+    - name: host
+      default: http://127.0.0.1:1
+  steps:
+    - id: outer
+      kind: for_each
+      items: { literal: [first, skip, last] }
+      as: item
+      max_iterations: 3
+      steps:
+        - id: inner
+          kind: repeat_until
+          when: { ne: [{ input: item }, { literal: skip }] }
+          max_iterations: 3
+          interval_ms: 5
+          timeout_ms: 5000
+          until:
+            eq: [{ output: { step: query, name: state } }, { literal: done }]
+          steps:
+            - id: query
+              request:
+                kind: http
+                method: GET
+                url: { concat: [{ input: host }, { literal: /task }] }
+              checks: [{ kind: status, equals: 200 }]
+              exports: [{ name: state, path: $.state }]

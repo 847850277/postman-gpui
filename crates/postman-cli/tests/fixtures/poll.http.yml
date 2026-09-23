@@ -1,0 +1,24 @@
+schema_version: 1
+flow:
+  name: poll task report
+  inputs:
+    - name: host
+      default: http://127.0.0.1:1
+  steps:
+    - id: wait-task
+      kind: repeat_until
+      max_iterations: 3
+      interval_ms: 5
+      timeout_ms: 5000
+      until:
+        eq: [{ output: { step: query, name: state } }, { literal: done }]
+      fail_when:
+        eq: [{ output: { step: query, name: state } }, { literal: failed }]
+      steps:
+        - id: query
+          request:
+            kind: http
+            method: GET
+            url: { concat: [{ input: host }, { literal: /task }] }
+          checks: [{ kind: status, equals: 200 }]
+          exports: [{ name: state, path: $.state }]
