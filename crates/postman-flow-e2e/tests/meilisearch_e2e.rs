@@ -15,9 +15,10 @@ async fn server() -> Option<MeilisearchServer> {
     match MeilisearchServer::start().await {
         Ok(server) => Some(server),
         Err(error) => {
-            let required = ["CI", "MEILISEARCH_E2E_REQUIRED"]
-                .iter()
-                .any(|key| std::env::var(key).is_ok_and(|value| value == "true" || value == "1"));
+            // Only the dedicated E2E job provisions a server. Generic workspace CI
+            // also sets CI=true, but may run on a host without Docker or Meilisearch.
+            let required = std::env::var("MEILISEARCH_E2E_REQUIRED")
+                .is_ok_and(|value| value == "true" || value == "1");
             assert!(
                 !required,
                 "Meilisearch E2E requires a working server: {error}"
@@ -157,25 +158,33 @@ async fn test_meilisearch_e2e_rejected_document_stops_flow_after_http_202() {
 }
 
 #[test]
-fn required_server_failure_is_not_skipped() {
+fn server_availability_is_required_only_when_explicitly_enabled() {
     // Subprocesses avoid mutating environment variables shared by parallel tests.
     for (ci, required, must_fail) in [
-        ("true", "1", true),
-        ("false", "1", true),
-        ("false", "0", false),
+        ("true", Some("1"), true),
+        ("false", Some("1"), true),
+        ("true", Some("true"), true),
+        ("false", Some("true"), true),
+        ("true", Some("0"), false),
+        ("false", Some("0"), false),
+        ("true", None, false),
+        ("false", None, false),
     ] {
-        let output = Command::new(std::env::current_exe().unwrap())
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
             .args([
                 "--exact",
                 "test_meilisearch_e2e_api_keys_flow",
                 "--nocapture",
             ])
             .env("CI", ci)
-            .env("MEILISEARCH_E2E_REQUIRED", required)
             .env("MEILISEARCH_URL", "invalid-url")
-            .env_remove("MEILISEARCH_E2E_ARTIFACT_DIR")
-            .output()
-            .expect("run unavailable-server check");
+            .env_remove("MEILISEARCH_E2E_ARTIFACT_DIR");
+        match required {
+            Some(value) => command.env("MEILISEARCH_E2E_REQUIRED", value),
+            None => command.env_remove("MEILISEARCH_E2E_REQUIRED"),
+        };
+        let output = command.output().expect("run unavailable-server check");
         let logs = format!(
             "{}{}",
             String::from_utf8_lossy(&output.stdout),
