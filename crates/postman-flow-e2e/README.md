@@ -31,6 +31,12 @@ Located under `suites/meilisearch/`:
   - `search_and_ranking.http.yml`: Keyword search, combined boolean filtering with sorting, and query highlighting (`_formatted.title`).
   - `hackernews_streaming.http.yml`: Massive NDJSON dataset ingestion via zero-copy streaming file body (`kind: file`), with primary key setup and filter/search attribute indexing.
   - `hackernews_query.http.yml`: Document count index stats verification, exact milestone story retrieval, and filtered comment author searches.
+  - `documents_crud_lifecycle.http.yml`: Index/document creation, partial updates, individual and batch deletion, and cleanup.
+  - `multi_search_and_facets.http.yml`: Multi-index search, facets, and final index cleanup.
+
+All 16 asynchronous mutations wait for their own task IDs using YAML `repeat_until`;
+background failures and timeouts fail the flow. See the [Meilisearch guide](suites/meilisearch/README.md)
+for single-file execution, dependencies, polling limits, and cleanup semantics.
 
 ### 3. Qdrant (Vector Search Engine API)
 Located under `suites/qdrant/`:

@@ -286,3 +286,119 @@ fn yaml_branching_roundtrip_preserves_conditions_and_coalesce() {
     let roundtrip = parse_flow_yaml(&serialized).expect("roundtrip should parse");
     assert_eq!(document, roundtrip);
 }
+
+#[tokio::test]
+async fn when_compares_large_integers_and_precise_decimal_strings() {
+    let cases = [
+        ConditionExpr::lt(
+            JsonTemplate::literal("100000000000000000000"),
+            JsonTemplate::literal("100000000000000000001"),
+        ),
+        ConditionExpr::gt(
+            JsonTemplate::literal(
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            ),
+            JsonTemplate::literal(
+                "115792089237316195423570985008687907853269984665640564039457584007913129639934",
+            ),
+        ),
+        ConditionExpr::lt(
+            JsonTemplate::literal("-100000000000000000001"),
+            JsonTemplate::literal("-100000000000000000000"),
+        ),
+        ConditionExpr::gt(
+            JsonTemplate::literal("1.00000000000000000001"),
+            JsonTemplate::literal(1),
+        ),
+        ConditionExpr::ne(
+            JsonTemplate::literal("1.00000000000000000001"),
+            JsonTemplate::literal(1),
+        ),
+        ConditionExpr::gt(JsonTemplate::literal("1e-400"), JsonTemplate::literal(0)),
+        ConditionExpr::lt(
+            JsonTemplate::literal("1e1000"),
+            JsonTemplate::literal("2e1000"),
+        ),
+        ConditionExpr::gte(
+            JsonTemplate::literal("1.00e20"),
+            JsonTemplate::literal("100000000000000000000"),
+        ),
+        ConditionExpr::eq(JsonTemplate::literal("1.00"), JsonTemplate::literal(1)),
+        ConditionExpr::eq(JsonTemplate::literal("0.1"), JsonTemplate::literal(0.1)),
+        ConditionExpr::lt(
+            JsonTemplate::literal("0.10000000000000000001"),
+            JsonTemplate::literal("0.10000000000000000002"),
+        ),
+        ConditionExpr::not(ConditionExpr::is_in(
+            JsonTemplate::literal("1.00000000000000000001"),
+            JsonTemplate::literal(json!([1])),
+        )),
+    ];
+    for (index, condition) in cases.into_iter().enumerate() {
+        let mut flow = FlowDefinition::new(format!("precise comparison {index}"));
+        flow.steps.push(
+            HttpStepDefinition::new(
+                "guarded",
+                "guarded",
+                HttpRequestTemplate::new(
+                    HttpMethod::GET,
+                    TextTemplate::literal("https://example.test"),
+                ),
+            )
+            .when(condition),
+        );
+        let plan = compile_flow(&flow, &ApiCatalog::new(), &CompileEnvironment::default()).unwrap();
+        let transport = FakeTransport::new([response(json!({}))]);
+        let events = support::run(plan, FlowInputs::new(), transport.clone()).await;
+        assert_eq!(transport.requests().len(), 1, "case {index}: {events:?}");
+        assert!(matches!(
+            events.last(),
+            Some(FlowEvent::FlowFinished { success: true, .. })
+        ));
+    }
+}
+
+#[tokio::test]
+async fn when_comparison_errors_report_types_without_sensitive_contents() {
+    for (value, type_name) in [
+        (json!({"token": "fake-secret-when-audit"}), "object"),
+        (json!(["fake-secret-when-audit"]), "array"),
+    ] {
+        let mut flow = FlowDefinition::new("sensitive comparison error");
+        flow.inputs
+            .push(FlowInputSpec::required("credentials").sensitive());
+        flow.steps.push(
+            HttpStepDefinition::new(
+                "guarded",
+                "guarded",
+                HttpRequestTemplate::new(
+                    HttpMethod::GET,
+                    TextTemplate::literal("https://example.test"),
+                ),
+            )
+            .when(ConditionExpr::gt(
+                JsonTemplate::input("credentials"),
+                JsonTemplate::literal(0),
+            )),
+        );
+        let plan = compile_flow(&flow, &ApiCatalog::new(), &CompileEnvironment::default()).unwrap();
+        let transport = FakeTransport::new([]);
+        let events = support::run(
+            plan,
+            FlowInputs::new().with("credentials", value),
+            transport.clone(),
+        )
+        .await;
+        assert!(transport.requests().is_empty());
+        assert!(!format!("{events:?}").contains("fake-secret-when-audit"));
+        assert!(events.iter().any(|event| matches!(
+            event,
+            FlowEvent::StepFinished { outcome: StepOutcome::Failed { message }, .. }
+                if message.contains(&format!("types {type_name} and number"))
+        )));
+        assert!(matches!(
+            events.last(),
+            Some(FlowEvent::FlowFinished { success: false, .. })
+        ));
+    }
+}

@@ -6,7 +6,8 @@ use std::{
 };
 
 use postman_cli::{
-    check_flow, compile_http_file, parse_http_file, run_flow, HeadlessRunner, RunReport,
+    check_flow, compile_http_file, parse_http_file, run_flow_with_progress, HeadlessRunner,
+    RunReport,
 };
 use postman_http::request::{RedirectPolicy, RequestOptions};
 use postman_request::RequestClient;
@@ -137,12 +138,22 @@ async fn execute(arguments: Vec<String>) -> Result<bool, String> {
                     .map_err(|error| format!("{}:{error}", file.path.display()))?
             }
             FileKind::Flow => {
-                run_flow(
+                let mut progress_started = false;
+                run_flow_with_progress(
                     client.clone(),
                     &file.path,
                     &source,
                     &arguments.variables,
                     options,
+                    |progress| {
+                        if !arguments.json {
+                            if !progress_started {
+                                eprintln!("\n==> {}", file.path.display());
+                                progress_started = true;
+                            }
+                            eprintln!("{progress}");
+                        }
+                    },
                 )
                 .await?
             }
@@ -323,9 +334,12 @@ fn print_human_report(report: &SuiteReport) {
             };
             match (request.status, request.elapsed_ms) {
                 (Some(status), Some(elapsed_ms)) => {
-                    println!("{marker} {} — {status} ({elapsed_ms} ms)", request.name);
+                    println!(
+                        "{marker} {} — {status} ({elapsed_ms} ms)",
+                        request.display_name()
+                    );
                 }
-                _ => println!("{marker} {}", request.name),
+                _ => println!("{marker} {}", request.display_name()),
             }
             for assertion in &request.assertions {
                 let assertion_marker = if assertion.success { "PASS" } else { "FAIL" };
@@ -338,6 +352,31 @@ fn print_human_report(report: &SuiteReport) {
                 println!("  CAPTURE {capture}");
             }
             if let Some(error) = &request.error {
+                println!("  {error}");
+            }
+        }
+        for loop_report in &file.report.loops {
+            println!("{}", loop_report.summary());
+            for iteration in &loop_report.iterations {
+                let marker = if iteration.success { "PASS" } else { "FAIL" };
+                println!(
+                    "  {marker} iteration {} ({} ms)",
+                    iteration.iteration, iteration.elapsed_ms
+                );
+                if let Some(interval_ms) = iteration.wait_interval_ms {
+                    println!(
+                        "    WAIT {} ms (interval {interval_ms} ms)",
+                        iteration.wait_elapsed_ms.unwrap_or(0)
+                    );
+                }
+                if let Some(error) = &iteration.error {
+                    println!("    {error}");
+                }
+            }
+            for capture in &loop_report.captures {
+                println!("  CAPTURE {capture}");
+            }
+            if let Some(error) = &loop_report.error {
                 println!("  {error}");
             }
         }
@@ -363,15 +402,33 @@ fn print_human_report(report: &SuiteReport) {
         .iter()
         .map(|file| file.report.requests.len())
         .sum::<usize>();
+    let loops = report
+        .files
+        .iter()
+        .flat_map(|file| &file.report.loops)
+        .collect::<Vec<_>>();
+    let loop_summary = if loops.is_empty() {
+        String::new()
+    } else {
+        let passed = loops
+            .iter()
+            .filter(|item| item.success && !item.skipped)
+            .count();
+        let skipped = loops.iter().filter(|item| item.skipped).count();
+        format!(
+            "; {passed}/{} loop(s) passed, {skipped} skipped",
+            loops.len()
+        )
+    };
     if skipped > 0 {
         println!(
-            "\n{}: {passed}/{total} request(s) passed, {skipped} skipped across {} file(s)",
+            "\n{}: {passed}/{total} request(s) passed, {skipped} skipped across {} file(s){loop_summary}",
             if report.success { "PASS" } else { "FAIL" },
             report.files.len()
         );
     } else {
         println!(
-            "\n{}: {passed}/{total} request(s) passed across {} file(s)",
+            "\n{}: {passed}/{total} request(s) passed across {} file(s){loop_summary}",
             if report.success { "PASS" } else { "FAIL" },
             report.files.len()
         );

@@ -1,4 +1,14 @@
 schema_version: 1
+apis:
+  get-task:
+    parameters: [host, master_key, task_uid]
+    request:
+      method: GET
+      url:
+        concat: [{input: host}, {literal: /tasks/}, {input: task_uid}]
+      headers:
+      - name: {literal: Authorization}
+        value: {concat: [{literal: 'Bearer '}, {input: master_key}]}
 flow:
   name: meilisearch-multi-search-and-facets-e2e
   inputs:
@@ -185,6 +195,34 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-4-delete-movies-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-4-delete-movies-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-4-delete-movies-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-4-delete-movies-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-4-delete-movies-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 5. Clean up 'hackernews' index
   - id: step-5-delete-hackernews-index
@@ -206,4 +244,32 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-5-delete-hackernews-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-5-delete-hackernews-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-5-delete-hackernews-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-5-delete-hackernews-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-5-delete-hackernews-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 

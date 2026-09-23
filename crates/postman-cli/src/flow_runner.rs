@@ -5,13 +5,13 @@ use std::{
 
 use futures::StreamExt;
 use postman_flow::{
-    compile_flow, execute_flow, parse_flow_yaml, CompileEnvironment, FlowEvent, FlowInputs,
-    FlowPlan, FlowSessionEnvironment, StepOutcome,
+    compile_flow, execute_flow, parse_flow_yaml, CompileEnvironment, FlowInputs, FlowPlan,
+    FlowSessionEnvironment,
 };
 use postman_http::{request::RequestOptions, HttpTransport};
 use serde_json::Value;
 
-use crate::{AssertionReport, RequestReport, RunReport};
+use crate::{report::ReportBuilder, LoopProgress, RunReport};
 
 #[derive(Debug, Clone)]
 pub struct FlowCheckReport {
@@ -48,6 +48,18 @@ pub async fn run_flow<T: HttpTransport>(
     variables: &BTreeMap<String, String>,
     options: RequestOptions,
 ) -> Result<RunReport, String> {
+    run_flow_with_progress(transport, path, source, variables, options, |_| {}).await
+}
+
+/// Run a native flow and observe loop progress without changing the JSON report.
+pub async fn run_flow_with_progress<T: HttpTransport>(
+    transport: T,
+    path: &Path,
+    source: &str,
+    variables: &BTreeMap<String, String>,
+    options: RequestOptions,
+    progress: impl FnMut(LoopProgress<'_>),
+) -> Result<RunReport, String> {
     let document =
         parse_flow_yaml(source).map_err(|error| format!("{}: {error}", path.display()))?;
     let plan = compile_flow(
@@ -68,9 +80,16 @@ pub async fn run_flow<T: HttpTransport>(
         inputs.insert(name, parse_flow_input_value(value));
     }
 
-    run_flow_plan(transport, plan, inputs, options)
-        .await
-        .map_err(|error| format!("{}: {error}", path.display()))
+    execute_plan(
+        transport,
+        plan,
+        inputs,
+        options,
+        ReportBuilder::new(&document.flow.steps),
+        progress,
+    )
+    .await
+    .map_err(|error| format!("{}: {error}", path.display()))
 }
 
 pub async fn run_flow_plan<T: HttpTransport>(
@@ -78,6 +97,25 @@ pub async fn run_flow_plan<T: HttpTransport>(
     plan: FlowPlan,
     inputs: FlowInputs,
     options: RequestOptions,
+) -> Result<RunReport, String> {
+    execute_plan(
+        transport,
+        plan,
+        inputs,
+        options,
+        ReportBuilder::default(),
+        |_| {},
+    )
+    .await
+}
+
+async fn execute_plan<T: HttpTransport>(
+    transport: T,
+    plan: FlowPlan,
+    inputs: FlowInputs,
+    options: RequestOptions,
+    mut report: ReportBuilder,
+    mut progress: impl FnMut(LoopProgress<'_>),
 ) -> Result<RunReport, String> {
     let declared: HashSet<&str> = plan
         .inputs()
@@ -90,118 +128,10 @@ pub async fn run_flow_plan<T: HttpTransport>(
         .map_err(|error| format!("failed to start flow: {error}"))?;
     let mut events = std::pin::pin!(events);
 
-    let mut requests = Vec::new();
-    let mut current_request: Option<RequestReport> = None;
-    let mut flow_success = false;
-    let mut reported_outputs = BTreeMap::new();
-    let mut redacted_outputs = Vec::new();
-
     while let Some(event) = events.next().await {
-        let event = event.map_err(|error| format!("{error}"))?;
-        match event {
-            FlowEvent::StepStarted { step_id, name } => {
-                let display_name = if name.is_empty() || name == step_id {
-                    step_id
-                } else {
-                    format!("{step_id} ({name})")
-                };
-                current_request = Some(RequestReport {
-                    name: display_name,
-                    success: false,
-                    skipped: false,
-                    status: None,
-                    elapsed_ms: None,
-                    assertions: Vec::new(),
-                    captures: Vec::new(),
-                    error: None,
-                });
-            }
-            FlowEvent::StepSkipped {
-                step_id,
-                name,
-                reason,
-            } => {
-                let display_name = if name.is_empty() || name == step_id {
-                    step_id
-                } else {
-                    format!("{step_id} ({name})")
-                };
-                requests.push(RequestReport {
-                    name: display_name,
-                    success: true,
-                    skipped: true,
-                    status: None,
-                    elapsed_ms: None,
-                    assertions: Vec::new(),
-                    captures: Vec::new(),
-                    error: Some(format!("Skipped: {reason}")),
-                });
-            }
-            FlowEvent::ResponseReceived {
-                status, elapsed_ms, ..
-            } => {
-                if let Some(req) = current_request.as_mut() {
-                    req.status = Some(status);
-                    req.elapsed_ms = Some(elapsed_ms);
-                }
-            }
-            FlowEvent::CheckFinished {
-                check,
-                success,
-                message,
-                ..
-            } => {
-                if let Some(req) = current_request.as_mut() {
-                    req.assertions.push(AssertionReport {
-                        expression: check,
-                        success,
-                        message,
-                    });
-                }
-            }
-            FlowEvent::OutputExported { name, .. } => {
-                if let Some(req) = current_request.as_mut() {
-                    req.captures.push(name);
-                }
-            }
-            FlowEvent::StepFinished { outcome, .. } => {
-                if let Some(mut req) = current_request.take() {
-                    match outcome {
-                        StepOutcome::Succeeded => {
-                            req.success = true;
-                        }
-                        StepOutcome::Failed { message } => {
-                            req.success = false;
-                            req.error = Some(message);
-                        }
-                    }
-                    requests.push(req);
-                }
-            }
-            FlowEvent::FlowFinished { success, outputs } => {
-                flow_success = success;
-                if success {
-                    for (name, output) in outputs {
-                        let value = if output.is_sensitive() {
-                            redacted_outputs.push(name.clone());
-                            Value::String("[REDACTED]".into())
-                        } else {
-                            output.value().clone()
-                        };
-                        reported_outputs.insert(name, value);
-                    }
-                }
-            }
-            _ => {}
-        }
+        report.record(event.map_err(|error| error.to_string())?, &mut progress);
     }
-
-    Ok(RunReport {
-        success: flow_success,
-        requests,
-        outputs: reported_outputs,
-        redacted_outputs,
-    })
+    Ok(report.finish())
 }
 
 /// CLI `--input` keeps explicit JSON types, but does not coerce `00123` into `123`.

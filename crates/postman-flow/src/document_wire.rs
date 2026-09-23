@@ -5,7 +5,7 @@ use postman_http::request::HttpMethod;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use super::{EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
+use super::{DocumentError, DocumentErrorCode, EditorLayout, FlowDocument, FLOW_DOCUMENT_VERSION};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 enum WireAuth {
@@ -22,8 +22,9 @@ fn default_signature_param() -> String {
 
 use crate::{
     ApiCall, ApiCatalog, ApiDefinition, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError,
-    FlowDefinition, FlowInputSpec, FlowOutputSpec, HttpRequestSource, HttpRequestTemplate,
-    HttpStepDefinition, JsonTemplate, RequestOptionOverrides, ResponseCheck, ResponseExport,
+    FlowDefinition, FlowInputSpec, FlowOutputSpec, ForEachDefinition, HttpRequestSource,
+    HttpRequestTemplate, HttpStepDefinition, JsonTemplate, LoopCarry, LoopCollection,
+    LoopErrorPolicy, RepeatUntilDefinition, RequestOptionOverrides, ResponseCheck, ResponseExport,
     TemplatePart, TextTemplate, ValueReference,
 };
 
@@ -43,6 +44,123 @@ fn layout_empty(layout: &EditorLayout) -> bool {
 }
 fn is_false(value: &bool) -> bool {
     !value
+}
+
+/// Check variant-specific shape before normalization can discard missing or inapplicable fields.
+/// Empty but structurally complete drafts remain loadable; the compiler validates their semantics.
+pub(super) fn validate_step_shapes(document: &Value) -> Result<(), DocumentError> {
+    if let Some(steps) = document.pointer("/flow/steps").and_then(Value::as_array) {
+        for (index, step) in steps.iter().enumerate() {
+            validate_step_shape(step, &format!("flow.steps[{index}]"))?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_step_shape(step: &Value, path: &str) -> Result<(), DocumentError> {
+    let Some(fields) = step.as_object() else {
+        return Ok(()); // Typed deserialization reports non-object steps.
+    };
+    let (required, allowed): (&[&str], &[&str]) = match fields.get("kind") {
+        None => (
+            &["request"],
+            &["id", "name", "when", "request", "checks", "exports"],
+        ),
+        Some(Value::String(kind)) if kind == "for_each" => (
+            &["items", "as", "steps"],
+            &[
+                "id",
+                "name",
+                "when",
+                "kind",
+                "items",
+                "as",
+                "index_as",
+                "max_iterations",
+                "on_error",
+                "steps",
+                "exports",
+            ],
+        ),
+        Some(Value::String(kind)) if kind == "repeat_until" => (
+            &["until", "steps"],
+            &[
+                "id",
+                "name",
+                "when",
+                "kind",
+                "max_iterations",
+                "interval_ms",
+                "timeout_ms",
+                "until",
+                "fail_when",
+                "carry",
+                "steps",
+            ],
+        ),
+        Some(_) => {
+            return Err(DocumentError::new(
+                DocumentErrorCode::Schema,
+                format!("{path}.kind"),
+                "step kind must be for_each or repeat_until; omit kind for HTTP steps",
+            ))
+        }
+    };
+    for field in required {
+        if fields.get(*field).is_none_or(Value::is_null) {
+            return Err(DocumentError::new(
+                DocumentErrorCode::Schema,
+                format!("{path}.{field}"),
+                format!("missing or null required field `{field}`"),
+            ));
+        }
+    }
+    for field in fields.keys() {
+        if !allowed.contains(&field.as_str()) {
+            return Err(DocumentError::new(
+                DocumentErrorCode::Schema,
+                format!("{path}.{field}"),
+                format!("field `{field}` is not allowed for this step kind"),
+            ));
+        }
+    }
+    if let Some(exports) = fields.get("exports").and_then(Value::as_array) {
+        let collection = fields.contains_key("kind");
+        let required = if collection { "collect" } else { "path" };
+        let allowed: &[&str] = if collection {
+            &["name", "collect"]
+        } else {
+            &["name", "path", "sensitive"]
+        };
+        for (index, export) in exports.iter().enumerate() {
+            let Some(export) = export.as_object() else {
+                continue;
+            };
+            let export_path = format!("{path}.exports[{index}]");
+            if export.get(required).is_none_or(Value::is_null) {
+                return Err(DocumentError::new(
+                    DocumentErrorCode::Schema,
+                    format!("{export_path}.{required}"),
+                    format!("missing or null required field `{required}`"),
+                ));
+            }
+            for field in export.keys() {
+                if !allowed.contains(&field.as_str()) {
+                    return Err(DocumentError::new(
+                        DocumentErrorCode::Schema,
+                        format!("{export_path}.{field}"),
+                        format!("field `{field}` is not allowed for this export kind"),
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(steps) = fields.get("steps").and_then(Value::as_array) {
+        for (index, step) in steps.iter().enumerate() {
+            validate_step_shape(step, &format!("{path}.steps[{index}]"))?;
+        }
+    }
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize)]
@@ -83,11 +201,58 @@ struct Step {
     name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     when: Option<ConditionWire>,
-    request: Request,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    kind: Option<WireStepKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    request: Option<Request>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    items: Option<Json>,
+    #[serde(default, rename = "as", skip_serializing_if = "Option::is_none")]
+    item_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    index_as: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_iterations: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    on_error: Option<WireLoopErrorPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    interval_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    until: Option<ConditionWire>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    fail_when: Option<ConditionWire>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    carry: Vec<Carry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    steps: Option<Vec<Step>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     checks: Vec<Check>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     exports: Vec<Export>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum WireStepKind {
+    ForEach,
+    RepeatUntil,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Carry {
+    name: String,
+    initial: Json,
+    from: Ref,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum WireLoopErrorPolicy {
+    FailFast,
+    Continue,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -226,7 +391,10 @@ enum Check {
 #[serde(deny_unknown_fields)]
 struct Export {
     name: String,
-    path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect: Option<Ref>,
     #[serde(default, skip_serializing_if = "is_false")]
     sensitive: bool,
 }
@@ -361,27 +529,7 @@ impl From<Document> for FlowDocument {
                         sensitive: input.sensitive,
                     })
                     .collect(),
-                steps: value
-                    .flow
-                    .steps
-                    .into_iter()
-                    .map(|step| HttpStepDefinition {
-                        name: step.name.unwrap_or_else(|| step.id.clone()),
-                        id: step.id,
-                        when: step.when.map(Into::into),
-                        request: step.request.into(),
-                        checks: step.checks.into_iter().map(Into::into).collect(),
-                        exports: step
-                            .exports
-                            .into_iter()
-                            .map(|export| ResponseExport {
-                                name: export.name,
-                                json_path: export.path,
-                                sensitive: export.sensitive,
-                            })
-                            .collect(),
-                    })
-                    .collect(),
+                steps: value.flow.steps.into_iter().map(Into::into).collect(),
                 outputs: value
                     .flow
                     .outputs
@@ -427,27 +575,7 @@ impl From<&FlowDocument> for Document {
                         sensitive: input.sensitive,
                     })
                     .collect(),
-                steps: value
-                    .flow
-                    .steps
-                    .iter()
-                    .map(|step| Step {
-                        id: step.id.clone(),
-                        name: Some(step.name.clone()),
-                        when: step.when.as_ref().map(Into::into),
-                        request: (&step.request).into(),
-                        checks: step.checks.iter().map(Into::into).collect(),
-                        exports: step
-                            .exports
-                            .iter()
-                            .map(|export| Export {
-                                name: export.name.clone(),
-                                path: export.json_path.clone(),
-                                sensitive: export.sensitive,
-                            })
-                            .collect(),
-                    })
-                    .collect(),
+                steps: value.flow.steps.iter().map(Into::into).collect(),
                 outputs: value
                     .flow
                     .outputs
@@ -458,6 +586,221 @@ impl From<&FlowDocument> for Document {
                     })
                     .collect(),
             },
+        }
+    }
+}
+
+impl From<Step> for HttpStepDefinition {
+    fn from(step: Step) -> Self {
+        let name = step.name.unwrap_or_else(|| step.id.clone());
+        let when = step.when.map(Into::into);
+        match step.kind {
+            None => Self {
+                name,
+                id: step.id,
+                when,
+                request: step.request.expect("validated HTTP request").into(),
+                checks: step.checks.into_iter().map(Into::into).collect(),
+                exports: step
+                    .exports
+                    .into_iter()
+                    .map(|export| ResponseExport {
+                        name: export.name,
+                        json_path: export.path.expect("validated response export path"),
+                        sensitive: export.sensitive,
+                    })
+                    .collect(),
+            },
+            Some(WireStepKind::ForEach) => Self {
+                name,
+                id: step.id,
+                when,
+                request: HttpRequestSource::ForEach(ForEachDefinition {
+                    items: step.items.expect("validated for_each items").into(),
+                    item_name: step.item_name.expect("validated for_each binding"),
+                    index_name: step.index_as,
+                    max_iterations: step.max_iterations.unwrap_or(100),
+                    on_error: step
+                        .on_error
+                        .map(Into::into)
+                        .unwrap_or(LoopErrorPolicy::FailFast),
+                    steps: step
+                        .steps
+                        .expect("validated loop body")
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    collect: step
+                        .exports
+                        .into_iter()
+                        .map(|export| {
+                            let reference = export.collect.expect("validated collection export");
+                            LoopCollection {
+                                name: export.name,
+                                step_id: reference.step,
+                                output: reference.name,
+                            }
+                        })
+                        .collect(),
+                }),
+                checks: step.checks.into_iter().map(Into::into).collect(),
+                exports: Vec::new(),
+            },
+            Some(WireStepKind::RepeatUntil) => Self {
+                name,
+                id: step.id,
+                when,
+                request: HttpRequestSource::RepeatUntil(RepeatUntilDefinition {
+                    max_iterations: step.max_iterations.unwrap_or(20),
+                    interval_ms: step.interval_ms.unwrap_or(1_000),
+                    timeout_ms: step.timeout_ms.unwrap_or(60_000),
+                    until: step.until.expect("validated repeat_until condition").into(),
+                    fail_when: step.fail_when.map(Into::into),
+                    carry: step
+                        .carry
+                        .into_iter()
+                        .map(|carry| LoopCarry {
+                            name: carry.name,
+                            initial: carry.initial.into(),
+                            step_id: carry.from.step,
+                            output: carry.from.name,
+                        })
+                        .collect(),
+                    steps: step
+                        .steps
+                        .expect("validated loop body")
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                }),
+                checks: step.checks.into_iter().map(Into::into).collect(),
+                exports: step
+                    .exports
+                    .into_iter()
+                    .map(|export| ResponseExport {
+                        name: export.name,
+                        json_path: export.path.expect("validated response export path"),
+                        sensitive: export.sensitive,
+                    })
+                    .collect(),
+            },
+        }
+    }
+}
+
+impl From<&HttpStepDefinition> for Step {
+    fn from(step: &HttpStepDefinition) -> Self {
+        match &step.request {
+            HttpRequestSource::ForEach(loop_step) => Self {
+                id: step.id.clone(),
+                name: Some(step.name.clone()),
+                when: step.when.as_ref().map(Into::into),
+                kind: Some(WireStepKind::ForEach),
+                request: None,
+                items: Some((&loop_step.items).into()),
+                item_name: Some(loop_step.item_name.clone()),
+                index_as: loop_step.index_name.clone(),
+                max_iterations: Some(loop_step.max_iterations),
+                on_error: Some(loop_step.on_error.into()),
+                interval_ms: None,
+                timeout_ms: None,
+                until: None,
+                fail_when: None,
+                carry: Vec::new(),
+                steps: Some(loop_step.steps.iter().map(Into::into).collect()),
+                checks: Vec::new(),
+                exports: loop_step
+                    .collect
+                    .iter()
+                    .map(|export| Export {
+                        name: export.name.clone(),
+                        path: None,
+                        collect: Some(Ref {
+                            step: export.step_id.clone(),
+                            name: export.output.clone(),
+                        }),
+                        sensitive: false,
+                    })
+                    .collect(),
+            },
+            HttpRequestSource::RepeatUntil(loop_step) => Self {
+                id: step.id.clone(),
+                name: Some(step.name.clone()),
+                when: step.when.as_ref().map(Into::into),
+                kind: Some(WireStepKind::RepeatUntil),
+                request: None,
+                items: None,
+                item_name: None,
+                index_as: None,
+                max_iterations: Some(loop_step.max_iterations),
+                on_error: None,
+                interval_ms: Some(loop_step.interval_ms),
+                timeout_ms: Some(loop_step.timeout_ms),
+                until: Some((&loop_step.until).into()),
+                fail_when: loop_step.fail_when.as_ref().map(Into::into),
+                carry: loop_step
+                    .carry
+                    .iter()
+                    .map(|carry| Carry {
+                        name: carry.name.clone(),
+                        initial: (&carry.initial).into(),
+                        from: Ref {
+                            step: carry.step_id.clone(),
+                            name: carry.output.clone(),
+                        },
+                    })
+                    .collect(),
+                steps: Some(loop_step.steps.iter().map(Into::into).collect()),
+                checks: Vec::new(),
+                exports: Vec::new(),
+            },
+            HttpRequestSource::Inline(_) | HttpRequestSource::Api(_) => Self {
+                id: step.id.clone(),
+                name: Some(step.name.clone()),
+                when: step.when.as_ref().map(Into::into),
+                kind: None,
+                request: Some((&step.request).into()),
+                items: None,
+                item_name: None,
+                index_as: None,
+                max_iterations: None,
+                on_error: None,
+                interval_ms: None,
+                timeout_ms: None,
+                until: None,
+                fail_when: None,
+                carry: Vec::new(),
+                steps: None,
+                checks: step.checks.iter().map(Into::into).collect(),
+                exports: step
+                    .exports
+                    .iter()
+                    .map(|export| Export {
+                        name: export.name.clone(),
+                        path: Some(export.json_path.clone()),
+                        collect: None,
+                        sensitive: export.sensitive,
+                    })
+                    .collect(),
+            },
+        }
+    }
+}
+
+impl From<WireLoopErrorPolicy> for LoopErrorPolicy {
+    fn from(value: WireLoopErrorPolicy) -> Self {
+        match value {
+            WireLoopErrorPolicy::FailFast => Self::FailFast,
+            WireLoopErrorPolicy::Continue => Self::Continue,
+        }
+    }
+}
+
+impl From<LoopErrorPolicy> for WireLoopErrorPolicy {
+    fn from(value: LoopErrorPolicy) -> Self {
+        match value {
+            LoopErrorPolicy::FailFast => Self::FailFast,
+            LoopErrorPolicy::Continue => Self::Continue,
         }
     }
 }
@@ -553,6 +896,9 @@ impl From<&HttpRequestSource> for Request {
                     .map(|(name, value)| (name.clone(), value.into()))
                     .collect(),
             },
+            HttpRequestSource::ForEach(_) | HttpRequestSource::RepeatUntil(_) => {
+                unreachable!("control-flow steps are serialized by Step")
+            }
         }
     }
 }

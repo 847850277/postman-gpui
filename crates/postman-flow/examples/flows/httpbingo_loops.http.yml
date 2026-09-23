@@ -1,0 +1,66 @@
+schema_version: 1
+flow:
+  name: HTTPBingo bounded loop patterns
+  inputs:
+    - name: host
+      default: https://httpbingo.org
+  steps:
+    - id: collect-items
+      name: Fetch each item
+      kind: for_each
+      items:
+        literal: [alpha, beta]
+      as: item
+      index_as: item_index
+      max_iterations: 10
+      on_error: fail_fast
+      steps:
+        - id: fetch-item
+          request:
+            kind: http
+            method: GET
+            url:
+              concat:
+                - input: host
+                - literal: /anything/
+                - input: item
+                - literal: "?index="
+                - input: item_index
+          checks:
+            - kind: status
+              equals: 200
+          exports:
+            - name: url
+              path: $.url
+      exports:
+        - name: urls
+          collect: { step: fetch-item, name: url }
+    - id: wait-for-known-document
+      name: Poll an idempotent endpoint
+      kind: repeat_until
+      max_iterations: 3
+      interval_ms: 100
+      timeout_ms: 5000
+      until:
+        eq:
+          - output: { step: query-document, name: title }
+          - literal: Sample Slide Show
+      steps:
+        - id: query-document
+          request:
+            kind: http
+            method: GET
+            url:
+              concat:
+                - input: host
+                - literal: /json
+          checks:
+            - kind: status
+              equals: 200
+          exports:
+            - name: title
+              path: $.slideshow.title
+  outputs:
+    - name: urls
+      value:
+        output: { step: collect-items, name: urls }

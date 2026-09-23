@@ -1,4 +1,14 @@
 schema_version: 1
+apis:
+  get-task:
+    parameters: [host, master_key, task_uid]
+    request:
+      method: GET
+      url:
+        concat: [{input: host}, {literal: /tasks/}, {input: task_uid}]
+      headers:
+      - name: {literal: Authorization}
+        value: {concat: [{literal: 'Bearer '}, {input: master_key}]}
 flow:
   name: meilisearch-documents-crud-lifecycle-e2e
   inputs:
@@ -28,6 +38,51 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-1-clean-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      in: [{output: {step: query-step-1-clean-index, name: status}}, {literal: [succeeded, failed]}]
+    fail_when:
+      eq: [{output: {step: query-step-1-clean-index, name: status}}, {literal: canceled}]
+    steps:
+    - id: query-step-1-clean-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-1-clean-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
+    # A fresh server has no index to delete. Only this specific failure is harmless.
+    - id: allow-missing-index
+      when:
+        eq: [{output: {step: query-step-1-clean-index, name: status}}, {literal: failed}]
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-1-clean-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      - kind: jsonpath
+        path: $.error.code
+        equals: {literal: index_not_found}
 
   # 2. Create 'books' search index with primaryKey 'id'
   - id: step-2-create-index
@@ -65,6 +120,34 @@ flow:
       path: $.status
       equals:
         literal: enqueued
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-2-create-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-2-create-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-2-create-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-2-create-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-2-create-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 3. Create initial documents (POST /indexes/books/documents)
   - id: step-3-create-documents
@@ -125,6 +208,34 @@ flow:
       path: $.type
       equals:
         literal: documentAdditionOrUpdate
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-3-create-documents
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-3-create-documents, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-3-create-documents, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-3-create-documents
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-3-create-documents, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 4. Partial update of document #101 (PUT /indexes/books/documents)
   # Updates price to 49 and adds 'discounted': true without wiping other fields
@@ -170,6 +281,34 @@ flow:
       path: $.type
       equals:
         literal: documentAdditionOrUpdate
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-4-partial-update
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-4-partial-update, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-4-partial-update, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-4-partial-update
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-4-partial-update, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 5. Delete single document #102 by ID (DELETE /indexes/books/documents/102)
   - id: step-5-delete-single-document
@@ -199,6 +338,34 @@ flow:
       path: $.type
       equals:
         literal: documentDeletion
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-5-delete-single-document
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-5-delete-single-document, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-5-delete-single-document, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-5-delete-single-document
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-5-delete-single-document, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 6. Batch delete documents (POST /indexes/books/documents/delete-batch)
   # Deleting #103
@@ -238,6 +405,34 @@ flow:
       path: $.type
       equals:
         literal: documentDeletion
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-6-batch-delete-documents
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-6-batch-delete-documents, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-6-batch-delete-documents, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-6-batch-delete-documents
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-6-batch-delete-documents, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 7. Clean up 'books' index
   - id: step-7-delete-index
@@ -263,4 +458,32 @@ flow:
       path: $.status
       equals:
         literal: enqueued
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-7-delete-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-7-delete-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-7-delete-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-7-delete-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-7-delete-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 

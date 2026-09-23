@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 
+use crate::{flow_runner::run_flow_plan, HttpFile, RunReport};
 use postman_flow::{compile_flow, ApiCatalog, CompileEnvironment, FlowInputs, FlowPlan};
 use postman_http::{request::RequestOptions, HttpTransport};
-use serde::Serialize;
-
-use crate::{flow_runner::run_flow_plan, HttpFile};
 
 pub fn compile_http_file(file: &HttpFile) -> Result<FlowPlan, String> {
     let definition = file
@@ -22,40 +20,6 @@ pub fn compile_http_file(file: &HttpFile) -> Result<FlowPlan, String> {
             .collect::<Vec<_>>()
             .join("\n")
     })
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct RunReport {
-    pub success: bool,
-    pub requests: Vec<RequestReport>,
-    /// Declared flow returns. Sensitive values are replaced before entering the report.
-    pub outputs: BTreeMap<String, serde_json::Value>,
-    /// Distinguishes redacted values from an ordinary literal "[REDACTED]" string.
-    pub redacted_outputs: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct RequestReport {
-    pub name: String,
-    pub success: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub skipped: bool,
-    pub status: Option<u16>,
-    pub elapsed_ms: Option<u128>,
-    pub assertions: Vec<AssertionReport>,
-    pub captures: Vec<String>,
-    pub error: Option<String>,
-}
-
-fn is_false(b: &bool) -> bool {
-    !*b
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct AssertionReport {
-    pub expression: String,
-    pub success: bool,
-    pub message: Option<String>,
 }
 
 pub struct HeadlessRunner<T> {

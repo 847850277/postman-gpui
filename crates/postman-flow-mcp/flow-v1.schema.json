@@ -54,6 +54,13 @@
       }
     },
     "step": {
+      "oneOf": [
+        { "$ref": "#/$defs/http_step" },
+        { "$ref": "#/$defs/for_each_step" },
+        { "$ref": "#/$defs/repeat_until_step" }
+      ]
+    },
+    "http_step": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "request"],
@@ -72,6 +79,100 @@
           "items": { "$ref": "#/$defs/export" },
           "default": []
         }
+      }
+    },
+    "for_each_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "items", "as", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/name" },
+        "name": { "type": "string" },
+        "when": { "$ref": "#/$defs/condition" },
+        "kind": { "const": "for_each" },
+        "items": { "$ref": "#/$defs/json_expression" },
+        "as": { "$ref": "#/$defs/name" },
+        "index_as": { "$ref": "#/$defs/name" },
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 100
+        },
+        "on_error": {
+          "enum": ["fail_fast", "continue"],
+          "default": "fail_fast"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collection_export" },
+          "default": []
+        }
+      }
+    },
+    "repeat_until_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "until", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/name" },
+        "name": { "type": "string" },
+        "when": { "$ref": "#/$defs/condition" },
+        "kind": { "const": "repeat_until" },
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 20
+        },
+        "interval_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000,
+          "default": 1000
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000,
+          "default": 60000
+        },
+        "until": { "$ref": "#/$defs/condition" },
+        "fail_when": { "$ref": "#/$defs/condition" },
+        "carry": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/carry" },
+          "default": []
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    },
+    "collection_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "collect"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "collect": { "$ref": "#/$defs/step_ref" }
+      }
+    },
+    "carry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "initial", "from"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "initial": { "$ref": "#/$defs/json_expression" },
+        "from": { "$ref": "#/$defs/step_ref" }
       }
     },
     "request": {

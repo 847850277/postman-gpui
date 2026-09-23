@@ -125,6 +125,7 @@ pub fn parse_flow_yaml(source: &str) -> Result<FlowDocument, DocumentError> {
             ))
         }
     }
+    wire::validate_step_shapes(&json)?;
     let document: wire::Document = serde_path_to_error::deserialize(json).map_err(|error| {
         DocumentError::new(
             DocumentErrorCode::Schema,

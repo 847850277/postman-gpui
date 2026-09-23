@@ -5,10 +5,13 @@ use std::{
 
 use crate::{
     json_path::JsonPath,
-    plan::{CompiledCheck, CompiledCondition, CompiledExport, CompiledRequest, HttpStepPlan},
+    plan::{
+        CompiledCarry, CompiledCheck, CompiledCollection, CompiledCondition, CompiledExport,
+        CompiledRequest, CompiledStepAction, ForEachPlan, HttpStepPlan, RepeatUntilPlan,
+    },
     ApiCatalog, AuthTemplate, BodyTemplate, ConditionExpr, FlowDefinition, FlowPlan,
-    HttpRequestSource, HttpRequestTemplate, JsonTemplate, ResponseCheck, TemplatePart,
-    TextTemplate, ValueReference,
+    HttpRequestSource, HttpRequestTemplate, HttpStepDefinition, JsonTemplate, ResponseCheck,
+    TemplatePart, TextTemplate, ValueReference,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -89,17 +92,7 @@ pub fn compile_flow(
         compiler.error(
             DiagnosticCode::EmptyFlow,
             &DiagnosticLocation::root("flow.steps"),
-            "flow must contain at least one HTTP step",
-        );
-    }
-    if environment
-        .max_steps
-        .is_some_and(|limit| source.steps.len() > limit)
-    {
-        compiler.error(
-            DiagnosticCode::StepLimitExceeded,
-            &DiagnosticLocation::root("flow.steps"),
-            "flow exceeds the configured step limit",
+            "flow must contain at least one step",
         );
     }
     let mut inputs = HashSet::new();
@@ -110,113 +103,15 @@ pub fn compile_flow(
             &DiagnosticLocation::root(&format!("flow.inputs[{index}].name")),
         );
     }
-    let mut ids = HashSet::new();
-    let mut available = HashSet::new();
-    let mut steps = Vec::new();
-    for (index, step) in source.steps.iter().enumerate() {
-        let location = DiagnosticLocation {
-            field: format!("flow.steps[{index}]"),
-            step_id: Some(step.id.clone()),
-            api_id: None,
-        };
-        compiler.unique(&step.id, &mut ids, &location.child("id"));
-        compiler.name(&step.name, &location.child("name"));
-        let request = compiler.expand(
-            &step.request,
-            api_catalog,
-            &inputs,
-            &available,
-            &location.child("request"),
-        );
-        let when = step.when.as_ref().and_then(|expr| {
-            compiler.condition(expr, &inputs, &available, &location.child("when"), 0)
-        });
-        let mut checks = Vec::new();
-        for (index, check) in step.checks.iter().enumerate() {
-            let at = location.child(format!("checks[{index}]"));
-            match check {
-                ResponseCheck::StatusEquals(value) => {
-                    if !(100..=599).contains(value) {
-                        compiler.error(
-                            DiagnosticCode::InvalidRequest,
-                            &at.child("equals"),
-                            "HTTP status must be between 100 and 599",
-                        );
-                    }
-                    checks.push(CompiledCheck::Status(*value));
-                }
-                ResponseCheck::JsonValueEquals { path, expected } => {
-                    compiler.json(expected, &inputs, &available, &at.child("equals"), 0);
-                    if let Some(path) = compiler.path(path, &at.child("path")) {
-                        checks.push(CompiledCheck::JsonValue {
-                            path,
-                            expected: expected.clone(),
-                        });
-                    }
-                }
-                ResponseCheck::HeaderExists { name } => {
-                    if name.trim().is_empty() {
-                        compiler.error(
-                            DiagnosticCode::InvalidRequest,
-                            &at.child("name"),
-                            "header name cannot be empty",
-                        );
-                    }
-                    checks.push(CompiledCheck::HeaderExists { name: name.clone() });
-                }
-                ResponseCheck::HeaderContains { name, expected } => {
-                    if name.trim().is_empty() {
-                        compiler.error(
-                            DiagnosticCode::InvalidRequest,
-                            &at.child("name"),
-                            "header name cannot be empty",
-                        );
-                    }
-                    compiler.text(expected, &inputs, &available, &at.child("equals"));
-                    checks.push(CompiledCheck::HeaderContains {
-                        name: name.clone(),
-                        expected: expected.clone(),
-                    });
-                }
-                ResponseCheck::BodyContains { expected } => {
-                    compiler.text(expected, &inputs, &available, &at.child("equals"));
-                    checks.push(CompiledCheck::BodyContains {
-                        expected: expected.clone(),
-                    });
-                }
-                ResponseCheck::RedirectsEquals(value) => {
-                    checks.push(CompiledCheck::Redirects(*value));
-                }
-                ResponseCheck::ErrorEquals(expected) => {
-                    checks.push(CompiledCheck::Error(*expected));
-                }
-            }
-        }
-        let mut names = HashSet::new();
-        let mut exports = Vec::new();
-        for (index, export) in step.exports.iter().enumerate() {
-            let at = location.child(format!("exports[{index}]"));
-            compiler.unique(&export.name, &mut names, &at.child("name"));
-            if let Some(path) = compiler.path(&export.json_path, &at.child("path")) {
-                exports.push(CompiledExport {
-                    name: export.name.clone(),
-                    path,
-                    sensitive: export.sensitive,
-                });
-            }
-        }
-        available.extend(names.into_iter().map(|name| (step.id.clone(), name)));
-        if let Some(request) = request {
-            steps.push(HttpStepPlan {
-                id: step.id.clone(),
-                name: step.name.clone(),
-                when,
-                request,
-                checks,
-                exports,
-            });
-        }
-    }
+    compiler.max_steps = environment.max_steps;
+    let (steps, available) = compiler.steps(
+        &source.steps,
+        api_catalog,
+        &inputs,
+        &HashSet::new(),
+        "flow.steps",
+        0,
+    );
     let mut output_names = HashSet::new();
     for (index, output) in source.outputs.iter().enumerate() {
         let at = DiagnosticLocation::root(&format!("flow.outputs[{index}]"));
@@ -238,10 +133,373 @@ pub fn compile_flow(
 #[derive(Default)]
 struct Compiler {
     errors: Vec<Diagnostic>,
+    step_count: usize,
+    max_steps: Option<usize>,
+    step_ids: HashSet<String>,
 }
 type Outputs = HashSet<(String, String)>;
 
 impl Compiler {
+    fn steps(
+        &mut self,
+        source: &[HttpStepDefinition],
+        api_catalog: &ApiCatalog,
+        inputs: &HashSet<String>,
+        outer_available: &Outputs,
+        field: &str,
+        loop_depth: usize,
+    ) -> (Vec<HttpStepPlan>, Outputs) {
+        if source.is_empty() {
+            self.error(
+                DiagnosticCode::EmptyFlow,
+                &DiagnosticLocation::root(field),
+                "step group must not be empty",
+            );
+        }
+        let mut available = outer_available.clone();
+        let mut plans = Vec::new();
+        for (index, step) in source.iter().enumerate() {
+            self.step_count += 1;
+            if self.max_steps.is_some_and(|limit| self.step_count > limit) {
+                self.error(
+                    DiagnosticCode::StepLimitExceeded,
+                    &DiagnosticLocation::root(field),
+                    "flow exceeds the configured step limit",
+                );
+            }
+            let location = DiagnosticLocation {
+                field: format!("{field}[{index}]"),
+                step_id: Some(step.id.clone()),
+                api_id: None,
+            };
+            self.name(&step.id, &location.child("id"));
+            if !self.step_ids.insert(step.id.clone()) {
+                self.error(
+                    DiagnosticCode::DuplicateName,
+                    &location.child("id"),
+                    format!("duplicate step id '{}'", step.id),
+                );
+            }
+            self.name(&step.name, &location.child("name"));
+            let when = step.when.as_ref().and_then(|expr| {
+                self.condition(expr, inputs, &available, &location.child("when"), 0)
+            });
+
+            let action = match &step.request {
+                HttpRequestSource::Inline(_) | HttpRequestSource::Api(_) => {
+                    let request = self.expand(
+                        &step.request,
+                        api_catalog,
+                        inputs,
+                        &available,
+                        &location.child("request"),
+                    );
+                    let checks = self.checks(&step.checks, inputs, &available, &location);
+                    let (exports, names) = self.exports(&step.exports, &location);
+                    available.extend(names.into_iter().map(|name| (step.id.clone(), name)));
+                    request.map(|request| CompiledStepAction::Http {
+                        request,
+                        checks,
+                        exports,
+                    })
+                }
+                HttpRequestSource::ForEach(loop_step) => {
+                    self.control_fields(step, &location);
+                    self.loop_depth(loop_depth, &location);
+                    self.loop_limit(loop_step.max_iterations, &location.child("max_iterations"));
+                    self.name(&loop_step.item_name, &location.child("as"));
+                    if let Some(index_name) = &loop_step.index_name {
+                        self.name(index_name, &location.child("index_as"));
+                        if index_name == &loop_step.item_name {
+                            self.error(
+                                DiagnosticCode::DuplicateName,
+                                &location.child("index_as"),
+                                "index binding must differ from the item binding",
+                            );
+                        }
+                    }
+                    self.json(
+                        &loop_step.items,
+                        inputs,
+                        &available,
+                        &location.child("items"),
+                        0,
+                    );
+                    let mut child_inputs = inputs.clone();
+                    child_inputs.insert(loop_step.item_name.clone());
+                    if let Some(index_name) = &loop_step.index_name {
+                        child_inputs.insert(index_name.clone());
+                    }
+                    let (steps, child_available) = self.steps(
+                        &loop_step.steps,
+                        api_catalog,
+                        &child_inputs,
+                        &available,
+                        &format!("{}.steps", location.field),
+                        loop_depth + 1,
+                    );
+                    let child_outputs = child_available
+                        .difference(&available)
+                        .cloned()
+                        .collect::<Outputs>();
+                    let mut names = HashSet::new();
+                    let collect = loop_step
+                        .collect
+                        .iter()
+                        .enumerate()
+                        .map(|(index, collection)| {
+                            let at = location.child(format!("exports[{index}]"));
+                            self.unique(&collection.name, &mut names, &at.child("name"));
+                            self.output(
+                                &collection.step_id,
+                                &collection.output,
+                                &child_outputs,
+                                &at.child("collect"),
+                            );
+                            CompiledCollection {
+                                name: collection.name.clone(),
+                                step_id: collection.step_id.clone(),
+                                output: collection.output.clone(),
+                            }
+                        })
+                        .collect();
+                    available.extend(names.into_iter().map(|name| (step.id.clone(), name)));
+                    Some(CompiledStepAction::ForEach(ForEachPlan {
+                        items: loop_step.items.clone(),
+                        item_name: loop_step.item_name.clone(),
+                        index_name: loop_step.index_name.clone(),
+                        max_iterations: loop_step.max_iterations,
+                        on_error: loop_step.on_error,
+                        steps,
+                        collect,
+                    }))
+                }
+                HttpRequestSource::RepeatUntil(loop_step) => {
+                    self.control_fields(step, &location);
+                    self.loop_depth(loop_depth, &location);
+                    self.loop_limit(loop_step.max_iterations, &location.child("max_iterations"));
+                    if loop_step.interval_ms == 0 || loop_step.interval_ms > 60_000 {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &location.child("interval_ms"),
+                            "interval_ms must be between 1 and 60000",
+                        );
+                    }
+                    if loop_step.timeout_ms == 0 || loop_step.timeout_ms > 86_400_000 {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &location.child("timeout_ms"),
+                            "timeout_ms must be between 1 and 86400000",
+                        );
+                    }
+                    let mut child_inputs = inputs.clone();
+                    let mut carry_names = HashSet::new();
+                    for (index, carry) in loop_step.carry.iter().enumerate() {
+                        let at = location.child(format!("carry[{index}]"));
+                        self.unique(&carry.name, &mut carry_names, &at.child("name"));
+                        self.json(&carry.initial, inputs, &available, &at.child("initial"), 0);
+                        if inputs.contains(&carry.name) {
+                            self.error(
+                                DiagnosticCode::DuplicateName,
+                                &at.child("name"),
+                                "carry binding must not shadow a flow input",
+                            );
+                        }
+                        child_inputs.insert(carry.name.clone());
+                    }
+                    let (steps, child_available) = self.steps(
+                        &loop_step.steps,
+                        api_catalog,
+                        &child_inputs,
+                        &available,
+                        &format!("{}.steps", location.field),
+                        loop_depth + 1,
+                    );
+                    let child_outputs = child_available
+                        .difference(&available)
+                        .cloned()
+                        .collect::<Outputs>();
+                    let carry = loop_step
+                        .carry
+                        .iter()
+                        .enumerate()
+                        .map(|(index, carry)| {
+                            self.output(
+                                &carry.step_id,
+                                &carry.output,
+                                &child_outputs,
+                                &location.child(format!("carry[{index}].from")),
+                            );
+                            CompiledCarry {
+                                name: carry.name.clone(),
+                                initial: carry.initial.clone(),
+                                step_id: carry.step_id.clone(),
+                                output: carry.output.clone(),
+                            }
+                        })
+                        .collect();
+                    let until = self.condition(
+                        &loop_step.until,
+                        &child_inputs,
+                        &child_available,
+                        &location.child("until"),
+                        0,
+                    );
+                    let fail_when = loop_step.fail_when.as_ref().and_then(|condition| {
+                        self.condition(
+                            condition,
+                            &child_inputs,
+                            &child_available,
+                            &location.child("fail_when"),
+                            0,
+                        )
+                    });
+                    until.map(|until| {
+                        CompiledStepAction::RepeatUntil(RepeatUntilPlan {
+                            max_iterations: loop_step.max_iterations,
+                            interval_ms: loop_step.interval_ms,
+                            timeout_ms: loop_step.timeout_ms,
+                            until,
+                            fail_when,
+                            carry,
+                            steps,
+                        })
+                    })
+                }
+            };
+            if let Some(action) = action {
+                plans.push(HttpStepPlan {
+                    id: step.id.clone(),
+                    name: step.name.clone(),
+                    when,
+                    action,
+                });
+            }
+        }
+        (plans, available)
+    }
+
+    fn control_fields(&mut self, step: &HttpStepDefinition, at: &DiagnosticLocation) {
+        if !step.checks.is_empty() || !step.exports.is_empty() {
+            self.error(
+                DiagnosticCode::InvalidRequest,
+                at,
+                "control-flow steps cannot define HTTP checks or response exports",
+            );
+        }
+    }
+
+    fn loop_depth(&mut self, depth: usize, at: &DiagnosticLocation) {
+        if depth >= 3 {
+            self.error(
+                DiagnosticCode::InvalidRequest,
+                at,
+                "loops may nest at most 3 levels",
+            );
+        }
+    }
+
+    fn loop_limit(&mut self, value: usize, at: &DiagnosticLocation) {
+        if value == 0 || value > 10_000 {
+            self.error(
+                DiagnosticCode::InvalidRequest,
+                at,
+                "max_iterations must be between 1 and 10000",
+            );
+        }
+    }
+
+    fn checks(
+        &mut self,
+        source: &[ResponseCheck],
+        inputs: &HashSet<String>,
+        available: &Outputs,
+        location: &DiagnosticLocation,
+    ) -> Vec<CompiledCheck> {
+        let mut checks = Vec::new();
+        for (index, check) in source.iter().enumerate() {
+            let at = location.child(format!("checks[{index}]"));
+            match check {
+                ResponseCheck::StatusEquals(value) => {
+                    if !(100..=599).contains(value) {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at.child("equals"),
+                            "HTTP status must be between 100 and 599",
+                        );
+                    }
+                    checks.push(CompiledCheck::Status(*value));
+                }
+                ResponseCheck::JsonValueEquals { path, expected } => {
+                    self.json(expected, inputs, available, &at.child("equals"), 0);
+                    if let Some(path) = self.path(path, &at.child("path")) {
+                        checks.push(CompiledCheck::JsonValue {
+                            path,
+                            expected: expected.clone(),
+                        });
+                    }
+                }
+                ResponseCheck::HeaderExists { name } => {
+                    if name.trim().is_empty() {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at.child("name"),
+                            "header name cannot be empty",
+                        );
+                    }
+                    checks.push(CompiledCheck::HeaderExists { name: name.clone() });
+                }
+                ResponseCheck::HeaderContains { name, expected } => {
+                    if name.trim().is_empty() {
+                        self.error(
+                            DiagnosticCode::InvalidRequest,
+                            &at.child("name"),
+                            "header name cannot be empty",
+                        );
+                    }
+                    self.text(expected, inputs, available, &at.child("equals"));
+                    checks.push(CompiledCheck::HeaderContains {
+                        name: name.clone(),
+                        expected: expected.clone(),
+                    });
+                }
+                ResponseCheck::BodyContains { expected } => {
+                    self.text(expected, inputs, available, &at.child("equals"));
+                    checks.push(CompiledCheck::BodyContains {
+                        expected: expected.clone(),
+                    });
+                }
+                ResponseCheck::RedirectsEquals(value) => {
+                    checks.push(CompiledCheck::Redirects(*value))
+                }
+                ResponseCheck::ErrorEquals(expected) => {
+                    checks.push(CompiledCheck::Error(*expected))
+                }
+            }
+        }
+        checks
+    }
+
+    fn exports(
+        &mut self,
+        source: &[crate::ResponseExport],
+        location: &DiagnosticLocation,
+    ) -> (Vec<CompiledExport>, HashSet<String>) {
+        let mut names = HashSet::new();
+        let mut exports = Vec::new();
+        for (index, export) in source.iter().enumerate() {
+            let at = location.child(format!("exports[{index}]"));
+            self.unique(&export.name, &mut names, &at.child("name"));
+            if let Some(path) = self.path(&export.json_path, &at.child("path")) {
+                exports.push(CompiledExport {
+                    name: export.name.clone(),
+                    path,
+                    sensitive: export.sensitive,
+                });
+            }
+        }
+        (exports, names)
+    }
     fn error(
         &mut self,
         code: DiagnosticCode,
@@ -648,6 +906,12 @@ impl Compiler {
         outputs: &Outputs,
         at: &DiagnosticLocation,
     ) -> Option<CompiledRequest> {
+        if matches!(
+            source,
+            HttpRequestSource::ForEach(_) | HttpRequestSource::RepeatUntil(_)
+        ) {
+            unreachable!("control-flow steps are compiled separately");
+        }
         let HttpRequestSource::Api(call) = source else {
             let HttpRequestSource::Inline(request) = source else {
                 unreachable!()

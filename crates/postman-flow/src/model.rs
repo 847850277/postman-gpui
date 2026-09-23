@@ -141,15 +141,60 @@ impl HttpStepDefinition {
 pub enum HttpRequestSource {
     Inline(HttpRequestTemplate),
     Api(ApiCall),
+    ForEach(ForEachDefinition),
+    RepeatUntil(RepeatUntilDefinition),
 }
 
 impl HttpRequestSource {
     pub fn as_inline_mut(&mut self) -> Option<&mut HttpRequestTemplate> {
         match self {
             Self::Inline(request) => Some(request),
-            Self::Api(_) => None,
+            Self::Api(_) | Self::ForEach(_) | Self::RepeatUntil(_) => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopErrorPolicy {
+    FailFast,
+    Continue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoopCollection {
+    pub name: String,
+    pub step_id: String,
+    pub output: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForEachDefinition {
+    pub items: JsonTemplate,
+    pub item_name: String,
+    pub index_name: Option<String>,
+    pub max_iterations: usize,
+    pub on_error: LoopErrorPolicy,
+    pub steps: Vec<HttpStepDefinition>,
+    pub collect: Vec<LoopCollection>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RepeatUntilDefinition {
+    pub max_iterations: usize,
+    pub interval_ms: u64,
+    pub timeout_ms: u64,
+    pub until: ConditionExpr,
+    pub fail_when: Option<ConditionExpr>,
+    pub carry: Vec<LoopCarry>,
+    pub steps: Vec<HttpStepDefinition>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoopCarry {
+    pub name: String,
+    pub initial: JsonTemplate,
+    pub step_id: String,
+    pub output: String,
 }
 
 impl From<HttpRequestTemplate> for HttpRequestSource {
@@ -460,6 +505,23 @@ pub enum StepOutcome {
     Failed { message: String },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopKind {
+    ForEach,
+    RepeatUntil,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopFinishReason {
+    Completed,
+    ConditionMet,
+    FailureCondition,
+    MaxIterations,
+    Timeout,
+    StepFailed,
+    Cancelled,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueReference {
     Input(String),
@@ -554,6 +616,31 @@ pub enum FlowEvent {
     StepFinished {
         step_id: String,
         outcome: StepOutcome,
+    },
+    LoopStarted {
+        step_id: String,
+        kind: LoopKind,
+        limit: usize,
+    },
+    IterationStarted {
+        step_id: String,
+        index: usize,
+    },
+    IterationFinished {
+        step_id: String,
+        index: usize,
+        outcome: StepOutcome,
+    },
+    LoopWaiting {
+        step_id: String,
+        index: usize,
+        interval_ms: u64,
+    },
+    LoopFinished {
+        step_id: String,
+        total_executed: usize,
+        reason: LoopFinishReason,
+        success: bool,
     },
     FlowFinished {
         success: bool,

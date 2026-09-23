@@ -118,10 +118,69 @@ cargo run --locked -p postman-cli -- run \
   crates/postman-flow/examples/flows/crmeb_order_list.http.yml --json
 ~~~
 
+## Loop progress and reports
+
+Native YAML `for_each` and `repeat_until` steps report live progress on stderr in human mode:
+
+```text
+LOOP wait-task [1/3] — running
+WAIT wait-task [1/3] — interval 1000 ms
+LOOP wait-task [2/3] — running
+PASS LOOP wait-task [2/3] — condition_met (1035 ms)
+```
+
+The final stdout report includes each loop's iteration outcomes, body times, actual waiting
+times, configured wait intervals, total elapsed time, and termination reason. Requests inside
+nested loops carry a path such as `outer[2/3] > wait-task[1/5] > query`. Loop invocations and HTTP
+requests have separate counts; loops skipped by `when` are counted as skipped loops.
+
+With `--json`, live progress is disabled and stdout remains one JSON suite report. The existing
+version 1 fields remain; files with loops additionally include `files[i].report.loops`:
+
+```json
+{
+  "step_id": "wait-task",
+  "name": "wait-task",
+  "kind": "repeat_until",
+  "limit": 3,
+  "loop_path": [],
+  "total_executed": 2,
+  "elapsed_ms": 1035,
+  "success": true,
+  "skipped": false,
+  "reason": "condition_met",
+  "iterations": [
+    { "iteration": 1, "success": true, "elapsed_ms": 17, "error": null,
+      "wait_interval_ms": 1000, "wait_elapsed_ms": 1001 },
+    { "iteration": 2, "success": true, "elapsed_ms": 17, "error": null }
+  ],
+  "captures": [],
+  "error": null
+}
+```
+
+Iteration numbers are **one-based** in both CLI text and JSON. Nested loop reports include their
+enclosing iterations in `loop_path`; each invocation has its own report, even when its step ID
+repeats. Requests inside loops have the same `loop_path` field, including their immediate loop.
+Flat request reports omit it, and files without loops omit `loops`.
+
+Termination reasons are `completed`, `condition_met`, `failure_condition`, `max_iterations`,
+`timeout`, `step_failed`, and `cancelled`. A skipped loop has `skipped: true`, `reason: null`, and
+no iterations. The iteration's `success` describes its body: successful HTTP requests can still
+lead to a failed loop because its condition failed, its limit was exhausted, or its deadline
+expired. Use the loop reason and file-level `success` to assess the whole result. A failure
+handled by `on_error: continue` remains visible in the report even if the enclosing flow passes.
+
+Loop timing is wall-clock time observed by the CLI; body timing excludes the following polling
+wait, and the actual wait may be shorter than the configured interval at the loop deadline.
+Progress and reports include export names, never raw intermediate export values.
+Rust callers can use `run_flow_with_progress` to receive `LoopProgress` notifications while
+retaining the same final `RunReport` returned by `run_flow`.
+
 ## Execution and Exit Codes
 
-- `0`: All requests in all suites passed.
-- `1`: One or more assertions failed or unexpected transport errors occurred.
+- `0`: All flows in the suite completed successfully under their configured error policies.
+- `1`: A flow failed, including an unhandled assertion/transport failure or loop failure/timeout.
 - `2`: CLI argument error, file read failure, or YAML/HTTP syntax compilation error.
 
 This exit code contract allows `postman-g` to integrate seamlessly into CI/CD pipelines (e.g. GitHub Actions) and automated test platforms.

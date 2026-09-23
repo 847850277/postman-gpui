@@ -1,4 +1,14 @@
 schema_version: 1
+apis:
+  get-task:
+    parameters: [host, master_key, task_uid]
+    request:
+      method: GET
+      url:
+        concat: [{input: host}, {literal: /tasks/}, {input: task_uid}]
+      headers:
+      - name: {literal: Authorization}
+        value: {concat: [{literal: 'Bearer '}, {input: master_key}]}
 flow:
   name: meilisearch-hackernews-streaming-e2e
   inputs:
@@ -30,6 +40,51 @@ flow:
     checks:
     - kind: status
       equals: 202
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-1-clean-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      in: [{output: {step: query-step-1-clean-index, name: status}}, {literal: [succeeded, failed]}]
+    fail_when:
+      eq: [{output: {step: query-step-1-clean-index, name: status}}, {literal: canceled}]
+    steps:
+    - id: query-step-1-clean-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-1-clean-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
+    # A fresh server has no index to delete. Only this specific failure is harmless.
+    - id: allow-missing-index
+      when:
+        eq: [{output: {step: query-step-1-clean-index, name: status}}, {literal: failed}]
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-1-clean-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      - kind: jsonpath
+        path: $.error.code
+        equals: {literal: index_not_found}
 
   # 2. Create 'hackernews' index with 'id' primary key
   - id: step-2-create-index
@@ -67,6 +122,34 @@ flow:
       path: $.status
       equals:
         literal: enqueued
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-2-create-index
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-2-create-index, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-2-create-index, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-2-create-index
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-2-create-index, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 3. Stream NDJSON Dataset into 'hackernews' index via File Body
   - id: step-3-stream-hackernews-dataset
@@ -104,6 +187,34 @@ flow:
       path: $.type
       equals:
         literal: documentAdditionOrUpdate
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-3-stream-hackernews-dataset
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-3-stream-hackernews-dataset, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-3-stream-hackernews-dataset, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-3-stream-hackernews-dataset
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-3-stream-hackernews-dataset, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
 
   # 4. Configure Filterable and Searchable Settings
   - id: step-4-update-settings
@@ -141,3 +252,31 @@ flow:
       path: $.status
       equals:
         literal: enqueued
+    exports:
+    - name: task_uid
+      path: $.taskUid
+
+  - id: wait-step-4-update-settings
+    kind: repeat_until
+    max_iterations: 3000
+    interval_ms: 100
+    timeout_ms: 300000
+    until:
+      eq: [{output: {step: query-step-4-update-settings, name: status}}, {literal: succeeded}]
+    fail_when:
+      in: [{output: {step: query-step-4-update-settings, name: status}}, {literal: [failed, canceled]}]
+    steps:
+    - id: query-step-4-update-settings
+      request:
+        kind: api
+        api: get-task
+        bindings:
+          host: {input: host}
+          master_key: {input: master_key}
+          task_uid: {output: {step: step-4-update-settings, name: task_uid}}
+      checks:
+      - kind: status
+        equals: 200
+      exports:
+      - name: status
+        path: $.status
