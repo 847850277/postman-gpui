@@ -1,0 +1,106 @@
+name: Meilisearch E2E Tests
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths: &paths
+      - 'crates/postman-flow/**'
+      - 'crates/postman-flow-e2e/**'
+      - 'crates/postman-cli/**'
+      - 'crates/postman-http/**'
+      - 'crates/postman-request/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+      - '.github/workflows/meilisearch-e2e.yml'
+  pull_request:
+    branches: [main, master, develop]
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: meilisearch-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: '1'
+  MEILISEARCH_IMAGE: getmeili/meilisearch:v1.53.2
+  MEILISEARCH_E2E_REQUIRED: '1'
+  MEILISEARCH_E2E_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/meilisearch
+  POSTMAN_G: ${{ github.workspace }}/target/debug/postman-g
+
+jobs:
+  meilisearch-e2e:
+    name: Meilisearch API and Task Lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$MEILISEARCH_E2E_ARTIFACT_DIR"
+
+      - name: Install Rust toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain
+
+      - name: Cache Cargo dependencies and build output
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-meilisearch-e2e-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-meilisearch-e2e-
+
+      - name: Build current postman-g CLI
+        run: cargo build --locked -p postman-cli --bin postman-g 2>&1 | tee "$MEILISEARCH_E2E_ARTIFACT_DIR/build.log"
+
+      - name: Test loop reports and task failure semantics
+        run: |
+          cargo test --locked -p postman-cli --tests 2>&1 | tee "$MEILISEARCH_E2E_ARTIFACT_DIR/cli-tests.log"
+          cargo test --locked -p postman-flow-e2e --test meilisearch_task_waits 2>&1 | tee "$MEILISEARCH_E2E_ARTIFACT_DIR/task-waits.log"
+
+      - name: Prepare pinned Meilisearch image
+        run: |
+          docker version 2>&1 | tee "$MEILISEARCH_E2E_ARTIFACT_DIR/docker.log"
+          docker pull "$MEILISEARCH_IMAGE" 2>&1 | tee -a "$MEILISEARCH_E2E_ARTIFACT_DIR/docker.log"
+
+      # Isolated containers per test prevent fixture collisions. These tests cover
+      # all seven YAML files, repeat imports, and a real HTTP-202/background-failure case.
+      - name: Run all Meilisearch scenarios (server required)
+        timeout-minutes: 10
+        run: cargo test --locked -p postman-flow-e2e --test meilisearch_e2e -- --nocapture --test-threads=1 2>&1 | tee "$MEILISEARCH_E2E_ARTIFACT_DIR/e2e-tests.log"
+
+      # A timed-out/killed test may not run Rust Drop. Retain logs and remove only
+      # containers owned by this suite on the ephemeral GitHub-hosted runner.
+      - name: Collect remaining service logs and clean up
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$MEILISEARCH_E2E_ARTIFACT_DIR"
+          while read -r container; do
+            [ -n "$container" ] || continue
+            docker logs "$container" > "$MEILISEARCH_E2E_ARTIFACT_DIR/$container.remaining.log" 2>&1 || true
+            docker rm -f "$container" || true
+          done < <(docker ps -a --filter 'name=postman_flow_e2e_meili_' --format '{{.Names}}')
+
+      - name: Upload JSON reports and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: meilisearch-e2e-${{ github.run_attempt }}
+          path: artifacts/meilisearch/
+          retention-days: 7
+          if-no-files-found: warn

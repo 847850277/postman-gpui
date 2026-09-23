@@ -79,6 +79,39 @@ cargo test --locked -p postman-flow-e2e --test meilisearch_task_waits
 
 The real-server tests also repeat imports and submit valid NDJSON without the
 required `id`, verifying that a later task failure stops a flow even though the
-upload itself returned HTTP 202. As with the existing harness, real-server tests
-print a skip message if no Meilisearch server can be started; check the output
-when relying on them as validation.
+upload itself returned HTTP 202. Local real-server tests print a skip message if
+no server can be started. Set `MEILISEARCH_E2E_REQUIRED=1` to make an unavailable
+server fail the tests instead. The dedicated CI job always enables this mode;
+the general macOS workspace job keeps the optional behavior because it has no Docker.
+
+## GitHub CI
+
+The `Meilisearch E2E Tests` workflow runs on relevant pull requests and pushes to
+`main`, `master`, and `develop`, and can also be dispatched manually. It builds
+`postman-g` from the checkout, runs CLI/report and deterministic polling tests,
+then executes all seven flow files through the Rust E2E scenarios. Each server
+scenario has its own container; repeated imports and a background failure after
+HTTP 202 are also covered. CI uses `getmeili/meilisearch:v1.53.2` rather than a
+moving `latest` tag, and fails if Docker, image preparation, or server startup fails.
+
+To reproduce the strict server tests locally:
+
+```bash
+cargo build --locked -p postman-cli --bin postman-g
+MEILISEARCH_E2E_REQUIRED=1 \
+MEILISEARCH_IMAGE=getmeili/meilisearch:v1.53.2 \
+MEILISEARCH_E2E_ARTIFACT_DIR=/tmp/meilisearch-e2e-artifacts \
+POSTMAN_G="$PWD/target/debug/postman-g" \
+cargo test --locked -p postman-flow-e2e --test meilisearch_e2e -- --nocapture --test-threads=1
+```
+
+`MEILISEARCH_E2E_ARTIFACT_DIR` is optional. It saves one JSON report and stderr log
+per flow invocation, including failures, plus Docker startup output and server
+logs before container removal. Repeated flows use distinct filenames. CI uploads
+these files and build/test logs on both success and failure as
+`meilisearch-e2e-<run attempt>`, retained for seven days. A final cleanup step also
+collects logs from containers left behind by interrupted tests.
+
+Server logs are collected from containers owned by the harness. If using
+`MEILISEARCH_URL` or a local binary, collect that server's logs separately. Failed
+startup has no flow JSON yet; use the startup/service and test logs instead.

@@ -3,6 +3,7 @@ use postman_flow_e2e::harness::meilisearch::MeilisearchServer;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn suite_path(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -14,6 +15,13 @@ async fn server() -> Option<MeilisearchServer> {
     match MeilisearchServer::start().await {
         Ok(server) => Some(server),
         Err(error) => {
+            let required = ["CI", "MEILISEARCH_E2E_REQUIRED"]
+                .iter()
+                .any(|key| std::env::var(key).is_ok_and(|value| value == "true" || value == "1"));
+            assert!(
+                !required,
+                "Meilisearch E2E requires a working server: {error}"
+            );
             eprintln!("Skipping Meilisearch E2E (server unavailable): {error}");
             None
         }
@@ -39,6 +47,25 @@ fn run_flow(server: &MeilisearchServer, file: &str, dataset: Option<&Path>) -> V
         ])
         .output()
         .expect("failed to execute postman-g");
+    // Save raw output before parsing/asserting, including a failing or malformed report.
+    // Unique invocation IDs preserve repeated imports and concurrent test results.
+    if let Some(directory) = std::env::var_os("MEILISEARCH_E2E_ARTIFACT_DIR") {
+        static INVOCATION: AtomicUsize = AtomicUsize::new(0);
+        let directory = PathBuf::from(directory);
+        std::fs::create_dir_all(&directory).expect("create E2E artifact directory");
+        let prefix = format!(
+            "flow-{}-{}-{file}",
+            std::process::id(),
+            INVOCATION.fetch_add(1, Ordering::Relaxed)
+        );
+        std::fs::write(directory.join(format!("{prefix}.json")), &output.stdout)
+            .expect("save flow JSON report");
+        std::fs::write(
+            directory.join(format!("{prefix}.stderr.log")),
+            &output.stderr,
+        )
+        .expect("save flow stderr");
+    }
     let report: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
             "{file}: invalid report: {error}\n{}\n{}",
@@ -127,4 +154,93 @@ async fn test_meilisearch_e2e_rejected_document_stops_flow_after_http_202() {
         "settings must not run after a failed import"
     );
     assert!(operations.iter().all(|r| r["status"] == 202));
+}
+
+#[test]
+fn required_server_failure_is_not_skipped() {
+    // Subprocesses avoid mutating environment variables shared by parallel tests.
+    for (ci, required, must_fail) in [
+        ("true", "1", true),
+        ("false", "1", true),
+        ("false", "0", false),
+    ] {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "test_meilisearch_e2e_api_keys_flow",
+                "--nocapture",
+            ])
+            .env("CI", ci)
+            .env("MEILISEARCH_E2E_REQUIRED", required)
+            .env("MEILISEARCH_URL", "invalid-url")
+            .env_remove("MEILISEARCH_E2E_ARTIFACT_DIR")
+            .output()
+            .expect("run unavailable-server check");
+        let logs = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.status.success(), !must_fail, "{logs}");
+        assert!(
+            logs.contains(if must_fail {
+                "Meilisearch E2E requires a working server"
+            } else {
+                "Skipping Meilisearch E2E"
+            }),
+            "{logs}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn docker_start_failure_preserves_diagnostics_and_cleans_up() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let docker = directory.path().join("docker");
+    // Simulate Docker failing after container creation. This exercises the real
+    // harness failure/cleanup path without modifying the developer's daemon.
+    std::fs::write(
+        &docker,
+        r#"#!/bin/sh
+case "$1" in
+    --version) echo 'Docker test double' ;;
+    run) echo 'intentional container startup failure' >&2; exit 42 ;;
+    logs) echo 'diagnostic from failed container' >&2 ;;
+    rm) echo cleaned > "$MEILISEARCH_E2E_ARTIFACT_DIR/cleanup.marker" ;;
+    *) exit 99 ;;
+esac
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&docker, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let artifacts = directory.path().join("artifacts");
+    let output = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "test_meilisearch_e2e_api_keys_flow",
+            "--nocapture",
+        ])
+        .env("PATH", directory.path())
+        .env_remove("MEILISEARCH_URL")
+        .env("MEILISEARCH_E2E_REQUIRED", "1")
+        .env("MEILISEARCH_E2E_ARTIFACT_DIR", &artifacts)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("intentional container startup failure")
+    );
+    let logs: String = std::fs::read_dir(&artifacts)
+        .unwrap()
+        .map(|entry| std::fs::read_to_string(entry.unwrap().path()).unwrap())
+        .collect();
+    assert!(logs.contains("intentional container startup failure"));
+    assert!(logs.contains("diagnostic from failed container"));
+    assert_eq!(
+        std::fs::read_to_string(artifacts.join("cleanup.marker")).unwrap(),
+        "cleaned\n"
+    );
 }
