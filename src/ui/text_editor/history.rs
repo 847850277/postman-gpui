@@ -1,6 +1,6 @@
 const DEFAULT_HISTORY_LIMIT: usize = 100;
 
-/// Bounded, projection-aware history shared by the legacy adapters and `TextEditorState`.
+/// Bounded, projection-aware history for `TextEditorState`.
 ///
 /// User edits store the complete pre-edit state and invalidate Redo. Consecutive typing commits
 /// may share one logical transaction until navigation or a discrete edit breaks the group.
