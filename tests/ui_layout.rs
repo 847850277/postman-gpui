@@ -977,6 +977,48 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
 }
 
 #[gpui::test]
+fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mut TestAppContext) {
+    for kind in [BodyKind::UrlEncoded, BodyKind::Multipart] {
+        let workspace = cx.new(|_| {
+            let mut workspace = WorkspaceViewModel::new();
+            let request = workspace.active_request_mut().unwrap();
+            request.set_method(HttpMethod::POST);
+            request.set_body_kind(kind);
+            request.set_request_pane(RequestPane::Body);
+            workspace
+        });
+        let (_app, cx) =
+            cx.add_window_view(move |_, cx| PostmanApp::with_view_model(workspace, cx));
+        let initial = cx.debug_bounds("request-panel").unwrap().size.height;
+        for _ in 0..4 {
+            click(cx, "body-form-add-row").unwrap();
+        }
+        let grown = cx.debug_bounds("request-panel").unwrap().size.height;
+        assert!(grown > initial, "blank rows must grow the {kind:?} panel");
+
+        click(cx, "body-form-toggle-0").unwrap();
+        assert_eq!(cx.debug_bounds("request-panel").unwrap().size.height, grown);
+        click(cx, "body-form-delete-4").unwrap();
+        let shrunk = cx.debug_bounds("request-panel").unwrap().size.height;
+        assert!(
+            shrunk < grown,
+            "removing a row must shrink the {kind:?} panel"
+        );
+        assert!(cx.debug_bounds("body-form-row-4").is_none());
+        click(cx, "body-form-delete-3").unwrap();
+        click(cx, "body-form-delete-2").unwrap();
+        click(cx, "body-form-delete-1").unwrap();
+        click(cx, "body-form-delete-0").unwrap();
+        assert!(cx.debug_bounds("body-form-row-0").is_some());
+        assert!(cx.debug_bounds("body-form-row-1").is_none());
+        assert_eq!(
+            cx.debug_bounds("request-panel").unwrap().size.height,
+            initial
+        );
+    }
+}
+
+#[gpui::test]
 fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
