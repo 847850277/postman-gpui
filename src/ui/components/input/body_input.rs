@@ -489,53 +489,45 @@ mod tests {
         input.update(cx, |input, cx| {
             input.set_type_silent(BodyType::FormData, cx);
             assert_eq!(input.form_data_entry_count(cx), 1);
-            input.set_form_data_entries(
-                vec![
-                    FormDataEntry::text("disabled", "value", false),
-                    FormDataEntry::text("", "", true),
-                ],
-                cx,
-            );
-            assert_eq!(input.form_data_entry_count(cx), 2);
         });
-        input.update(cx, |input, cx| {
-            input.toggle_form_data_entry(0, cx);
-            assert_eq!(input.form_data_entry_count(cx), 2);
-        });
-        input.update(cx, |input, cx| {
-            input.add_form_data_entry(cx);
-            assert_eq!(input.form_data_entry_count(cx), 3);
-        });
-        input.update(cx, |input, cx| {
-            input.remove_form_data_entry(1, cx);
-            assert_eq!(input.form_data_entry_count(cx), 2);
-        });
-        input.update(cx, |input, cx| {
-            input.clear(cx);
-            assert_eq!(input.form_data_entry_count(cx), 1);
-        });
-        input.update(cx, |input, cx| {
-            input.remove_form_data_entry(0, cx);
-            assert_eq!(input.form_data_entry_count(cx), 1);
-        });
-        let counts = recorder.read_with(cx, |recorder, _| {
-            recorder
-                .events
-                .iter()
-                .map(|event| match event {
-                    BodyInputEvent::FormDataChanged(entries) => entries.len(),
-                    BodyInputEvent::ValueChanged(_) => panic!("unexpected text event"),
-                })
-                .collect::<Vec<_>>()
-        });
-        assert_eq!(counts, [2, 2, 3, 2, 1, 1]);
+
+        let mut check_edit = |edit: fn(&mut BodyInput, &mut Context<BodyInput>), expected| {
+            input.update(cx, |input, cx| {
+                edit(input, cx);
+                assert_eq!(input.form_data_entry_count(cx), expected);
+            });
+            recorder.update(cx, |recorder, _| {
+                assert!(matches!(recorder.events.as_slice(),
+                    [BodyInputEvent::FormDataChanged(entries)] if entries.len() == expected
+                ));
+                recorder.events.clear();
+            });
+        };
+        check_edit(
+            |input, cx| {
+                input.set_form_data_entries(
+                    vec![
+                        FormDataEntry::text("disabled", "value", false),
+                        FormDataEntry::text("", "", true),
+                    ],
+                    cx,
+                )
+            },
+            2,
+        );
+        check_edit(|input, cx| input.toggle_form_data_entry(0, cx), 2);
+        check_edit(BodyInput::add_form_data_entry, 3);
+        check_edit(|input, cx| input.remove_form_data_entry(1, cx), 2);
+        check_edit(BodyInput::clear, 1);
+        check_edit(|input, cx| input.remove_form_data_entry(0, cx), 1);
     }
 
     #[gpui::test]
-    fn form_row_count_tracks_silent_projection_and_child_edits(cx: &mut TestAppContext) {
+    fn view_model_projection_preserves_row_count_and_user_events(cx: &mut TestAppContext) {
         let input = cx.new(BodyInput::new);
         let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
         input.update(cx, |input, cx| {
+            input.project_content("投影😀", cx);
             input
                 .project_form_data_entries(vec![FormDataEntry::text("key", "value", false); 3], cx);
             assert_eq!(input.form_data_entry_count(cx), 3);
@@ -563,6 +555,15 @@ mod tests {
             recorder.read_with(cx, |recorder, _| recorder.events.clone()).as_slice(),
             [BodyInputEvent::FormDataChanged(entries)] if entries.len() == 2
         ));
+        recorder.update(cx, |recorder, _| recorder.events.clear());
+        input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::Json, cx);
+            input.set_content("user edit", cx);
+        });
+        assert!(matches!(
+            recorder.read_with(cx, |recorder, _| recorder.events.clone()).as_slice(),
+            [BodyInputEvent::ValueChanged(value)] if value == "user edit"
+        ));
     }
 
     #[test]
@@ -585,30 +586,5 @@ mod tests {
     fn test_form_data_entry_disabled() {
         let entry = FormDataEntry::text("api_key", "secret123", false);
         assert!(!entry.enabled);
-    }
-
-    #[gpui::test]
-    fn view_model_projection_is_silent_but_user_updates_are_forwarded(cx: &mut TestAppContext) {
-        let input = cx.new(BodyInput::new);
-        let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
-
-        input.update(cx, |input, cx| {
-            input.project_content("投影😀", cx);
-            input.set_type_silent(BodyType::FormData, cx);
-            input.project_form_data_entries(
-                vec![FormDataEntry::text("projected", "value", false)],
-                cx,
-            );
-        });
-        assert!(recorder.read_with(cx, |recorder, _| recorder.events.is_empty()));
-
-        input.update(cx, |input, cx| {
-            input.set_type_silent(BodyType::Json, cx);
-            input.set_content("user edit", cx);
-        });
-        assert!(matches!(
-            recorder.read_with(cx, |recorder, _| recorder.events.clone()).as_slice(),
-            [BodyInputEvent::ValueChanged(value)] if value == "user edit"
-        ));
     }
 }
