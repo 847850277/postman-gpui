@@ -319,7 +319,7 @@ impl RequestComposer {
                 ) =>
             {
                 let body_input = self.body_pane.read(cx).input_entity();
-                body_input.read(cx).form_data_entry_count()
+                body_input.read(cx).form_data_entry_count(cx)
             }
             RequestPane::Authorization
             | RequestPane::Scripts

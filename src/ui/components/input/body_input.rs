@@ -114,7 +114,6 @@ pub struct BodyInput {
     current_type: BodyType,
     text_input: Entity<TextBodyInput>,
     form_input: Entity<FormBodyInput>,
-    form_entry_count: usize,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -133,7 +132,6 @@ impl BodyInput {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let text_input = cx.new(TextBodyInput::new);
         let form_input = cx.new(FormBodyInput::new);
-        let form_entry_count = form_input.read(cx).entries().len();
         let subscriptions = vec![
             cx.subscribe(&text_input, Self::on_text_event),
             cx.subscribe(&form_input, Self::on_form_event),
@@ -144,7 +142,6 @@ impl BodyInput {
             current_type: BodyType::Json,
             text_input,
             form_input,
-            form_entry_count,
             _subscriptions: subscriptions,
         }
     }
@@ -176,13 +173,8 @@ impl BodyInput {
         cx: &mut Context<Self>,
     ) {
         let FormBodyInputEvent::Changed(entries) = event;
-        self.form_entry_count = entries.len();
         cx.emit(BodyInputEvent::FormDataChanged(entries.clone()));
         cx.notify();
-    }
-
-    fn refresh_form_metadata(&mut self, cx: &App) {
-        self.form_entry_count = self.form_input.read(cx).entries().len();
     }
 
     pub fn set_type(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
@@ -214,7 +206,6 @@ impl BodyInput {
         self.form_input.update(cx, |input, cx| {
             input.set_form_data_allows_files(allows_files, cx)
         });
-        self.refresh_form_metadata(cx);
     }
 
     pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
@@ -237,29 +228,26 @@ impl BodyInput {
     pub fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, FormBodyInput::add_form_data_entry);
-        self.refresh_form_metadata(cx);
     }
 
     pub fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.remove_form_data_entry(index, cx));
-        self.refresh_form_metadata(cx);
     }
 
     pub fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.toggle_form_data_entry(index, cx));
-        self.refresh_form_metadata(cx);
     }
 
-    pub fn form_data_entry_count(&self) -> usize {
-        self.form_entry_count
+    /// Returns all editor rows, including disabled and blank rows, from the form editor.
+    pub fn form_data_entry_count(&self, cx: &App) -> usize {
+        self.form_input.read(cx).entries().len()
     }
 
     pub fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.set_form_data_entries(entries, cx));
-        self.refresh_form_metadata(cx);
     }
 
     /// Projects parsed form data without turning the projection into a user edit event.
@@ -270,7 +258,6 @@ impl BodyInput {
     ) {
         self.form_input
             .update(cx, |input, cx| input.project_form_data_entries(entries, cx));
-        self.refresh_form_metadata(cx);
     }
 
     /// Projects a different request tab and starts fresh per-cell selection/composition/history.
@@ -282,7 +269,6 @@ impl BodyInput {
         self.form_input.update(cx, |input, cx| {
             input.project_form_data_entries_with_rebind(entries, true, cx)
         });
-        self.refresh_form_metadata(cx);
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
@@ -292,7 +278,6 @@ impl BodyInput {
             }
             BodyType::FormData => {
                 self.form_input.update(cx, FormBodyInput::clear);
-                self.refresh_form_metadata(cx);
             }
         }
     }
@@ -486,12 +471,98 @@ mod tests {
 
         fn on_event(
             &mut self,
-            _input: Entity<BodyInput>,
+            input: Entity<BodyInput>,
             event: &BodyInputEvent,
-            _cx: &mut Context<Self>,
+            cx: &mut Context<Self>,
         ) {
+            if let BodyInputEvent::FormDataChanged(entries) = event {
+                assert_eq!(input.read(cx).form_data_entry_count(cx), entries.len());
+            }
             self.events.push(event.clone());
         }
+    }
+
+    #[gpui::test]
+    fn form_row_count_tracks_edits_including_disabled_and_blank_rows(cx: &mut TestAppContext) {
+        let input = cx.new(BodyInput::new);
+        let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
+        input.update(cx, |input, cx| {
+            input.set_type_silent(BodyType::FormData, cx);
+            assert_eq!(input.form_data_entry_count(cx), 1);
+            input.set_form_data_entries(
+                vec![
+                    FormDataEntry::text("disabled", "value", false),
+                    FormDataEntry::text("", "", true),
+                ],
+                cx,
+            );
+            assert_eq!(input.form_data_entry_count(cx), 2);
+        });
+        input.update(cx, |input, cx| {
+            input.toggle_form_data_entry(0, cx);
+            assert_eq!(input.form_data_entry_count(cx), 2);
+        });
+        input.update(cx, |input, cx| {
+            input.add_form_data_entry(cx);
+            assert_eq!(input.form_data_entry_count(cx), 3);
+        });
+        input.update(cx, |input, cx| {
+            input.remove_form_data_entry(1, cx);
+            assert_eq!(input.form_data_entry_count(cx), 2);
+        });
+        input.update(cx, |input, cx| {
+            input.clear(cx);
+            assert_eq!(input.form_data_entry_count(cx), 1);
+        });
+        input.update(cx, |input, cx| {
+            input.remove_form_data_entry(0, cx);
+            assert_eq!(input.form_data_entry_count(cx), 1);
+        });
+        let counts = recorder.read_with(cx, |recorder, _| {
+            recorder
+                .events
+                .iter()
+                .map(|event| match event {
+                    BodyInputEvent::FormDataChanged(entries) => entries.len(),
+                    BodyInputEvent::ValueChanged(_) => panic!("unexpected text event"),
+                })
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(counts, [2, 2, 3, 2, 1, 1]);
+    }
+
+    #[gpui::test]
+    fn form_row_count_tracks_silent_projection_and_child_edits(cx: &mut TestAppContext) {
+        let input = cx.new(BodyInput::new);
+        let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
+        input.update(cx, |input, cx| {
+            input
+                .project_form_data_entries(vec![FormDataEntry::text("key", "value", false); 3], cx);
+            assert_eq!(input.form_data_entry_count(cx), 3);
+            for mode in [BodyType::FormData, BodyType::Raw, BodyType::Json] {
+                input.set_type_silent(mode, cx);
+                assert_eq!(input.form_data_entry_count(cx), 3);
+            }
+            input.set_form_data_allows_files(true, cx);
+            input.set_form_data_allows_files(false, cx);
+            assert_eq!(input.form_data_entry_count(cx), 3);
+            input.project_form_data_entries_with_rebind(vec![], cx);
+            assert_eq!(input.form_data_entry_count(cx), 1);
+        });
+        assert!(recorder.read_with(cx, |recorder, _| recorder.events.is_empty()));
+
+        // UI actions mutate the child directly; neither counting nor event forwarding may
+        // depend on going through a parent mutation wrapper.
+        let form = input.read_with(cx, |input, _| input.form_input.clone());
+        form.update(cx, FormBodyInput::add_form_data_entry);
+        assert_eq!(
+            input.read_with(cx, |input, cx| input.form_data_entry_count(cx)),
+            2
+        );
+        assert!(matches!(
+            recorder.read_with(cx, |recorder, _| recorder.events.clone()).as_slice(),
+            [BodyInputEvent::FormDataChanged(entries)] if entries.len() == 2
+        ));
     }
 
     #[test]

@@ -5,6 +5,17 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+### Changed
+
+- `BodyInput::form_data_entry_count` now reads the form editor's rows directly instead of
+  maintaining a duplicate count. This changes the public Rust signature from
+  `form_data_entry_count(&self)` to `form_data_entry_count(&self, cx: &gpui::App)`.
+  Rust callers must migrate `input.form_data_entry_count()` to
+  `input.form_data_entry_count(cx)` using their current GPUI application context; this is
+  a source-breaking change for consumers of the UI library. Both workspace callers have
+  been migrated. Disabled and blank editor rows still count, and application behavior
+  and persisted data formats are unchanged. Refs #190, #180.
+
 ### Planned
 
 - Byte-native downloads, atomic save-as, and streaming progress/cancellation remain pending in

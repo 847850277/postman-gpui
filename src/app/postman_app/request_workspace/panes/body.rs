@@ -306,7 +306,7 @@ impl BodyPane {
         let is_raw = kind == BodyKind::Raw;
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let is_multipart = kind == BodyKind::Multipart;
-        let form_row_count = self.body_input.read(cx).form_data_entry_count();
+        let form_row_count = self.body_input.read(cx).form_data_entry_count(cx);
         let panel_height = self.panel_layout.read(cx).resolved_height(
             RequestPane::Body,
             form_row_count,
