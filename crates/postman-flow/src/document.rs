@@ -10,6 +10,10 @@ use crate::{ApiCatalog, FlowDefinition};
 mod wire;
 
 pub const FLOW_DOCUMENT_VERSION: u64 = 1;
+
+/// Draft 2020-12 structural schema for executable Flow v1 documents.
+/// Schema validation does not replace compilation of references and scopes.
+pub const FLOW_DOCUMENT_SCHEMA_JSON: &str = include_str!("../flow-v1.schema.json");
 const MAX_DOCUMENT_BYTES: usize = 2 * 1024 * 1024;
 const MAX_DOCUMENT_DEPTH: usize = 96;
 

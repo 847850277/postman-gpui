@@ -20,7 +20,7 @@ pub use compiler::{
 };
 pub use document::{
     parse_flow_yaml, write_flow_yaml, DocumentError, DocumentErrorCode, EditorLayout, FlowDocument,
-    NodePosition, FLOW_DOCUMENT_VERSION,
+    NodePosition, FLOW_DOCUMENT_SCHEMA_JSON, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
     ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent,

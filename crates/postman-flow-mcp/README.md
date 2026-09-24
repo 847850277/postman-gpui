@@ -4,6 +4,10 @@
 without copying secrets into prompts or executing network requests. Agent-generated documents are
 accepted as structured JSON, compiled by `postman-flow`, and only then written as canonical YAML.
 
+The document Schema is maintained by the engine at
+[`postman-flow/flow-v1.schema.json`](../postman-flow/flow-v1.schema.json) and embedded through
+`postman_flow::FLOW_DOCUMENT_SCHEMA_JSON`. This crate does not maintain a separate copy.
+
 ## Tools
 
 - `get_dsl_schema`: exact Flow v1 JSON Schema plus generation rules.

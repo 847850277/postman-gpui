@@ -29,3 +29,6 @@ url = "2"
 postman-request = { path = "../postman-request" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Offline schema contract tests only; no network/file reference resolution.
+jsonschema = { version = "0.33", default-features = false }

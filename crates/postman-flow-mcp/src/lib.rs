@@ -492,7 +492,7 @@ fn is_flow_file(path: &Path) -> bool {
 }
 
 fn dsl_schema() -> Value {
-    serde_json::from_str(include_str!("../flow-v1.schema.json"))
+    serde_json::from_str(postman_flow::FLOW_DOCUMENT_SCHEMA_JSON)
         .expect("embedded Flow v1 schema must be valid JSON")
 }
 

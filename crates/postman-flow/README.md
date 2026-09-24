@@ -59,6 +59,16 @@ without invoking external state changes or billing effects.
 
 ## YAML v1 Specification
 
+[flow-v1.schema.json](flow-v1.schema.json) is the Draft 2020-12 JSON Schema for the
+JSON representation of executable `.http.yml` documents. Editors and other tools can use it
+for structural validation. Rust consumers can access the same file through
+`postman_flow::FLOW_DOCUMENT_SCHEMA_JSON`; the MCP server also uses this single source.
+
+The Schema checks fields, types, required properties and variants. References and lexical scopes
+still require `compile_flow`. Some editable drafts accepted by the parser (such as empty steps)
+intentionally fail the executable-document Schema. Runtime inputs and HTTP results are not validated
+by this document Schema. The runtime does not load a JSON Schema validator on each execution.
+
 ```yaml
 schema_version: 1
 flow:
