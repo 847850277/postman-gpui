@@ -16,9 +16,4 @@ pub use state::{
 };
 
 #[cfg(test)]
-pub(crate) use history::EditHistory;
-#[cfg(test)]
-pub(crate) use offsets::{next_word_boundary, previous_word_boundary};
-
-#[cfg(test)]
 mod tests;
