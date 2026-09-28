@@ -1,4 +1,4 @@
-//! Design tokens mirrored from the Issue #51 Pencil artifact.
+//! Shared design tokens and palette definitions.
 
 use crate::models::HttpMethod;
 
@@ -24,7 +24,7 @@ pub const CODE_PANEL: u32 = PANEL_ALT;
 pub const CODE_TEXT: u32 = 0x0024_3d34;
 
 // These OFL-licensed families are embedded in the executable and registered at startup, so the
-// Pencil typography contract does not depend on fonts installed by the host operating system.
+// Typography contract does not depend on fonts installed by the host operating system.
 pub const FONT_HEADING: &str = "Inter";
 pub const FONT_UI: &str = "Inter";
 pub const FONT_MONO: &str = "JetBrains Mono";

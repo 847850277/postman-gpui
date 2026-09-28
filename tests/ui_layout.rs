@@ -1,4 +1,4 @@
-//! Visual-contract checks derived from the issue-linked Pencil artifacts in `design/`.
+//! Visual-contract and layout checks for the application UI.
 
 #[path = "common/ui.rs"]
 mod ui;
@@ -13,7 +13,7 @@ use postman_gpui::persistence::{
 use ui::{click, scroll_down};
 
 #[gpui::test]
-fn app_shell_uses_the_pencil_frame_dimensions(cx: &mut TestAppContext) {
+fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) =
