@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/847850277/postman-gpui/schemas/postman-flow-v1.json",
+  "$id": "https://raw.githubusercontent.com/847850277/postman-gpui/main/crates/postman-flow/flow-v1.schema.json",
   "title": "postman-flow document v1",
   "type": "object",
   "additionalProperties": false,

@@ -64,6 +64,16 @@ JSON representation of executable `.http.yml` documents. Editors and other tools
 for structural validation. Rust consumers can access the same file through
 `postman_flow::FLOW_DOCUMENT_SCHEMA_JSON`; the MCP server also uses this single source.
 
+For editors supporting YAML language-server schema comments, add this line at the top of
+your `.http.yml` file:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/847850277/postman-gpui/main/crates/postman-flow/flow-v1.schema.json
+```
+
+This URL follows `main`. For reproducible validation, replace `main` with the commit or release
+tag matching your Flow version, or configure your editor to use a local copy of the schema.
+
 The Schema checks fields, types, required properties and variants. References and lexical scopes
 still require `compile_flow`. Some editable drafts accepted by the parser (such as empty steps)
 intentionally fail the executable-document Schema. Runtime inputs and HTTP results are not validated
