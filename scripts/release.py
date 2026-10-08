@@ -14,12 +14,14 @@ import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +30,19 @@ APP_BINARY = "postman-gpui"
 PRODUCT_NAME = "Postman GPUI"
 IDENTIFIER = "io.github.847850277.postman-gpui"
 MACOS_MINIMUM_VERSION = "10.15.7"
+
+# The launchers used by cargo-packager 0.11.8. Pre-seed its cache because that
+# version downloads them with mode 0764, which leaves other users unable to run
+# AppRun after it is copied into the AppImage (AppImage/appimage.github.io#4674).
+APPIMAGE_LAUNCHER_URL = (
+    "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-"
+)
+APPIMAGE_LAUNCHER_SHA256 = {
+    "x86_64": "f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f",
+    "aarch64": "072f17c0895a85c490282fe5395c5007e5fc75da727e553b3b8fb680feb11578",
+    "i686": "a573a682b1a4a3e9b5dddbd1f5785749b7bba6013149b51ae99d0f123fe11691",
+    "armhf": "b14d89f0762bcf09fc6af2359d936675928b8833ff52a1aeda68cb28a309f6ba",
+}
 
 ICON_PATHS = (
     ROOT / "assets/icons/32x32.png",
@@ -308,11 +323,95 @@ def parse_formats(platform_name: str, value: str | None) -> tuple[str, ...]:
     return formats
 
 
-def run(command: Iterable[str], *, environment: dict[str, str] | None = None) -> None:
+def appimage_arch(target: str) -> str:
+    arch = target.split("-")[0]
+    if arch in ("i586", "i686"):
+        arch = "i686"
+    elif arch.startswith("arm"):
+        arch = "armhf"
+    if arch not in APPIMAGE_LAUNCHER_SHA256:
+        raise ReleaseError(f"no verified AppImage launcher for target {target!r}")
+    return arch
+
+
+def prepare_appimage_launcher(target: str) -> None:
+    """Keep the upstream launcher, with verified contents and public execute bits."""
+
+    arch = appimage_arch(target)
+    # Match dirs::cache_dir() on Linux, including its absolute-XDG-path rule.
+    cache_dir = Path(os.environ.get("XDG_CACHE_HOME", ""))
+    if not cache_dir.is_absolute():
+        cache_dir = Path.home() / ".cache"
+    launcher = cache_dir / ".cargo-packager" / "AppImage" / f"AppRun-{arch}"
+    if launcher.is_file():
+        data = launcher.read_bytes()
+    else:
+        with urlopen(APPIMAGE_LAUNCHER_URL + arch, timeout=60) as response:
+            data = response.read()
+    if hashlib.sha256(data).hexdigest() != APPIMAGE_LAUNCHER_SHA256[arch]:
+        raise ReleaseError(f"AppImage launcher checksum mismatch: {launcher}")
+
+    launcher.parent.mkdir(parents=True, exist_ok=True)
+    if not launcher.is_file():
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=launcher.parent, delete=False) as temporary:
+                temporary.write(data)
+                temporary_path = Path(temporary.name)
+            temporary_path.chmod(0o755)
+            temporary_path.replace(launcher)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+    launcher.chmod(0o755)
+
+
+def verify_appdir_permissions(app_dir: Path) -> None:
+    """Check every user's access, not just os.access() as the packaging owner."""
+
+    for relative in (".", "usr", "usr/bin"):
+        directory = app_dir / relative
+        if not directory.is_dir() or directory.stat().st_mode & 0o555 != 0o555:
+            raise ReleaseError(f"AppImage directory must be readable/searchable by all: {directory}")
+    for relative in ("AppRun", f"usr/bin/{APP_BINARY}"):
+        executable = app_dir / relative
+        if not executable.is_file():
+            raise ReleaseError(f"AppImage executable is missing: {executable}")
+        mode = stat.S_IMODE(executable.stat().st_mode)
+        if mode != 0o755:
+            raise ReleaseError(
+                f"AppImage executable {relative} has mode {mode:04o}; expected 0755"
+            )
+
+
+def verify_appimage(appimage: Path) -> None:
+    """Inspect the final filesystem without FUSE or a graphical session."""
+
+    with tempfile.TemporaryDirectory(prefix="postman-gpui-appimage-check-") as temporary:
+        subprocess.run(
+            [str(appimage.resolve()), "--appimage-extract"],
+            cwd=temporary,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            timeout=60,
+            # Extraction must preserve the packaged permissions, even if the
+            # developer invokes this check with a restrictive shell umask.
+            umask=0o022,
+        )
+        verify_appdir_permissions(Path(temporary) / "squashfs-root")
+    print(f"AppImage permissions verified: {appimage}", flush=True)
+
+
+def run(
+    command: Iterable[str],
+    *,
+    environment: dict[str, str] | None = None,
+    umask: int = -1,
+) -> None:
     command = list(command)
     rendered = " ".join(command)
     print(f"+ {rendered}", flush=True)
-    subprocess.run(command, cwd=ROOT, env=environment, check=True)
+    subprocess.run(command, cwd=ROOT, env=environment, check=True, umask=umask)
 
 
 def build_release(platform_name: str, target: str, universal_macos: bool) -> Path:
@@ -397,6 +496,9 @@ def package_release(args: argparse.Namespace) -> None:
     )
     formats = parse_formats(platform_name, args.formats)
     out_dir = Path(args.out_dir).resolve()
+    includes_appimage = platform_name == "linux" and "appimage" in formats
+    if includes_appimage and normalize_platform(None) != "linux":
+        raise ReleaseError("AppImage packages must be created on a Linux host")
 
     if args.skip_build:
         binaries_dir = release_binary_directory(target)
@@ -416,6 +518,8 @@ def package_release(args: argparse.Namespace) -> None:
         )
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if includes_appimage:
+        prepare_appimage_launcher(target)
     config = packager_config(platform_name, target, binaries_dir, out_dir)
     config_path: Path | None = None
     try:
@@ -439,12 +543,19 @@ def package_release(args: argparse.Namespace) -> None:
                 str(config_path),
                 "--formats",
                 ",".join(formats),
-            ]
+            ],
+            # cargo-packager copies AppRun without preserving its mode. Keep
+            # cp from stripping public execute bits under e.g. umask 0077.
+            umask=0o022 if includes_appimage else -1,
         )
     finally:
         if config_path is not None:
             config_path.unlink(missing_ok=True)
 
+    if includes_appimage:
+        verify_appimage(
+            out_dir / f"{APP_BINARY}_{load_manifest()['version']}_{appimage_arch(target)}.AppImage"
+        )
     if platform_name == "macos" and "app" in formats:
         archive_macos_app(out_dir, str(load_manifest()["version"]), target)
 
@@ -570,6 +681,11 @@ def create_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--tag", required=True)
     verify_parser.add_argument("--github-output", action="store_true")
 
+    appimage_parser = subparsers.add_parser(
+        "verify-appimage", help="check final AppImage entry point permissions (Linux)"
+    )
+    appimage_parser.add_argument("path", type=Path)
+
     return parser
 
 
@@ -592,6 +708,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(config, indent=2))
         elif args.command == "package":
             package_release(args)
+        elif args.command == "verify-appimage":
+            if normalize_platform(None) != "linux":
+                raise ReleaseError("AppImage verification requires a Linux host")
+            verify_appimage(args.path)
         else:
             values = verify_release(args.tag)
             if args.github_output:
@@ -601,7 +721,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"(prerelease={values['prerelease']})"
             )
         return 0
-    except (ReleaseError, subprocess.CalledProcessError, OSError) as error:
+    except (ReleaseError, subprocess.SubprocessError, OSError) as error:
         print(f"release error: {error}", file=sys.stderr)
         return 1
 

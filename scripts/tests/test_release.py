@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
+import io
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "release.py"
@@ -90,6 +95,136 @@ class ReleaseConfigurationTests(unittest.TestCase):
         )
         self.assertIn('deb=$(realpath "$deb")', workflow)
         self.assertIn('sudo apt-get install --yes "$deb"', workflow)
+
+
+@unittest.skipIf(os.name == "nt", "AppImage permissions require POSIX")
+class AppImagePackagingTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory(prefix="postman appimage tests ")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.cache = self.root / "cache"
+        self.target = "x86_64-unknown-linux-gnu"
+        self.launcher = self.cache / ".cargo-packager/AppImage/AppRun-x86_64"
+        self.payload = b"verified launcher fixture"
+        patches = [
+            mock.patch.dict(os.environ, {"XDG_CACHE_HOME": str(self.cache)}),
+            mock.patch.dict(
+                release.APPIMAGE_LAUNCHER_SHA256,
+                {"x86_64": hashlib.sha256(self.payload).hexdigest()},
+            ),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_fresh_launcher_and_preexisting_owner_only_cache_are_executable_by_all(self) -> None:
+        with mock.patch.object(release, "urlopen", return_value=io.BytesIO(self.payload)) as download:
+            release.prepare_appimage_launcher(self.target)
+        download.assert_called_once()
+        self.assertEqual(self.launcher.read_bytes(), self.payload)
+        self.assertEqual(stat.S_IMODE(self.launcher.stat().st_mode), 0o755)
+
+        for previous_mode in (0o764, 0o744, 0o700):
+            with self.subTest(mode=oct(previous_mode)):
+                self.launcher.chmod(previous_mode)
+                with mock.patch.object(release, "urlopen") as download:
+                    release.prepare_appimage_launcher(self.target)
+                download.assert_not_called()
+                self.assertEqual(stat.S_IMODE(self.launcher.stat().st_mode), 0o755)
+                self.assertEqual(self.launcher.read_bytes(), self.payload)
+
+    def test_unverified_download_is_not_installed(self) -> None:
+        with mock.patch.object(release, "urlopen", return_value=io.BytesIO(b"wrong download")):
+            with self.assertRaisesRegex(release.ReleaseError, "checksum mismatch"):
+                release.prepare_appimage_launcher(self.target)
+        self.assertFalse(self.launcher.exists())
+
+    def test_unverified_cached_launcher_is_not_made_executable(self) -> None:
+        self.launcher.parent.mkdir(parents=True)
+        self.launcher.write_bytes(b"wrong cache")
+        self.launcher.chmod(0o644)
+        with mock.patch.object(release, "urlopen") as download:
+            with self.assertRaisesRegex(release.ReleaseError, "checksum mismatch"):
+                release.prepare_appimage_launcher(self.target)
+        download.assert_not_called()
+        self.assertEqual(stat.S_IMODE(self.launcher.stat().st_mode), 0o644)
+
+    def test_relative_xdg_cache_uses_the_same_fallback_as_packager(self) -> None:
+        with mock.patch.dict(os.environ, {"XDG_CACHE_HOME": "relative-cache"}):
+            with mock.patch.object(release.Path, "home", return_value=self.root):
+                with mock.patch.object(release, "urlopen", return_value=io.BytesIO(self.payload)):
+                    release.prepare_appimage_launcher(self.target)
+        launcher = self.root / ".cache/.cargo-packager/AppImage/AppRun-x86_64"
+        self.assertEqual(stat.S_IMODE(launcher.stat().st_mode), 0o755)
+        self.assertFalse(self.launcher.exists())
+
+    def make_appdir(self) -> Path:
+        appdir = self.root / "application.AppDir"
+        (appdir / "usr/bin").mkdir(parents=True, exist_ok=True)
+        for relative in (".", "usr", "usr/bin"):
+            (appdir / relative).chmod(0o755)
+        for relative in ("AppRun", "usr/bin/postman-gpui"):
+            executable = appdir / relative
+            executable.write_bytes(self.payload)
+            executable.chmod(0o755)
+        return appdir
+
+    def test_appdir_check_rejects_owner_only_launchers_and_main_binaries(self) -> None:
+        for relative in ("AppRun", "usr/bin/postman-gpui"):
+            for mode in (0o744, 0o764, 0o700, 0o644):
+                with self.subTest(path=relative, mode=oct(mode)):
+                    appdir = self.make_appdir()
+                    (appdir / relative).chmod(mode)
+                    with self.assertRaisesRegex(release.ReleaseError, "expected 0755"):
+                        release.verify_appdir_permissions(appdir)
+        release.verify_appdir_permissions(self.make_appdir())
+
+    def test_appdir_check_rejects_missing_executable_and_private_parent_directory(self) -> None:
+        appdir = self.make_appdir()
+        (appdir / "AppRun").unlink()
+        with self.assertRaisesRegex(release.ReleaseError, "executable is missing"):
+            release.verify_appdir_permissions(appdir)
+        appdir = self.make_appdir()
+        (appdir / "usr").chmod(0o700)
+        with self.assertRaisesRegex(release.ReleaseError, "readable/searchable by all"):
+            release.verify_appdir_permissions(appdir)
+
+    def test_packaging_copy_keeps_public_execute_bits_despite_private_parent_umask(self) -> None:
+        with mock.patch.object(release, "urlopen", return_value=io.BytesIO(self.payload)):
+            release.prepare_appimage_launcher(self.target)
+        copied = self.root / "AppRun"
+        previous_umask = os.umask(0o077)
+        try:
+            release.run(["cp", str(self.launcher), str(copied)], umask=0o022)
+            observed_umask = os.umask(0o077)
+        finally:
+            os.umask(previous_umask)
+        self.assertEqual(observed_umask, 0o077)
+        self.assertEqual(stat.S_IMODE(copied.stat().st_mode), 0o755)
+
+    def test_final_artifact_check_detects_bad_extracted_permissions(self) -> None:
+        # A stand-in for the runtime's extraction command exercises the real
+        # subprocess/cwd path without requiring Linux or a GPU for these tests.
+        appimage = self.root / "fixture.AppImage"
+        for mode in ("744", "755"):
+            with self.subTest(mode=mode):
+                appimage.write_text(
+                    '#!/bin/sh\nset -eu\n'
+                    '[ "$1" = "--appimage-extract" ]\n'
+                    'mkdir -p squashfs-root/usr/bin\n'
+                    'cp "$0" squashfs-root/AppRun\n'
+                    'cp "$0" squashfs-root/usr/bin/postman-gpui\n'
+                    'chmod 755 squashfs-root/usr/bin/postman-gpui\n'
+                    f'chmod {mode} squashfs-root/AppRun\n',
+                    encoding="utf-8",
+                )
+                appimage.chmod(0o755)
+                if mode == "744":
+                    with self.assertRaisesRegex(release.ReleaseError, "mode 0744"):
+                        release.verify_appimage(appimage)
+                else:
+                    release.verify_appimage(appimage)
 
 
 if __name__ == "__main__":

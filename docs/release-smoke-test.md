@@ -51,6 +51,10 @@ SHA-256, signing status, and pass/fail result in issue #148.
 
 ### Linux
 
+- [ ] `python3 scripts/release.py verify-appimage <file.AppImage>` passes: packaged `AppRun`
+      and `usr/bin/postman-gpui` both have mode `0755`.
+- [ ] The root-owned extracted AppRun executes `--verify-runtime-assets` as a different,
+      unprivileged user without changing any extracted executable permissions (automated in CI).
 - [ ] The AppImage starts from an executable file on a supported Wayland session.
 - [ ] The AppImage starts from an executable file on a supported X11 session.
 - [ ] The Debian package installs dependencies and creates a desktop entry with the correct icon.

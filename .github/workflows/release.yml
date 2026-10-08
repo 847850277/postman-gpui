@@ -313,6 +313,29 @@ jobs:
             "${{ needs.validate.outputs.tag }}" \
             > dist/BUILD-INFO-linux.txt
 
+      - name: Verify AppImage entry point as a different user
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          appimage=$(realpath "$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)")
+          smoke_dir=$(mktemp -d)
+          smoke_user=postman-appimage-smoke
+          cleanup() {
+            sudo userdel "$smoke_user" 2>/dev/null || true
+            sudo groupdel "$smoke_user" 2>/dev/null || true
+            sudo rm -rf "$smoke_dir"
+          }
+          trap cleanup EXIT
+          chmod 755 "$smoke_dir"
+          (cd "$smoke_dir" && "$appimage" --appimage-extract >/dev/null)
+          # A root-owned mount, as used by Firejail, must not require owner execute bits.
+          # Do not chmod the extracted payload: that would hide a packaging regression.
+          sudo chown -R root:root "$smoke_dir/squashfs-root"
+          sudo useradd --system --user-group --create-home \
+            --home-dir "$smoke_dir/home" "$smoke_user"
+          (cd "$smoke_dir" && sudo -H -u "$smoke_user" \
+            timeout 30s "$smoke_dir/squashfs-root/AppRun" --verify-runtime-assets)
+
       - name: Upload native packages
         uses: actions/upload-artifact@v7
         with:
