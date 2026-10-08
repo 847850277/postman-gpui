@@ -16,7 +16,8 @@ This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tra
   the launcher, main binary, and parent directories are checked for access by all users.
   Do not use `--appimage-extract` to inspect directory permissions: type2-runtime creates
   directories with mode `0700`. Release CI uses the verified extraction and executes its
-  root-owned AppRun as a separate unprivileged user before upload.
+  root-owned AppRun as a separate unprivileged user before upload. It also starts the GUI
+  under Xvfb and requires a visible `Postman GPUI` window within 30 seconds.
 - All macOS, Windows, and Linux jobs must finish before a GitHub Release is created. A failed job
   cannot publish a partial release.
 - `v0.1.0-rc.N` is a GitHub prerelease. A tag without a suffix is a final release.
@@ -117,6 +118,7 @@ these tests. CI installs the tools explicitly.
 The permission workaround is applied on both fresh and existing packager caches. A launcher
 checksum mismatch stops packaging; investigate the cached file or upstream release rather than
 silently trusting new bytes. Revisit the workaround and pinned launcher checksums when upgrading
-cargo-packager. The automated runtime-assets check does not open a window; complete the X11 and
-Wayland smoke checks separately. Publish a new release candidate to deliver the fix to users;
+cargo-packager. The runtime-assets check does not open a window; the separate Xvfb check verifies
+X11 startup with Mesa software rendering. Complete the real-desktop X11 and Wayland smoke checks
+separately. Publish a new release candidate to deliver the fix to users;
 changing this script does not repair AppImages already attached to an older release.

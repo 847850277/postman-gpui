@@ -1,8 +1,8 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use gpui::{
-    actions, px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, WindowBounds,
-    WindowOptions,
+    actions, px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, TitlebarOptions,
+    WindowBounds, WindowOptions,
 };
 use postman_gpui::{
     app::PostmanApp,
@@ -73,6 +73,11 @@ fn main() {
         let bounds = Bounds::centered(None, size(px(1480.), px(980.0)), cx);
         let option = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
+            titlebar: Some(TitlebarOptions {
+                title: Some("Postman GPUI".into()),
+                ..Default::default()
+            }),
+            app_id: Some("postman-gpui".into()),
             ..Default::default()
         };
 

@@ -144,7 +144,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
             build-essential clang cmake file libasound2-dev libfontconfig1-dev libfuse2 \
-            libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev patchelf pkg-config squashfs-tools
+            libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev mesa-vulkan-drivers \
+            patchelf pkg-config squashfs-tools xauth xdotool x11-utils xvfb
 
       - name: Install NSIS
         if: runner.os == 'Windows'
@@ -318,7 +319,7 @@ jobs:
             "${{ needs.validate.outputs.tag }}" \
             > dist/BUILD-INFO-linux.txt
 
-      - name: Verify AppImage entry point as a different user
+      - name: Verify AppImage entry point and X11 window as a different user
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -341,6 +342,10 @@ jobs:
             --home-dir "$smoke_dir/home" "$smoke_user"
           (cd "$smoke_dir" && sudo -H -u "$smoke_user" \
             timeout 30s "$smoke_dir/squashfs-root/AppRun" --verify-runtime-assets)
+          cp scripts/smoke_linux_gui.sh "$smoke_dir/"
+          (cd "$smoke_dir" && sudo -H -u "$smoke_user" \
+            xvfb-run -a -s '-screen 0 1280x1024x24' \
+            bash "$smoke_dir/smoke_linux_gui.sh" "$smoke_dir/squashfs-root/AppRun")
 
       - name: Upload native packages
         uses: actions/upload-artifact@v7
