@@ -38,6 +38,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install SquashFS test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends squashfs-tools
+
       - name: Test release tooling
         run: python -m unittest discover -s scripts/tests
 
@@ -139,7 +144,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
             build-essential clang cmake file libasound2-dev libfontconfig1-dev libfuse2 \
-            libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev patchelf pkg-config
+            libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev patchelf pkg-config squashfs-tools
 
       - name: Install NSIS
         if: runner.os == 'Windows'
@@ -327,7 +332,8 @@ jobs:
           }
           trap cleanup EXIT
           chmod 755 "$smoke_dir"
-          (cd "$smoke_dir" && "$appimage" --appimage-extract >/dev/null)
+          python scripts/release.py verify-appimage "$appimage" \
+            --extract-to "$smoke_dir/squashfs-root"
           # A root-owned mount, as used by Firejail, must not require owner execute bits.
           # Do not chmod the extracted payload: that would hide a packaging regression.
           sudo chown -R root:root "$smoke_dir/squashfs-root"

@@ -371,8 +371,14 @@ def verify_appdir_permissions(app_dir: Path) -> None:
 
     for relative in (".", "usr", "usr/bin"):
         directory = app_dir / relative
-        if not directory.is_dir() or directory.stat().st_mode & 0o555 != 0o555:
-            raise ReleaseError(f"AppImage directory must be readable/searchable by all: {directory}")
+        if not directory.is_dir():
+            raise ReleaseError(f"AppImage directory is missing: {directory}")
+        mode = stat.S_IMODE(directory.stat().st_mode)
+        if mode & 0o555 != 0o555:
+            raise ReleaseError(
+                f"AppImage directory {relative} has mode {mode:04o}; "
+                "must be readable/searchable by all"
+            )
     for relative in ("AppRun", f"usr/bin/{APP_BINARY}"):
         executable = app_dir / relative
         if not executable.is_file():
@@ -384,21 +390,37 @@ def verify_appdir_permissions(app_dir: Path) -> None:
             )
 
 
-def verify_appimage(appimage: Path) -> None:
-    """Inspect the final filesystem without FUSE or a graphical session."""
+def verify_appimage(appimage: Path, *, extract_to: Path | None = None) -> None:
+    """Inspect packaged permissions, optionally retaining the AppDir for a smoke test."""
 
+    unsquashfs = shutil.which("unsquashfs")
+    if unsquashfs is None:
+        raise ReleaseError("AppImage verification requires unsquashfs; install squashfs-tools")
+    appimage = appimage.resolve()
+    result = subprocess.run(
+        [str(appimage), "--appimage-offset"],
+        check=True, stdout=subprocess.PIPE, text=True, timeout=60,
+    )
+    offset = result.stdout.strip()
+    if re.fullmatch(r"[0-9]+", offset) is None or int(offset) == 0:
+        raise ReleaseError(f"invalid AppImage filesystem offset: {offset!r}")
+
+    # type2-runtime's --appimage-extract creates directories with mode 0700
+    # instead of restoring their packaged modes. Read the embedded filesystem
+    # with unsquashfs so the check and the cross-user smoke test see real modes.
     with tempfile.TemporaryDirectory(prefix="postman-gpui-appimage-check-") as temporary:
+        app_dir = extract_to.resolve() if extract_to is not None else Path(temporary) / "squashfs-root"
+        if app_dir.exists():
+            raise ReleaseError(f"AppImage extraction destination already exists: {app_dir}")
         subprocess.run(
-            [str(appimage.resolve()), "--appimage-extract"],
-            cwd=temporary,
+            [unsquashfs, "-no-progress", "-no-xattrs", "-o", offset,
+             "-d", str(app_dir), str(appimage)],
             check=True,
             stdout=subprocess.DEVNULL,
             timeout=60,
-            # Extraction must preserve the packaged permissions, even if the
-            # developer invokes this check with a restrictive shell umask.
             umask=0o022,
         )
-        verify_appdir_permissions(Path(temporary) / "squashfs-root")
+        verify_appdir_permissions(app_dir)
     print(f"AppImage permissions verified: {appimage}", flush=True)
 
 
@@ -685,6 +707,9 @@ def create_parser() -> argparse.ArgumentParser:
         "verify-appimage", help="check final AppImage entry point permissions (Linux)"
     )
     appimage_parser.add_argument("path", type=Path)
+    appimage_parser.add_argument(
+        "--extract-to", type=Path, help="retain the verified AppDir in a new directory"
+    )
 
     return parser
 
@@ -711,7 +736,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "verify-appimage":
             if normalize_platform(None) != "linux":
                 raise ReleaseError("AppImage verification requires a Linux host")
-            verify_appimage(args.path)
+            verify_appimage(args.path, extract_to=args.extract_to)
         else:
             values = verify_release(args.tag)
             if args.github_output:

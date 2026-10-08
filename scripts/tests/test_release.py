@@ -5,7 +5,10 @@ import hashlib
 import importlib.util
 import io
 import os
+import shlex
+import shutil
 import stat
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -203,28 +206,69 @@ class AppImagePackagingTests(unittest.TestCase):
         self.assertEqual(observed_umask, 0o077)
         self.assertEqual(stat.S_IMODE(copied.stat().st_mode), 0o755)
 
-    def test_final_artifact_check_detects_bad_extracted_permissions(self) -> None:
-        # A stand-in for the runtime's extraction command exercises the real
-        # subprocess/cwd path without requiring Linux or a GPU for these tests.
+    def make_appimage(self, modes: dict[str, int] | None = None) -> Path:
+        if not shutil.which("mksquashfs") or not shutil.which("unsquashfs"):
+            self.skipTest("install squashfs-tools (Linux) or squashfs (Homebrew)")
+        appdir = self.make_appdir()
+        for relative, mode in (modes or {}).items():
+            (appdir / relative).chmod(mode)
+        squashfs = self.root / "payload.squashfs"
+        subprocess.run(
+            ["mksquashfs", str(appdir), str(squashfs), "-noappend", "-no-progress",
+             "-no-xattrs", "-processors", "1"],
+            check=True, stdout=subprocess.DEVNULL,
+        )
+        # A real SquashFS with a portable shell header standing in for the Linux
+        # runtime. Its extraction deliberately reproduces type2-runtime's 0700
+        # directories, while --appimage-offset points at the original metadata.
+        header = (
+            '#!/bin/sh\nset -eu\ncase "$1" in\n'
+            '  --appimage-offset) echo 4096 ;;\n'
+            '  --appimage-extract)\n'
+            f'    {shlex.quote(shutil.which("unsquashfs"))} -no-progress -no-xattrs '
+            '-o 4096 -d squashfs-root "$0" >/dev/null\n'
+            '    find squashfs-root -type d -exec chmod 700 {} \\;\n'
+            '    ;;\n'
+            '  *) exit 2 ;;\nesac\nexit 0\n'
+        ).encode()
+        self.assertLess(len(header), 4096)
         appimage = self.root / "fixture.AppImage"
-        for mode in ("744", "755"):
-            with self.subTest(mode=mode):
-                appimage.write_text(
-                    '#!/bin/sh\nset -eu\n'
-                    '[ "$1" = "--appimage-extract" ]\n'
-                    'mkdir -p squashfs-root/usr/bin\n'
-                    'cp "$0" squashfs-root/AppRun\n'
-                    'cp "$0" squashfs-root/usr/bin/postman-gpui\n'
-                    'chmod 755 squashfs-root/usr/bin/postman-gpui\n'
-                    f'chmod {mode} squashfs-root/AppRun\n',
-                    encoding="utf-8",
-                )
-                appimage.chmod(0o755)
-                if mode == "744":
-                    with self.assertRaisesRegex(release.ReleaseError, "mode 0744"):
-                        release.verify_appimage(appimage)
-                else:
+        appimage.write_bytes(header.ljust(4096, b"\0") + squashfs.read_bytes())
+        appimage.chmod(0o755)
+        return appimage
+
+    def test_packaged_permissions_are_independent_of_runtime_extraction_modes(self) -> None:
+        appimage = self.make_appimage()
+        subprocess.run([str(appimage), "--appimage-extract"], cwd=self.root, check=True)
+        for relative in (".", "usr", "usr/bin"):
+            directory = self.root / "squashfs-root" / relative
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+        release.verify_appimage(appimage)
+
+    def test_final_artifact_check_rejects_bad_packaged_permissions(self) -> None:
+        cases = [("AppRun", 0o744), ("usr/bin/postman-gpui", 0o744),
+                 (".", 0o700), ("usr", 0o700), ("usr/bin", 0o700)]
+        for relative, mode in cases:
+            with self.subTest(path=relative, mode=oct(mode)):
+                appimage = self.make_appimage({relative: mode})
+                with self.assertRaisesRegex(release.ReleaseError, f"mode {mode:04o}"):
                     release.verify_appimage(appimage)
+
+    def test_verified_extraction_retains_packaged_permissions_for_smoke_test(self) -> None:
+        appimage = self.make_appimage()
+        destination = self.root / "retained AppDir"
+        previous_umask = os.umask(0o077)
+        try:
+            release.verify_appimage(appimage, extract_to=destination)
+        finally:
+            os.umask(previous_umask)
+        release.verify_appdir_permissions(destination)
+        self.assertEqual((destination / "AppRun").read_bytes(), self.payload)
+
+    def test_missing_unsquashfs_has_actionable_error(self) -> None:
+        with mock.patch.object(release.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(release.ReleaseError, "squashfs-tools"):
+                release.verify_appimage(self.root / "fixture.AppImage")
 
 
 if __name__ == "__main__":
