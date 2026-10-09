@@ -36,8 +36,10 @@ homepage.workspace = true
 [dependencies]
 postman-http = { path = "crates/postman-http" }
 postman-request = { path = "crates/postman-request" }
-gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["font-kit", "wayland", "x11"] }
+# Keep the application, Kit controls, and test harness on the same GPUI snapshot.
+gpui = { package = "gpui-pre", version = "=0.3.8" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.8", features = ["font-kit", "wayland", "x11"] }
+gpui-kit = "=0.7.1"
 anyhow = "1.0.75"
 base64 = "0.22"
 tokio = { version = "1", features = ["full"] }
@@ -60,7 +62,8 @@ embed-resource = "3.0"
 [dev-dependencies]
 brotli = "8"
 flate2 = "1"
-gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", features = ["test-support"] }
+gpui = { package = "gpui-pre", version = "=0.3.8", features = ["test-support"] }
+gpui-kit = { version = "=0.7.1", features = ["test-support"] }
 mockito = "1"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }

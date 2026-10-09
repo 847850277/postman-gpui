@@ -61,7 +61,7 @@ impl CookiePane {
     }
 
     fn close(&mut self, _event: &gpui::MouseUpEvent, window: &mut Window, cx: &mut Context<Self>) {
-        window.blur();
+        window.blur(cx);
         cx.emit(CookiePaneEvent::CloseRequested);
     }
 
@@ -75,7 +75,7 @@ impl CookiePane {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        window.blur();
+        window.blur(cx);
         cx.emit(CookiePaneEvent::CloseRequested);
     }
 }

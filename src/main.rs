@@ -5,7 +5,7 @@ use gpui::{
     WindowBounds, WindowOptions,
 };
 use postman_gpui::{
-    app::PostmanApp,
+    app::{kit_smoke::KitSmokeView, PostmanApp},
     assets::fonts::{
         load_embedded_fonts, runtime_asset_application, schedule_runtime_asset_exit,
         verify_embedded_fonts,
@@ -23,6 +23,8 @@ fn quit(_: &Quit, cx: &mut App) {
 fn main() {
     let verify_runtime_assets = std::env::args_os()
         .any(|argument| argument == std::ffi::OsStr::new("--verify-runtime-assets"));
+    let kit_smoke =
+        std::env::args_os().any(|argument| argument == std::ffi::OsStr::new("--kit-smoke"));
 
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -35,7 +37,7 @@ fn main() {
     let application = if verify_runtime_assets {
         runtime_asset_application()
     } else {
-        gpui_platform::application()
+        gpui_kit::application().with_assets(gpui_kit::assets::Assets)
     };
 
     application.run(move |cx: &mut App| {
@@ -46,6 +48,7 @@ fn main() {
             schedule_runtime_asset_exit(cx);
             return;
         }
+        postman_gpui::ui::kit::init(cx);
 
         // 激活应用（使菜单栏在前台显示）
         cx.activate(true);
@@ -78,10 +81,18 @@ fn main() {
                 ..Default::default()
             }),
             app_id: Some("postman-gpui".into()),
+            window_min_size: Some(size(px(960.), px(640.))),
             ..Default::default()
         };
 
-        cx.open_window(option, |_window, cx| cx.new(PostmanApp::new))
-            .expect("failed to open window");
+        if kit_smoke {
+            gpui_kit::open_window(option, cx, |window, cx| {
+                cx.new(|cx| KitSmokeView::new(window, cx))
+            })
+            .expect("failed to open Kit compatibility window");
+        } else {
+            gpui_kit::open_window(option, cx, |_window, cx| cx.new(PostmanApp::new))
+                .expect("failed to open window");
+        }
     });
 }
