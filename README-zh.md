@@ -55,6 +55,8 @@ cargo run --locked
 
 Linux 需要先安装[安装指南](docs/installation.md#linux)列出的 GPUI 开发依赖。
 
+GPUI Kit 迁移的原生控件验证窗口可通过 `cargo run --locked -- --kit-smoke` 打开。
+
 在本机生成对应平台的安装包：
 
 ```bash

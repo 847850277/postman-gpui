@@ -116,10 +116,11 @@ jobs:
     - name: Run clippy
       run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-    - name: Verify headless dependency boundary
+    - name: Verify headless dependency boundaries
       run: |
-        if cargo tree -p postman-cli | grep -E '(^|[[:space:]])gpui(_platform)? v'; then
-          echo "postman-cli must not depend on GPUI"
+        dependency_tree="$(cargo tree --locked --workspace --exclude postman-gpui)"
+        if printf '%s\n' "$dependency_tree" | grep -E '(^|[[:space:]])gpui([_-][^[:space:]]+)? v'; then
+          echo "Engine, CLI, and MCP crates must not depend on GPUI"
           exit 1
         fi
 
@@ -177,6 +178,15 @@ jobs:
 
     - name: Build locked release binary
       run: cargo build --locked --release --verbose
+
+    - name: Verify embedded fonts with the native text backend
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          target/release/postman-gpui.exe --verify-runtime-assets
+        else
+          target/release/postman-gpui --verify-runtime-assets
+        fi
 
   release-configuration:
     name: Release Configuration

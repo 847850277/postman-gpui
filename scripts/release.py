@@ -604,7 +604,7 @@ def verify_release(tag: str) -> dict[str, str]:
         (
             dependency
             for dependency in package.get("dependencies", [])
-            if dependency.get("name") == "gpui_platform"
+            if (dependency.get("rename") or dependency.get("name")) == "gpui_platform"
         ),
         None,
     )

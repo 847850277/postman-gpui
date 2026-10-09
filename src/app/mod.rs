@@ -1,6 +1,7 @@
 // src/app/mod.rs
 mod history_storage;
 mod keyboard;
+pub mod kit_smoke;
 pub mod postman_app;
 mod request_lifecycle;
 mod request_runner;

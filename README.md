@@ -61,6 +61,9 @@ cargo run --locked
 Linux needs the GPUI development libraries listed in the
 [installation guide](docs/installation.md#linux).
 
+For the GPUI Kit migration, `cargo run --locked -- --kit-smoke` opens the native
+component validation window.
+
 To create native packages locally, install the pinned packager and run the release helper:
 
 ```bash
