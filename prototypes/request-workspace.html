@@ -74,8 +74,8 @@ kbd{font:11px var(--font-ui);padding:2px 5px;border:1px solid var(--line-strong)
 .method{font:600 10px var(--font-code);color:var(--green)}.method.post{color:var(--accent)}.method.delete{color:var(--red)}.method.put,.method.patch{color:var(--blue)}
 .history-item>.method{width:34px;padding-top:3px;flex-shrink:0}.history-details{min-width:0;flex:1}.history-title{display:block;font-weight:500;margin-bottom:3px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-path{color:var(--faint);display:block;font:10px var(--font-code);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--faint);margin-top:6px}.history-meta .dot{width:4px;height:4px}.history-meta .status{color:var(--green)}.history-meta .error{color:var(--red)}.history-time{color:var(--faint);font-size:10px;padding-top:3px}
 .request-editor{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;background:var(--surface);overflow:auto;overscroll-behavior:contain}
-.request-tabs{display:flex;height:var(--tab-height);background:var(--sidebar);border-bottom:1px solid var(--line);align-items:stretch;flex-shrink:0;overflow-x:auto}
-.request-tab{display:flex;gap:9px;align-items:center;padding:0 20px;border-right:1px solid var(--line);position:relative;color:var(--faint);max-width:240px;flex-shrink:0;min-width:160px}.request-tab .name{font-size:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.request-tab[aria-selected="true"]{color:var(--text);background:var(--surface)}.request-tab[aria-selected="true"]:before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}.request-tab .tab-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:7px}.request-tabs>.icon-button{align-self:center;margin:0 8px}
+.request-tabs{flex:1;min-width:0}
+.request-tab{display:flex;gap:9px;align-items:center;padding:0 20px;border-right:1px solid var(--line);position:relative;color:var(--faint)}.request-tab .name{font-size:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.request-tab[aria-selected="true"]{color:var(--text);background:var(--surface)}.request-tab[aria-selected="true"]:before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}.request-tab .tab-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:7px}
 .request-top{padding:clamp(12px,2.2dvh,22px) clamp(12px,2vw,36px);flex-shrink:0}
 .environment{display:inline-flex;align-items:center;gap:8px;padding:5px 8px 5px 10px;color:var(--muted);border:1px solid var(--line);border-radius:5px;height:30px}.environment select{background:transparent;border:0;max-width:145px;font-size:11px;cursor:pointer}.environment select option{background:var(--surface)}
 .request-title>div:first-child{min-width:0}.request-title h1{overflow-wrap:anywhere}
@@ -152,6 +152,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 </style>
 <link rel="stylesheet" href="./flow-studio.css">
 <link rel="stylesheet" href="./panel-resize.css?v=1">
+<link rel="stylesheet" href="./request-tabs.css?v=3">
 </head>
 <body data-view="home">
 <a class="skip-link" href="#home-screen">Skip to main content</a>
@@ -214,7 +215,13 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   <main id="home-screen" class="home-screen" tabindex="-1"></main>
   <main id="flow-screen" class="flow-screen" tabindex="-1" hidden></main>
   <main class="request-editor" id="request-editor" tabindex="-1" data-testid="request-editor" hidden>
-   <div class="request-tabs" id="request-tabs" role="tablist" aria-label="Open requests"></div>
+   <div class="request-tabs-bar" id="request-tabs-bar">
+    <div class="request-tabs" id="request-tabs" role="tablist" aria-label="Open requests"></div>
+    <div class="request-tab-tools">
+     <button class="icon-button" id="new-tab" aria-label="Add request tab" title="New request"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></button>
+     <button class="open-request-tabs" id="open-request-tabs" aria-label="Show all open requests" title="Show all open requests" aria-haspopup="dialog" aria-controls="request-list-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span id="open-request-count" aria-hidden="true">3</span></button>
+    </div>
+   </div>
    <section class="request-top">
     <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve a paginated list of users.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button to-flow-button" id="add-request-to-flow" title="Add to flow" aria-label="Add current request to a flow"><svg aria-hidden="true" class="icon small"><use href="#i-flow"/></svg><span>Add to flow</span></button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
     <div class="url-row">
@@ -310,7 +317,14 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   <div class="dialog-footer import-footer"><span>Opens in a new request tab</span><div class="import-actions"><button type="button" class="text-button close-dialog">Cancel</button><button type="submit" class="import-submit" id="import-submit" disabled>Import request</button></div></div>
  </form>
 </dialog>
+<dialog class="request-list-dialog" id="request-list-dialog" aria-labelledby="request-list-title">
+ <div class="request-list-heading"><strong id="request-list-title">Open requests</strong><span class="count" id="request-list-count">3</span><span class="spacer"></span><button class="icon-button" id="close-request-list" aria-label="Close open requests"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div>
+ <label class="request-list-search"><svg aria-hidden="true" class="icon small"><use href="#i-search"/></svg><input id="request-list-filter" aria-label="Filter open requests" placeholder="Find by name, method or URL…" autocomplete="off" spellcheck="false"></label>
+ <div class="request-list-results" id="request-list-results"></div>
+ <div class="request-list-footer"><span id="request-list-summary" role="status"></span><span>↑ ↓ to navigate · Esc to close</span></div>
+</dialog>
 <script src="./curl-request.js"></script>
+<script src="./request-tabs.js?v=2"></script>
 <script src="./panel-resize.js?v=2"></script>
 <script>
 (() => {
@@ -375,7 +389,8 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   { title:"Delete user", method:"DELETE", path:"/v1/users/usr_03", status:"204", elapsed:"112 ms", time:"17:40", group:"Yesterday", data:null },
   { title:"Missing endpoint", method:"GET", path:"/status/404", status:"404", elapsed:"64 ms", time:"17:32", group:"Yesterday", data:{ error:"not_found", message:"The requested resource could not be found." } }
  ];
- let activeId = "users", responsePane = "body", pretty = true, toastTimer, sequence = 0;
+ let activeId = "users", responsePane = "body", pretty = true, toastTimer, sequence = 0, untitledSequence = 0;
+ const requestTabs = RequestTabs.attach({list:() => requests, active:() => activeId, activate, newRequest});
  const current = () => requests.find(request => request.id === activeId);
  const requestHasBody = request => request.bodyExplicit || (request.body.length > 0 && ["POST","PUT","PATCH"].includes(request.method));
  const requestCode = () => CurlRequest.stringify({...current(),hasBody:requestHasBody(current())});
@@ -393,9 +408,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   });
  }
  function renderTabs() {
-  $("request-tabs").innerHTML = requests.map(r =>
-   '<button class="request-tab" role="tab" aria-selected="' + (r.id === activeId) + '" tabindex="' + (r.id === activeId ? '0' : '-1') + '" data-request="' + esc(r.id) + '"><span class="method ' + esc(r.method.toLowerCase()) + '">' + esc(r.method) + '</span><span class="name">' + esc(r.title) + '</span>' + (r.dirty ? '<span class="tab-dot" aria-label="Unsaved changes"></span>' : '') + '</button>'
-  ).join("") + '<button class="icon-button" id="new-tab" aria-label="Add request tab" title="New request">' + icon("plus") + '</button>';
+  requestTabs.render();
  }
  function updateContext() {
   try { $("query-preview").textContent = new URL(current().url).search || "No query parameters"; }
@@ -481,7 +494,8 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  }
  function activate(id) { activeId = id; responsePane = "body"; render(); }
  function newRequest() {
-  const request = makeRequest("new-" + (++sequence),"Untitled request","GET","/","Start with a URL. Make it yours.");
+  const title = "Untitled request" + (++untitledSequence > 1 ? " " + untitledSequence : "");
+  const request = makeRequest("new-" + (++sequence),title,"GET","/","Start with a URL. Make it yours.");
   request.url = ""; requests.push(request); activate(request.id); $("url").focus();
  }
  function replay(index) { replayItem(history[index]); }
@@ -537,10 +551,6 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   $("command-results").innerHTML = open.concat(closed).join("") || '<p class="pane-hint" style="padding:12px">No matching requests.</p>';
  }
  function openSearch() { $("command-query").value = ""; searchResults(); $("search-dialog").showModal(); $("command-query").focus(); }
- $("request-tabs").addEventListener("click",event => {
-  const button = event.target.closest("[data-request]");
-  if (button) activate(button.dataset.request); else if (event.target.closest("#new-tab")) newRequest();
- });
  $("history-list").addEventListener("click",event => {
   const button = event.target.closest("[data-history]");
   if (!button) return;
@@ -600,7 +610,6 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   const request = {...parsed,id:"import-" + (++sequence),title:url.pathname === "/" ? url.hostname : url.pathname,description:"Imported from cURL. Ready to edit and send.",
    params:Array.from(url.searchParams,([key,value]) => ({enabled:true,key,value,note:""})),bodyExplicit:parsed.hasBody,pane:parsed.hasBody ? "body" : "params",response:null,busy:false,dirty:true};
   requests.push(request); $("import-dialog").close(); activate(request.id);
-  $("request-tabs").querySelector('[aria-selected="true"]').scrollIntoView({block:"nearest",inline:"nearest"});
   $("url").focus(); toast("cURL imported into a new request");
  });
  $("show-code").addEventListener("click",() => { $("code-snippet").textContent = requestCode(); $("code-dialog").showModal(); });
@@ -622,7 +631,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   if (event.key === "ArrowDown") { event.preventDefault(); $("command-results").querySelector("button")?.focus(); }
  });
  document.querySelectorAll("[data-pane]").forEach(button => button.addEventListener("click",() => setPane(button.dataset.pane)));
- document.querySelectorAll('[role="tablist"]').forEach(list => list.addEventListener("keydown",event => {
+ document.querySelectorAll('[role="tablist"]:not(#request-tabs)').forEach(list => list.addEventListener("keydown",event => {
   if (!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)) return;
   const tabs = Array.from(list.querySelectorAll('[role="tab"]')), index = tabs.indexOf(document.activeElement);
   if (index < 0) return;

@@ -30,6 +30,16 @@ Try:
 - Change query parameters and watch the URL update.
 - Inspect the query string summary and open its authorization settings.
 - Switch requests and the Params, Headers, Body, and Auth panes.
+- Open many requests: tabs adapt to the available width and wrap onto additional
+  rows in their original order. New and the open-request count stay at the top
+  right. The tab area uses up to roughly one third of the window height (at most
+  eight rows); larger sets scroll vertically within that area. There is no
+  horizontal scrolling. Creating or selecting a request brings its row into
+  view, including after the window is resized.
+- Click the open-request count to search all tabs by name, method, or URL. The
+  list marks the current request and unsaved edits; Up/Down moves between items,
+  Enter opens one, and Escape returns to the tab bar. New untitled requests get
+  sequential names so multiple blank tabs remain distinguishable.
 - Send or cancel; Create user returns 201, Missing endpoint returns 404.
 - Filter or replay history, or search with Cmd/Ctrl+K.
 - Switch Pretty, Raw, and response Headers, and copy a response.
@@ -86,6 +96,8 @@ prototype. Exported example documents have been checked using the existing
 `flow-model.js` holds sample definitions, conversion, and preview helpers.
 `panel-resize.css` and `panel-resize.js` share the split handles and accessible
 size controls between HTTP and Flows.
+`request-tabs.css` and `request-tabs.js` handle the responsive tab rows, fixed
+tools, active-tab visibility, and searchable list of open HTTP requests.
 
 Environment base URLs support HTTP(S), ports, and path prefixes. Switching or
 editing the active environment rebases matching requests and preserves endpoint
@@ -139,6 +151,7 @@ to smaller widths and heights. These are proposed design values, not
 assertions of parity with the current GPUI client.
 
 Controls have accessible names and visible keyboard focus. Request tabs support
-Left/Right and Home/End; dialogs support Escape. Reduced-motion preferences
+Left/Right and Home/End; HTTP request tabs also support Up/Down between rows.
+Dialogs support Escape. Reduced-motion preferences
 disable transitions. The preview still uses local fixtures and session-only
 state, so it does not replace end-to-end testing of the native client.
