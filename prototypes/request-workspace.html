@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Postman GPUI — Request workspace</title>
+<title>Postman GPUI — Request editor</title>
 <link rel="icon" href="../assets/icons/icon.svg" type="image/svg+xml">
 <style>
 @font-face{font-family:Inter;src:url("../assets/fonts/inter/Inter-Regular.ttf");font-weight:400;font-display:swap}
@@ -12,188 +12,156 @@
 @font-face{font-family:Inter;src:url("../assets/fonts/inter/Inter-SemiBold.ttf");font-weight:600;font-display:swap}
 @font-face{font-family:Inter;src:url("../assets/fonts/inter/Inter-Bold.ttf");font-weight:700;font-display:swap}
 @font-face{font-family:"JetBrains Mono";src:url("../assets/fonts/jetbrains-mono/JetBrainsMono[wght].ttf");font-weight:100 800;font-display:swap}
+
+/* Shared design tokens: mirror these values in the GPUI implementation. */
 :root{
  color-scheme:light;
- --canvas:#f2f5f1;--surface:#fffefb;--sidebar:#f0f4ef;--subtle:#f8f9f5;
- --line:#dce4db;--line-strong:#c5d3c5;--text:#263c31;--muted:#68796e;--faint:#87958a;
- --accent:#bd4b2c;--accent-hover:#a63e23;--accent-soft:#fbede4;--green:#2b7752;--green-soft:#e7f0e6;--blue:#427b91;--red:#b64c49;
- --code-string:#477953;--code-key:#486d79;--code-number:#ae6240;--shadow:0 16px 64px #20342b1f;
- --rail-width:58px;--sidebar-width:258px;--titlebar-height:46px;--tab-height:43px;--footer-height:28px;
+ --canvas:#f3f3f2;--surface:#ffffff;--sidebar:#f8f8f7;--subtle:#f5f5f4;--elevated:#fff;
+ --line:#e2e2df;--line-strong:#c2c2bd;--text:#242523;--muted:#62645f;--faint:#686b64;
+ --accent:#ac411b;--accent-hover:#913313;--accent-soft:#fbede6;--on-accent:#fff;
+ --green:#237246;--green-soft:#eaf5ed;--blue:#386bc1;--red:#ba3b43;--red-soft:#fcebed;--purple:#7751ad;
+ --code-string:#287549;--code-key:#505c70;--code-number:#ae5426;--shadow:0 20px 80px #20231b26;
+ --rail-width:72px;--titlebar-height:52px;--tab-height:46px;--footer-height:30px;
  --font-ui:Inter,-apple-system,BlinkMacSystemFont,sans-serif;--font-code:"JetBrains Mono",monospace;
+ --motion-fast:140ms;--motion-feedback:200ms;
 }
 [data-theme="dark"]{
  color-scheme:dark;
- --canvas:#17211d;--surface:#1c2822;--sidebar:#19241e;--subtle:#202d26;--line:#314036;--line-strong:#4a5d50;
- --text:#dfe8de;--muted:#a0b0a2;--faint:#809487;--accent:#e38b67;--accent-hover:#efa07d;--accent-soft:#3a2f26;
- --green:#96c3a0;--green-soft:#293d2e;--blue:#8fb8cb;--red:#ee9591;--code-string:#aac698;--code-key:#96bec7;--code-number:#dca488;--shadow:0 16px 64px #0006;
+ --canvas:#18191b;--surface:#1d1e20;--sidebar:#191a1c;--subtle:#232426;--elevated:#28292c;
+ --line:#303135;--line-strong:#53555b;--text:#f0f0ee;--muted:#acaeb4;--faint:#92959e;
+ --accent:#ff9a6c;--accent-hover:#ffb18d;--accent-soft:#382a25;--on-accent:#311809;
+ --green:#83d5a1;--green-soft:#23352c;--blue:#91b7f3;--red:#f5939b;--red-soft:#3c272b;--purple:#bea2ec;
+ --code-string:#add49d;--code-key:#c0c8d6;--code-number:#e9b583;--shadow:0 20px 80px #0007;
 }
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%}
-body{background:var(--canvas);color:var(--text);font:12px/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
-button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;background:none;border:0;padding:0}
-input,textarea{border:0;outline:0;background:transparent;min-width:0}
-button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
-input[type="checkbox"]{accent-color:var(--green);width:13px;height:13px;cursor:pointer;margin:0}
+body{background:var(--canvas);color:var(--text);font:13px/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;background:none;border:0;padding:0;touch-action:manipulation;transition:background var(--motion-fast),color var(--motion-fast)}
+input,textarea{border:0;outline:0;background:transparent;min-width:0}select{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+input[type="checkbox"]{accent-color:var(--green);width:15px;height:15px;cursor:pointer;margin:0;outline-offset:4px}
 input::placeholder,textarea::placeholder{color:var(--faint)}[hidden]{display:none!important}
-::selection{background:var(--green-soft);color:var(--text)}
+::selection{background:var(--accent-soft);color:var(--text)}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:5px}
-.icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.icon.small{width:14px;height:14px}.mono{font-family:var(--font-code)}.muted{color:var(--muted)}.spacer{flex:1}
-.icon-button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;color:var(--muted);flex-shrink:0}
-.icon-button:hover,.text-button:hover{background:var(--green-soft);color:var(--text)}
-.text-button{display:inline-flex;gap:6px;align-items:center;color:var(--muted);padding:5px 8px;border-radius:4px}
-kbd{font:10px var(--font-ui);padding:1px 4px;border:1px solid var(--line);border-radius:3px;color:var(--muted);white-space:nowrap}
+.icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.small{width:15px;height:15px}.mono{font-family:var(--font-code)}.muted{color:var(--muted)}.spacer{flex:1;min-width:0}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;color:var(--muted);flex-shrink:0}
+.icon-button:hover,.text-button:hover{background:var(--elevated);color:var(--text)}
+.text-button{display:inline-flex;gap:7px;align-items:center;color:var(--muted);padding:7px 10px;border-radius:6px;white-space:nowrap}
+kbd{font:11px var(--font-ui);padding:2px 5px;border:1px solid var(--line-strong);border-radius:4px;color:var(--muted);white-space:nowrap}
 .dot{width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;flex-shrink:0}
-.app{display:flex;flex-direction:column;width:100%;height:100dvh;min-height:580px;overflow:hidden}
-.titlebar{height:var(--titlebar-height);display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);flex-shrink:0}
-.window-controls{display:flex;align-items:center;gap:7px;margin-right:11px}.window-controls span{width:11px;height:11px;border-radius:50%;background:#df8b7b}
-.window-controls span:nth-child(2){background:#dfbd73}.window-controls span:nth-child(3){background:#98b68c}
-.brand{display:flex;gap:8px;align-items:center;font-weight:600;font-size:12px;white-space:nowrap}
-.brand-mark{display:grid;place-items:center;width:22px;height:22px;background:var(--accent);color:var(--surface);border-radius:6px}
-.brand-mark .icon{width:14px;height:14px;stroke-width:2}.brand span:last-child{color:var(--muted);font-weight:400}
-.command-trigger{display:flex;align-items:center;gap:9px;width:320px;height:28px;padding:0 9px;color:var(--muted);border:1px solid var(--line);border-radius:5px;margin:auto;background:var(--surface);font-size:11px}
-.command-trigger kbd{margin-left:auto;border:0;padding:0}.local-badge{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
-.prototype-label{padding:2px 6px;border:1px solid var(--line-strong);border-radius:4px;color:var(--muted);font-size:9px;letter-spacing:.05em}
+.skip-link{position:fixed;top:-80px;left:16px;z-index:50;background:var(--accent);color:var(--on-accent);padding:10px 16px;border-radius:6px}.skip-link:focus{top:12px}
+.app{display:flex;flex-direction:column;width:100%;height:100dvh;min-height:0;overflow:hidden}
+.titlebar{height:var(--titlebar-height);display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--line);flex-shrink:0;background:var(--canvas)}
+.window-controls{display:flex;align-items:center;gap:8px;margin-right:4px}.window-controls span{width:11px;height:11px;border-radius:50%;background:#ee6b64}.window-controls span:nth-child(2){background:#e9b752}.window-controls span:nth-child(3){background:#74ba67}
+.brand{display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px;white-space:nowrap;letter-spacing:-.25px}.brand>span:last-child{font-size:10px;font-weight:500;letter-spacing:.06em;color:var(--faint);border:1px solid var(--line-strong);padding:1px 4px;border-radius:4px}
+.brand-mark{display:none}
+.command-trigger{display:flex;align-items:center;gap:9px;width:310px;height:30px;padding:0 10px;color:var(--faint);border:1px solid var(--line);border-radius:6px;margin-left:auto;margin-right:auto;background:var(--subtle);font-size:12px}
+.command-trigger:hover{border-color:var(--line-strong)}.command-trigger kbd{margin-left:auto;font-size:10px;border-color:var(--line)}
+
 .app-body{flex:1;min-height:0;display:flex}
-.rail{width:var(--rail-width);padding:14px 8px 10px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px;align-items:center;flex-shrink:0}
-.rail-button{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--muted)}
-.rail-button .icon{width:19px;height:19px}.rail-button:hover{background:var(--green-soft)}
-.rail-button.selected{color:var(--green);background:var(--green-soft)}
-.rail-button.selected:before{content:"";position:absolute;left:-9px;height:17px;width:2px;background:var(--green);border-radius:1px}
-.rail-button.new{color:var(--accent);background:var(--accent-soft);margin-bottom:14px}
-.rail-divider{width:18px;height:1px;background:var(--line);margin:4px 0}
-.sidebar{width:var(--sidebar-width);flex-shrink:0;display:flex;flex-direction:column;background:var(--sidebar);border-right:1px solid var(--line);min-height:0}
-.sidebar-heading{height:61px;display:flex;align-items:center;padding:0 18px;gap:8px;flex-shrink:0}
-.sidebar-heading strong{font-size:13px;font-weight:600}.count{font-size:10px;min-width:18px;padding:1px 5px;color:var(--muted);background:var(--line);border-radius:4px;text-align:center}
-.history-search{display:flex;align-items:center;gap:8px;margin:0 14px 14px;border:1px solid var(--line);border-radius:5px;padding:7px 9px;background:var(--surface);color:var(--muted)}
-.history-search input{width:100%;font-size:11px}
-.history-scroll{overflow:auto;flex:1;min-height:0;padding:0 8px}
-.group-label{display:flex;justify-content:space-between;align-items:center;padding:10px 10px 8px;color:var(--muted);font-size:10px;letter-spacing:.025em}
-.history-item{display:flex;width:100%;text-align:left;align-items:flex-start;gap:10px;padding:13px 10px;border-radius:6px;margin:2px 0;position:relative}
-.history-item:hover,.history-item.active{background:var(--green-soft)}
-.history-item.active:before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:2px;background:var(--green);border-radius:2px}
+.rail{width:var(--rail-width);padding:17px 6px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:8px;align-items:center;flex-shrink:0;background:var(--canvas);overflow-y:auto}
+.rail-button{flex-shrink:0;width:58px;min-height:52px;border-radius:7px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;position:relative;color:var(--faint);font-size:10px}
+.rail-button .icon{width:20px;height:20px}.rail-button:hover{background:var(--elevated);color:var(--text)}.rail-button.selected{color:var(--accent);background:var(--accent-soft)}
+.rail-button.new{min-height:36px;height:36px;width:36px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--line);margin-bottom:9px}.rail-button.utility{min-height:36px;width:36px}.rail-divider{flex-shrink:0;width:24px;height:1px;background:var(--line);margin:4px 0}
+.count{font:10px var(--font-code);min-width:18px;padding:1px 5px;color:var(--muted);background:var(--subtle);border:1px solid var(--line);border-radius:4px;text-align:center}
+/* The search field owns one focus ring around both its icon and input. */
+.history-search{display:flex;align-items:center;gap:8px;margin:0 14px 12px;border:1px solid var(--line);border-radius:6px;padding:0 10px;color:var(--faint);height:36px}
+.history-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.history-search input{flex:1;width:0;height:100%;font-size:12px}
+.history-search input:focus-visible{outline:none}
+.history-scroll{overflow:auto;flex:1;min-height:0;padding:0 10px}.group-label{display:flex;justify-content:space-between;padding:14px 8px 7px;color:var(--faint);font-size:10px}
+.history-item{display:flex;width:100%;text-align:left;align-items:flex-start;gap:8px;padding:12px 8px;border-radius:6px;margin:2px 0}.history-item:hover,.history-item.active{background:var(--subtle)}
 .method{font:600 10px var(--font-code);color:var(--green)}.method.post{color:var(--accent)}.method.delete{color:var(--red)}.method.put,.method.patch{color:var(--blue)}
-.history-item>.method{width:32px;padding-top:3px;flex-shrink:0}.history-details{min-width:0;flex:1}
-.history-title{display:block;font-weight:500;margin-bottom:4px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.history-path{color:var(--muted);display:block;font:10px var(--font-code);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.history-meta{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--faint);margin-top:8px}
-.history-meta .dot{width:4px;height:4px}.history-meta .status{color:var(--green)}.history-meta .error{color:var(--red)}
-.history-time{color:var(--faint);font-size:9px;padding-top:3px}
-.sidebar-footer{padding:16px 18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px}
-.workspace{display:flex;flex-direction:column;min-width:0;flex:1;background:var(--surface)}
-.request-tabs{display:flex;height:var(--tab-height);background:var(--canvas);border-bottom:1px solid var(--line);align-items:stretch;padding-left:10px;flex-shrink:0;overflow-x:auto}
-.request-tab{display:flex;gap:10px;align-items:center;padding:0 17px;border-right:1px solid var(--line);border-left:1px solid transparent;position:relative;color:var(--muted);max-width:220px;flex-shrink:0}
-.request-tab .name{font-size:11px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
-.request-tab[aria-selected="true"]{color:var(--text);background:var(--surface);border-left-color:var(--line)}
-.request-tab[aria-selected="true"]:before{content:"";position:absolute;top:0;left:-1px;right:-1px;height:2px;background:var(--accent)}
-.request-tab .tab-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:7px}
-.request-tabs>.icon-button{align-self:center;margin:0 8px}
-.request-top{padding:20px 26px 0;flex-shrink:0}
-.breadcrumb{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:10px;margin-bottom:14px}
-.breadcrumb .icon{width:13px;height:13px}.breadcrumb .slash{color:var(--line-strong);margin:0 2px}.breadcrumb .current{color:var(--text)}
-.environment{display:inline-flex;align-items:center;gap:7px;padding-left:10px;color:var(--muted);font-size:11px}
-.environment select{background:transparent;border:0;max-width:140px;font-size:11px;cursor:pointer}
-.request-title{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-h1{font-size:22px;letter-spacing:-.65px;line-height:1.3;font-weight:600;margin:0}
-.description{color:var(--muted);font-size:11px;margin-top:4px}.request-title .text-button{font-size:11px}
-.url-row{display:flex;gap:10px;margin-bottom:8px}
-.url-field{display:flex;align-items:center;flex:1;min-width:0;height:46px;border:1px solid var(--line-strong);border-radius:7px;background:var(--subtle);transition:border-color .15s}
-.url-field:focus-within{border-color:var(--green);box-shadow:0 0 0 2px var(--green-soft)}
-.method-select{border:0;background:transparent;padding:0 10px 0 14px;width:91px;height:24px;border-right:1px solid var(--line);color:var(--green);font:600 12px var(--font-code);cursor:pointer}
-.url-input{flex:1;padding:10px 14px;font:12px var(--font-code);width:100%}.url-input:focus-visible{outline:none}
-.url-field>.icon{margin-right:13px;color:var(--faint)}
-.send{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent);color:var(--surface);border-radius:6px;min-width:110px;padding:0 16px;font-weight:600}
-.send:hover{background:var(--accent-hover)}.send .shortcut{font-size:10px;opacity:.72;font-weight:400}
-.split{flex:1;min-height:0;display:flex;flex-direction:column}.composer{padding:0 26px;flex-shrink:0}
-.pane-tabs{display:flex;align-items:center;gap:24px;height:44px;border-bottom:1px solid var(--line)}
-.pane-tab{display:flex;height:100%;align-items:center;gap:6px;color:var(--muted);position:relative;font-size:11px;white-space:nowrap}
-.pane-tab[aria-selected="true"]{color:var(--text);font-weight:600}
-.pane-tab[aria-selected="true"]:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}
-.pane-tab .count{min-width:15px;font:9px var(--font-ui);padding:0 4px;background:var(--green-soft)}
-.pane-content{height:206px;overflow:auto}.section-heading{display:flex;align-items:center;gap:10px;height:44px;font-weight:500;font-size:11px}
-.section-heading .text-button,.section-heading .hint{font-weight:400;font-size:10px;color:var(--muted)}
-.kv-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}
-.kv-table th{background:var(--subtle);color:var(--muted);text-align:left;font-size:9px;letter-spacing:.06em;font-weight:500;height:27px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.kv-table th:first-child,.kv-table td:first-child{width:32px;padding-left:8px}.kv-table th:last-child{width:31%}
-.kv-table td{border-bottom:1px solid var(--line);height:33px}
-.kv-table td:nth-child(2),.kv-table td:nth-child(3),.kv-table th:nth-child(2),.kv-table th:nth-child(3){padding-left:8px}
-.kv-table input[type="text"]{width:100%;height:30px;font:11px var(--font-code)}
-.kv-table td:last-child{color:var(--faint);font-size:10px}
-.kv-table tr:has(input[type="checkbox"]:not(:checked)) input[type="text"]{opacity:.45;text-decoration:line-through}
-.add-row{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);padding:9px 7px}.add-row:hover{color:var(--accent)}
-.body-editor{width:100%;height:144px;resize:none;font:11px/1.8 var(--font-code);padding:7px 10px;border-left:2px solid var(--line)}
-.auth-fields{display:grid;grid-template-columns:150px minmax(0,1fr);gap:20px;padding:17px 0}
-.auth-fields label{color:var(--muted);display:flex;flex-direction:column;gap:8px;font-size:10px}
-.auth-fields select,.auth-fields input{height:34px;border:1px solid var(--line);border-radius:4px;padding:0 9px;background:var(--subtle);font-size:11px;width:100%}
-.pane-hint{color:var(--muted);font-size:10px;padding:6px 0}
-.resize-divider{height:14px;margin-top:3px;border-bottom:1px solid var(--line);display:flex;justify-content:center;align-items:center;flex-shrink:0;background:linear-gradient(transparent,var(--subtle))}
-.resize-divider span{height:3px;width:28px;background:var(--line-strong);border-radius:2px}
-.response{min-height:0;flex:1;display:flex;flex-direction:column;position:relative}
-.response-heading{height:51px;padding:0 26px;display:flex;align-items:center;gap:18px;flex-shrink:0}
-.response-heading strong{font-size:12px;font-weight:600}
-.response-status{display:flex;align-items:center;gap:6px;padding:3px 7px;color:var(--green);background:var(--green-soft);border-radius:4px;font:10px var(--font-code)}
-.response-status.error{color:var(--red);background:var(--accent-soft)}.response-status.error .dot{background:var(--red)}
-.response-metric{display:flex;align-items:center;gap:5px;font:10px var(--font-code);color:var(--muted)}.response-metric .icon{width:12px;height:12px}
-.response-note{color:var(--faint);font-size:10px}
-.response-tabs{display:flex;align-items:center;padding:0 26px;height:35px;border-bottom:1px solid var(--line);gap:22px;flex-shrink:0}
-.response-tabs .pane-tab{font-size:10px}.response-tabs .pane-tab[aria-pressed="true"]{color:var(--text);font-weight:600}
-.response-tabs .pane-tab[aria-pressed="true"]:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--green)}
-.format-toggle{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-left:3px}
-.format-toggle button{font-size:9px;padding:2px 7px;color:var(--muted)}.format-toggle button[aria-pressed="true"]{background:var(--green-soft);color:var(--text)}
-.response-tools{display:flex;align-items:center;gap:5px}.language{font:9px var(--font-code);letter-spacing:.03em;color:var(--muted);margin-right:5px}
-.response-content{flex:1;overflow:auto;padding:15px 0 24px;min-height:0;background:var(--surface)}
-.code-line{display:flex;min-height:21px;font:11px/21px var(--font-code);white-space:pre}
-.line-number{width:56px;padding-right:19px;flex-shrink:0;text-align:right;color:var(--faint);user-select:none;font-size:10px}
-.syntax-key{color:var(--code-key)}.syntax-string{color:var(--code-string)}.syntax-number,.syntax-boolean{color:var(--code-number)}
-.raw-response{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 26px;font:11px/1.9 var(--font-code);color:var(--code-string)}
-.response-table{margin:0 26px;width:calc(100% - 52px);border-collapse:collapse;font:11px/1.8 var(--font-code)}
-.response-table td{border-bottom:1px solid var(--line);padding:8px 0;overflow-wrap:anywhere}.response-table td:first-child{color:var(--muted);width:38%}
-.response-empty{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;min-height:165px;height:100%;color:var(--muted)}
-.response-empty>.icon{width:28px;height:28px;color:var(--line-strong)}.response-empty strong{color:var(--text);font-size:12px;font-weight:500}.response-empty span{font-size:10px}
-.response-foot{display:flex;justify-content:space-between;padding:7px 26px;border-top:1px solid var(--line);color:var(--faint);font-size:9px;flex-shrink:0}
-.footer{height:var(--footer-height);display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:0 14px;font-size:9px;color:var(--muted);flex-shrink:0}
-.footer .icon{width:12px;height:12px}.footer .divider{height:10px;width:1px;background:var(--line-strong);margin:0 6px}
-.footer-right{display:flex;align-items:center;gap:7px}
-.split.side-by-side{flex-direction:row;margin-top:8px;border-top:1px solid var(--line)}
-.split.side-by-side .composer{width:49%;min-width:0;padding:0 18px;overflow:auto}
-.split.side-by-side .pane-tabs{gap:20px}.split.side-by-side .pane-content{height:auto;min-height:210px}
-.split.side-by-side .resize-divider{margin:0;width:8px;height:auto;border:0;border-right:1px solid var(--line);align-items:center;background:var(--subtle)}
-.split.side-by-side .resize-divider span{height:28px;width:2px}.split.side-by-side .response{min-width:0}
-.split.side-by-side .response-heading{padding:0 18px;gap:10px;height:44px}.split.side-by-side .response-note{display:none}
-.split.side-by-side .response-tabs{padding:0 18px;gap:14px}
-.toast{position:fixed;bottom:47px;left:50%;transform:translate(-50%,8px);display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);padding:10px 16px;border-radius:7px;box-shadow:var(--shadow);opacity:0;transition:opacity .15s,transform .15s;pointer-events:none;z-index:20}
-.toast.visible{opacity:1;transform:translate(-50%,0)}.toast .icon{color:var(--green)}
-dialog{color:var(--text);width:min(500px,calc(100vw - 40px));border:1px solid var(--line-strong);border-radius:10px;padding:0;background:var(--surface);box-shadow:var(--shadow)}
-dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
-.dialog-head{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)}
-.dialog-head input{flex:1;font-size:13px}.dialog-content{padding:9px;max-height:360px;overflow:auto}
-.command-result{width:100%;display:flex;align-items:center;gap:12px;padding:12px;border-radius:5px;text-align:left}
-.command-result:hover,.command-result:focus-visible{background:var(--green-soft)}.command-result .method{width:32px}.command-result .muted{margin-left:auto;font-size:10px}
-.shortcut-row{padding:10px;display:flex;justify-content:space-between}
-@media(min-width:1500px){:root{--sidebar-width:278px}.request-top,.composer{padding-left:34px;padding-right:34px}}
-@media(max-width:1100px){:root{--sidebar-width:218px}.command-trigger{width:240px}.request-top{padding:18px 20px 0}.composer{padding:0 20px}.history-time,.response-note{display:none}.request-tab{padding:0 12px;gap:7px}.response-heading{gap:12px;padding:0 20px}}
-@media(max-width:900px){.sidebar,.local-badge{display:none}.brand{margin-right:auto}.command-trigger{width:220px}.split.side-by-side{flex-direction:column}.split.side-by-side .composer{width:100%}.split.side-by-side .pane-content{height:206px;min-height:0}.split.side-by-side .resize-divider{width:100%;height:8px;flex-shrink:0;border-bottom:1px solid var(--line)}.split.side-by-side .resize-divider span{height:2px;width:28px}}
-@media(max-width:600px){
- :root{--rail-width:43px}.window-controls,.brand span:last-child,.command-trigger span,.command-trigger kbd,.description,.footer-right{display:none}
- .command-trigger{width:29px;border:0;background:none;padding:0;margin:0}.titlebar{gap:9px;padding:0 12px}.rail{padding:12px 3px}.rail-button{width:31px}.rail-button.selected:before{left:-3px}
- .request-tabs{padding-left:0}.request-tab{padding:0 9px}.request-tab .tab-dot{display:none}.request-top{padding:15px 12px 0}.request-title{margin-bottom:12px}h1{font-size:20px}
- .breadcrumb{gap:4px;font-size:9px}.breadcrumb>.icon,.breadcrumb>.root-crumb{display:none}.environment{padding:0;gap:3px}.environment select{max-width:102px;font-size:10px}
- .send{min-width:61px;padding:0 11px}.send .shortcut,.url-field>.icon{display:none}.method-select{width:78px;padding-left:8px;font-size:11px}.url-input{padding:8px;font-size:10px}
- .composer{padding:0 12px}.pane-tabs{gap:19px}.kv-table th:last-child,.kv-table td:last-child{display:none}
- .response-heading{padding:0 12px;gap:9px}.response-metric{font-size:9px}.response-metric .icon{display:none}.response-heading strong{font-size:11px}.response-tabs{padding:0 12px;gap:14px}
- .line-number{width:37px;padding-right:12px}.code-line{font-size:10px}.response-foot{padding:7px 12px}.auth-fields{grid-template-columns:100px minmax(0,1fr);gap:12px}
+.history-item>.method{width:34px;padding-top:3px;flex-shrink:0}.history-details{min-width:0;flex:1}.history-title{display:block;font-weight:500;margin-bottom:3px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-path{color:var(--faint);display:block;font:10px var(--font-code);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--faint);margin-top:6px}.history-meta .dot{width:4px;height:4px}.history-meta .status{color:var(--green)}.history-meta .error{color:var(--red)}.history-time{color:var(--faint);font-size:10px;padding-top:3px}
+.request-editor{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;background:var(--surface);overflow:auto;overscroll-behavior:contain}
+.request-tabs{display:flex;height:var(--tab-height);background:var(--sidebar);border-bottom:1px solid var(--line);align-items:stretch;flex-shrink:0;overflow-x:auto}
+.request-tab{display:flex;gap:9px;align-items:center;padding:0 20px;border-right:1px solid var(--line);position:relative;color:var(--faint);max-width:240px;flex-shrink:0;min-width:160px}.request-tab .name{font-size:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.request-tab[aria-selected="true"]{color:var(--text);background:var(--surface)}.request-tab[aria-selected="true"]:before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}.request-tab .tab-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:7px}.request-tabs>.icon-button{align-self:center;margin:0 8px}
+.request-top{padding:clamp(12px,2.2dvh,22px) clamp(12px,2vw,36px);flex-shrink:0}
+.environment{display:inline-flex;align-items:center;gap:8px;padding:5px 8px 5px 10px;color:var(--muted);border:1px solid var(--line);border-radius:5px;height:30px}.environment select{background:transparent;border:0;max-width:145px;font-size:11px;cursor:pointer}.environment select option{background:var(--surface)}
+.request-title>div:first-child{min-width:0}.request-title h1{overflow-wrap:anywhere}
+.request-title{display:flex;align-items:center;gap:12px;margin-bottom:23px}h1{font-size:26px;letter-spacing:-.8px;line-height:1.25;font-weight:600;margin:0}.description{color:var(--muted);font-size:12px;margin-top:8px}.request-title .text-button{font-size:12px}.request-title .text-button kbd{font-size:10px}.request-title .save-button{border:1px solid var(--line);background:var(--subtle)}
+/* URL focus highlights its container; the method select keeps its own focus ring. */
+.url-row{display:flex;gap:10px}.url-field{display:flex;align-items:center;flex:1;min-width:0;height:48px;border:1px solid var(--line-strong);border-radius:7px;background:var(--subtle);transition:border-color var(--motion-fast)}.url-field:has(.url-input:focus){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.method-select{border:0;background:transparent;padding:0 12px;width:98px;height:24px;border-right:1px solid var(--line-strong);color:var(--green);font:600 12px var(--font-code)}.method-select option{background:var(--surface);color:var(--text)}.url-input{flex:1;padding:12px 15px;font:12px var(--font-code);width:100%}.url-input:focus-visible{outline:none}.url-field>.icon{margin-right:14px;color:var(--faint)}
+.send{display:flex;align-items:center;justify-content:center;gap:11px;background:var(--accent);color:var(--on-accent);border-radius:7px;min-width:128px;padding:0 18px;font-weight:600;font-size:13px}.send:hover{background:var(--accent-hover)}.send:active{filter:brightness(.95)}.send .shortcut{font:11px var(--font-ui);font-weight:500}.send .icon{width:15px}
+.split{flex:1 0 400px;min-height:400px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(180px,.46fr) 5px minmax(210px,.54fr);border-top:1px solid var(--line)}.composer{padding:0 clamp(12px,2vw,28px);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:auto}.composer-label{display:none;gap:8px;align-items:center;height:50px;flex-shrink:0;color:var(--muted);font-size:12px}.composer-label strong{color:var(--text);font-weight:500}.composer-label .icon{width:15px}.composer-label .mode-label{font:10px var(--font-code);color:var(--faint)}
+.pane-tabs{display:flex;align-items:center;gap:23px;height:43px;border-bottom:1px solid var(--line);flex-shrink:0}.pane-tab{display:flex;height:100%;align-items:center;gap:6px;color:var(--muted);position:relative;font-size:12px;white-space:nowrap}.pane-tab[aria-selected="true"]{color:var(--accent);font-weight:500}.pane-tab[aria-selected="true"]:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}.pane-tab .count{min-width:15px;font-size:9px;padding:0 4px}.pane-tab[aria-selected="true"] .count{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.pane-content{flex:1;min-height:0;overflow:auto;padding-bottom:8px}.section-heading{display:flex;align-items:center;gap:10px;height:55px;font-weight:500;font-size:11px}.section-heading .hint{font-weight:400;font-size:10px;color:var(--faint)}.section-heading .text-button{font-size:11px}
+.kv-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;border:1px solid var(--line);border-radius:6px;overflow:hidden}.kv-table th{background:var(--subtle);color:var(--faint);font-size:9px;letter-spacing:.06em;font-weight:500;text-align:left;height:32px}.kv-table th,.kv-table td{padding:0 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.kv-table th:first-child,.kv-table td:first-child{width:35px;padding:0 10px;border-right:0}.kv-table th:last-child,.kv-table td:last-child{border-right:0;width:36%}.kv-table tr:last-child td{border-bottom:0}.kv-table td{height:40px;color:var(--faint);font-size:10px}.kv-table td input[type="text"]{width:100%;height:32px;font:11px var(--font-code);color:var(--text)}.kv-table td:focus-within{background:var(--subtle)}.kv-table input:focus-visible{outline-offset:1px}.add-row{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11px;color:var(--muted);padding:8px 4px}.add-row:hover{color:var(--accent)}
+.body-editor{width:100%;min-height:100px;height:calc(100% - 62px);resize:vertical;background:var(--subtle);border:1px solid var(--line);border-radius:6px;padding:12px;font:12px/1.9 var(--font-code);tab-size:2;color:var(--code-string)}.auth-fields{display:grid;grid-template-columns:140px minmax(0,1fr);gap:18px;margin-top:22px}.auth-fields label{font-size:11px;color:var(--muted)}.auth-fields input,.auth-fields select{width:100%;padding:8px;border:1px solid var(--line-strong);border-radius:5px;background:var(--subtle);margin-top:8px;font-size:11px}.auth-fields input:disabled{opacity:.5}.pane-hint{font-size:11px;color:var(--faint);line-height:1.8}
+.request-context{display:none;flex-shrink:0;margin-top:auto;padding:24px 0;color:var(--faint)}.context-title{font-size:10px;font-weight:500;letter-spacing:.08em;margin-bottom:10px}.query-preview{display:block;overflow-wrap:anywhere;background:var(--subtle);border:1px solid var(--line);border-radius:6px;padding:12px;font:11px/1.8 var(--font-code);color:var(--muted)}.context-auth{display:flex;gap:8px;align-items:center;width:100%;padding:14px 0 0;color:var(--muted);font-size:11px;text-align:left}.context-auth .icon{width:14px;color:var(--green)}.context-auth>span:last-child{margin-left:auto;color:var(--faint);font-size:10px}.context-auth:hover{color:var(--accent)}
+.resize-divider{height:5px;border-block:1px solid var(--line);display:flex;justify-content:center;align-items:center;flex-shrink:0;background:var(--sidebar)}.resize-divider span{height:2px;width:28px;background:var(--line-strong);border-radius:2px}
+.response{min-height:0;flex:1;display:flex;flex-direction:column;position:relative;min-width:0;background:var(--sidebar)}.response-heading{height:50px;padding:0 22px;display:flex;align-items:center;gap:13px;flex-shrink:0}.response-heading strong{font-size:12px;font-weight:500}.response-status{display:flex;align-items:center;gap:6px;padding:4px 7px;color:var(--green);background:var(--green-soft);border-radius:4px;font:10px var(--font-code);white-space:nowrap}.response-status.error{color:var(--red);background:var(--red-soft)}.response-status.error .dot{background:var(--red)}.response-metric{display:flex;align-items:center;gap:5px;font:10px var(--font-code);color:var(--muted);white-space:nowrap}.response-metric .icon{width:12px;height:12px}.response-note{color:var(--faint);font-size:10px;white-space:nowrap}
+.response-tabs{display:flex;align-items:center;padding:0 22px;height:43px;border-bottom:1px solid var(--line);gap:18px;flex-shrink:0}.response-tabs .pane-tab{font-size:11px}.response-tabs .pane-tab[aria-pressed="true"]{color:var(--text);font-weight:500}.response-tabs .pane-tab[aria-pressed="true"]:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}.format-toggle{display:inline-flex;background:var(--canvas);border:1px solid var(--line);border-radius:5px;padding:2px}.format-toggle button{font-size:10px;padding:3px 7px;color:var(--faint);border-radius:3px;min-height:24px}.format-toggle button[aria-pressed="true"]{background:var(--elevated);color:var(--text)}.response-tools{display:flex;align-items:center;gap:3px}.language{font:10px var(--font-code);color:var(--faint);margin-right:4px}.response-content{flex:1;overflow:auto;padding:19px 0 24px;min-height:0}.code-line{display:flex;min-height:23px;font:12px/23px var(--font-code);white-space:pre}.code-line:hover{background:var(--subtle)}.line-code{padding-right:20px}.line-number{width:48px;padding-right:17px;flex-shrink:0;text-align:right;color:var(--faint);user-select:none;font-size:10px}.syntax-key{color:var(--code-key)}.syntax-string{color:var(--code-string)}.syntax-number,.syntax-boolean{color:var(--code-number)}
+.raw-response{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 22px;font:12px/1.9 var(--font-code);color:var(--code-string)}.response-table{margin:0 22px;width:calc(100% - 44px);border-collapse:collapse;font:11px/1.8 var(--font-code)}.response-table td{border-bottom:1px solid var(--line);padding:10px 8px;overflow-wrap:anywhere}.response-table td:first-child{color:var(--muted);width:40%}.response-empty{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;min-height:180px;height:100%;color:var(--faint);text-align:center;padding:20px}.response-empty>.icon{width:36px;height:36px;color:var(--muted);margin-bottom:8px}.response-empty strong{color:var(--text);font-size:13px;font-weight:500}.response-empty span{font-size:11px;max-width:260px}.response-foot{display:flex;justify-content:space-between;padding:9px 22px;border-top:1px solid var(--line);color:var(--faint);font:10px var(--font-code);flex-shrink:0}
+.footer{height:var(--footer-height);display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:0 16px;font-size:10px;color:var(--faint);flex-shrink:0;background:var(--canvas)}.footer>.icon{color:var(--green)}.footer .icon{width:12px;height:12px}.footer .divider{height:10px;width:1px;background:var(--line-strong);margin:0 7px}.footer-right{display:flex;align-items:center;gap:7px}.footer kbd{font-size:10px;border:0;padding:0}.footer .demo-note{color:var(--muted)}
+.split.side-by-side{flex-basis:300px;min-height:300px;grid-template-columns:minmax(0,.46fr) 5px minmax(0,.54fr);grid-template-rows:minmax(0,1fr)}
+.split.side-by-side .composer-label{display:flex}.split.side-by-side .pane-content{flex:0 1 auto;min-height:180px;max-height:60%}.split.side-by-side .pane-content:has(.body-editor){flex:1;max-height:none;display:flex;flex-direction:column}.split.side-by-side .body-editor{flex:1}.split.side-by-side .request-context{display:block}.split.side-by-side .resize-divider{height:100%;border-block:0;border-inline:1px solid var(--line)}.split.side-by-side .resize-divider span{height:26px;width:1px}.split.side-by-side .response-note{display:none}
+#split-button:disabled{opacity:.45;cursor:default}#split-button:disabled:hover{background:none;color:var(--muted)}
+.toast{position:fixed;bottom:48px;left:50%;transform:translate(-50%,8px);display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);background:var(--elevated);color:var(--text);padding:12px 18px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transition:opacity var(--motion-feedback),transform var(--motion-feedback);pointer-events:none;z-index:20;max-width:calc(100vw - 32px)}.toast.visible{opacity:1;transform:translate(-50%,0)}.toast .icon{color:var(--green)}
+dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid var(--line-strong);border-radius:12px;padding:0;background:var(--surface);box-shadow:var(--shadow)}dialog::backdrop{background:#08090b99;backdrop-filter:blur(4px)}.dialog-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}.dialog-head input{flex:1;font-size:13px}.dialog-content{padding:10px;max-height:420px;overflow:auto}.command-result{width:100%;display:flex;align-items:center;gap:12px;padding:12px;border-radius:6px;text-align:left;font-size:12px}.command-result:hover,.command-result:focus-visible{background:var(--subtle)}.command-result .method{width:38px}.command-result .muted{margin-left:auto;font-size:10px}.shortcut-row{padding:12px;display:flex;justify-content:space-between;gap:12px}.code-snippet{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px;font:11px/1.9 var(--font-code);color:var(--code-string)}.dialog-footer{border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;color:var(--faint);font-size:10px}.dialog-footer button{border:1px solid var(--line-strong)}
+
+.history-dialog[open]{display:flex;flex-direction:column;width:min(480px,calc(100vw - 32px));height:min(640px,calc(100dvh - 32px));max-height:calc(100dvh - 32px)}
+.history-dialog .dialog-head,.history-dialog .dialog-footer{flex-shrink:0}.history-dialog .history-search{margin:14px 18px 5px;flex-shrink:0}.history-dialog .history-scroll{padding:0 12px 10px}.history-dialog .history-item{padding:12px}
+@media(max-width:1250px){
+ :root{--rail-width:64px}.rail-button{width:52px}.pane-tabs{gap:18px}.response-heading{gap:10px;padding-inline:18px}.response-tabs{padding-inline:18px;gap:14px}.request-tab{min-width:140px;padding-inline:15px}.response-note{display:none}
 }
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}}
+@media(max-width:1100px){.split.side-by-side .kv-table th:last-child,.split.side-by-side .kv-table td:last-child{display:none}.split.side-by-side .section-heading .hint{display:none}}
+@media(max-width:800px){
+ .command-trigger{margin-left:auto;margin-right:0;width:230px}.request-title{gap:8px;margin-bottom:18px}.request-title .text-button kbd{display:none}.request-tab{min-width:130px}.request-title .text-button{padding:7px 9px}.footer .demo-note{font-size:9px}
+}
+@media(max-width:540px){
+ :root{--rail-width:48px;--titlebar-height:48px;--tab-height:42px}.titlebar{padding:0 12px;gap:12px}.window-controls,.brand>span:last-child,.command-trigger span,.command-trigger kbd,.description,.footer-right{display:none}.command-trigger{width:30px;height:30px;justify-content:center;padding:0;border:0;background:none}
+ .rail{padding:12px 3px;gap:8px}.rail-button{width:40px;min-height:44px;font-size:9px}.rail-button .icon{width:18px;height:18px}.rail-button.new,.rail-button.utility{width:32px}
+ .environment{padding:4px 5px;gap:4px;height:28px}.environment select{max-width:105px;font-size:10px}.request-title{margin-bottom:14px}h1{font-size:22px}.request-title .text-button{font-size:11px;padding:5px 7px}.request-title .code-button{font-size:0;padding:7px}.request-title .code-button .icon{width:16px;height:16px}
+ .request-tab{min-width:120px;padding:0 12px;gap:6px}.request-tab .name{font-size:11px}.url-field{height:44px}.method-select{width:77px;padding:0 7px;font-size:11px}.url-input{padding:10px 8px;font-size:11px}.url-field>.icon,.send .shortcut,.send>.icon{display:none}.send{min-width:60px;padding:0 12px;font-size:12px}.url-row{gap:7px}
+ .pane-tabs{gap:17px}.pane-tab{font-size:11px}.pane-tab .icon{display:none}.kv-table th:last-child,.kv-table td:last-child{display:none}.section-heading{height:44px}.section-heading .hint{display:none}.response-heading{padding:0 12px;gap:8px;height:44px}.response-heading strong{font-size:11px}.response-status{font-size:9px;padding:3px 5px}.response-metric{font-size:9px}.response-metric .icon{display:none}
+ .response-tabs{padding:0 12px;gap:12px;height:40px}.response-tabs .pane-tab{font-size:10px}.response-tools .language{display:none}.format-toggle button{font-size:10px;padding:3px 5px}.response-tools .icon-button{width:26px}.code-line{font-size:11px;line-height:22px;min-height:22px}.line-number{width:34px;padding-right:10px}.response-foot{padding:7px 12px;font-size:9px}.auth-fields{grid-template-columns:110px minmax(0,1fr);gap:12px}
+ .footer{padding:0 10px;font-size:9px;gap:5px}.footer .divider{margin:0 3px}.footer .demo-note{font-size:9px}.command-result{gap:7px;font-size:11px}.command-result .muted{font-size:9px}.dialog-head{padding:12px}.dialog-head input{width:100%}.dialog-content{max-height:calc(100dvh - 160px)}
+}
+@media(max-width:360px){.response-heading{gap:6px}.response-metric{font-size:8px}.response-tabs{gap:8px}.response-tabs .pane-tab .count{display:none}.request-title .text-button{padding:5px}.request-title .code-button{padding:6px}.pane-tabs{gap:13px}.footer>.divider,.footer>.demo-note{display:none}}
+@media(max-height:700px){
+ :root{--titlebar-height:42px;--tab-height:38px;--footer-height:26px}.request-top{padding-block:12px}.request-title{margin-bottom:12px}.description{display:none}.request-title h1{font-size:22px}.rail{padding-block:8px;gap:5px}.rail-button{min-height:38px}.rail-button.new{margin-bottom:3px}.split.side-by-side .request-context{display:none}.split.side-by-side .pane-content{flex:1;max-height:none}.dialog-content{max-height:calc(100dvh - 160px)}
+}
+
+.environment-tools{display:flex;align-items:center;gap:6px;min-width:0;flex-shrink:0}.environment-settings{height:30px;border:1px solid var(--line);font-size:11px;padding:5px 8px}.environment-settings:hover{border-color:var(--line-strong)}
+.environment-dialog[open]{display:flex;flex-direction:column;width:min(600px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:hidden}.environment-dialog>.dialog-head{flex-shrink:0}.environment-intro{margin:3px 0 0;color:var(--faint);font-size:11px}.environment-form{display:flex;flex-direction:column;min-height:0}.environment-content{padding:20px;overflow:auto;min-height:0;max-height:540px}.environment-help{font-size:12px;color:var(--muted);margin:0 0 18px;line-height:1.7}
+.environment-card{padding:14px 16px 16px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;background:var(--subtle)}.environment-card-heading{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:11px;font-weight:500}.environment-active{color:var(--green);background:var(--green-soft);font-size:10px;padding:2px 6px;border-radius:4px}.remove-environment{width:26px;height:26px}.remove-environment:disabled{opacity:.4;cursor:default}
+.environment-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:14px}.environment-field label{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}.environment-field input{width:100%;height:36px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:5px;background:var(--surface);font-size:12px}.environment-field input[data-field="baseUrl"]{font:11px var(--font-code)}.environment-field input:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.environment-field input[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}.environment-error{color:var(--red);font-size:11px;line-height:1.6;margin:6px 0 0}.environment-base-hint{margin:10px 0 0;color:var(--faint);font-size:10px;line-height:1.6}.add-environment{color:var(--accent);font-size:12px}
+.environment-footer{flex-shrink:0;gap:12px}.environment-footer>div{display:flex;gap:8px;align-items:center}.environment-footer .save-environments{background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:500;border:0;border-radius:6px;padding:9px 12px;white-space:nowrap}.environment-footer .save-environments:hover{background:var(--accent-hover)}
+@media(max-width:600px){.environment-fields{grid-template-columns:minmax(0,1fr);gap:12px}.environment-content{padding:14px}.environment-card{padding:12px}.environment-footer{flex-wrap:wrap;padding:12px 14px}.environment-footer>div{margin-left:auto}.environment-tools{gap:4px}.environment-settings{width:28px;height:28px;padding:0;justify-content:center}.environment-settings>span{display:none}}
+
+
+.request-title>.environment-tools{margin-right:6px}.request-title .environment-settings{font-size:11px}
+@media(max-width:800px){
+ .request-title{display:grid;grid-template-columns:minmax(0,1fr) auto auto;row-gap:12px}
+ .request-title>.environment-tools{grid-column:1 / -1;grid-row:1;justify-self:end;margin-right:0}
+ .request-title>div:first-child{grid-column:1;grid-row:2}.request-title>.spacer{display:none}
+ .request-title>.code-button{grid-column:2;grid-row:2}.request-title>.save-button{grid-column:3;grid-row:2}
+}
+
+.body-format{background:var(--subtle);border:1px solid var(--line-strong);border-radius:4px;padding:3px 6px;font-size:10px}
+.import-dialog[open]{display:flex;flex-direction:column;width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:hidden}.import-dialog>.dialog-head{flex-shrink:0}.import-form{display:flex;flex-direction:column;min-height:0}.import-content{padding:20px;overflow:auto;min-height:0}.import-intro{margin:0 0 18px;color:var(--muted);font-size:12px;line-height:1.7}.import-label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;margin-bottom:8px}.import-label .text-button{font-size:11px;color:var(--accent);padding:4px 6px}
+.curl-input{display:block;resize:vertical;width:100%;height:210px;min-height:120px;max-height:360px;padding:14px;border:1px solid var(--line-strong);border-radius:7px;background:var(--canvas);font:11px/1.9 var(--font-code);color:var(--code-string)}.curl-input:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.curl-input[aria-invalid="true"]{border-color:var(--red)}.import-hint{margin:9px 0 0;color:var(--faint);font-size:10px;line-height:1.7}.import-error{margin:10px 0 0;color:var(--red);font-size:11px;line-height:1.7}
+.import-preview{margin-top:18px;padding:14px 16px;border:1px solid var(--line);border-radius:7px;background:var(--subtle)}.import-preview-label{display:flex;align-items:center;gap:7px;color:var(--green);font-size:11px;font-weight:500;margin-bottom:12px}.import-preview-label .icon{width:14px;height:14px}.import-target{display:flex;align-items:flex-start;gap:10px}.import-target .method{flex-shrink:0;padding-top:3px;overflow-wrap:anywhere;max-width:90px}.import-url{font:11px/1.8 var(--font-code);overflow-wrap:anywhere;min-width:0;color:var(--text)}.import-details{display:flex;gap:8px 16px;flex-wrap:wrap;margin-top:12px;font-size:10px;color:var(--muted)}.import-options{border-top:1px solid var(--line);padding-top:10px;margin:12px 0 0;font-size:10px;line-height:1.8;color:var(--muted)}
+.import-footer{flex-shrink:0;gap:12px}.import-actions{display:flex;gap:8px;align-items:center}.import-submit{background:var(--accent);color:var(--on-accent);border:0!important;border-radius:6px;padding:9px 13px;font-size:12px;font-weight:500;white-space:nowrap}.import-submit:hover{background:var(--accent-hover)}.import-submit:disabled{background:var(--subtle);color:var(--faint);cursor:default;opacity:.65}.code-footer{gap:12px;flex-wrap:wrap}
+@media(max-width:540px){.import-content{padding:16px}.curl-input{height:180px;font-size:10px}.import-footer{padding:12px 16px;flex-wrap:wrap}.import-actions{margin-left:auto}.import-preview{padding:12px}.import-intro{font-size:11px}}
+@media(max-height:600px){.curl-input{height:130px}.import-content{padding-block:14px}.import-intro{margin-bottom:12px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#request-editor">Skip to request editor</a>
 <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
 <defs>
+ <symbol id="i-settings" viewBox="0 0 24 24"><path d="m9 3-.5 2-2 .9-1.9-.6-2 3.4 1.5 1.4v2.3L2.6 14l2 3.4 1.9-.6 2 .9.5 2h4l.5-2 2-.9 1.9.6 2-3.4-1.5-1.6v-2.3l1.5-1.4-2-3.4-1.9.6-2-.9-.5-2Z"/><circle cx="11" cy="11.5" r="3"/></symbol>
+ <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 6 6 6-6 6m9 0h7"/></symbol>
+
  <symbol id="i-send" viewBox="0 0 24 24"><path d="m21 3-7 18-4-7-7-4 18-7Z"/><path d="m10 14 5-5"/></symbol>
  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+ <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></symbol>
  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6M12 7v5l4 2"/></symbol>
- <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10H3V7Z"/></symbol>
  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
  <symbol id="i-cookie" viewBox="0 0 24 24"><path d="M20.8 12A9 9 0 1 1 12 3a5 5 0 0 0 5 5 4 4 0 0 0 3.8 4Z"/><path d="M8 8h.01M7 14h.01M13 16h.01M13 10h.01" stroke-width="3"/></symbol>
  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/></symbol>
@@ -210,81 +178,73 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
 <div class="app" id="app">
  <header class="titlebar" data-testid="top-header">
   <div class="window-controls" aria-hidden="true"><span></span><span></span><span></span></div>
-  <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-bolt"/></svg></span>Postman <span>GPUI</span></div>
-  <button class="command-trigger" id="open-search" aria-label="Search requests"><svg class="icon small"><use href="#i-search"/></svg><span>Search requests, history…</span><kbd>⌘ K</kbd></button>
-  <span class="local-badge"><span class="dot"></span>Local workspace</span><span class="prototype-label">PROTOTYPE</span>
+  <div class="brand"><span class="brand-mark"><svg aria-hidden="true" class="icon"><use href="#i-bolt"/></svg></span>Postman <span>GPUI</span></div>
+  <button class="command-trigger" id="open-search" aria-label="Search requests"><svg aria-hidden="true" class="icon small"><use href="#i-search"/></svg><span>Search anything…</span><kbd>⌘ K</kbd></button>
  </header>
  <div class="app-body">
-  <nav class="rail" aria-label="Workspace navigation" data-testid="left-rail">
-   <button class="rail-button new" id="new-request" title="New request" aria-label="New request"><svg class="icon"><use href="#i-plus"/></svg></button>
-   <button class="rail-button selected" id="show-history" title="History" aria-label="History" aria-pressed="true"><svg class="icon"><use href="#i-history"/></svg></button>
-   <button class="rail-button" id="rail-search" title="Search requests" aria-label="Search requests"><svg class="icon"><use href="#i-search"/></svg></button>
-   <button class="rail-button" id="cookie-button" title="Cookie jar" aria-label="Cookie jar"><svg class="icon"><use href="#i-cookie"/></svg></button>
+  <nav class="rail" aria-label="Request tools" data-testid="left-rail">
+   <button class="rail-button new" id="new-request" title="New request" aria-label="New request"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></button>
+   <button class="rail-button" id="open-import" title="Import cURL" aria-label="Import cURL" aria-haspopup="dialog" aria-controls="import-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-import"/></svg><span>Import</span></button>
+   <button class="rail-button" id="show-history" title="History" aria-label="History" aria-haspopup="dialog" aria-controls="history-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-history"/></svg><span>History</span></button>
+   <button class="rail-button" id="rail-search" title="Search requests" aria-label="Search requests"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><span>Search</span></button>
+   <button class="rail-button" id="cookie-button" title="Cookie jar" aria-label="Cookie jar"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><span>Cookies</span></button>
    <span class="spacer"></span>
-   <button class="rail-button" id="theme-button" title="Switch color theme" aria-label="Switch color theme" aria-pressed="false"><svg class="icon"><use href="#i-moon"/></svg></button>
+   <button class="rail-button utility" id="theme-button" title="Switch color theme" aria-label="Switch color theme" aria-pressed="false"><svg aria-hidden="true" class="icon"><use href="#i-moon"/></svg></button>
    <div class="rail-divider"></div>
-   <button class="rail-button" id="shortcut-button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg class="icon"><use href="#i-keyboard"/></svg></button>
+   <button class="rail-button utility" id="shortcut-button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg aria-hidden="true" class="icon"><use href="#i-keyboard"/></svg></button>
   </nav>
-  <aside class="sidebar" aria-label="Request history" data-testid="history-panel">
-   <div class="sidebar-heading"><strong>History</strong><span class="count" id="history-count">8</span><span class="spacer"></span><svg class="icon small muted"><use href="#i-history"/></svg></div>
-   <label class="history-search"><svg class="icon small"><use href="#i-search"/></svg><input id="history-filter" placeholder="Filter history…" aria-label="Filter history"><kbd>⌕</kbd></label>
-   <div class="history-scroll" id="history-list"></div>
-   <div class="sidebar-footer"><svg class="icon small"><use href="#i-lock"/></svg><span>Your requests stay on this device.</span></div>
-  </aside>
-  <main class="workspace" data-testid="request-workspace">
+  <main class="request-editor" id="request-editor" tabindex="-1" data-testid="request-editor">
    <div class="request-tabs" id="request-tabs" role="tablist" aria-label="Open requests"></div>
    <section class="request-top">
-    <div class="breadcrumb">
-     <svg class="icon"><use href="#i-folder"/></svg><span class="root-crumb">Workspace</span><span class="slash">/</span><span>Acme API</span><span class="slash">/</span><span class="current" id="breadcrumb-name">List users</span>
-     <span class="spacer"></span><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option></select></label>
-    </div>
-    <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve the people in your workspace.</div></div><span class="spacer"></span><button class="text-button" id="save-request"><svg class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
+    <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve a paginated list of users.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
     <div class="url-row">
-     <div class="url-field"><select id="method" class="method-select" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input class="url-input" id="url" aria-label="Request URL" spellcheck="false" value="https://api.acme.dev/v1/users?page=1&amp;limit=10"><svg class="icon small"><use href="#i-lock"/></svg></div>
-     <button class="send" id="send-button" data-testid="send-button"><span id="send-label">Send</span><span class="shortcut" id="send-shortcut">⌘ ↵</span></button>
+     <div class="url-field"><select id="method" class="method-select" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input class="url-input" id="url" aria-label="Request URL" spellcheck="false" value="https://api.acme.dev/v1/users?page=1&amp;limit=10"><svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg></div>
+     <button class="send" id="send-button" data-testid="send-button"><svg aria-hidden="true" class="icon"><use href="#i-send"/></svg><span id="send-label">Send</span><span class="shortcut" id="send-shortcut">⌘ ↵</span></button>
     </div>
    </section>
-   <div class="split" id="split">
+   <div class="split side-by-side" id="split">
     <section class="composer" aria-label="Request configuration">
+     <div class="composer-label"><svg aria-hidden="true" class="icon"><use href="#i-terminal"/></svg><strong>Request</strong><span class="spacer"></span><span class="mode-label">HTTP</span></div>
      <div class="pane-tabs" role="tablist" aria-label="Request configuration">
       <button class="pane-tab" role="tab" id="tab-params" aria-controls="pane-params" aria-selected="true" data-pane="params">Params <span class="count" id="params-count">2</span></button>
       <button class="pane-tab" role="tab" id="tab-headers" aria-controls="pane-headers" aria-selected="false" data-pane="headers">Headers <span class="count" id="headers-count">2</span></button>
       <button class="pane-tab" role="tab" id="tab-body" aria-controls="pane-body" aria-selected="false" data-pane="body">Body</button>
-      <button class="pane-tab" role="tab" id="tab-auth" aria-controls="pane-auth" aria-selected="false" data-pane="auth">Auth <svg class="icon small"><use href="#i-lock"/></svg></button>
+      <button class="pane-tab" role="tab" id="tab-auth" aria-controls="pane-auth" aria-selected="false" data-pane="auth">Auth <svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg></button>
      </div>
      <div class="pane-content" id="pane-params" role="tabpanel" aria-labelledby="tab-params">
-      <div class="section-heading">Query parameters<span class="spacer"></span><span class="hint">Included in the request URL</span></div>
+      <div class="section-heading">Query parameters<span class="spacer"></span><span class="hint">Synced with URL</span></div>
       <table class="kv-table"><thead><tr><th><span aria-label="Enabled">✓</span></th><th>KEY</th><th>VALUE</th><th>DESCRIPTION</th></tr></thead><tbody id="params-rows"></tbody></table>
-      <button class="add-row" id="add-param"><svg class="icon small"><use href="#i-plus"/></svg>Add parameter</button>
+      <button class="add-row" id="add-param"><svg aria-hidden="true" class="icon small"><use href="#i-plus"/></svg>Add parameter</button>
      </div>
      <div class="pane-content" id="pane-headers" role="tabpanel" aria-labelledby="tab-headers" hidden>
       <div class="section-heading">Request headers<span class="spacer"></span><span class="hint">Sent with this request</span></div>
       <table class="kv-table"><thead><tr><th>✓</th><th>KEY</th><th>VALUE</th><th>DESCRIPTION</th></tr></thead><tbody id="headers-rows"></tbody></table>
-      <button class="add-row" id="add-header"><svg class="icon small"><use href="#i-plus"/></svg>Add header</button>
+      <button class="add-row" id="add-header"><svg aria-hidden="true" class="icon small"><use href="#i-plus"/></svg>Add header</button>
      </div>
      <div class="pane-content" id="pane-body" role="tabpanel" aria-labelledby="tab-body" hidden>
-      <div class="section-heading">Request body<span class="count">JSON</span><span class="spacer"></span><button class="text-button" id="format-body">Format</button></div>
-      <textarea class="body-editor" id="body-editor" aria-label="JSON request body" spellcheck="false"></textarea>
+      <div class="section-heading">Request body<select class="body-format" id="body-format" aria-label="Body format"><option value="json">JSON</option><option value="raw">Raw</option></select><span class="spacer"></span><button class="text-button" id="format-body">Format</button></div>
+      <textarea class="body-editor" id="body-editor" aria-label="Request body" spellcheck="false"></textarea>
      </div>
      <div class="pane-content" id="pane-auth" role="tabpanel" aria-labelledby="tab-auth" hidden>
       <div class="auth-fields"><label>Authorization type<select id="auth-kind"><option value="bearer">Bearer token</option><option value="none">No auth</option></select></label><label>Token<input id="auth-token" type="password" placeholder="Enter your access token" autocomplete="off"></label></div>
       <p class="pane-hint">The token is included in the Authorization header when Bearer token is selected.</p>
      </div>
+     <div class="request-context"><div class="context-title">QUERY STRING</div><code class="query-preview" id="query-preview">?page=1&amp;limit=10</code><button class="context-auth" id="auth-summary"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg><span id="auth-summary-text">Bearer token</span><span>Configure →</span></button></div>
     </section>
     <div class="resize-divider" aria-hidden="true"><span></span></div>
     <section class="response" aria-label="Response" data-testid="response-panel">
      <div class="response-heading">
       <strong>Response</strong><span class="response-status" id="response-status"><span class="dot"></span><span id="status-text">200 OK</span></span>
-      <span class="response-metric" id="response-time"><svg class="icon"><use href="#i-clock"/></svg><span id="elapsed">142 ms</span></span>
-      <span class="response-metric" id="response-size"><svg class="icon"><use href="#i-code"/></svg><span id="byte-size">486 B</span></span>
+      <span class="response-metric" id="response-time"><svg aria-hidden="true" class="icon"><use href="#i-clock"/></svg><span id="elapsed">142 ms</span></span>
+      <span class="response-metric" id="response-size"><svg aria-hidden="true" class="icon"><use href="#i-code"/></svg><span id="byte-size">486 B</span></span>
       <span class="spacer"></span><span class="response-note" id="response-note">Just now</span>
-      <button class="icon-button" id="split-button" title="Toggle response layout" aria-label="Toggle response layout" aria-pressed="false"><svg class="icon"><use href="#i-split"/></svg></button>
+      <button class="icon-button" id="split-button" title="Toggle response layout" aria-label="Toggle response layout" aria-pressed="true"><svg aria-hidden="true" class="icon"><use href="#i-split"/></svg></button>
      </div>
      <div class="response-tabs">
       <button class="pane-tab" id="response-body-tab" aria-pressed="true" data-response="body">Body</button>
       <button class="pane-tab" id="response-headers-tab" aria-pressed="false" data-response="headers">Headers <span class="count">4</span></button>
       <div class="format-toggle" id="format-toggle"><button id="pretty-button" aria-pressed="true">Pretty</button><button id="raw-button" aria-pressed="false">Raw</button></div>
-      <span class="spacer"></span><div class="response-tools"><span class="language" id="language">JSON</span><button class="icon-button" id="copy-response" title="Copy response" aria-label="Copy response"><svg class="icon small"><use href="#i-copy"/></svg></button></div>
+      <span class="spacer"></span><div class="response-tools"><span class="language" id="language">JSON</span><button class="icon-button" id="copy-response" title="Copy response" aria-label="Copy response"><svg aria-hidden="true" class="icon small"><use href="#i-copy"/></svg></button></div>
      </div>
      <div class="response-content" id="response-content"></div>
      <div class="response-foot"><span id="response-foot-note">UTF-8 · application/json</span><span id="response-foot-right">Read only</span></div>
@@ -292,18 +252,51 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
    </div>
   </main>
  </div>
- <footer class="footer"><svg class="icon"><use href="#i-check"/></svg><span id="footer-status">All changes saved</span><span class="divider"></span><span>Local workspace</span><span class="spacer"></span><span class="footer-right"><kbd>⌘ ↵</kbd> Send request<span class="divider"></span><svg class="icon"><use href="#i-bolt"/></svg>Built for your flow.</span></footer>
+ <footer class="footer"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg><span id="footer-status">All changes saved</span><span class="divider"></span><span class="demo-note">Demo · Local responses</span><span class="spacer"></span><span class="footer-right"><kbd>⌘ ↵</kbd> Send request<span class="divider"></span><svg aria-hidden="true" class="icon"><use href="#i-bolt"/></svg>Postman GPUI</span></footer>
 </div>
-<div class="toast" id="toast" role="status"><svg class="icon small"><use href="#i-check"/></svg><span id="toast-text"></span></div>
-<dialog id="search-dialog" aria-label="Search requests"><div class="dialog-head"><svg class="icon"><use href="#i-search"/></svg><input id="command-query" placeholder="Find a request…" aria-label="Find a request"><button class="icon-button close-dialog" aria-label="Close search"><svg class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content" id="command-results"></div></dialog>
-<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-head"><strong id="help-title">Keyboard shortcuts</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close shortcuts"><svg class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="shortcut-row"><span>Send / cancel request</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Search requests</span><kbd>⌘ / Ctrl + K</kbd></div><div class="shortcut-row"><span>Save request</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Close dialog</span><kbd>Esc</kbd></div></div></dialog>
-<dialog id="cookie-dialog" aria-labelledby="cookie-title"><div class="dialog-head"><strong id="cookie-title">Cookie jar</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close cookie jar"><svg class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="response-empty"><svg class="icon"><use href="#i-cookie"/></svg><strong>No cookies yet</strong><span>Cookies returned by your API will appear here.</span></div></div></dialog>
+<div class="toast" id="toast" role="status"><svg aria-hidden="true" class="icon small"><use href="#i-check"/></svg><span id="toast-text"></span></div>
+<dialog id="environment-dialog" class="environment-dialog" aria-labelledby="environment-title">
+ <div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-settings"/></svg><div><strong id="environment-title">Environments</strong><p class="environment-intro">One request. Different destinations.</p></div><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close environments"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div>
+ <form id="environment-form" class="environment-form" novalidate>
+  <div class="environment-content"><p class="environment-help">Set a base URL for each environment, then select one next to your request.</p><div id="environment-rows"></div><button class="text-button add-environment" id="add-environment" type="button"><svg aria-hidden="true" class="icon small"><use href="#i-plus"/></svg>Add environment</button></div>
+  <div class="dialog-footer environment-footer"><span>Saved for this preview session</span><div><button class="text-button close-dialog" type="button">Cancel</button><button class="save-environments" type="submit">Save changes</button></div></div>
+ </form>
+</dialog>
+<dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title" data-testid="history-panel">
+ <div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-history"/></svg><strong id="history-title">History</strong><span class="count" id="history-count">8</span><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close history"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div>
+ <label class="history-search"><svg aria-hidden="true" class="icon small"><use href="#i-search"/></svg><input id="history-filter" placeholder="Filter history…" aria-label="Filter history"></label>
+ <div class="history-scroll" id="history-list"></div>
+ <div class="dialog-footer"><span>Recent requests from this preview session</span><kbd>Esc</kbd></div>
+</dialog>
+<dialog id="search-dialog" aria-label="Search requests"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><input id="command-query" placeholder="Find a request…" aria-label="Find a request"><button class="icon-button close-dialog" aria-label="Close search"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content" id="command-results"></div></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-head"><strong id="help-title">Keyboard shortcuts</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close shortcuts"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="shortcut-row"><span>Send / cancel request</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Search requests</span><kbd>⌘ / Ctrl + K</kbd></div><div class="shortcut-row"><span>Save request</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Close dialog</span><kbd>Esc</kbd></div></div></dialog>
+<dialog id="cookie-dialog" aria-labelledby="cookie-title"><div class="dialog-head"><strong id="cookie-title">Cookie jar</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close cookie jar"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="response-empty"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><strong>No cookies yet</strong><span>Cookies returned by your API will appear here.</span></div></div></dialog>
+<dialog id="code-dialog" aria-labelledby="code-title"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-code"/></svg><strong id="code-title">Request code</strong><span class="spacer"></span><span class="muted">cURL</span><button class="icon-button close-dialog" aria-label="Close request code"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div><div class="dialog-content"><pre class="code-snippet" id="code-snippet"></pre></div><div class="dialog-footer code-footer"><button class="text-button" id="code-import" aria-haspopup="dialog" aria-controls="import-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-import"/></svg>Import cURL</button><button class="text-button" id="copy-code"><svg aria-hidden="true" class="icon small"><use href="#i-copy"/></svg>Copy code</button></div></dialog>
+<dialog id="import-dialog" class="import-dialog" aria-labelledby="import-title">
+ <div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-import"/></svg><strong id="import-title">Import cURL</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close import"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div>
+ <form id="import-form" class="import-form" novalidate>
+  <div class="import-content">
+   <p class="import-intro">Paste a cURL command to create a request with its URL, headers, authorization, and body.</p>
+   <div class="import-label"><label for="curl-input">cURL command</label><button type="button" class="text-button" id="import-example">Try an example</button></div>
+   <textarea class="curl-input" id="curl-input" placeholder="curl 'https://api.example.com/users'" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="import-hint import-error"></textarea>
+   <p class="import-hint" id="import-hint">Supports single-line and multiline commands copied for Bash / POSIX shells.</p>
+   <p class="import-error" id="import-error" role="alert" hidden></p>
+   <section class="import-preview" id="import-preview" aria-label="Request preview" hidden>
+    <div class="import-preview-label"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg>Ready to import</div>
+    <div class="import-target"><span class="method" id="import-method"></span><span class="import-url" id="import-url"></span></div>
+    <div class="import-details" id="import-details"></div><p class="import-options" id="import-options" hidden></p>
+   </section>
+  </div>
+  <div class="dialog-footer import-footer"><span>Opens in a new request tab</span><div class="import-actions"><button type="button" class="text-button close-dialog">Cancel</button><button type="submit" class="import-submit" id="import-submit" disabled>Import request</button></div></div>
+ </form>
+</dialog>
+<script src="./curl-request.js"></script>
 <script>
 (() => {
  "use strict";
  const $ = id => document.getElementById(id);
  const esc = value => String(value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
- const icon = name => '<svg class="icon" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+ const icon = name => '<svg aria-hidden="true" class="icon"><use href="#i-' + name + '"/></svg>';
  const clone = value => JSON.parse(JSON.stringify(value));
  const users = [
   { id:"usr_01", name:"Maya Chen", email:"maya@acme.dev", role:"admin", status:"active" },
@@ -314,20 +307,41 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
   { enabled:true, key:"Accept", value:"application/json", note:"Response format" },
   { enabled:true, key:"Content-Type", value:"application/json", note:"Request format" }
  ];
- const baseUrl = () => $("environment").value === "local" ? "http://localhost:3000" : "https://api.acme.dev";
+ let environments = [
+  {id:"dev",name:"Development",baseUrl:"https://api.acme.dev"},
+  {id:"local",name:"Local",baseUrl:"http://localhost:3000"}
+ ];
+ let activeEnvironmentId = "dev", environmentDraft = [], environmentSequence = 0;
+ const baseUrl = () => environments.find(env => env.id === activeEnvironmentId).baseUrl;
+ function relativeEndpoint(raw, base) {
+  try {
+   const url = new URL(raw), root = new URL(base), prefix = root.pathname.replace(/\/$/, "");
+   if (url.origin !== root.origin || (prefix && url.pathname !== prefix && !url.pathname.startsWith(prefix + "/"))) return null;
+   return url.pathname.slice(prefix.length) + url.search + url.hash;
+  } catch (_) { return null; }
+ }
+ function rebaseRequests(previousBase, nextBase) {
+  for (const request of requests) {
+   const relative = relativeEndpoint(request.url,previousBase);
+   if (relative === null) continue;
+   const next = new URL(nextBase + relative).href;
+   if (next !== request.url) { request.url = next; request.dirty = true; }
+  }
+ }
  function makeRequest(id, title, method, path, description, response) {
   const parsed = new URL(baseUrl() + path);
   return {
    id, title, method, url:parsed.href, description,
    params:Array.from(parsed.searchParams, ([key,value]) => ({ enabled:true, key, value, note:key === "page" ? "Page number" : key === "limit" ? "Results per page" : "" })),
    headers:makeHeaders(), body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev",\n  "role": "member"\n}',
+   bodyFormat:"json", bodyExplicit:false, curlOptions:[],
    authKind:"bearer", token:"acme_demo_token", pane:method === "POST" ? "body" : "params",
    response:response === undefined ? null : { data:response, status:"200 OK", elapsed:142 }, busy:false, dirty:false
   };
  }
  const requests = [
-  makeRequest("users","List users","GET","/v1/users?page=1&limit=10","Retrieve the people in your workspace.",initialData),
-  makeRequest("create","Create user","POST","/v1/users","Add someone new to your workspace."),
+  makeRequest("users","List users","GET","/v1/users?page=1&limit=10","Retrieve a paginated list of users.",initialData),
+  makeRequest("create","Create user","POST","/v1/users","Create a new user through the API."),
   makeRequest("health","Health check","GET","/v1/health","A quick pulse check for your API.")
  ];
  let history = [
@@ -342,7 +356,9 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
  ];
  let activeId = "users", responsePane = "body", pretty = true, toastTimer, sequence = 0;
  const current = () => requests.find(request => request.id === activeId);
- function dirty() { current().dirty = true; $("footer-status").textContent = "Unsaved changes"; renderTabs(); }
+ const requestHasBody = request => request.bodyExplicit || (request.body.length > 0 && ["POST","PUT","PATCH"].includes(request.method));
+ const requestCode = () => CurlRequest.stringify({...current(),hasBody:requestHasBody(current())});
+ function dirty() { updateContext(); current().dirty = true; $("footer-status").textContent = "Unsaved changes"; renderTabs(); }
  function toast(message) {
   $("toast-text").textContent = message; $("toast").classList.add("visible"); clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $("toast").classList.remove("visible"),2400);
@@ -357,18 +373,26 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
  }
  function renderTabs() {
   $("request-tabs").innerHTML = requests.map(r =>
-   '<button class="request-tab" role="tab" aria-selected="' + (r.id === activeId) + '" tabindex="' + (r.id === activeId ? '0' : '-1') + '" data-request="' + esc(r.id) + '"><span class="method ' + r.method.toLowerCase() + '">' + r.method + '</span><span class="name">' + esc(r.title) + '</span>' + (r.dirty ? '<span class="tab-dot" aria-label="Unsaved changes"></span>' : '') + '</button>'
+   '<button class="request-tab" role="tab" aria-selected="' + (r.id === activeId) + '" tabindex="' + (r.id === activeId ? '0' : '-1') + '" data-request="' + esc(r.id) + '"><span class="method ' + esc(r.method.toLowerCase()) + '">' + esc(r.method) + '</span><span class="name">' + esc(r.title) + '</span>' + (r.dirty ? '<span class="tab-dot" aria-label="Unsaved changes"></span>' : '') + '</button>'
   ).join("") + '<button class="icon-button" id="new-tab" aria-label="Add request tab" title="New request">' + icon("plus") + '</button>';
+ }
+ function updateContext() {
+  try { $("query-preview").textContent = new URL(current().url).search || "No query parameters"; }
+  catch (_) { $("query-preview").textContent = "Add a valid URL to preview query parameters"; }
+  const headerAuth = current().headers.some(h => h.enabled && h.key.toLowerCase() === "authorization" && h.value);
+  $("auth-summary-text").textContent = headerAuth ? "Authorization in headers" : current().authKind === "none" ? "No authorization" : "Bearer token";
+  $("method").style.color = {POST:"var(--accent)",DELETE:"var(--red)",PUT:"var(--blue)",PATCH:"var(--blue)"}[current().method] || "var(--green)";
  }
  function renderHistory() {
   const filter = $("history-filter").value.toLowerCase();
   const matches = history.map((h,i) => ({...h,index:i})).filter(h => (h.title + h.path + h.method).toLowerCase().includes(filter));
-  let group = ""; $("history-count").textContent = history.length;
+  $("history-count").textContent = history.length;
+  let group = "";
   $("history-list").innerHTML = matches.map(h => {
    let label = "";
    if (h.group !== group) { group = h.group; label = '<div class="group-label"><span>' + group + '</span><span>' + history.filter(item => item.group === group).length + ' requests</span></div>'; }
    const selected = current().title === h.title;
-   return label + '<button class="history-item ' + (selected ? 'active' : '') + '" data-history="' + h.index + '"><span class="method ' + h.method.toLowerCase() + '">' + h.method + '</span><span class="history-details"><span class="history-title">' + esc(h.title) + '</span><span class="history-path">' + esc(h.path.split("?")[0]) + '</span><span class="history-meta"><span class="dot"></span><span class="' + (Number(h.status) >= 400 ? 'error' : 'status') + '">' + h.status + '</span><span>·</span><span>' + h.elapsed + '</span></span></span><span class="history-time">' + h.time + '</span></button>';
+   return label + '<button class="history-item ' + (selected ? 'active' : '') + '" data-history="' + h.index + '"><span class="method ' + esc(h.method.toLowerCase()) + '">' + esc(h.method) + '</span><span class="history-details"><span class="history-title">' + esc(h.title) + '</span><span class="history-path">' + esc(h.path.split("?")[0]) + '</span><span class="history-meta"><span class="dot"></span><span class="' + (Number(h.status) >= 400 ? 'error' : 'status') + '">' + h.status + '</span><span>·</span><span>' + h.elapsed + '</span></span></span><span class="history-time">' + h.time + '</span></button>';
   }).join("") || '<p class="pane-hint" style="padding:12px">No matching requests.</p>';
  }
  function updateCount(kind) { $(kind + "-count").textContent = current()[kind].filter(r => r.enabled && r.key).length; }
@@ -426,20 +450,25 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
  }
  function render() {
   const request = current(); renderTabs(); renderHistory();
-  $("request-title").textContent = request.title; $("breadcrumb-name").textContent = request.title; $("request-description").textContent = request.description;
+  $("request-title").textContent = request.title; $("request-description").textContent = request.description;
+  if (!Array.from($("method").options).some(option => option.value === request.method)) $("method").add(new Option(request.method,request.method));
   $("method").value = request.method; $("url").value = request.url; $("body-editor").value = request.body;
+  $("body-format").value = request.bodyFormat; $("format-body").hidden = request.bodyFormat !== "json";
   $("auth-kind").value = request.authKind; $("auth-token").value = request.token; $("auth-token").disabled = request.authKind === "none";
   $("footer-status").textContent = request.dirty ? "Unsaved changes" : "All changes saved";
-  renderRows("params"); renderRows("headers"); setPane(request.pane); renderResponse();
+  renderRows("params"); renderRows("headers"); setPane(request.pane); updateContext(); renderResponse();
  }
  function activate(id) { activeId = id; responsePane = "body"; render(); }
  function newRequest() {
   const request = makeRequest("new-" + (++sequence),"Untitled request","GET","/","Start with a URL. Make it yours.");
   request.url = ""; requests.push(request); activate(request.id); $("url").focus();
  }
- function replay(index) {
-  const item = history[index];
-  const request = makeRequest("history-" + (++sequence),item.title,item.method,item.path,"A request from your local history.",clone(item.data));
+ function replay(index) { replayItem(history[index]); }
+ function replayItem(item) {
+  const request = makeRequest("history-" + (++sequence),item.title,item.method,item.route ?? item.path,"A request from your local history.",clone(item.data));
+  if (item.route === null && item.url) request.url = item.url;
+  if (item.configuration) Object.assign(request,clone(item.configuration));
+  request.params = Array.from(new URL(request.url).searchParams,([key,value]) => ({enabled:true,key,value,note:""}));
   request.response.status = item.status + ({"200":" OK","201":" Created","204":" No Content","404":" Not Found"}[item.status] || "");
   request.response.elapsed = parseInt(item.elapsed,10);
   const existing = requests.find(r => r.title === item.title && !r.dirty && !r.busy);
@@ -453,24 +482,27 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
   try { url = new URL(request.url); if (!["http:","https:"].includes(url.protocol)) throw new Error(); }
   catch (_) { toast("Enter a valid HTTP or HTTPS URL"); $("url").focus(); return; }
   let parsedBody = {};
-  if (["POST","PUT","PATCH"].includes(request.method)) {
-   try { parsedBody = request.body.trim() ? JSON.parse(request.body) : {}; }
+  if (requestHasBody(request)) {
+   try { parsedBody = request.bodyFormat === "raw" ? request.body : request.body.trim() ? JSON.parse(request.body) : {}; }
    catch (_) { setPane("body"); toast("The request body contains invalid JSON"); $("body-editor").focus(); return; }
   }
-  const sent = {method:request.method,title:request.title,url:new URL(url.href),body:clone(parsedBody)};
+  const configuration = Object.fromEntries(["headers","body","bodyFormat","bodyExplicit","curlOptions","authKind","token","pane"].map(key => [key,clone(request[key])]));
+  const sent = {method:request.method,title:request.title,url:new URL(url.href),body:clone(parsedBody),hasBody:requestHasBody(request),bodyFormat:request.bodyFormat,configuration,route:relativeEndpoint(url.href,baseUrl())};
+  const endpoint = new URL(sent.route ?? (url.pathname + url.search),"https://fixture.invalid");
   request.busy = true; renderResponse();
   request.timer = setTimeout(() => {
    request.busy = false;
    let data, status = "200 OK", elapsed = 142;
-   if (sent.url.pathname === "/status/404") { data = {error:"not_found",message:"The requested resource could not be found."}; status = "404 Not Found"; elapsed = 64; }
+   if (endpoint.pathname === "/status/404") { data = {error:"not_found",message:"The requested resource could not be found."}; status = "404 Not Found"; elapsed = 64; }
    else if (sent.method === "HEAD" || sent.method === "DELETE") { data = null; status = sent.method === "DELETE" ? "204 No Content" : "200 OK"; elapsed = 86; }
+   else if (sent.hasBody && (sent.bodyFormat === "raw" || sent.body === null || typeof sent.body !== "object" || Array.isArray(sent.body))) { data = {method:sent.method,url:sent.url.href,body:sent.body,message:"Request received"}; }
    else if (sent.method === "POST") { data = {data:{id:"usr_25",...sent.body},message:"User created"}; status = "201 Created"; elapsed = 218; }
    else if (sent.method === "PUT" || sent.method === "PATCH") { data = {data:sent.body,message:"User updated"}; elapsed = 164; }
-   else if (sent.url.pathname.endsWith("/health")) { data = {status:"healthy",version:"1.0.0",uptime:86400}; elapsed = 42; }
-   else if (sent.url.pathname === "/v1/users") { data = {data:clone(users),pagination:{page:Number(sent.url.searchParams.get("page") || 1),limit:Number(sent.url.searchParams.get("limit") || 10),total:24,has_more:true}}; }
+   else if (endpoint.pathname.endsWith("/health")) { data = {status:"healthy",version:"1.0.0",uptime:86400}; elapsed = 42; }
+   else if (endpoint.pathname === "/v1/users") { data = {data:clone(users),pagination:{page:Number(sent.url.searchParams.get("page") || 1),limit:Number(sent.url.searchParams.get("limit") || 10),total:24,has_more:true}}; }
    else { data = {method:sent.method,url:sent.url.href,args:Object.fromEntries(sent.url.searchParams),message:"Request received"}; }
    request.response = {data,status,elapsed};
-   history.unshift({title:sent.title,method:sent.method,path:sent.url.pathname + sent.url.search,status:status.slice(0,3),elapsed:elapsed + " ms",time:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),group:"Today",data:clone(data)});
+   history.unshift({title:sent.title,method:sent.method,configuration:sent.configuration,route:sent.route,url:sent.url.href,path:sent.url.pathname + sent.url.search,status:status.slice(0,3),elapsed:elapsed + " ms",time:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),group:"Today",data:clone(data)});
    history = history.slice(0,30); renderHistory(); if (current().id === request.id) renderResponse(); toast(status + " · " + elapsed + " ms");
   },950);
  }
@@ -478,9 +510,9 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
  function searchResults() {
   const query = $("command-query").value.toLowerCase();
   const open = requests.filter(r => (r.title + r.url).toLowerCase().includes(query)).map(r =>
-   '<button class="command-result" data-search-request="' + esc(r.id) + '"><span class="method ' + r.method.toLowerCase() + '">' + r.method + '</span><span>' + esc(r.title) + '</span><span class="muted">Open tab ↵</span></button>');
+   '<button class="command-result" data-search-request="' + esc(r.id) + '"><span class="method ' + esc(r.method.toLowerCase()) + '">' + esc(r.method) + '</span><span>' + esc(r.title) + '</span><span class="muted">Open tab ↵</span></button>');
   const closed = history.map((h,i) => ({...h,index:i})).filter(h => !requests.some(r => r.title === h.title) && (h.title + h.path).toLowerCase().includes(query)).map(h =>
-   '<button class="command-result" data-search-history="' + h.index + '"><span class="method ' + h.method.toLowerCase() + '">' + h.method + '</span><span>' + esc(h.title) + '</span><span class="muted">History ↵</span></button>');
+   '<button class="command-result" data-search-history="' + h.index + '"><span class="method ' + esc(h.method.toLowerCase()) + '">' + esc(h.method) + '</span><span>' + esc(h.title) + '</span><span class="muted">History ↵</span></button>');
   $("command-results").innerHTML = open.concat(closed).join("") || '<p class="pane-hint" style="padding:12px">No matching requests.</p>';
  }
  function openSearch() { $("command-query").value = ""; searchResults(); $("search-dialog").showModal(); $("command-query").focus(); }
@@ -488,9 +520,73 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
   const button = event.target.closest("[data-request]");
   if (button) activate(button.dataset.request); else if (event.target.closest("#new-tab")) newRequest();
  });
- $("history-list").addEventListener("click",event => { const button = event.target.closest("[data-history]"); if (button) replay(Number(button.dataset.history)); });
- $("history-filter").addEventListener("input",renderHistory); $("new-request").addEventListener("click",newRequest);
- $("show-history").addEventListener("click",() => { $("history-filter").value = ""; renderHistory(); if (innerWidth > 900) $("history-filter").focus(); else openSearch(); });
+ $("history-list").addEventListener("click",event => {
+  const button = event.target.closest("[data-history]");
+  if (!button) return;
+  replay(Number(button.dataset.history)); $("history-dialog").close();
+ });
+ $("history-filter").addEventListener("input",renderHistory);
+ $("new-request").addEventListener("click",newRequest);
+ $("show-history").addEventListener("click",() => {
+  $("history-filter").value = ""; renderHistory();
+  $("history-dialog").showModal(); $("history-filter").focus();
+  $("show-history").classList.add("selected"); $("show-history").setAttribute("aria-expanded","true");
+ });
+ $("history-dialog").addEventListener("close",() => {
+  $("show-history").classList.remove("selected"); $("show-history").setAttribute("aria-expanded","false");
+ });
+ $("auth-summary").addEventListener("click",() => {
+  if (current().headers.some(h => h.enabled && h.key.toLowerCase() === "authorization" && h.value)) { setPane("headers"); $("tab-headers").focus(); }
+  else { setPane("auth"); $("auth-kind").focus(); }
+ });
+ function previewImport() {
+  $("import-preview").hidden = true; $("import-error").hidden = true; $("import-submit").disabled = true;
+  $("curl-input").removeAttribute("aria-invalid");
+  if (!$("curl-input").value.trim()) return null;
+  try {
+   const parsed = CurlRequest.parse($("curl-input").value);
+   $("import-method").textContent = parsed.method; $("import-method").className = "method " + parsed.method.toLowerCase().replace(/[^a-z]/g,"");
+   $("import-url").textContent = parsed.url;
+   const auth = parsed.authKind === "bearer" ? "Bearer token" : parsed.headers.some(h => h.key.toLowerCase() === "authorization" && h.value) ? "Auth in headers" : "No authorization";
+   const details = [parsed.headers.length + " headers",parsed.hasBody ? (parsed.bodyFormat === "json" ? "JSON" : "Raw") + " body · " + new TextEncoder().encode(parsed.body).length + " B" : "No body",auth];
+   $("import-details").innerHTML = details.map(value => '<span>' + esc(value) + '</span>').join("");
+   $("import-options").hidden = !parsed.curlOptions.length;
+   $("import-options").textContent = "cURL options retained: " + parsed.curlOptions.map(flag => CurlRequest.optionLabels[flag]).join(" · ");
+   $("import-preview").hidden = false; $("import-submit").disabled = false;
+   return parsed;
+  } catch (error) {
+   $("import-error").textContent = error.message; $("import-error").hidden = false; $("curl-input").setAttribute("aria-invalid","true");
+   return null;
+  }
+ }
+ function openImport() {
+  $("code-dialog").close(); $("curl-input").value = ""; previewImport();
+  $("import-dialog").showModal(); $("curl-input").focus();
+  $("open-import").classList.add("selected"); $("open-import").setAttribute("aria-expanded","true");
+ }
+ $("open-import").addEventListener("click",openImport); $("code-import").addEventListener("click",openImport);
+ $("curl-input").addEventListener("input",previewImport);
+ $("import-dialog").addEventListener("close",() => {
+  $("open-import").classList.remove("selected"); $("open-import").setAttribute("aria-expanded","false");
+ });
+ $("import-example").addEventListener("click",() => {
+  const example = {method:"POST",url:"https://api.acme.dev/v1/users",headers:makeHeaders(),authKind:"none",hasBody:true,body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev"\n}'};
+  $("curl-input").value = CurlRequest.stringify(example); previewImport(); $("curl-input").focus();
+ });
+ $("import-form").addEventListener("submit",event => {
+  event.preventDefault(); const parsed = previewImport(); if (!parsed) { $("curl-input").focus(); return; }
+  const url = new URL(parsed.url);
+  const request = {...parsed,id:"import-" + (++sequence),title:url.pathname === "/" ? url.hostname : url.pathname,description:"Imported from cURL. Ready to edit and send.",
+   params:Array.from(url.searchParams,([key,value]) => ({enabled:true,key,value,note:""})),bodyExplicit:parsed.hasBody,pane:parsed.hasBody ? "body" : "params",response:null,busy:false,dirty:true};
+  requests.push(request); $("import-dialog").close(); activate(request.id);
+  $("request-tabs").querySelector('[aria-selected="true"]').scrollIntoView({block:"nearest",inline:"nearest"});
+  $("url").focus(); toast("cURL imported into a new request");
+ });
+ $("show-code").addEventListener("click",() => { $("code-snippet").textContent = requestCode(); $("code-dialog").showModal(); });
+ $("copy-code").addEventListener("click",async () => {
+  try { await navigator.clipboard.writeText($("code-snippet").textContent); toast("cURL copied"); }
+  catch (_) { toast("Clipboard unavailable. Select the code to copy it."); }
+ });
  $("open-search").addEventListener("click",openSearch); $("rail-search").addEventListener("click",openSearch);
  $("command-query").addEventListener("input",searchResults);
  $("command-results").addEventListener("click",event => {
@@ -531,21 +627,93 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
   dirty();
  });
  $("method").addEventListener("change",() => { current().method = $("method").value; dirty(); });
- $("body-editor").addEventListener("input",() => { current().body = $("body-editor").value; dirty(); });
+ $("body-editor").addEventListener("input",() => { current().body = $("body-editor").value; current().bodyExplicit = true; dirty(); });
+ $("body-format").addEventListener("change",() => { current().bodyFormat = $("body-format").value; $("format-body").hidden = current().bodyFormat !== "json"; dirty(); });
  $("format-body").addEventListener("click",() => {
   try { current().body = JSON.stringify(JSON.parse($("body-editor").value),null,2); $("body-editor").value = current().body; dirty(); toast("JSON formatted"); }
   catch (_) { toast("Check your JSON syntax before formatting"); }
  });
  $("auth-kind").addEventListener("change",() => { current().authKind = $("auth-kind").value; $("auth-token").disabled = current().authKind === "none"; dirty(); });
  $("auth-token").addEventListener("input",() => { current().token = $("auth-token").value; dirty(); });
+ function renderEnvironmentOptions() {
+  $("environment").innerHTML = environments.map(env => '<option value="' + esc(env.id) + '">' + esc(env.name) + '</option>').join("") + '<option value="manage">Manage environments…</option>';
+  $("environment").value = activeEnvironmentId;
+ }
+ function renderEnvironmentDraft() {
+  $("environment-rows").innerHTML = environmentDraft.map((env,index) => {
+   const fields = [["name","Name","e.g. Staging"],["baseUrl","Base URL","https://api.example.com"]].map(([field,label,placeholder]) => {
+    const id = "env-" + env.id + "-" + field;
+    return '<div class="environment-field"><label for="' + id + '">' + label + '</label><input id="' + id + '" data-field="' + field + '" value="' + esc(env[field]) + '" placeholder="' + placeholder + '" autocomplete="off" spellcheck="false" aria-describedby="' + id + '-error"' + (field === "baseUrl" ? ' inputmode="url"' : ' maxlength="40"') + '><p class="environment-error" id="' + id + '-error" role="alert" hidden></p></div>';
+   }).join("");
+   return '<section class="environment-card" data-environment="' + env.id + '"><div class="environment-card-heading"><span>Environment ' + String(index + 1).padStart(2,"0") + '</span>' + (env.id === activeEnvironmentId ? '<span class="environment-active">Active</span>' : '') + '<span class="spacer"></span><button type="button" class="icon-button remove-environment" data-remove-environment="' + env.id + '" aria-label="Remove environment ' + (index + 1) + '" title="Remove environment"' + (environmentDraft.length === 1 ? ' disabled' : '') + '>' + icon("x") + '</button></div><div class="environment-fields">' + fields + '</div><p class="environment-base-hint">Updates requests using this base URL. Paths and query parameters are preserved.</p></section>';
+  }).join("");
+ }
+ function openEnvironments() {
+  environmentDraft = clone(environments); renderEnvironmentDraft();
+  $("environment-dialog").showModal();
+  $("env-" + activeEnvironmentId + "-name").focus();
+ }
+ $("environment-settings").addEventListener("click",openEnvironments);
  $("environment").addEventListener("change",() => {
-  for (const request of requests) {
-   try { const url = new URL(request.url); request.url = baseUrl() + url.pathname + url.search + url.hash; } catch (_) {}
+  if ($("environment").value === "manage") { $("environment").value = activeEnvironmentId; openEnvironments(); return; }
+  const previousBase = baseUrl(); activeEnvironmentId = $("environment").value;
+  rebaseRequests(previousBase,baseUrl()); render();
+  toast("Switched to " + environments.find(env => env.id === activeEnvironmentId).name);
+ });
+ $("environment-rows").addEventListener("input",event => {
+  const field = event.target.dataset.field; if (!field) return;
+  const id = event.target.closest("[data-environment]").dataset.environment;
+  environmentDraft.find(env => env.id === id)[field] = event.target.value;
+  event.target.removeAttribute("aria-invalid"); $(event.target.id + "-error").hidden = true;
+ });
+ $("environment-rows").addEventListener("click",event => {
+  const button = event.target.closest("[data-remove-environment]"); if (!button || environmentDraft.length === 1) return;
+  environmentDraft = environmentDraft.filter(env => env.id !== button.dataset.removeEnvironment);
+  renderEnvironmentDraft(); $("env-" + environmentDraft[0].id + "-name").focus();
+ });
+ $("add-environment").addEventListener("click",() => {
+  const id = "custom-" + (++environmentSequence);
+  environmentDraft.push({id,name:"",baseUrl:""}); renderEnvironmentDraft(); $("env-" + id + "-name").focus();
+ });
+ $("environment-form").addEventListener("submit",event => {
+  event.preventDefault(); let firstInvalid = null;
+  const fail = (env,field,message) => {
+   const input = $("env-" + env.id + "-" + field), error = $(input.id + "-error");
+   input.setAttribute("aria-invalid","true"); error.textContent = message; error.hidden = false;
+   if (!firstInvalid) firstInvalid = input;
+  };
+  $("environment-rows").querySelectorAll("input").forEach(input => { input.removeAttribute("aria-invalid"); $(input.id + "-error").hidden = true; });
+  const normalized = environmentDraft.map(env => ({...env,name:env.name.trim(),baseUrl:env.baseUrl.trim()}));
+  const names = new Set();
+  for (const env of normalized) {
+   if (!env.name) fail(env,"name","Enter an environment name.");
+   else if (names.has(env.name.toLowerCase())) fail(env,"name","Choose a unique environment name.");
+   names.add(env.name.toLowerCase());
+   try {
+    const url = new URL(env.baseUrl);
+    if (!["http:","https:"].includes(url.protocol) || !url.hostname) throw new Error("Use an HTTP or HTTPS URL.");
+    if (url.search || url.hash || url.username || url.password) throw new Error("Use a base URL without credentials, query parameters or a fragment.");
+    env.baseUrl = url.origin + url.pathname.replace(/\/+$/, "");
+   } catch (error) { fail(env,"baseUrl", error instanceof TypeError ? "Enter a valid URL, such as https://api.example.com." : error.message); }
   }
-  render(); toast("Switched to " + $("environment").selectedOptions[0].text + " environment");
+  if (firstInvalid) { firstInvalid.focus(); return; }
+  const previousBase = baseUrl(); environments = normalized;
+  if (!environments.some(env => env.id === activeEnvironmentId)) activeEnvironmentId = environments[0].id;
+  renderEnvironmentOptions(); rebaseRequests(previousBase,baseUrl()); render();
+  $("environment-dialog").close(); toast("Environment settings saved");
  });
  $("send-button").addEventListener("click",send); $("save-request").addEventListener("click",save);
- $("split-button").addEventListener("click",() => { const split = $("split").classList.toggle("side-by-side"); $("split-button").setAttribute("aria-pressed",split); });
+ let preferStacked = false;
+ function updateLayout() {
+  const wide = $("request-editor").clientWidth >= 900;
+  const sideBySide = wide && !preferStacked;
+  $("split").classList.toggle("side-by-side",sideBySide);
+  $("split-button").disabled = !wide;
+  $("split-button").setAttribute("aria-pressed",String(sideBySide));
+  $("split-button").title = wide ? (sideBySide ? "Stack request and response" : "Place request and response side by side") : "Side-by-side layout is available in wider windows";
+ }
+ $("split-button").addEventListener("click",() => { preferStacked = !preferStacked; updateLayout(); });
+ new ResizeObserver(updateLayout).observe($("request-editor"));
  document.querySelectorAll("[data-response]").forEach(button => button.addEventListener("click",() => { responsePane = button.dataset.response; renderResponse(); }));
  $("pretty-button").addEventListener("click",() => { pretty = true; renderResponse(); });
  $("raw-button").addEventListener("click",() => { pretty = false; renderResponse(); });
@@ -569,11 +737,20 @@ dialog::backdrop{background:#1c30243b;backdrop-filter:blur(3px)}
  }));
  document.addEventListener("keydown",event => {
   if (!(event.metaKey || event.ctrlKey)) return;
+  if ($("import-dialog").open) {
+   if (event.key === "Enter") { event.preventDefault(); if (!$("import-submit").disabled) $("import-form").requestSubmit(); }
+   if (event.key.toLowerCase() === "s") event.preventDefault();
+   return;
+  }
+  if ($("environment-dialog").open) {
+   if (event.key.toLowerCase() === "s") { event.preventDefault(); $("environment-form").requestSubmit(); }
+   return;
+  }
   if (event.key.toLowerCase() === "k") { event.preventDefault(); if (!$("search-dialog").open) openSearch(); }
   if (event.key.toLowerCase() === "s") { event.preventDefault(); save(); }
   if (event.key === "Enter" && !document.querySelector("dialog[open]")) { event.preventDefault(); send(); }
  });
- render();
+ renderEnvironmentOptions(); render(); updateLayout();
 })();
 </script>
 </body>
