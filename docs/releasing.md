@@ -20,7 +20,8 @@ This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tra
 - All macOS, Windows, and Linux jobs must finish before a GitHub Release is created. A failed job
   cannot publish a partial release.
 - `v0.1.0-rc.N` is a GitHub prerelease. A tag without a suffix is a final release.
-- #69 and its child issues remain pending and do not block v0.1.0.
+- Document current limitations in the changelog and release notes; issue closure alone does not
+  establish that a feature is available in a shipped package.
 
 ## Repository secrets
 
@@ -58,24 +59,31 @@ about SmartScreen.
 1. Confirm CI and HTTPBingo E2E are green on `main`.
 2. Review `docs/autofill-contract.md`; once the listed suite passes on the merged release branch,
    close #49 as complete.
-3. Update `CHANGELOG.md` and confirm #69 remains listed under Known limitations.
-4. Validate release metadata:
+3. Update `CHANGELOG.md` and review Known limitations against the code being released.
+4. Choose an unused candidate tag matching the base version in `Cargo.toml`. In the commands below,
+   replace `N` with the new candidate number, then validate release metadata:
 
    ```bash
+   release_tag='v0.1.0-rc.N'
    python3 -m unittest discover -s scripts/tests
-   python3 scripts/release.py verify --tag v0.1.0-rc.1
+   python3 scripts/release.py verify --tag "$release_tag"
    ```
 
 5. Create and push the annotated tag:
 
    ```bash
-   git tag -a v0.1.0-rc.1 -m "Postman GPUI v0.1.0-rc.1"
-   git push origin v0.1.0-rc.1
+   git tag -a "$release_tag" -m "Postman GPUI $release_tag"
+   git push origin "$release_tag"
    ```
 
 6. The `Release` workflow builds a universal macOS `.app/.dmg`, Windows NSIS installer, Linux
-   `.AppImage/.deb`, then publishes them with `SHA256SUMS`.
+   `.AppImage/.deb`, and standalone `postman-g` CLI archives for all three platforms. It publishes
+   these with `BUILD-INFO-*.txt` and `SHA256SUMS`.
 7. Complete `docs/release-smoke-test.md` on clean installations and record results in #148.
+
+To rebuild an existing tag, use the `Release` workflow's **Run workflow** action and enter that
+tag. It checks out the tagged commit and replaces the release assets on success. Source fixes
+need a new tag containing those commits; rerunning an old tag does not pick up changes from `main`.
 
 ## Promote v0.1.0
 
@@ -84,7 +92,7 @@ about SmartScreen.
 3. Configure every macOS signing and notarization secret listed above. The release workflow rejects
    an unsigned final tag. Windows signing is strongly recommended; if it is unavailable, document
    the SmartScreen limitation in the final release notes.
-4. Validate and push `v0.1.0` using the same commands.
+4. Set `release_tag=v0.1.0`, then validate, create, and push the tag using the same commands.
 5. Verify all release assets and checksums before announcing the release.
 
 ## Local package commands

@@ -16,12 +16,10 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   been migrated. Disabled and blank editor rows still count, and application behavior
   and persisted data formats are unchanged. Refs #190, #180.
 
-### Planned
-
-- Byte-native downloads, atomic save-as, and streaming progress/cancellation remain pending in
-  [#69](https://github.com/847850277/postman-gpui/issues/69).
-
 ## [0.1.0] - Unreleased
+
+This section summarizes the 0.1.0 prerelease series. Candidate builds are available on
+[GitHub Releases](https://github.com/847850277/postman-gpui/releases); the final release is still pending.
 
 ### Added
 
@@ -45,5 +43,5 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 - Unsigned release candidates can trigger macOS Gatekeeper or Windows SmartScreen warnings. Final
   release packages should be signed using the credentials documented in `docs/releasing.md`.
 
-[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/847850277/postman-gpui/releases/tag/v0.1.0
+[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.3...HEAD
+[0.1.0]: https://github.com/847850277/postman-gpui/releases
