@@ -43,6 +43,11 @@ Try:
   to add, rename, remove, and configure environments. Save applies the changes;
   Cancel or Escape discards them. Invalid names and URLs show inline errors.
 - Toggle light/dark colors and stacked/side-by-side panels.
+- Drag the divider to resize request/response widths or stacked heights. Hover
+  highlights its grip; double-click restores the default 46/54 split. Click the
+  divider for numeric size controls, adjustment buttons, and Reset to default.
+  Keyboard users can Tab to a divider, use arrow keys (Shift for larger steps),
+  Home/End for its limits, or Enter for size controls. Escape cancels a drag.
 
 In Flows:
 
@@ -64,6 +69,10 @@ In Flows:
   survive navigation and must be fixed before running or exporting.
 - Run preview (Cmd/Ctrl+Enter) shows sequential step results, checks, extracted
   outputs, failures, and cancellation. Cmd/Ctrl+S exports the active flow.
+- Resize the flow library, step details, and run results using the same dividers.
+  Library/detail dividers disappear when compact navigation replaces their
+  panels, and the details divider is hidden in YAML view. The icon navigation
+  rail remains fixed.
 
 The Flow screen is an interactive design prototype, not a connection to the Rust
 runtime. Run preview uses local fixtures and a small expression interpreter;
@@ -75,6 +84,8 @@ prototype. Exported example documents have been checked using the existing
 
 `flow-studio.css` and `flow-studio.js` implement the new screens;
 `flow-model.js` holds sample definitions, conversion, and preview helpers.
+`panel-resize.css` and `panel-resize.js` share the split handles and accessible
+size controls between HTTP and Flows.
 
 Environment base URLs support HTTP(S), ports, and path prefixes. Switching or
 editing the active environment rebases matching requests and preserves endpoint
@@ -110,6 +121,15 @@ side by side; narrower windows stack them automatically. A ResizeObserver keeps
 the layout control in sync, and a manually selected stacked layout is retained
 when resizing. Panel heights share the available space. Short windows use more
 compact headers and scroll within the editor; the status bar stays visible.
+
+Panel sizes are the exception to session-only prototype state: layout preferences
+are saved in this browser's local storage. HTTP keeps separate preferred ratios
+for horizontal and vertical arrangements; Flows keeps library/detail widths and
+results height. Smaller windows clamp the displayed sizes without overwriting
+the preferred values, so expanding the window restores them. Each divider resets
+only its own current layout. If storage is unavailable, resizing still works for
+the current page. Request data, Flow documents, and environment settings are not
+written by this layout preference store.
 
 The `:root` and `[data-theme="dark"]` CSS variables define semantic colors,
 typography, shell dimensions, and feedback timing. At the reference viewport,

@@ -149,6 +149,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
 <link rel="stylesheet" href="./flow-studio.css">
+<link rel="stylesheet" href="./panel-resize.css?v=1">
 </head>
 <body data-view="home">
 <a class="skip-link" href="#home-screen">Skip to main content</a>
@@ -220,7 +221,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
     </div>
    </section>
    <div class="split side-by-side" id="split">
-    <section class="composer" aria-label="Request configuration">
+    <section class="composer" id="request-composer" aria-label="Request configuration">
      <div class="composer-label"><svg aria-hidden="true" class="icon"><use href="#i-terminal"/></svg><strong>Request</strong><span class="spacer"></span><span class="mode-label">HTTP</span></div>
      <div class="pane-tabs" role="tablist" aria-label="Request configuration">
       <button class="pane-tab" role="tab" id="tab-params" aria-controls="pane-params" aria-selected="true" data-pane="params">Params <span class="count" id="params-count">2</span></button>
@@ -248,7 +249,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
      </div>
      <div class="request-context"><div class="context-title">QUERY STRING</div><code class="query-preview" id="query-preview">?page=1&amp;limit=10</code><button class="context-auth" id="auth-summary"><svg aria-hidden="true" class="icon"><use href="#i-lock"/></svg><span id="auth-summary-text">Bearer token</span><span>Configure →</span></button></div>
     </section>
-    <div class="resize-divider" aria-hidden="true"><span></span></div>
+    <div class="resize-divider" id="http-divider" aria-controls="request-composer" data-testid="http-divider"><span class="divider-grip" aria-hidden="true"></span></div>
     <section class="response" aria-label="Response" data-testid="response-panel">
      <div class="response-heading">
       <strong>Response</strong><span class="response-status" id="response-status"><span class="dot"></span><span id="status-text">200 OK</span></span>
@@ -308,6 +309,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  </form>
 </dialog>
 <script src="./curl-request.js"></script>
+<script src="./panel-resize.js?v=2"></script>
 <script>
 (() => {
  "use strict";
@@ -721,6 +723,18 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  });
  $("send-button").addEventListener("click",send); $("save-request").addEventListener("click",save);
  let preferStacked = false;
+ const httpResize = PanelResize.attach({
+  container:$("split"), handle:$("http-divider"), ratio:true,
+  axis:() => $("split").classList.contains("side-by-side") ? "x" : "y",
+  key:() => $("split").classList.contains("side-by-side") ? "http-columns" : "http-rows",
+  label:() => $("split").classList.contains("side-by-side") ? "Request width" : "Request height",
+  initial:.46,
+  limits:total => $("split").classList.contains("side-by-side") ? [360,total-360] : [180,total-210],
+  apply:(value,m) => {
+   $("split").style.setProperty("--http-first",(value/m.total*100)+"fr");
+   $("split").style.setProperty("--http-second",(100-value/m.total*100)+"fr");
+  }
+ });
  function updateLayout() {
   const wide = $("request-editor").clientWidth >= 900;
   const sideBySide = wide && !preferStacked;
@@ -728,6 +742,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   $("split-button").disabled = !wide;
   $("split-button").setAttribute("aria-pressed",String(sideBySide));
   $("split-button").title = wide ? (sideBySide ? "Stack request and response" : "Place request and response side by side") : "Side-by-side layout is available in wider windows";
+  httpResize.refresh();
  }
  $("split-button").addEventListener("click",() => { preferStacked = !preferStacked; updateLayout(); });
  new ResizeObserver(updateLayout).observe($("request-editor"));
@@ -781,6 +796,6 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 })();
 </script>
 <script src="./flow-model.js"></script>
-<script src="./flow-studio.js"></script>
+<script src="./flow-studio.js?v=panels-1"></script>
 </body>
 </html>

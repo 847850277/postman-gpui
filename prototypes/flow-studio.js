@@ -22,11 +22,13 @@
  }
  $('flow-screen').innerHTML=`
   <header class="flow-topbar"><div><div class="flow-breadcrumb">Flows <span>/</span> <span id="flow-filename"></span><span id="flow-unsaved" hidden>· Edited</span></div><input id="flow-title" class="flow-title-input" aria-label="Flow name" spellcheck="false"></div><div class="flow-top-actions"><label class="environment"><span class="dot"></span><select id="flow-environment" aria-label="Flow environment"></select></label><button class="icon-button" id="flow-settings" title="Manage environments" aria-label="Manage flow environments">${icon('settings')}</button><button class="studio-button" id="export-flow">${icon('import')}Export</button><button class="studio-button" id="check-flow">${icon('check')}Check</button><button class="studio-button primary" id="run-flow">${icon('play')}<span>Run preview</span></button></div></header>
-  <div class="flow-layout"><aside class="flow-library" aria-label="Flow library"><div class="library-heading">Your flows<button class="icon-button" id="new-flow" aria-label="New flow" title="New flow">${icon('plus')}</button></div><label class="flow-filter">${icon('search')}<input id="flow-filter" placeholder="Find a flow…" aria-label="Find a flow"></label><div class="flow-list" id="flow-list"></div><div class="library-foot">${icon('code')} .http.yml<br>Visual steps, readable source.<br>Edits stay in this session.</div></aside>
+  <div class="flow-layout" id="flow-layout"><aside class="flow-library" id="flow-library" aria-label="Flow library"><div class="library-heading">Your flows<button class="icon-button" id="new-flow" aria-label="New flow" title="New flow">${icon('plus')}</button></div><label class="flow-filter">${icon('search')}<input id="flow-filter" placeholder="Find a flow…" aria-label="Find a flow"></label><div class="flow-list" id="flow-list"></div><div class="library-foot">${icon('code')} .http.yml<br>Visual steps, readable source.<br>Edits stay in this session.</div></aside>
+  <div class="resize-divider" id="flow-library-divider" aria-controls="flow-library" data-testid="flow-library-divider"><span class="divider-grip" aria-hidden="true"></span></div>
   <section class="flow-work" aria-label="Flow editor"><div class="flow-toolbar"><select class="flow-select-mobile" id="flow-picker" aria-label="Choose flow"></select><div class="view-switch" aria-label="Flow view"><button data-flow-view="canvas" aria-pressed="true">Canvas</button><button data-flow-view="yaml" aria-pressed="false">YAML</button></div><span class="muted" id="flow-step-count"></span><span class="spacer"></span><button class="studio-button quiet" id="flow-inputs">${icon('settings')}Inputs <span class="count" id="flow-input-count"></span></button><button class="studio-button" id="add-step">${icon('plus')}Add step</button><button class="studio-button flow-toolbar-toggle" id="toggle-inspector" aria-pressed="false">Details</button></div>
-  <div class="flow-content" id="flow-content"><div class="flow-canvas" id="flow-canvas" aria-label="Ordered flow steps"></div><aside class="flow-inspector" id="flow-inspector" aria-label="Step configuration"></aside><div class="yaml-pane" id="yaml-pane" hidden><div class="yaml-heading"><span>Generated from the canvas · Flow v1</span><button class="studio-button" id="copy-yaml">${icon('copy')}Copy YAML</button></div><pre class="yaml-code" id="yaml-code"></pre></div></div>
-  <section class="flow-results" aria-label="Flow run results"><div class="results-heading">${icon('terminal')}<strong>Run results</strong><span class="results-note">Local fixtures</span><span class="spacer"></span><div class="view-switch"><button data-result-view="steps" aria-pressed="true">Steps</button><button data-result-view="outputs" aria-pressed="false">Outputs</button></div><span id="flow-run-status" class="run-status" role="status">Not run</span></div><div id="flow-results-body" class="results-body"></div></section>
-  </section></div>`;
+  <div class="flow-stage" id="flow-stage"><div class="flow-content" id="flow-content"><div class="flow-canvas" id="flow-canvas" aria-label="Ordered flow steps"></div><div class="resize-divider" id="flow-inspector-divider" aria-controls="flow-inspector" data-testid="flow-inspector-divider"><span class="divider-grip" aria-hidden="true"></span></div><aside class="flow-inspector" id="flow-inspector" aria-label="Step configuration"></aside><div class="yaml-pane" id="yaml-pane" hidden><div class="yaml-heading"><span>Generated from the canvas · Flow v1</span><button class="studio-button" id="copy-yaml">${icon('copy')}Copy YAML</button></div><pre class="yaml-code" id="yaml-code"></pre></div></div>
+  <div class="resize-divider" id="flow-results-divider" aria-controls="flow-results" data-testid="flow-results-divider"><span class="divider-grip" aria-hidden="true"></span></div>
+  <section class="flow-results" id="flow-results" aria-label="Flow run results"><div class="results-heading">${icon('terminal')}<strong>Run results</strong><span class="results-note">Local fixtures</span><span class="spacer"></span><div class="view-switch"><button data-result-view="steps" aria-pressed="true">Steps</button><button data-result-view="outputs" aria-pressed="false">Outputs</button></div><span id="flow-run-status" class="run-status" role="status">Not run</span></div><div id="flow-results-body" class="results-body"></div></section>
+  </div></section></div>`;
  document.body.insertAdjacentHTML('beforeend',`
  <dialog class="studio-dialog" id="new-flow-dialog" aria-labelledby="new-flow-title"><form id="new-flow-form"><div class="dialog-head">${icon('flow')}<strong id="new-flow-title">Create a flow</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Close new flow">${icon('x')}</button></div><div class="dialog-content"><p>Give your sequence a name. Add requests and connect their outputs as you go.</p>${field('Flow name',input('new-flow-name','','required maxlength="80" placeholder="e.g. Order checkout"'))}</div><div class="dialog-footer"><span>Saved in this session</span><button type="button" class="studio-button studio-close">Cancel</button><button class="studio-button primary" type="submit">Create flow</button></div></form></dialog>
  <dialog class="studio-dialog" id="add-step-dialog" aria-labelledby="add-step-title"><div class="dialog-head">${icon('plus')}<strong id="add-step-title">Add a step</strong><span class="spacer"></span><button class="icon-button studio-close" aria-label="Close add step">${icon('x')}</button></div><div class="dialog-content"><button class="recent-item" id="add-blank-step">${icon('terminal')}<div><strong>New HTTP request</strong><small>Configure a method, URL, and response checks</small></div>${icon('arrow')}</button><p class="inspector-section">FROM OPEN HTTP REQUESTS</p><div id="open-request-options"></div></div></dialog>
@@ -73,6 +75,7 @@
  function renderView(){
   const yaml=canvasView==='yaml';$('yaml-pane').hidden=!yaml;$('flow-canvas').hidden=yaml;$('flow-inspector').hidden=yaml;
   $('flow-content').classList.toggle('inspect-mode',mobileInspect);
+  $('flow-inspector-divider').hidden=yaml;
   $('toggle-inspector').textContent=mobileInspect?'Canvas':'Details';$('toggle-inspector').setAttribute('aria-pressed',mobileInspect);$('toggle-inspector').hidden=yaml;
   document.querySelectorAll('[data-flow-view]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.flowView===canvasView));
   if(yaml)renderYaml();
@@ -261,5 +264,21 @@
  document.addEventListener('keydown',event=>{if(mode()!=='flows'||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
  window.addEventListener('popstate',()=>setMode(location.hash.slice(1),false));
  window.addEventListener('hashchange',()=>{if(['home','http','flows'].includes(location.hash.slice(1)))setMode(location.hash.slice(1),false);});
+ PanelResize.attach({
+  container:$('flow-layout'),handle:$('flow-library-divider'),axis:'x',key:'flow-library',label:'Flow library width',initial:196,
+  limits:total=>[168,Math.min(340,total-620)],
+  apply:value=>$('flow-layout').style.setProperty('--flow-library-width',value+'px')
+ });
+ const inspectorResize=PanelResize.attach({
+  container:$('flow-content'),handle:$('flow-inspector-divider'),axis:'x',key:'flow-inspector',label:'Step details width',initial:300,fromEnd:true,
+  limits:total=>[260,Math.min(480,total-300)],
+  apply:value=>$('flow-content').style.setProperty('--flow-inspector-width',value+'px')
+ });
+ new MutationObserver(()=>inspectorResize.refresh()).observe($('flow-inspector-divider'),{attributes:true,attributeFilter:['hidden']});
+ PanelResize.attach({
+  container:$('flow-stage'),handle:$('flow-results-divider'),axis:'y',key:'flow-results',label:'Run results height',initial:192,fromEnd:true,
+  limits:total=>[132,total-(matchMedia('(max-width:800px)').matches?360:300)],
+  apply:value=>$('flow-stage').style.setProperty('--flow-results-height',value+'px')
+ });
  setMode(location.hash.slice(1)||'home',false);
 })();
