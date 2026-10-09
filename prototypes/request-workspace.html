@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Postman GPUI — Request editor</title>
+<title>Postman GPUI — HTTP &amp; Flows</title>
 <link rel="icon" href="../assets/icons/icon.svg" type="image/svg+xml">
 <style>
 @font-face{font-family:Inter;src:url("../assets/fonts/inter/Inter-Regular.ttf");font-weight:400;font-display:swap}
@@ -93,7 +93,7 @@ kbd{font:11px var(--font-ui);padding:2px 5px;border:1px solid var(--line-strong)
 .response{min-height:0;flex:1;display:flex;flex-direction:column;position:relative;min-width:0;background:var(--sidebar)}.response-heading{height:50px;padding:0 22px;display:flex;align-items:center;gap:13px;flex-shrink:0}.response-heading strong{font-size:12px;font-weight:500}.response-status{display:flex;align-items:center;gap:6px;padding:4px 7px;color:var(--green);background:var(--green-soft);border-radius:4px;font:10px var(--font-code);white-space:nowrap}.response-status.error{color:var(--red);background:var(--red-soft)}.response-status.error .dot{background:var(--red)}.response-metric{display:flex;align-items:center;gap:5px;font:10px var(--font-code);color:var(--muted);white-space:nowrap}.response-metric .icon{width:12px;height:12px}.response-note{color:var(--faint);font-size:10px;white-space:nowrap}
 .response-tabs{display:flex;align-items:center;padding:0 22px;height:43px;border-bottom:1px solid var(--line);gap:18px;flex-shrink:0}.response-tabs .pane-tab{font-size:11px}.response-tabs .pane-tab[aria-pressed="true"]{color:var(--text);font-weight:500}.response-tabs .pane-tab[aria-pressed="true"]:after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}.format-toggle{display:inline-flex;background:var(--canvas);border:1px solid var(--line);border-radius:5px;padding:2px}.format-toggle button{font-size:10px;padding:3px 7px;color:var(--faint);border-radius:3px;min-height:24px}.format-toggle button[aria-pressed="true"]{background:var(--elevated);color:var(--text)}.response-tools{display:flex;align-items:center;gap:3px}.language{font:10px var(--font-code);color:var(--faint);margin-right:4px}.response-content{flex:1;overflow:auto;padding:19px 0 24px;min-height:0}.code-line{display:flex;min-height:23px;font:12px/23px var(--font-code);white-space:pre}.code-line:hover{background:var(--subtle)}.line-code{padding-right:20px}.line-number{width:48px;padding-right:17px;flex-shrink:0;text-align:right;color:var(--faint);user-select:none;font-size:10px}.syntax-key{color:var(--code-key)}.syntax-string{color:var(--code-string)}.syntax-number,.syntax-boolean{color:var(--code-number)}
 .raw-response{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 22px;font:12px/1.9 var(--font-code);color:var(--code-string)}.response-table{margin:0 22px;width:calc(100% - 44px);border-collapse:collapse;font:11px/1.8 var(--font-code)}.response-table td{border-bottom:1px solid var(--line);padding:10px 8px;overflow-wrap:anywhere}.response-table td:first-child{color:var(--muted);width:40%}.response-empty{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;min-height:180px;height:100%;color:var(--faint);text-align:center;padding:20px}.response-empty>.icon{width:36px;height:36px;color:var(--muted);margin-bottom:8px}.response-empty strong{color:var(--text);font-size:13px;font-weight:500}.response-empty span{font-size:11px;max-width:260px}.response-foot{display:flex;justify-content:space-between;padding:9px 22px;border-top:1px solid var(--line);color:var(--faint);font:10px var(--font-code);flex-shrink:0}
-.footer{height:var(--footer-height);display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:0 16px;font-size:10px;color:var(--faint);flex-shrink:0;background:var(--canvas)}.footer>.icon{color:var(--green)}.footer .icon{width:12px;height:12px}.footer .divider{height:10px;width:1px;background:var(--line-strong);margin:0 7px}.footer-right{display:flex;align-items:center;gap:7px}.footer kbd{font-size:10px;border:0;padding:0}.footer .demo-note{color:var(--muted)}
+.footer{height:var(--footer-height);display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:0 16px;font-size:10px;color:var(--faint);flex-shrink:0;background:var(--canvas)}.footer>.icon{color:var(--green)}.footer .icon{width:12px;height:12px}.footer .divider{height:10px;width:1px;background:var(--line-strong);margin:0 7px}.footer-right{display:flex;align-items:center;gap:7px}.footer kbd{font-size:10px;border:0;padding:0}
 .split.side-by-side{flex-basis:300px;min-height:300px;grid-template-columns:minmax(0,.46fr) 5px minmax(0,.54fr);grid-template-rows:minmax(0,1fr)}
 .split.side-by-side .composer-label{display:flex}.split.side-by-side .pane-content{flex:0 1 auto;min-height:180px;max-height:60%}.split.side-by-side .pane-content:has(.body-editor){flex:1;max-height:none;display:flex;flex-direction:column}.split.side-by-side .body-editor{flex:1}.split.side-by-side .request-context{display:block}.split.side-by-side .resize-divider{height:100%;border-block:0;border-inline:1px solid var(--line)}.split.side-by-side .resize-divider span{height:26px;width:1px}.split.side-by-side .response-note{display:none}
 #split-button:disabled{opacity:.45;cursor:default}#split-button:disabled:hover{background:none;color:var(--muted)}
@@ -107,7 +107,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 }
 @media(max-width:1100px){.split.side-by-side .kv-table th:last-child,.split.side-by-side .kv-table td:last-child{display:none}.split.side-by-side .section-heading .hint{display:none}}
 @media(max-width:800px){
- .command-trigger{margin-left:auto;margin-right:0;width:230px}.request-title{gap:8px;margin-bottom:18px}.request-title .text-button kbd{display:none}.request-tab{min-width:130px}.request-title .text-button{padding:7px 9px}.footer .demo-note{font-size:9px}
+ .command-trigger{margin-left:auto;margin-right:0;width:230px}.request-title{gap:8px;margin-bottom:18px}.request-title .text-button kbd{display:none}.request-tab{min-width:130px}.request-title .text-button{padding:7px 9px}
 }
 @media(max-width:540px){
  :root{--rail-width:48px;--titlebar-height:48px;--tab-height:42px}.titlebar{padding:0 12px;gap:12px}.window-controls,.brand>span:last-child,.command-trigger span,.command-trigger kbd,.description,.footer-right{display:none}.command-trigger{width:30px;height:30px;justify-content:center;padding:0;border:0;background:none}
@@ -116,9 +116,9 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  .request-tab{min-width:120px;padding:0 12px;gap:6px}.request-tab .name{font-size:11px}.url-field{height:44px}.method-select{width:77px;padding:0 7px;font-size:11px}.url-input{padding:10px 8px;font-size:11px}.url-field>.icon,.send .shortcut,.send>.icon{display:none}.send{min-width:60px;padding:0 12px;font-size:12px}.url-row{gap:7px}
  .pane-tabs{gap:17px}.pane-tab{font-size:11px}.pane-tab .icon{display:none}.kv-table th:last-child,.kv-table td:last-child{display:none}.section-heading{height:44px}.section-heading .hint{display:none}.response-heading{padding:0 12px;gap:8px;height:44px}.response-heading strong{font-size:11px}.response-status{font-size:9px;padding:3px 5px}.response-metric{font-size:9px}.response-metric .icon{display:none}
  .response-tabs{padding:0 12px;gap:12px;height:40px}.response-tabs .pane-tab{font-size:10px}.response-tools .language{display:none}.format-toggle button{font-size:10px;padding:3px 5px}.response-tools .icon-button{width:26px}.code-line{font-size:11px;line-height:22px;min-height:22px}.line-number{width:34px;padding-right:10px}.response-foot{padding:7px 12px;font-size:9px}.auth-fields{grid-template-columns:110px minmax(0,1fr);gap:12px}
- .footer{padding:0 10px;font-size:9px;gap:5px}.footer .divider{margin:0 3px}.footer .demo-note{font-size:9px}.command-result{gap:7px;font-size:11px}.command-result .muted{font-size:9px}.dialog-head{padding:12px}.dialog-head input{width:100%}.dialog-content{max-height:calc(100dvh - 160px)}
+ .footer{padding:0 10px;font-size:9px;gap:5px}.footer .divider{margin:0 3px}.command-result{gap:7px;font-size:11px}.command-result .muted{font-size:9px}.dialog-head{padding:12px}.dialog-head input{width:100%}.dialog-content{max-height:calc(100dvh - 160px)}
 }
-@media(max-width:360px){.response-heading{gap:6px}.response-metric{font-size:8px}.response-tabs{gap:8px}.response-tabs .pane-tab .count{display:none}.request-title .text-button{padding:5px}.request-title .code-button{padding:6px}.pane-tabs{gap:13px}.footer>.divider,.footer>.demo-note{display:none}}
+@media(max-width:360px){.response-heading{gap:6px}.response-metric{font-size:8px}.response-tabs{gap:8px}.response-tabs .pane-tab .count{display:none}.request-title .text-button{padding:5px}.request-title .code-button{padding:6px}.pane-tabs{gap:13px}}
 @media(max-height:700px){
  :root{--titlebar-height:42px;--tab-height:38px;--footer-height:26px}.request-top{padding-block:12px}.request-title{margin-bottom:12px}.description{display:none}.request-title h1{font-size:22px}.rail{padding-block:8px;gap:5px}.rail-button{min-height:38px}.rail-button.new{margin-bottom:3px}.split.side-by-side .request-context{display:none}.split.side-by-side .pane-content{flex:1;max-height:none}.dialog-content{max-height:calc(100dvh - 160px)}
 }
@@ -148,11 +148,21 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 @media(max-height:600px){.curl-input{height:130px}.import-content{padding-block:14px}.import-intro{margin-bottom:12px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
+<link rel="stylesheet" href="./flow-studio.css">
 </head>
-<body>
-<a class="skip-link" href="#request-editor">Skip to request editor</a>
+<body data-view="home">
+<a class="skip-link" href="#home-screen">Skip to main content</a>
 <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
 <defs>
+ <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3Z"/></symbol>
+ <symbol id="i-flow" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="15" width="6" height="6" rx="1.5"/><path d="M6 9v9h9M9 6h9v9"/></symbol>
+ <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+ <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 4 13 8-13 8Z"/></symbol>
+ <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 10V7h15l-3-3m4 10v3H5l3 3M19 7l-3 3M5 17l3-3"/></symbol>
+ <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v16m-6-6 6 6 6-6"/></symbol>
+ <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V4m-6 6 6-6 6 6"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+
  <symbol id="i-settings" viewBox="0 0 24 24"><path d="m9 3-.5 2-2 .9-1.9-.6-2 3.4 1.5 1.4v2.3L2.6 14l2 3.4 1.9-.6 2 .9.5 2h4l.5-2 2-.9 1.9.6 2-3.4-1.5-1.6v-2.3l1.5-1.4-2-3.4-1.9.6-2-.9-.5-2Z"/><circle cx="11" cy="11.5" r="3"/></symbol>
  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 6 6 6-6 6m9 0h7"/></symbol>
 
@@ -179,24 +189,31 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  <header class="titlebar" data-testid="top-header">
   <div class="window-controls" aria-hidden="true"><span></span><span></span><span></span></div>
   <div class="brand"><span class="brand-mark"><svg aria-hidden="true" class="icon"><use href="#i-bolt"/></svg></span>Postman <span>GPUI</span></div>
+  <span class="mode-label" id="mode-label">Home</span>
   <button class="command-trigger" id="open-search" aria-label="Search requests"><svg aria-hidden="true" class="icon small"><use href="#i-search"/></svg><span>Search anything…</span><kbd>⌘ K</kbd></button>
  </header>
  <div class="app-body">
-  <nav class="rail" aria-label="Request tools" data-testid="left-rail">
-   <button class="rail-button new" id="new-request" title="New request" aria-label="New request"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></button>
-   <button class="rail-button" id="open-import" title="Import cURL" aria-label="Import cURL" aria-haspopup="dialog" aria-controls="import-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-import"/></svg><span>Import</span></button>
-   <button class="rail-button" id="show-history" title="History" aria-label="History" aria-haspopup="dialog" aria-controls="history-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-history"/></svg><span>History</span></button>
-   <button class="rail-button" id="rail-search" title="Search requests" aria-label="Search requests"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><span>Search</span></button>
-   <button class="rail-button" id="cookie-button" title="Cookie jar" aria-label="Cookie jar"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><span>Cookies</span></button>
+  <nav class="rail" aria-label="Application navigation" data-testid="left-rail">
+   <button class="rail-button mode-button" data-view="home" aria-label="Home" aria-current="page"><svg aria-hidden="true" class="icon"><use href="#i-home"/></svg><span>Home</span></button>
+   <button class="rail-button mode-button" data-view="http" aria-label="HTTP requests"><svg aria-hidden="true" class="icon"><use href="#i-terminal"/></svg><span>HTTP</span></button>
+   <button class="rail-button mode-button" data-view="flows" aria-label="Flows"><svg aria-hidden="true" class="icon"><use href="#i-flow"/></svg><span>Flows</span></button>
+   <div class="rail-divider http-tool"></div>
+   <button class="rail-button new" data-http-tool id="new-request" title="New request" aria-label="New request"><svg aria-hidden="true" class="icon"><use href="#i-plus"/></svg></button>
+   <button class="rail-button" data-http-tool id="open-import" title="Import cURL" aria-label="Import cURL" aria-haspopup="dialog" aria-controls="import-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-import"/></svg><span>Import</span></button>
+   <button class="rail-button" data-http-tool id="show-history" title="History" aria-label="History" aria-haspopup="dialog" aria-controls="history-dialog" aria-expanded="false"><svg aria-hidden="true" class="icon"><use href="#i-history"/></svg><span>History</span></button>
+   <button class="rail-button" data-http-tool id="rail-search" title="Search requests" aria-label="Search requests"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><span>Search</span></button>
+   <button class="rail-button" data-http-tool id="cookie-button" title="Cookie jar" aria-label="Cookie jar"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><span>Cookies</span></button>
    <span class="spacer"></span>
    <button class="rail-button utility" id="theme-button" title="Switch color theme" aria-label="Switch color theme" aria-pressed="false"><svg aria-hidden="true" class="icon"><use href="#i-moon"/></svg></button>
    <div class="rail-divider"></div>
    <button class="rail-button utility" id="shortcut-button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts"><svg aria-hidden="true" class="icon"><use href="#i-keyboard"/></svg></button>
   </nav>
-  <main class="request-editor" id="request-editor" tabindex="-1" data-testid="request-editor">
+  <main id="home-screen" class="home-screen" tabindex="-1"></main>
+  <main id="flow-screen" class="flow-screen" tabindex="-1" hidden></main>
+  <main class="request-editor" id="request-editor" tabindex="-1" data-testid="request-editor" hidden>
    <div class="request-tabs" id="request-tabs" role="tablist" aria-label="Open requests"></div>
    <section class="request-top">
-    <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve a paginated list of users.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
+    <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve a paginated list of users.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button to-flow-button" id="add-request-to-flow" title="Add to flow" aria-label="Add current request to a flow"><svg aria-hidden="true" class="icon small"><use href="#i-flow"/></svg><span>Add to flow</span></button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
     <div class="url-row">
      <div class="url-field"><select id="method" class="method-select" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input class="url-input" id="url" aria-label="Request URL" spellcheck="false" value="https://api.acme.dev/v1/users?page=1&amp;limit=10"><svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg></div>
      <button class="send" id="send-button" data-testid="send-button"><svg aria-hidden="true" class="icon"><use href="#i-send"/></svg><span id="send-label">Send</span><span class="shortcut" id="send-shortcut">⌘ ↵</span></button>
@@ -252,7 +269,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
    </div>
   </main>
  </div>
- <footer class="footer"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg><span id="footer-status">All changes saved</span><span class="divider"></span><span class="demo-note">Demo · Local responses</span><span class="spacer"></span><span class="footer-right"><kbd>⌘ ↵</kbd> Send request<span class="divider"></span><svg aria-hidden="true" class="icon"><use href="#i-bolt"/></svg>Postman GPUI</span></footer>
+ <footer class="footer"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg><span id="footer-status">All changes saved</span><span class="spacer"></span><span class="footer-right"><kbd>⌘ ↵</kbd> Send request<span class="divider"></span><svg aria-hidden="true" class="icon"><use href="#i-bolt"/></svg>Postman GPUI</span></footer>
 </div>
 <div class="toast" id="toast" role="status"><svg aria-hidden="true" class="icon small"><use href="#i-check"/></svg><span id="toast-text"></span></div>
 <dialog id="environment-dialog" class="environment-dialog" aria-labelledby="environment-title">
@@ -269,7 +286,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  <div class="dialog-footer"><span>Recent requests from this preview session</span><kbd>Esc</kbd></div>
 </dialog>
 <dialog id="search-dialog" aria-label="Search requests"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><input id="command-query" placeholder="Find a request…" aria-label="Find a request"><button class="icon-button close-dialog" aria-label="Close search"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content" id="command-results"></div></dialog>
-<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-head"><strong id="help-title">Keyboard shortcuts</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close shortcuts"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="shortcut-row"><span>Send / cancel request</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Search requests</span><kbd>⌘ / Ctrl + K</kbd></div><div class="shortcut-row"><span>Save request</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Close dialog</span><kbd>Esc</kbd></div></div></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-head"><strong id="help-title">Keyboard shortcuts</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close shortcuts"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="shortcut-row"><span>Send / cancel request</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Search requests</span><kbd>⌘ / Ctrl + K</kbd></div><div class="shortcut-row"><span>Save request</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Run / stop flow preview</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Export active flow</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Close dialog</span><kbd>Esc</kbd></div></div></dialog>
 <dialog id="cookie-dialog" aria-labelledby="cookie-title"><div class="dialog-head"><strong id="cookie-title">Cookie jar</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close cookie jar"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="response-empty"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><strong>No cookies yet</strong><span>Cookies returned by your API will appear here.</span></div></div></dialog>
 <dialog id="code-dialog" aria-labelledby="code-title"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-code"/></svg><strong id="code-title">Request code</strong><span class="spacer"></span><span class="muted">cURL</span><button class="icon-button close-dialog" aria-label="Close request code"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div><div class="dialog-content"><pre class="code-snippet" id="code-snippet"></pre></div><div class="dialog-footer code-footer"><button class="text-button" id="code-import" aria-haspopup="dialog" aria-controls="import-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-import"/></svg>Import cURL</button><button class="text-button" id="copy-code"><svg aria-hidden="true" class="icon small"><use href="#i-copy"/></svg>Copy code</button></div></dialog>
 <dialog id="import-dialog" class="import-dialog" aria-labelledby="import-title">
@@ -746,12 +763,24 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
    if (event.key.toLowerCase() === "s") { event.preventDefault(); $("environment-form").requestSubmit(); }
    return;
   }
+  if (document.body.dataset.view !== "http") return;
   if (event.key.toLowerCase() === "k") { event.preventDefault(); if (!$("search-dialog").open) openSearch(); }
   if (event.key.toLowerCase() === "s") { event.preventDefault(); save(); }
   if (event.key === "Enter" && !document.querySelector("dialog[open]")) { event.preventDefault(); send(); }
  });
+ window.PrototypeHTTP = {
+  list:() => requests.map(r => ({id:r.id,title:r.title,method:r.method,url:r.url})),
+  current:() => ({...clone(current()),hasBody:requestHasBody(current())}),
+  activate,newRequest,toast,
+  environment:() => ({id:activeEnvironmentId,baseUrl:baseUrl(),items:clone(environments)}),
+  setEnvironment:id => { $("environment").value=id; $("environment").dispatchEvent(new Event("change")); },
+  openEnvironments,
+  refresh:render
+ };
  renderEnvironmentOptions(); render(); updateLayout();
 })();
 </script>
+<script src="./flow-model.js"></script>
+<script src="./flow-studio.js"></script>
 </body>
 </html>

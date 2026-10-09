@@ -1,8 +1,9 @@
-# Request editor prototype
+# HTTP and Flows prototype
 
-The current design is a desktop API client with neutral charcoal surfaces,
-an orange primary action, and separate colors for HTTP methods and response
-status. Requests, history, and environments are the main UI concepts. It uses the Developer Tool / IDE guidance from `ui-ux-pro-max`, adapted
+The current design is a desktop API client with white surfaces by default,
+an orange primary action, an optional dark theme, and separate colors for HTTP
+methods and response status. Home separates HTTP requests from Flows before
+entering either editor. It uses the Developer Tool / IDE guidance from `ui-ux-pro-max`, adapted
 to this app's existing local Inter and JetBrains Mono fonts.
 
 Open `request-workspace.html` in a browser. It uses the fonts already bundled in
@@ -22,6 +23,9 @@ Edits and saved requests last for the current page session only.
 
 Try:
 
+- Start at Home and choose HTTP requests or Flows. The left navigation preserves
+  both editors' session state when switching. `#home`, `#http`, and `#flows` are
+  direct links; browser Back/Forward follows navigation between modes.
 - Open History from the left navigation to filter or replay recent requests.
 - Change query parameters and watch the URL update.
 - Inspect the query string summary and open its authorization settings.
@@ -39,6 +43,38 @@ Try:
   to add, rename, remove, and configure environments. Save applies the changes;
   Cancel or Escape discards them. Invalid names and URLs show inline errors.
 - Toggle light/dark colors and stacked/side-by-side panels.
+
+In Flows:
+
+- Choose User onboarding (three HTTP steps, output references, and a condition)
+  or Service readiness (bounded polling). Create a new flow using the plus next
+  to Your flows; in compact windows use the Choose flow menu.
+- Select a node to edit its request, checks, and exports in the right inspector.
+  Narrow windows switch between Canvas and Details. Move steps using the up/down
+  buttons; Check reports references made invalid by changing execution order.
+- Add a blank step or copy an open HTTP request. The HTTP editor's Add to flow
+  action also copies a request into an existing or new flow. Unsupported cURL
+  transport flags, header suppression, and nonstandard HTTP methods are rejected
+  during conversion instead of being silently discarded.
+- Use Inputs for per-run values and the shared environment picker for `base_url`.
+  These runtime overrides are kept separate from YAML defaults.
+- Switch Canvas / YAML to inspect generated Flow v1 source, then copy it or
+  Export a `.http.yml` file. YAML is read-only in this prototype; structured
+  body/condition expressions can be edited in the inspector. Invalid JSON drafts
+  survive navigation and must be fixed before running or exporting.
+- Run preview (Cmd/Ctrl+Enter) shows sequential step results, checks, extracted
+  outputs, failures, and cancellation. Cmd/Ctrl+S exports the active flow.
+
+The Flow screen is an interactive design prototype, not a connection to the Rust
+runtime. Run preview uses local fixtures and a small expression interpreter;
+polling waits are shortened to at most 1.5 seconds. Check performs partial local
+checks, not full engine compilation. Arbitrary YAML import/editing, free-position
+node dragging, general loop creation, and production execution are outside this
+prototype. Exported example documents have been checked using the existing
+`postman-g run <file> --check` command without sending network requests.
+
+`flow-studio.css` and `flow-studio.js` implement the new screens;
+`flow-model.js` holds sample definitions, conversion, and preview helpers.
 
 Environment base URLs support HTTP(S), ports, and path prefixes. Switching or
 editing the active environment rebases matching requests and preserves endpoint
@@ -64,7 +100,7 @@ The parser and exporter share `curl-request.js`. Run their dependency-free tests
 with Node.js 18 or later:
 
 ```sh
-node --test prototypes/curl-request.test.cjs
+node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
 ```
 
 The desktop reference viewport is 1440 × 960 CSS pixels at 100% browser zoom.
