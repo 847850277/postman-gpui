@@ -1,6 +1,6 @@
 # Installation
 
-Postman GPUI v0.1 supports macOS, Windows, and Linux. Download artifacts from
+Postman GPUI supports macOS, Windows, and Linux. Download artifacts from
 [GitHub Releases](https://github.com/847850277/postman-gpui/releases).
 
 Release candidates may be unsigned. Their release notes must state that explicitly; do not bypass
@@ -43,8 +43,8 @@ Supported release baseline: x86_64 distributions compatible with Ubuntu 22.04 li
 ### AppImage
 
 ```bash
-chmod +x *Postman*GPUI*.AppImage
-./*Postman*GPUI*.AppImage
+chmod +x ./postman-gpui_*.AppImage
+./postman-gpui_*.AppImage
 ```
 
 ### Debian/Ubuntu package
@@ -66,8 +66,8 @@ To build on Debian/Ubuntu, install the development packages used by GPUI:
 
 ```bash
 sudo apt update
-  sudo apt install build-essential clang cmake libasound2-dev libfontconfig1-dev \
-    libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libvulkan1 pkg-config
+sudo apt install build-essential clang cmake libasound2-dev libfontconfig1-dev \
+  libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libvulkan1 pkg-config
 ```
 
 ## Postman CLI (`postman-g`)
@@ -93,6 +93,7 @@ cargo install --path crates/postman-cli --bin postman-g
 ### Download prebuilt binary
 
 Download standalone prebuilt binaries from [GitHub Releases](https://github.com/847850277/postman-gpui/releases):
+
 - macOS (universal): `postman-g-macos-universal.tar.gz`
 - Linux (x86_64): `postman-g-linux-x86_64.tar.gz`
 - Windows (x86_64): `postman-g-windows-x86_64.zip`

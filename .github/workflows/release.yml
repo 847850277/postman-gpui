@@ -400,7 +400,7 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         shell: bash
         run: |
-          notes="Cross-platform packages for Postman GPUI ${RELEASE_TAG}. Verify downloads with SHA256SUMS. Downloads, atomic save-as, and streaming progress remain pending in #69."
+          notes="Native desktop packages and standalone postman-g CLI for Postman GPUI ${RELEASE_TAG}. Verify downloads with SHA256SUMS. See [current limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/README.md#current-limitations)."
           if ! grep -q '^signed=true$' dist/BUILD-INFO-macos.txt; then
             notes+=$'\n\nThe macOS release candidate is unsigned and can trigger Gatekeeper.'
           elif ! grep -q '^notarized=true$' dist/BUILD-INFO-macos.txt; then
