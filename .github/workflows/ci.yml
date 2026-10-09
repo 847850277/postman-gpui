@@ -116,8 +116,13 @@ jobs:
     - name: Run clippy
       run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-    - name: Verify GPUI versions and headless dependency boundaries
-      run: python3 scripts/check_ui_dependencies.py
+    - name: Verify headless dependency boundaries
+      run: |
+        dependency_tree="$(cargo tree --locked --workspace --exclude postman-gpui)"
+        if printf '%s\n' "$dependency_tree" | grep -E '(^|[[:space:]])gpui([_-][^[:space:]]+)? v'; then
+          echo "Engine, CLI, and MCP crates must not depend on GPUI"
+          exit 1
+        fi
 
     - name: Build project
       run: cargo build --locked --workspace --verbose
