@@ -81,6 +81,7 @@ Local verification on macOS / Apple silicon, October 9, 2026:
 | Native `--verify-runtime-assets` | Passed with the macOS text backend |
 | Native Kit window | Opened; both fonts and icon assets rendered |
 | Native input / dialog | Chinese and Emoji paste, selection, copy/paste, Tab, Enter, Escape and return-to-input interaction verified |
+| Normal native startup | Existing HTTP interface and history list opened; shortcut help opened and closed with Escape |
 
 The workspace run includes the public HTTPBingo UI suite (13 tests, including its
 scenario-file runner), request/cancel/timeout checks, layout, keyboard, clipboard,
@@ -98,11 +99,19 @@ It does **not** drive an operating-system candidate window.
 
 ![Native Kit dialog displaying Unicode input](images/gpui-kit-p0-dialog.jpg)
 
+Cross-platform CI for implementation commit `fe4f486` in
+[PR #197](https://github.com/847850277/postman-gpui/pull/197):
+
+| Platform | Release build and native `--verify-runtime-assets` |
+| --- | --- |
+| macOS | [Passed](https://github.com/847850277/postman-gpui/actions/runs/37897804298/job/113713071422) |
+| Linux | [Passed](https://github.com/847850277/postman-gpui/actions/runs/37897804298/job/113713071389) |
+| Windows | [Passed](https://github.com/847850277/postman-gpui/actions/runs/37897804298/job/113713071520) |
+
 ## Remaining platform acceptance
 
-- The CI release-build matrix covers macOS, Windows, and Linux and now runs
-  `--verify-runtime-assets` after each build. Record the PR's completed matrix
-  results before marking P0 complete; a configured job is not a passing build.
+- The three platform jobs above establish release-build and native font
+  compatibility; they do not establish interactive runtime acceptance.
 - Windows/Linux interactive startup, clipboard, focus, and system-IME candidate
   selection need native runtime verification. The macOS system-IME candidate
   window also remains unverified; Unicode paste and the protocol test above are
