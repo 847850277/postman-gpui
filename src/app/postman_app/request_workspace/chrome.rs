@@ -7,9 +7,8 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement,
-    IntoElement, KeyBinding, MouseButton, ParentElement, Role, StatefulInteractiveElement, Styled,
-    Window,
+    actions, div, prelude::FluentBuilder, px, Context, FontWeight, InteractiveElement, IntoElement,
+    KeyBinding, MouseButton, ParentElement, Role, StatefulInteractiveElement, Styled, Window,
 };
 use std::collections::HashSet;
 
@@ -108,17 +107,19 @@ impl RequestWorkspace {
                     .items_center()
                     .gap_2()
                     .px_3()
-                    .bg(rgb(if active { PANEL } else { PANEL_ALT }))
+                    .bg((if active { PANEL } else { PANEL_ALT }).resolve(cx))
                     .rounded_t_lg()
                     .font_family(FONT_UI)
                     .text_size(px(12.0))
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(PANEL)))
-                    .when(focused, |tab| tab.border_1().border_color(rgb(ACCENT)))
+                    .hover(|style| style.bg(PANEL.resolve(cx)))
+                    .when(focused, |tab| {
+                        tab.border_1().border_color(ACCENT.resolve(cx))
+                    })
                     .child(
                         div()
                             .debug_selector(move || format!("request-tab-method-{index}"))
-                            .text_color(rgb(method_color(method)))
+                            .text_color((method_color(method)).resolve(cx))
                             .font_weight(FontWeight::BOLD)
                             .child(method.to_string()),
                     )
@@ -126,12 +127,12 @@ impl RequestWorkspace {
                         div()
                             .max_w(px(180.0))
                             .overflow_hidden()
-                            .text_color(rgb(if active { SUBTEXT } else { MUTED }))
+                            .text_color((if active { SUBTEXT } else { MUTED }).resolve(cx))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(title),
                     )
                     .when(dirty, |tab| {
-                        tab.child(div().size(px(6.0)).rounded_full().bg(rgb(ACCENT)))
+                        tab.child(div().size(px(6.0)).rounded_full().bg(ACCENT.resolve(cx)))
                     })
                     .child(
                         div()
@@ -146,10 +147,14 @@ impl RequestWorkspace {
                             .items_center()
                             .justify_center()
                             .rounded_md()
-                            .text_color(rgb(MUTED))
-                            .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                            .text_color(MUTED.resolve(cx))
+                            .hover(|style| {
+                                style
+                                    .bg(ACCENT_SOFT.resolve(cx))
+                                    .text_color(ACCENT_DARK.resolve(cx))
+                            })
                             .when(close_focused, |button| {
-                                button.border_1().border_color(rgb(ACCENT))
+                                button.border_1().border_color(ACCENT.resolve(cx))
                             })
                             .child("×")
                             .on_action(cx.listener(move |this, _: &ActivateControl, window, cx| {
@@ -195,9 +200,9 @@ impl RequestWorkspace {
             .gap_2()
             .px_3()
             .py_2()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_b_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .children(tab_elements)
             .child(
                 div()
@@ -212,15 +217,19 @@ impl RequestWorkspace {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(PANEL_ALT))
-                    .text_color(rgb(SUBTEXT))
+                    .bg(PANEL_ALT.resolve(cx))
+                    .text_color(SUBTEXT.resolve(cx))
                     .font_family(FONT_HEADING)
                     .text_size(px(20.0))
                     .font_weight(FontWeight::SEMIBOLD)
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                    .hover(|style| {
+                        style
+                            .bg(ACCENT_SOFT.resolve(cx))
+                            .text_color(ACCENT_DARK.resolve(cx))
+                    })
                     .when(self.new_tab_focus_handle.is_focused(window), |button| {
-                        button.border_1().border_color(rgb(ACCENT))
+                        button.border_1().border_color(ACCENT.resolve(cx))
                     })
                     .child("+")
                     .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {

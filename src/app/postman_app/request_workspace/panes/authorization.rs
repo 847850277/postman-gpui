@@ -9,8 +9,8 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
-    FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
+    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
     StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
@@ -211,8 +211,8 @@ impl AuthorizationPane {
                         .px_3()
                         .rounded_lg()
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(PANEL_ALT))
+                        .border_color(LINE.resolve(cx))
+                        .bg(PANEL_ALT.resolve(cx))
                         .child(
                             div()
                                 .w(px(120.0))
@@ -220,7 +220,7 @@ impl AuthorizationPane {
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(12.0))
-                                .text_color(rgb(INFO))
+                                .text_color(INFO.resolve(cx))
                                 .child("Bearer token"),
                         )
                         .child(
@@ -239,11 +239,11 @@ impl AuthorizationPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(OK_SOFT))
+                                .bg(OK_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("LIVE · SAVED"),
                         ),
                 )
@@ -257,8 +257,8 @@ impl AuthorizationPane {
                         .px_3()
                         .rounded_lg()
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(INFO_SOFT))
+                        .border_color(LINE.resolve(cx))
+                        .bg(INFO_SOFT.resolve(cx))
                         .child(
                             div()
                                 .w(px(190.0))
@@ -272,7 +272,7 @@ impl AuthorizationPane {
                                         .font_family(FONT_UI)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(INFO))
+                                        .text_color(INFO.resolve(cx))
                                         .child("NORMALIZED TOKEN"),
                                 )
                                 .child(
@@ -281,7 +281,7 @@ impl AuthorizationPane {
                                         .overflow_hidden()
                                         .font_family(FONT_MONO)
                                         .text_size(px(11.0))
-                                        .text_color(rgb(if auth_ready { TEXT } else { MUTED }))
+                                        .text_color((if auth_ready { TEXT } else { MUTED }).resolve(cx))
                                         .child(if normalized_token.is_empty() {
                                             "—".to_string()
                                         } else {
@@ -292,7 +292,7 @@ impl AuthorizationPane {
                                     div()
                                         .font_family(FONT_UI)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(SUBTEXT))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .child("Optional Bearer prefix removed once"),
                                 ),
                         )
@@ -301,7 +301,7 @@ impl AuthorizationPane {
                                 .flex_none()
                                 .font_family(FONT_UI)
                                 .text_size(px(16.0))
-                                .text_color(rgb(INFO))
+                                .text_color(INFO.resolve(cx))
                                 .child("→"),
                         )
                         .child(
@@ -316,7 +316,7 @@ impl AuthorizationPane {
                                         .font_family(FONT_UI)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(INFO))
+                                        .text_color(INFO.resolve(cx))
                                         .child("OUTGOING HEADER"),
                                 )
                                 .child(
@@ -325,7 +325,7 @@ impl AuthorizationPane {
                                         .overflow_hidden()
                                         .font_family(FONT_MONO)
                                         .text_size(px(11.0))
-                                        .text_color(rgb(if auth_ready { TEXT } else { MUTED }))
+                                        .text_color((if auth_ready { TEXT } else { MUTED }).resolve(cx))
                                         .child(header_preview.unwrap_or_else(|| {
                                             "Authorization header will appear here".to_string()
                                         })),
@@ -334,7 +334,7 @@ impl AuthorizationPane {
                                     div()
                                         .font_family(FONT_UI)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(SUBTEXT))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .child("One canonical header · no duplicated prefix"),
                                 ),
                         )
@@ -346,11 +346,11 @@ impl AuthorizationPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(if auth_ready { OK_SOFT } else { PANEL }))
+                                .bg((if auth_ready { OK_SOFT } else { PANEL }).resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(if auth_ready { OK } else { MUTED }))
+                                .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
                                 .child(if auth_ready { "1 PREFIX" } else { "WAITING" }),
                         ),
                 )
@@ -375,14 +375,14 @@ impl AuthorizationPane {
                             div()
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(12.0))
-                                .text_color(rgb(TEXT))
+                                .text_color(TEXT.resolve(cx))
                                 .child("Basic Auth credentials"),
                         )
                         .child(
                             div()
                                 .debug_selector(|| "basic-auth-password-masked".into())
                                 .text_size(px(10.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child("Password remains masked in the View"),
                         ),
                 )
@@ -392,22 +392,20 @@ impl AuthorizationPane {
                         .flex_none()
                         .flex()
                         .gap_3()
-                        .child(self.render_basic_auth_field(
+                        .child(Self::render_basic_auth_field(
                             "Username",
                             "basic-auth-username-field",
                             "basic-auth-username-input",
                             "basic-auth-username-saved",
                             self.basic_username_input.clone(),
-                            basic_username_saved,
-                        ))
-                        .child(self.render_basic_auth_field(
+                            basic_username_saved, cx))
+                        .child(Self::render_basic_auth_field(
                             "Password",
                             "basic-auth-password-field",
                             "basic-auth-password-input",
                             "basic-auth-password-saved",
                             self.basic_password_input.clone(),
-                            basic_password_saved,
-                        )),
+                            basic_password_saved, cx)),
                 )
                 .child(
                     div()
@@ -421,14 +419,14 @@ impl AuthorizationPane {
                         .px_3()
                         .rounded_lg()
                         .border_1()
-                        .border_color(rgb(INFO))
-                        .bg(rgb(INFO_SOFT))
+                        .border_color(INFO.resolve(cx))
+                        .bg(INFO_SOFT.resolve(cx))
                         .child(
                             div()
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(INFO))
+                                .text_color(INFO.resolve(cx))
                                 .child("OUTGOING HEADER · ONE CANONICAL VALUE"),
                         )
                         .child(
@@ -437,11 +435,11 @@ impl AuthorizationPane {
                                 .overflow_hidden()
                                 .font_family(FONT_MONO)
                                 .text_size(px(11.0))
-                                .text_color(rgb(if header_preview.is_some() {
+                                .text_color((if header_preview.is_some() {
                                     TEXT
                                 } else {
                                     MUTED
-                                }))
+                                }).resolve(cx))
                                 .child(header_preview.unwrap_or_else(|| {
                                     "Authorization header will appear here".to_string()
                                 })),
@@ -457,8 +455,8 @@ impl AuthorizationPane {
                         .gap_2()
                         .font_family(FONT_UI)
                         .text_size(px(10.0))
-                        .text_color(rgb(SUBTEXT))
-                        .child(div().text_color(rgb(OK)).child("●"))
+                        .text_color(SUBTEXT.resolve(cx))
+                        .child(div().text_color(OK.resolve(cx)).child("●"))
                         .child(
                             "View fields → RequestViewModel → Basic encoder; no blur, Enter, or Tab required.",
                         ),
@@ -489,7 +487,7 @@ impl AuthorizationPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "authorization-summary".into())
@@ -501,7 +499,7 @@ impl AuthorizationPane {
                     .gap_3()
                     .px_3()
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .child(
                         div()
@@ -514,14 +512,14 @@ impl AuthorizationPane {
                                     .flex_none()
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Authorization"),
                             )
                             .child(
                                 div()
                                     .overflow_hidden()
                                     .text_size(px(11.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Managed header · saved as you type"),
                             ),
                     )
@@ -535,10 +533,10 @@ impl AuthorizationPane {
                             .items_center()
                             .gap_1()
                             .rounded_lg()
-                            .bg(rgb(if auth_ready { OK_SOFT } else { PANEL_ALT }))
+                            .bg((if auth_ready { OK_SOFT } else { PANEL_ALT }).resolve(cx))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(if auth_ready { OK } else { MUTED }))
+                            .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
                             .child(if auth_ready { "●" } else { "○" })
                             .child(format!(
                                 "{} · {}",
@@ -556,16 +554,16 @@ impl AuthorizationPane {
                     .items_center()
                     .gap_2()
                     .px_3()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .mr_2()
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("AUTH TYPE"),
                     )
                     .child(self.render_authorization_kind_button(
@@ -596,13 +594,13 @@ impl AuthorizationPane {
                     .gap_2()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(
                         div()
-                            .text_color(rgb(if auth_ready { OK } else { MUTED }))
+                            .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
                             .child(if auth_ready { "✓" } else { "○" }),
                     )
                     .child(ready_message),
@@ -640,15 +638,21 @@ impl AuthorizationPane {
             .items_center()
             .rounded_md()
             .border_1()
-            .border_color(rgb(if selected { ACCENT } else { LINE }))
-            .bg(rgb(if selected { ACCENT_SOFT } else { CODE_PANEL }))
+            .border_color((if selected { ACCENT } else { LINE }).resolve(cx))
+            .bg((if selected { ACCENT_SOFT } else { CODE_PANEL }).resolve(cx))
             .font_family(FONT_UI)
             .font_weight(FontWeight::SEMIBOLD)
             .text_size(px(12.0))
-            .text_color(rgb(if selected { ACCENT_DARK } else { MUTED }))
+            .text_color((if selected { ACCENT_DARK } else { MUTED }).resolve(cx))
             .cursor_pointer()
-            .hover(|style| style.border_color(rgb(ACCENT)).text_color(rgb(ACCENT_DARK)))
-            .when(focused, |button| button.border_2().border_color(rgb(INFO)))
+            .hover(|style| {
+                style
+                    .border_color(ACCENT.resolve(cx))
+                    .text_color(ACCENT_DARK.resolve(cx))
+            })
+            .when(focused, |button| {
+                button.border_2().border_color(INFO.resolve(cx))
+            })
             .child(label)
             .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
                 this.set_authorization_kind(kind, cx)
@@ -694,13 +698,13 @@ impl AuthorizationPane {
     }
 
     fn render_basic_auth_field(
-        &self,
         label: &'static str,
         field_selector: &'static str,
         input_selector: &'static str,
         saved_selector: &'static str,
         input: Entity<HeaderInput>,
         saved: bool,
+        cx: &gpui::App,
     ) -> impl IntoElement {
         div()
             .debug_selector(move || field_selector.into())
@@ -714,7 +718,7 @@ impl AuthorizationPane {
                     .font_family(FONT_UI)
                     .font_weight(FontWeight::BOLD)
                     .text_size(px(9.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(label.to_ascii_uppercase()),
             )
             .child(
@@ -727,8 +731,8 @@ impl AuthorizationPane {
                     .px_3()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(INFO))
-                    .bg(rgb(PANEL))
+                    .border_color(INFO.resolve(cx))
+                    .bg(PANEL.resolve(cx))
                     .child(
                         div()
                             .debug_selector(move || input_selector.into())
@@ -746,11 +750,11 @@ impl AuthorizationPane {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(if saved { OK_SOFT } else { PANEL_ALT }))
+                            .bg((if saved { OK_SOFT } else { PANEL_ALT }).resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(if saved { OK } else { MUTED }))
+                            .text_color((if saved { OK } else { MUTED }).resolve(cx))
                             .child(if saved { "SAVED" } else { "EMPTY" }),
                     ),
             )

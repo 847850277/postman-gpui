@@ -6,11 +6,10 @@ use crate::ui::{
     theme::INFO,
 };
 use gpui::{
-    actions, fill, hsla, point, px, relative, rgb, rgba, size, App, Bounds, ClipboardItem, Context,
-    Element, ElementId, ElementInputHandler, Entity, EntityInputHandler, FocusHandle,
-    GlobalElementId, IntoElement, LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    PaintQuad, Pixels, Point, ShapedLine, SharedString, Style, TextAlign, TextRun, UTF16Selection,
-    Window,
+    actions, fill, hsla, point, px, relative, size, App, Bounds, ClipboardItem, Context, Element,
+    ElementId, ElementInputHandler, Entity, EntityInputHandler, FocusHandle, GlobalElementId,
+    IntoElement, LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
+    ShapedLine, SharedString, Style, TextAlign, TextRun, UTF16Selection, Window,
 };
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
@@ -823,7 +822,7 @@ impl<H: SingleLineInputHost> Element for SingleLineTextElement<H> {
                         point(bounds.left() + cursor_x, bounds.top()),
                         size(px(2.), bounds.bottom() - bounds.top()),
                     ),
-                    rgb(INFO),
+                    INFO.resolve(cx),
                 )),
             )
         } else if !content_empty {
@@ -845,7 +844,7 @@ impl<H: SingleLineInputHost> Element for SingleLineTextElement<H> {
                             bounds.bottom(),
                         ),
                     ),
-                    rgba(0x3366_ff33),
+                    crate::ui::theme::ACCENT_SOFT.resolve(cx),
                 )),
                 None,
             )

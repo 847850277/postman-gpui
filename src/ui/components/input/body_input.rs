@@ -6,7 +6,7 @@
 
 use form_body_input::{FormBodyInput, FormBodyInputEvent};
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, App, AppContext, Context, Entity, EventEmitter,
+    actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, EventEmitter,
     FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render,
     Styled, Subscription, Window,
 };
@@ -322,11 +322,12 @@ impl Render for BodyInput {
             .w_full()
             .h_full()
             .min_h_0()
-            .bg(rgb(if current_type == BodyType::FormData {
+            .bg((if current_type == BodyType::FormData {
                 PANEL
             } else {
                 CODE_BG
-            }))
+            })
+            .resolve(cx))
             .when(self.show_type_tabs, |root| {
                 root.child(
                     div()
@@ -336,21 +337,21 @@ impl Render for BodyInput {
                         .items_center()
                         .gap_4()
                         .px_4()
-                        .bg(rgb(0x00ff_ffff))
+                        .bg(crate::ui::theme::PANEL.resolve(cx))
                         .border_b_1()
-                        .border_color(rgb(0x00e2_e8f0))
+                        .border_color(crate::ui::theme::LINE.resolve(cx))
                         .child(
                             div()
                                 .cursor_pointer()
                                 .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Json, |div| {
-                                    div.text_color(rgb(INFO))
+                                    div.text_color(INFO.resolve(cx))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::Json, |div| {
-                                    div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(TEXT)))
+                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
+                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
                                 })
                                 .child("● JSON ▾")
                                 .on_mouse_up(
@@ -364,12 +365,12 @@ impl Render for BodyInput {
                                 .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::FormData, |div| {
-                                    div.text_color(rgb(INFO))
+                                    div.text_color(INFO.resolve(cx))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::FormData, |div| {
-                                    div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(TEXT)))
+                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
+                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
                                 })
                                 .child("○ form-data")
                                 .on_mouse_up(
@@ -385,12 +386,12 @@ impl Render for BodyInput {
                                 .font_family(FONT_UI)
                                 .text_size(px(12.0))
                                 .when(current_type == BodyType::Raw, |div| {
-                                    div.text_color(rgb(INFO))
+                                    div.text_color(INFO.resolve(cx))
                                         .font_weight(gpui::FontWeight::BOLD)
                                 })
                                 .when(current_type != BodyType::Raw, |div| {
-                                    div.text_color(rgb(0x0047_5569))
-                                        .hover(|style| style.text_color(rgb(TEXT)))
+                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
+                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
                                 })
                                 .child("○ raw")
                                 .on_mouse_up(

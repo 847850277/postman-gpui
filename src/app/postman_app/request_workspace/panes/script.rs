@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
+    div, px, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
     ParentElement, Render, Styled, Subscription, Window,
 };
 
@@ -113,6 +113,7 @@ impl ScriptPane {
         hint: &'static str,
         input: Entity<BodyInput>,
         selector: &'static str,
+        cx: &gpui::App,
     ) -> gpui::AnyElement {
         div()
             .flex_1()
@@ -121,7 +122,7 @@ impl ScriptPane {
             .flex_col()
             .gap_2()
             .p_3()
-            .bg(rgb(CODE_BG))
+            .bg(CODE_BG.resolve(cx))
             .child(
                 div()
                     .flex()
@@ -132,10 +133,15 @@ impl ScriptPane {
                         div()
                             .text_size(px(12.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(CODE_TEXT))
+                            .text_color(CODE_TEXT.resolve(cx))
                             .child(title),
                     )
-                    .child(div().text_size(px(11.0)).text_color(rgb(MUTED)).child(hint)),
+                    .child(
+                        div()
+                            .text_size(px(11.0))
+                            .text_color(MUTED.resolve(cx))
+                            .child(hint),
+                    ),
             )
             .child(
                 div()
@@ -149,7 +155,7 @@ impl ScriptPane {
 }
 
 impl Render for ScriptPane {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (title, hint, selector) = match self.kind {
             ScriptPaneKind::PreRequest => (
                 "Pre-request script",
@@ -162,6 +168,6 @@ impl Render for ScriptPane {
                 "tests-editor",
             ),
         };
-        self.render_script_editor(title, hint, self.input.clone(), selector)
+        self.render_script_editor(title, hint, self.input.clone(), selector, cx)
     }
 }

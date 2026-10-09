@@ -10,9 +10,9 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
-    FontWeight, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Render,
-    Role, StatefulInteractiveElement, Styled, Subscription, Window,
+    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
+    InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Render, Role,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 actions!(
@@ -245,15 +245,21 @@ impl OptionsPane {
             .items_center()
             .rounded_md()
             .border_1()
-            .border_color(rgb(if selected { ACCENT } else { LINE }))
-            .bg(rgb(if selected { ACCENT_SOFT } else { PANEL }))
+            .border_color((if selected { ACCENT } else { LINE }).resolve(cx))
+            .bg((if selected { ACCENT_SOFT } else { PANEL }).resolve(cx))
             .font_family(FONT_UI)
             .font_weight(FontWeight::SEMIBOLD)
             .text_size(px(11.0))
-            .text_color(rgb(if selected { ACCENT } else { MUTED }))
+            .text_color((if selected { ACCENT } else { MUTED }).resolve(cx))
             .cursor_pointer()
-            .hover(|style| style.border_color(rgb(ACCENT)).text_color(rgb(ACCENT)))
-            .when(focused, |button| button.border_2().border_color(rgb(INFO)))
+            .hover(|style| {
+                style
+                    .border_color(ACCENT.resolve(cx))
+                    .text_color(ACCENT.resolve(cx))
+            })
+            .when(focused, |button| {
+                button.border_2().border_color(INFO.resolve(cx))
+            })
             .child(label)
             .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
                 this.set_redirect_policy(policy, cx)
@@ -305,18 +311,22 @@ impl OptionsPane {
             .justify_center()
             .rounded_md()
             .border_1()
-            .border_color(rgb(LINE))
-            .bg(rgb(PANEL))
+            .border_color(LINE.resolve(cx))
+            .bg(PANEL.resolve(cx))
             .font_family(FONT_MONO)
             .font_weight(FontWeight::BOLD)
             .text_size(px(14.0))
-            .text_color(rgb(if enabled { TEXT } else { MUTED }))
+            .text_color((if enabled { TEXT } else { MUTED }).resolve(cx))
             .when(enabled, |button| {
-                button
-                    .cursor_pointer()
-                    .hover(|style| style.border_color(rgb(ACCENT)).text_color(rgb(ACCENT)))
+                button.cursor_pointer().hover(|style| {
+                    style
+                        .border_color(ACCENT.resolve(cx))
+                        .text_color(ACCENT.resolve(cx))
+                })
             })
-            .when(focused, |button| button.border_2().border_color(rgb(INFO)))
+            .when(focused, |button| {
+                button.border_2().border_color(INFO.resolve(cx))
+            })
             .child(if delta < 0 { "−" } else { "+" })
             .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
                 this.adjust_max_redirects(delta, cx)
@@ -389,7 +399,7 @@ impl Render for OptionsPane {
             .flex_col()
             .gap_3()
             .p_3()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "redirect-configuration".into())
@@ -401,8 +411,8 @@ impl Render for OptionsPane {
                     .px_3()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL_ALT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
                     .child(
                         div()
                             .w(px(150.0))
@@ -415,13 +425,13 @@ impl Render for OptionsPane {
                                 div()
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Redirect policy"),
                             )
                             .child(
                                 div()
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Captured per request"),
                             ),
                     )
@@ -457,7 +467,7 @@ impl Render for OptionsPane {
                             .child(
                                 div()
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Maximum redirects"),
                             )
                             .child(
@@ -484,14 +494,14 @@ impl Render for OptionsPane {
                                             .px_2()
                                             .rounded_md()
                                             .border_1()
-                                            .border_color(rgb(if redirect_policy
+                                            .border_color((if redirect_policy
                                                 == RedirectPolicy::Follow
                                             {
                                                 INFO
                                             } else {
                                                 LINE
-                                            }))
-                                            .bg(rgb(PANEL))
+                                            }).resolve(cx))
+                                            .bg(PANEL.resolve(cx))
                                             .opacity(if redirect_policy == RedirectPolicy::Follow {
                                                 1.0
                                             } else {
@@ -525,19 +535,19 @@ impl Render for OptionsPane {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(if redirect_policy == RedirectPolicy::Follow {
+                            .bg((if redirect_policy == RedirectPolicy::Follow {
                                 OK_SOFT
                             } else {
                                 INFO_SOFT
-                            }))
+                            }).resolve(cx))
                             .font_family(FONT_MONO)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(if redirect_policy == RedirectPolicy::Follow {
+                            .text_color((if redirect_policy == RedirectPolicy::Follow {
                                 OK
                             } else {
                                 INFO
-                            }))
+                            }).resolve(cx))
                             .child(if redirect_policy == RedirectPolicy::Follow {
                                 format!("Follow · max {max_redirect_hops}")
                             } else {
@@ -557,22 +567,22 @@ impl Render for OptionsPane {
                     .px_3()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(INFO_SOFT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(INFO_SOFT.resolve(cx))
                     .font_family(FONT_MONO)
                     .text_size(px(10.0))
                     .child(
                         div()
                             .min_w_0()
                             .overflow_hidden()
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child(effective_request),
                     )
                     .child(
                         div()
                             .flex_none()
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child(if redirect_policy == RedirectPolicy::Follow {
                                 format!("Follow · max_hops={max_redirect_hops}")
                             } else {
@@ -586,7 +596,7 @@ impl Render for OptionsPane {
                     .px_3()
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(
                         "Follow resolves relative and absolute Location values. Do not follow preserves the first 3xx response.",
                     ),
@@ -602,8 +612,8 @@ impl Render for OptionsPane {
                     .px_3()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL_ALT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
                     .child(
                         div()
                             .w(px(150.0))
@@ -616,13 +626,13 @@ impl Render for OptionsPane {
                                 div()
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Request timeout"),
                             )
                             .child(
                                 div()
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Per request · 0 disables"),
                             ),
                     )
@@ -637,8 +647,8 @@ impl Render for OptionsPane {
                             .px_3()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(INFO))
-                            .bg(rgb(PANEL))
+                            .border_color(INFO.resolve(cx))
+                            .bg(PANEL.resolve(cx))
                             .child(self.timeout_input.clone()),
                     )
                     .child(
@@ -647,7 +657,7 @@ impl Render for OptionsPane {
                             .font_family(FONT_MONO)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(11.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child("ms"),
                     )
                     .child(
@@ -659,11 +669,11 @@ impl Render for OptionsPane {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(if timeout_enabled { OK_SOFT } else { INFO_SOFT }))
+                            .bg((if timeout_enabled { OK_SOFT } else { INFO_SOFT }).resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(if timeout_enabled { OK } else { MUTED }))
+                            .text_color((if timeout_enabled { OK } else { MUTED }).resolve(cx))
                             .child(if timeout_enabled {
                                 format!("{} ms deadline", format_number(timeout_ms))
                             } else {
@@ -677,7 +687,7 @@ impl Render for OptionsPane {
                     .px_3()
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(
                         "The deadline is captured when Send starts. Timeout and user cancellation remain distinct terminal states.",
                     ),
@@ -693,20 +703,20 @@ impl Render for OptionsPane {
                     .px_4()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(INFO_SOFT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(INFO_SOFT.resolve(cx))
                     .font_family(FONT_MONO)
                     .text_size(px(11.0))
                     .child(
                         div()
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child(lifecycle),
                     )
                     .child(
                         div()
                             .debug_selector(|| "request-id-state".into())
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child(match request_id {
                                 Some(request_id) => format!("request_id={request_id}"),
                                 None => "request_id=None".to_string(),
@@ -715,7 +725,7 @@ impl Render for OptionsPane {
                     .child(
                         div()
                             .debug_selector(|| "request-in-flight-count".into())
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child(format!("in_flight={in_flight}")),
                     ),
             )

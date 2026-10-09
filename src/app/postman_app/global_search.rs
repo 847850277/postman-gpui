@@ -14,8 +14,8 @@ use crate::{
     },
 };
 use gpui::{
-    anchored, canvas, deferred, div, point, prelude::FluentBuilder, px, rgb, Anchor, Context,
-    Focusable, FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement, Role,
+    anchored, canvas, deferred, div, point, prelude::FluentBuilder, px, Anchor, Context, Focusable,
+    FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement, Role,
     StatefulInteractiveElement, Styled, Window,
 };
 
@@ -229,8 +229,8 @@ impl PostmanApp {
             .px_3()
             .rounded_lg()
             .border_1()
-            .border_color(rgb(if focused { INFO } else { LINE }))
-            .bg(rgb(if focused { PANEL } else { PANEL_ALT }))
+            .border_color((if focused { INFO } else { LINE }).resolve(cx))
+            .bg((if focused { PANEL } else { PANEL_ALT }).resolve(cx))
             .capture_any_mouse_down(cx.listener(
                 |this, event: &gpui::MouseDownEvent, window, cx| {
                     if event.button == MouseButton::Left {
@@ -251,7 +251,7 @@ impl PostmanApp {
                     .justify_center()
                     .font_family(FONT_UI)
                     .text_size(px(16.0))
-                    .text_color(rgb(if focused { INFO } else { MUTED }))
+                    .text_color((if focused { INFO } else { MUTED }).resolve(cx))
                     .child("⌕"),
             )
             .child(
@@ -279,11 +279,15 @@ impl PostmanApp {
                         .cursor_pointer()
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::BOLD)
-                        .text_color(rgb(MUTED))
-                        .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT)))
+                        .text_color(MUTED.resolve(cx))
+                        .hover(|style| {
+                            style
+                                .bg(ACCENT_SOFT.resolve(cx))
+                                .text_color(ACCENT.resolve(cx))
+                        })
                         .when(
                             self.global_search_clear_focus.is_focused(window),
-                            |button| button.border_1().border_color(rgb(ACCENT)),
+                            |button| button.border_1().border_color(ACCENT.resolve(cx)),
                         )
                         .child("×")
                         .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
@@ -309,12 +313,12 @@ impl PostmanApp {
                         .items_center()
                         .rounded_md()
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(PANEL))
+                        .border_color(LINE.resolve(cx))
+                        .bg(PANEL.resolve(cx))
                         .font_family(FONT_UI)
                         .text_size(px(9.0))
                         .font_weight(FontWeight::BOLD)
-                        .text_color(rgb(MUTED))
+                        .text_color(MUTED.resolve(cx))
                         .child("⌘ K"),
                 )
             })
@@ -355,8 +359,8 @@ impl PostmanApp {
                         .overflow_hidden()
                         .rounded(px(12.0))
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(PANEL))
+                        .border_color(LINE.resolve(cx))
+                        .bg(PANEL.resolve(cx))
                         .shadow_lg()
                         .when(results.is_empty(), |popover| {
                             popover.child(self.render_global_search_empty(cx))
@@ -384,7 +388,7 @@ impl PostmanApp {
                                             ))
                                         }),
                                 )
-                                .child(self.render_global_search_footer())
+                                .child(self.render_global_search_footer(cx))
                         }),
                 ),
         )
@@ -404,6 +408,7 @@ impl PostmanApp {
             .child(Self::render_global_search_group_heading(
                 "OPEN REQUESTS",
                 results.len(),
+                cx,
             ))
             .children(results.iter().cloned().enumerate().map(|(index, result)| {
                 let target = GlobalSearchTarget::Request(result.tab_id);
@@ -438,6 +443,7 @@ impl PostmanApp {
             .child(Self::render_global_search_group_heading(
                 "HISTORY",
                 results.len(),
+                cx,
             ))
             .children(results.iter().cloned().enumerate().map(|(index, result)| {
                 let global_index = index_offset + index;
@@ -456,7 +462,11 @@ impl PostmanApp {
             }))
     }
 
-    fn render_global_search_group_heading(label: &'static str, count: usize) -> impl IntoElement {
+    fn render_global_search_group_heading(
+        label: &'static str,
+        count: usize,
+        cx: &gpui::App,
+    ) -> impl IntoElement {
         div()
             .h(px(34.0))
             .flex_none()
@@ -464,12 +474,12 @@ impl PostmanApp {
             .items_center()
             .px_3()
             .border_b_1()
-            .border_color(rgb(LINE))
-            .bg(rgb(PANEL_ALT))
+            .border_color(LINE.resolve(cx))
+            .bg(PANEL_ALT.resolve(cx))
             .font_family(FONT_UI)
             .text_size(px(9.0))
             .font_weight(FontWeight::BOLD)
-            .text_color(rgb(MUTED))
+            .text_color(MUTED.resolve(cx))
             .child(format!("{label}  ·  {count}"))
     }
 
@@ -500,11 +510,13 @@ impl PostmanApp {
             .gap_3()
             .px_3()
             .border_b_1()
-            .border_color(rgb(LINE))
-            .bg(rgb(if selected { INFO_SOFT } else { PANEL }))
+            .border_color(LINE.resolve(cx))
+            .bg((if selected { INFO_SOFT } else { PANEL }).resolve(cx))
             .cursor_pointer()
-            .hover(|style| style.bg(rgb(INFO_SOFT)))
-            .when(selected, |row| row.border_l_2().border_color(rgb(INFO)))
+            .hover(|style| style.bg(INFO_SOFT.resolve(cx)))
+            .when(selected, |row| {
+                row.border_l_2().border_color(INFO.resolve(cx))
+            })
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, _, window, cx| {
@@ -520,11 +532,11 @@ impl PostmanApp {
                     .items_center()
                     .justify_center()
                     .rounded_md()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
                     .font_weight(FontWeight::BOLD)
-                    .text_color(rgb(method_color(method)))
+                    .text_color((method_color(method)).resolve(cx))
                     .child(method.to_string()),
             )
             .child(
@@ -540,7 +552,7 @@ impl PostmanApp {
                             .font_family(FONT_UI)
                             .text_size(px(11.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child(display_name),
                     )
                     .child(
@@ -548,7 +560,7 @@ impl PostmanApp {
                             .overflow_hidden()
                             .font_family(FONT_MONO)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child(detail),
                     ),
             )
@@ -558,12 +570,12 @@ impl PostmanApp {
                     .font_family(FONT_UI)
                     .text_size(px(9.0))
                     .font_weight(FontWeight::BOLD)
-                    .text_color(rgb(if selected { INFO } else { MUTED }))
+                    .text_color((if selected { INFO } else { MUTED }).resolve(cx))
                     .child(if selected { "Enter" } else { "Open" }),
             )
     }
 
-    fn render_global_search_footer(&self) -> impl IntoElement {
+    fn render_global_search_footer(&self, cx: &gpui::App) -> impl IntoElement {
         div()
             .h(px(44.0))
             .flex_none()
@@ -571,11 +583,11 @@ impl PostmanApp {
             .items_center()
             .justify_between()
             .px_3()
-            .bg(rgb(PANEL_ALT))
+            .bg(PANEL_ALT.resolve(cx))
             .font_family(FONT_UI)
             .text_size(px(9.0))
             .font_weight(FontWeight::SEMIBOLD)
-            .text_color(rgb(MUTED))
+            .text_color(MUTED.resolve(cx))
             .child("↑ ↓  Navigate")
             .child("Enter  Open")
             .child("Esc  Close")
@@ -602,10 +614,10 @@ impl PostmanApp {
                             .items_center()
                             .justify_center()
                             .rounded(px(14.0))
-                            .bg(rgb(INFO_SOFT))
+                            .bg(INFO_SOFT.resolve(cx))
                             .font_family(FONT_UI)
                             .text_size(px(22.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child("⌕"),
                     )
                     .child(
@@ -613,14 +625,14 @@ impl PostmanApp {
                             .font_family(FONT_UI)
                             .text_size(px(13.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child("No matching requests"),
                     )
                     .child(
                         div()
                             .font_family(FONT_UI)
                             .text_size(px(10.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("Try a URL fragment, request name, or HTTP method."),
                     )
                     .child(
@@ -634,12 +646,12 @@ impl PostmanApp {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(ACCENT_SOFT))
+                            .bg(ACCENT_SOFT.resolve(cx))
                             .cursor_pointer()
                             .font_family(FONT_UI)
                             .text_size(px(10.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(ACCENT))
+                            .text_color(ACCENT.resolve(cx))
                             .child("×  Clear search")
                             .on_mouse_up(
                                 MouseButton::Left,
@@ -658,15 +670,15 @@ impl PostmanApp {
                     .gap_2()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL_ALT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(9.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(
                         div()
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(MUTED))
+                            .text_color(MUTED.resolve(cx))
                             .child("Esc"),
                     )
                     .child("Close search and restore the previous editor focus"),

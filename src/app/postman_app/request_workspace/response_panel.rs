@@ -1,5 +1,5 @@
 use gpui::{
-    actions, div, point, prelude::FluentBuilder, px, rgb, App, Bounds, ClipboardItem, Context,
+    actions, div, point, prelude::FluentBuilder, px, App, Bounds, ClipboardItem, Context,
     CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable, FontWeight,
     GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
@@ -284,16 +284,18 @@ impl ResponseViewer {
             .cursor_pointer()
             .when(active, |d| {
                 d.border_b_2()
-                    .border_color(rgb(ACCENT))
-                    .text_color(rgb(TEXT))
+                    .border_color(ACCENT.resolve(cx))
+                    .text_color(TEXT.resolve(cx))
                     .font_weight(FontWeight::SEMIBOLD)
             })
             .when(!active, |d| {
-                d.text_color(rgb(MUTED))
-                    .hover(|s| s.text_color(rgb(SUBTEXT)))
+                d.text_color(MUTED.resolve(cx))
+                    .hover(|s| s.text_color(SUBTEXT.resolve(cx)))
             })
             .when(focused, |d| {
-                d.bg(rgb(ACCENT_SOFT)).border_1().border_color(rgb(ACCENT))
+                d.bg(ACCENT_SOFT.resolve(cx))
+                    .border_1()
+                    .border_color(ACCENT.resolve(cx))
             })
             .text_size(px(12.0))
             .font_family(FONT_UI)
@@ -558,9 +560,9 @@ impl ResponseViewer {
             .key_context("ResponseContent")
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                rgb(INFO)
+                INFO.resolve(cx)
             } else {
-                rgb(CODE_BG)
+                CODE_BG.resolve(cx)
             })
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
@@ -575,8 +577,8 @@ impl ResponseViewer {
             .h_full()
             .min_h_0()
             .p_3()
-            .bg(rgb(CODE_BG))
-            .text_color(rgb(CODE_TEXT))
+            .bg(CODE_BG.resolve(cx))
+            .text_color(CODE_TEXT.resolve(cx))
             .font_family(FONT_MONO)
             .text_size(px(13.0))
             .overflow_scroll()
@@ -603,7 +605,7 @@ impl ResponseViewer {
             .flex_col()
             .gap_3()
             .p_4()
-            .bg(rgb(CODE_BG))
+            .bg(CODE_BG.resolve(cx))
             .child(
                 div()
                     .h(px(42.0))
@@ -623,7 +625,7 @@ impl ResponseViewer {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(format!(
                                         "CURRENT RESPONSE / REDIRECT CHAIN · COOKIES ({cookie_count})"
                                     )),
@@ -632,7 +634,7 @@ impl ResponseViewer {
                                 div()
                                     .font_family(FONT_UI)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child(format!(
                                         "Response-scoped observation · Cookie Jar now has {jar_count} stored"
                                     )),
@@ -654,16 +656,16 @@ impl ResponseViewer {
                             .gap_2()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(INFO))
-                            .bg(rgb(PANEL))
+                            .border_color(INFO.resolve(cx))
+                            .bg(PANEL.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(INFO_SOFT)))
+                            .hover(|style| style.bg(INFO_SOFT.resolve(cx)))
                             .when(self.open_cookie_focus_handle.is_focused(window), |button| {
-                                button.border_2().border_color(rgb(ACCENT))
+                                button.border_2().border_color(ACCENT.resolve(cx))
                             })
                             .child("↗")
                             .child("Open Cookie Jar")
@@ -684,21 +686,21 @@ impl ResponseViewer {
                         .gap_2()
                         .rounded_lg()
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(PANEL_ALT))
+                        .border_color(LINE.resolve(cx))
+                        .bg(PANEL_ALT.resolve(cx))
                         .child(
                             div()
                                 .font_family(FONT_HEADING)
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(16.0))
-                                .text_color(rgb(TEXT))
+                                .text_color(TEXT.resolve(cx))
                                 .child("No Set-Cookie received"),
                         )
                         .child(
                             div()
                                 .font_family(FONT_UI)
                                 .text_size(px(11.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child(format!(
                                     "This response stored no new cookies. Cookie Jar remains {jar_count}."
                                 )),
@@ -734,8 +736,8 @@ impl ResponseViewer {
                                 .px_3()
                                 .rounded_lg()
                                 .border_1()
-                                .border_color(rgb(LINE))
-                                .bg(rgb(INFO_SOFT))
+                                .border_color(LINE.resolve(cx))
+                                .bg(INFO_SOFT.resolve(cx))
                                 .child(
                                     div()
                                         .debug_selector(move || {
@@ -746,7 +748,7 @@ impl ResponseViewer {
                                         .font_family(FONT_MONO)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(11.0))
-                                        .text_color(rgb(TEXT))
+                                        .text_color(TEXT.resolve(cx))
                                         .child(cookie.name),
                                 )
                                 .child(
@@ -756,7 +758,7 @@ impl ResponseViewer {
                                         .overflow_hidden()
                                         .font_family(FONT_MONO)
                                         .text_size(px(10.0))
-                                        .text_color(rgb(SUBTEXT))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .child(cookie.origin),
                                 )
                                 .child(
@@ -767,11 +769,11 @@ impl ResponseViewer {
                                         .flex()
                                         .items_center()
                                         .rounded_lg()
-                                        .bg(rgb(PANEL))
+                                        .bg(PANEL.resolve(cx))
                                         .font_family(FONT_UI)
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(MUTED))
+                                        .text_color(MUTED.resolve(cx))
                                         .child("VALUE PROTECTED"),
                                 )
                                 .child(
@@ -785,11 +787,11 @@ impl ResponseViewer {
                                         .flex()
                                         .items_center()
                                         .rounded_lg()
-                                        .bg(rgb(if cookie.stored_now { OK_SOFT } else { PANEL_ALT }))
+                                        .bg((if cookie.stored_now { OK_SOFT } else { PANEL_ALT }).resolve(cx))
                                         .font_family(FONT_UI)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(9.0))
-                                        .text_color(rgb(if cookie.stored_now { OK } else { MUTED }))
+                                        .text_color((if cookie.stored_now { OK } else { MUTED }).resolve(cx))
                                         .child(source),
                                 )
                         })),
@@ -944,9 +946,19 @@ impl Element for ResponseTextElement {
             })
             .collect();
         let layout = MultilineTextLayout::new(lines, ranges, bounds, line_height);
-        let selections = layout.selection_quads(&content, selected_range);
+        let selections = layout.selection_quads(
+            &content,
+            selected_range,
+            crate::ui::theme::ACCENT_SOFT.resolve(cx),
+        );
         let cursor = (selected_range.is_empty() && !content.is_empty())
-            .then(|| layout.cursor_quad(&content, selected_range.start().utf8(), rgb(INFO).into()))
+            .then(|| {
+                layout.cursor_quad(
+                    &content,
+                    selected_range.start().utf8(),
+                    INFO.resolve(cx).into(),
+                )
+            })
             .flatten();
 
         self.viewer.update(cx, |viewer, _cx| {
@@ -1130,9 +1142,9 @@ impl Render for ResponseViewer {
             .flex_col()
             .size_full()
             .min_h_0()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .rounded(px(14.0))
             .when(context_menu_position.is_none(), |root| {
                 root.overflow_hidden()
@@ -1144,9 +1156,9 @@ impl Render for ResponseViewer {
                     .justify_between()
                     .h_12()
                     .px_4()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .flex()
@@ -1159,7 +1171,7 @@ impl Render for ResponseViewer {
                                     .text_size(px(16.0))
                                     .font_family(FONT_HEADING)
                                     .font_weight(FontWeight::BOLD)
-                                    .text_color(rgb(TEXT)),
+                                    .text_color(TEXT.resolve(cx)),
                             )
                             .when(is_historical, |row| {
                                 row.child(
@@ -1168,11 +1180,11 @@ impl Render for ResponseViewer {
                                         .px_2()
                                         .py_1()
                                         .rounded(px(6.0))
-                                        .bg(rgb(INFO_SOFT))
+                                        .bg(INFO_SOFT.resolve(cx))
                                         .font_family(FONT_UI)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(10.0))
-                                        .text_color(rgb(INFO))
+                                        .text_color(INFO.resolve(cx))
                                         .child("Historical"),
                                 )
                             })
@@ -1183,11 +1195,11 @@ impl Render for ResponseViewer {
                                         .px_2()
                                         .py_1()
                                         .rounded(px(6.0))
-                                        .bg(rgb(INFO_SOFT))
+                                        .bg(INFO_SOFT.resolve(cx))
                                         .font_family(FONT_MONO)
                                         .font_weight(FontWeight::BOLD)
                                         .text_size(px(10.0))
-                                        .text_color(rgb(INFO))
+                                        .text_color(INFO.resolve(cx))
                                         .child(format!("Redirects ({redirect_response_count})")),
                                 )
                             })
@@ -1230,27 +1242,27 @@ impl Render for ResponseViewer {
                                         .gap_1()
                                         .rounded(px(7.0))
                                         .border_1()
-                                        .border_color(rgb(LINE))
-                                        .bg(rgb(PANEL))
-                                        .text_color(rgb(SUBTEXT))
+                                        .border_color(LINE.resolve(cx))
+                                        .bg(PANEL.resolve(cx))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .cursor_pointer()
                                         .when(!copied_feedback, |button| {
                                             button.hover(|style| {
                                                 style
-                                                    .bg(rgb(INFO_SOFT))
-                                                    .border_color(rgb(INFO))
-                                                    .text_color(rgb(INFO))
+                                                    .bg(INFO_SOFT.resolve(cx))
+                                                    .border_color(INFO.resolve(cx))
+                                                    .text_color(INFO.resolve(cx))
                                             })
                                         })
                                         .when(copied_feedback, |button| {
                                             button
-                                                .bg(rgb(OK_SOFT))
-                                                .border_color(rgb(OK))
-                                                .text_color(rgb(OK))
+                                                .bg(OK_SOFT.resolve(cx))
+                                                .border_color(OK.resolve(cx))
+                                                .text_color(OK.resolve(cx))
                                         })
                                         .when(copy_is_focused, |button| {
-                                            button.border_color(rgb(INFO))
+                                            button.border_color(INFO.resolve(cx))
                                         })
                                         .on_action(cx.listener(Self::copy_response_body))
                                         .on_mouse_up(
@@ -1276,7 +1288,7 @@ impl Render for ResponseViewer {
                             .child(
                                 div()
                                     .debug_selector(|| "response-status".into())
-                                    .text_color(rgb(status_color))
+                                    .text_color(status_color.resolve(cx))
                                     .font_weight(FontWeight::BOLD)
                                     .child(
                                         div()
@@ -1304,7 +1316,7 @@ impl Render for ResponseViewer {
                             .when(!elapsed.is_empty(), |row| {
                                 row.child(
                                     div()
-                                        .text_color(rgb(SUBTEXT))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .child(elapsed),
                                 )
@@ -1312,7 +1324,7 @@ impl Render for ResponseViewer {
                             .when(!size.is_empty(), |row| {
                                 row.child(
                                     div()
-                                        .text_color(rgb(SUBTEXT))
+                                        .text_color(SUBTEXT.resolve(cx))
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .child(size),
                                 )
@@ -1329,9 +1341,9 @@ impl Render for ResponseViewer {
                         .items_center()
                         .justify_between()
                         .px_4()
-                        .bg(rgb(PANEL_ALT))
+                        .bg(PANEL_ALT.resolve(cx))
                         .border_b_1()
-                        .border_color(rgb(LINE))
+                        .border_color(LINE.resolve(cx))
                         .font_family(FONT_UI)
                         .text_size(px(11.0))
                         .child(
@@ -1340,7 +1352,7 @@ impl Render for ResponseViewer {
                                 .items_center()
                                 .gap_2()
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("●")
                                 .child(if pane == ResponsePane::Cookies {
                                     "Response cookie evidence"
@@ -1356,7 +1368,7 @@ impl Render for ResponseViewer {
                             bar.child(
                                 div()
                                     .debug_selector(|| "response-historical-storage".into())
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child(if historical_truncated {
                                         "Stored preview · truncated at 256 KiB"
                                     } else {
@@ -1365,7 +1377,7 @@ impl Render for ResponseViewer {
                             )
                         })
                         .when(is_httpbingo && !is_historical, |bar| {
-                            bar.child(div().text_color(rgb(SUBTEXT)).child("stable subset"))
+                            bar.child(div().text_color(SUBTEXT.resolve(cx)).child("stable subset"))
                         }),
                 )
             })
@@ -1373,6 +1385,7 @@ impl Render for ResponseViewer {
                 root.child(render_redirect_chain(
                     &redirect_chain,
                     redirect_chain_is_partial,
+                    cx,
                 ))
             })
             .child(match state {
@@ -1386,13 +1399,13 @@ impl Render for ResponseViewer {
                     .justify_start()
                     .gap_2()
                     .p_5()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .child(
                         div()
                             .font_family(FONT_HEADING)
                             .text_size(px(20.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child("Send a request to view response"),
                     )
                     .child(
@@ -1400,7 +1413,7 @@ impl Render for ResponseViewer {
                             .font_family(FONT_UI)
                             .text_size(px(13.0))
                             .font_weight(FontWeight::MEDIUM)
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("Status, headers, and payload will appear here."),
                     ),
                 ResponseState::Loading => div()
@@ -1411,10 +1424,10 @@ impl Render for ResponseViewer {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .bg(rgb(CODE_BG))
+                    .bg(CODE_BG.resolve(cx))
                     .font_family(FONT_MONO)
                     .text_size(px(13.0))
-                    .text_color(rgb(CODE_TEXT))
+                    .text_color(CODE_TEXT.resolve(cx))
                     .child("Waiting for the server…"),
                 ResponseState::Cancelled => div()
                     .debug_selector(|| "response-cancelled-content".into())
@@ -1431,7 +1444,7 @@ impl Render for ResponseViewer {
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
-                        .child(render_response_headers(&headers)),
+                        .child(render_response_headers(&headers, cx)),
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
@@ -1459,11 +1472,11 @@ impl Render for ResponseViewer {
                                     .flex_none()
                                     .px_4()
                                     .py_2()
-                                    .bg(rgb(INFO_SOFT))
+                                    .bg(INFO_SOFT.resolve(cx))
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(INFO))
+                                    .text_color(INFO.resolve(cx))
                                     .child("Persisted preview is truncated at 256 KiB."),
                             )
                             .child(
@@ -1481,7 +1494,7 @@ impl Render for ResponseViewer {
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
-                        .child(render_response_headers(&response.headers)),
+                        .child(render_response_headers(&response.headers, cx)),
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
@@ -1513,7 +1526,7 @@ impl Render for ResponseViewer {
     }
 }
 
-fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoElement {
+fn render_redirect_chain(chain: &[RedirectHop], partial: bool, cx: &gpui::App) -> impl IntoElement {
     let redirect_count = chain
         .iter()
         .filter(|hop| (300..400).contains(&hop.status))
@@ -1524,9 +1537,9 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoEleme
         .max_h(px(164.0))
         .flex_none()
         .overflow_y_scroll()
-        .bg(rgb(PANEL_ALT))
+        .bg(PANEL_ALT.resolve(cx))
         .border_b_1()
-        .border_color(rgb(LINE))
+        .border_color(LINE.resolve(cx))
         .font_family(FONT_MONO)
         .child(
             div()
@@ -1537,11 +1550,11 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoEleme
                 .items_center()
                 .gap_2()
                 .border_b_1()
-                .border_color(rgb(LINE))
+                .border_color(LINE.resolve(cx))
                 .font_family(FONT_UI)
                 .font_weight(FontWeight::BOLD)
                 .text_size(px(10.0))
-                .text_color(rgb(if partial { ERROR } else { INFO }))
+                .text_color((if partial { ERROR } else { INFO }).resolve(cx))
                 .when(partial, |header| {
                     header.child(
                         div()
@@ -1569,7 +1582,7 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoEleme
                 .items_center()
                 .gap_3()
                 .border_b_1()
-                .border_color(rgb(LINE))
+                .border_color(LINE.resolve(cx))
                 .text_size(px(10.0))
                 .child(
                     div()
@@ -1577,14 +1590,14 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoEleme
                         .w(px(36.0))
                         .flex_none()
                         .font_weight(FontWeight::BOLD)
-                        .text_color(rgb(if is_terminal { OK } else { INFO }))
+                        .text_color((if is_terminal { OK } else { INFO }).resolve(cx))
                         .child(hop.status.to_string()),
                 )
                 .child(
                     div()
                         .min_w_0()
                         .flex_1()
-                        .text_color(rgb(TEXT))
+                        .text_color(TEXT.resolve(cx))
                         .child(hop.url.clone()),
                 )
                 .child(match &hop.location {
@@ -1592,12 +1605,12 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool) -> impl IntoEleme
                         .debug_selector(move || location_selector.clone())
                         .w(px(280.0))
                         .flex_none()
-                        .text_color(rgb(SUBTEXT))
+                        .text_color(SUBTEXT.resolve(cx))
                         .child(format!("Location: {location}")),
                     None => div()
                         .w(px(280.0))
                         .flex_none()
-                        .text_color(rgb(OK))
+                        .text_color(OK.resolve(cx))
                         .child("terminal response"),
                 })
         }))
@@ -1813,11 +1826,15 @@ mod tests {
             Some("😀中")
         );
         assert_eq!(
-            viewer.read_with(visual, |viewer, _| viewer
+            viewer.read_with(visual, |viewer, cx| viewer
                 .text_layout
                 .as_ref()
                 .unwrap()
-                .selection_quads(viewer.selection.text(), viewer.selection.selected_range())
+                .selection_quads(
+                    viewer.selection.text(),
+                    viewer.selection.selected_range(),
+                    crate::ui::theme::ACCENT_SOFT.resolve(cx)
+                )
                 .len()),
             1,
             "the copied UTF-8 range must produce the visible highlight"
@@ -1965,11 +1982,15 @@ mod tests {
             expected_body,
             "scrolling and repainting must not change the canonical selection"
         );
-        assert!(!viewer.read_with(visual, |viewer, _| viewer
+        assert!(!viewer.read_with(visual, |viewer, cx| viewer
             .text_layout
             .as_ref()
             .unwrap()
-            .selection_quads(viewer.selection.text(), viewer.selection.selected_range())
+            .selection_quads(
+                viewer.selection.text(),
+                viewer.selection.selected_range(),
+                crate::ui::theme::ACCENT_SOFT.resolve(cx)
+            )
             .is_empty()));
     }
 }

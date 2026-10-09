@@ -3,11 +3,14 @@ use crate::ui::theme::{
     TEXT,
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Role, StatefulInteractiveElement, Styled,
+    div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
+    Role, StatefulInteractiveElement, Styled,
 };
 
-pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl IntoElement {
+pub(super) fn render_response_headers(
+    headers: &[(String, String)],
+    cx: &gpui::App,
+) -> impl IntoElement {
     let header_count = headers.len();
     let rows = headers.to_vec();
 
@@ -20,7 +23,7 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
         .min_h_0()
         .flex()
         .flex_col()
-        .bg(rgb(CODE_BG))
+        .bg(CODE_BG.resolve(cx))
         .child(
             div()
                 .debug_selector(|| "response-headers-summary".into())
@@ -31,14 +34,14 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                 .justify_between()
                 .px_4()
                 .border_b_1()
-                .border_color(rgb(LINE))
-                .bg(rgb(PANEL_ALT))
+                .border_color(LINE.resolve(cx))
+                .bg(PANEL_ALT.resolve(cx))
                 .child(
                     div()
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::BOLD)
                         .text_size(px(12.0))
-                        .text_color(rgb(TEXT))
+                        .text_color(TEXT.resolve(cx))
                         .child("Response headers"),
                 )
                 .child(
@@ -47,7 +50,7 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                         .font_family(FONT_MONO)
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_size(px(10.0))
-                        .text_color(rgb(SUBTEXT))
+                        .text_color(SUBTEXT.resolve(cx))
                         .child(format!("{header_count} rows")),
                 ),
         )
@@ -68,14 +71,14 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                             .font_family(FONT_HEADING)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(16.0))
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child("No response headers"),
                     )
                     .child(
                         div()
                             .font_family(FONT_UI)
                             .text_size(px(11.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child(
                                 "The response body remains available. Send another request to inspect headers.",
                             ),
@@ -99,13 +102,13 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                             .flex()
                             .items_center()
                             .px_4()
-                            .bg(rgb(PANEL_ALT))
+                            .bg(PANEL_ALT.resolve(cx))
                             .border_b_1()
-                            .border_color(rgb(LINE))
+                            .border_color(LINE.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(MUTED))
+                            .text_color(MUTED.resolve(cx))
                             .child(div().w_1_3().child("HEADER"))
                             .child(div().flex_1().min_w_0().child("VALUE")),
                     )
@@ -128,8 +131,8 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                                         .px_4()
                                         .py_2()
                                         .border_b_1()
-                                        .border_color(rgb(LINE))
-                                        .when(index % 2 == 1, |row| row.bg(rgb(PANEL_ALT)))
+                                        .border_color(LINE.resolve(cx))
+                                        .when(index % 2 == 1, |row| row.bg(PANEL_ALT.resolve(cx)))
                                         .child(
                                             div()
                                                 .debug_selector(move || {
@@ -140,7 +143,7 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                                                 .font_family(FONT_MONO)
                                                 .font_weight(FontWeight::SEMIBOLD)
                                                 .text_size(px(11.0))
-                                                .text_color(rgb(INFO))
+                                                .text_color(INFO.resolve(cx))
                                                 .child(name),
                                         )
                                         .child(
@@ -152,7 +155,7 @@ pub(super) fn render_response_headers(headers: &[(String, String)]) -> impl Into
                                                 .min_w_0()
                                                 .font_family(FONT_MONO)
                                                 .text_size(px(11.0))
-                                                .text_color(rgb(CODE_TEXT))
+                                                .text_color(CODE_TEXT.resolve(cx))
                                                 .child(value),
                                         )
                                 },

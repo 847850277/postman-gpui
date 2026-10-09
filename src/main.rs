@@ -37,7 +37,7 @@ fn main() {
     let application = if verify_runtime_assets {
         runtime_asset_application()
     } else {
-        gpui_kit::application().with_assets(gpui_kit::assets::Assets)
+        gpui_kit::application().with_assets(postman_gpui::assets::KitAssets)
     };
 
     application.run(move |cx: &mut App| {
@@ -49,6 +49,14 @@ fn main() {
             return;
         }
         postman_gpui::ui::kit::init(cx);
+        if let Some(dirs) = directories::BaseDirs::new() {
+            postman_gpui::app::appearance::Appearance::init(
+                dirs.data_local_dir()
+                    .join("postman-gpui")
+                    .join("appearance.json"),
+                cx,
+            );
+        }
 
         // 激活应用（使菜单栏在前台显示）
         cx.activate(true);
@@ -73,7 +81,15 @@ fn main() {
             MenuItem::action("Quit Postman GPUI", Quit),
         ])]);
 
-        let bounds = Bounds::centered(None, size(px(1480.), px(980.0)), cx);
+        let bounds = Bounds::centered(
+            None,
+            if kit_smoke {
+                size(px(1440.), px(960.))
+            } else {
+                size(px(1480.), px(980.))
+            },
+            cx,
+        );
         let option = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {
@@ -87,6 +103,7 @@ fn main() {
 
         if kit_smoke {
             gpui_kit::open_window(option, cx, |window, cx| {
+                window.resize(size(px(1440.), px(960.)));
                 cx.new(|cx| KitSmokeView::new(window, cx))
             })
             .expect("failed to open Kit compatibility window");

@@ -1,5 +1,5 @@
 use gpui::{
-    anchored, deferred, div, point, px, rgb, Anchor, AnyElement, Context, FontWeight,
+    anchored, deferred, div, point, px, Anchor, AnyElement, Context, FontWeight,
     InteractiveElement, IntoElement, MouseButton, ParentElement, Pixels, Point, Styled, Window,
 };
 
@@ -122,9 +122,9 @@ pub fn edit_context_menu<V: 'static>(
                     .occlude()
                     .w(px(190.0))
                     .p_1()
-                    .bg(rgb(PANEL))
+                    .bg(PANEL.resolve(cx))
                     .border_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .rounded_lg()
                     .shadow_lg()
                     .font_family(FONT_UI)
@@ -141,8 +141,8 @@ pub fn edit_context_menu<V: 'static>(
                             .rounded_md()
                             .cursor_pointer()
                             .text_size(px(12.0))
-                            .text_color(rgb(TEXT))
-                            .hover(|style| style.bg(rgb(PANEL_ALT)))
+                            .text_color(TEXT.resolve(cx))
+                            .hover(|style| style.bg(PANEL_ALT.resolve(cx)))
                             .on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, window, cx| {
@@ -154,11 +154,14 @@ pub fn edit_context_menu<V: 'static>(
                             .child(
                                 div()
                                     .text_size(px(10.0))
-                                    .text_color(rgb(if action == EditContextAction::Paste {
-                                        SUBTEXT
-                                    } else {
-                                        MUTED
-                                    }))
+                                    .text_color(
+                                        (if action == EditContextAction::Paste {
+                                            SUBTEXT
+                                        } else {
+                                            MUTED
+                                        })
+                                        .resolve(cx),
+                                    )
                                     .child(action.shortcut()),
                             )
                     })),

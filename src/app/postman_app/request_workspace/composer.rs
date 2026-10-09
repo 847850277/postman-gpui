@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    div, px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 
@@ -363,9 +363,9 @@ impl RequestComposer {
             .flex()
             .flex_col()
             .min_w_0()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .rounded(px(14.0))
             .overflow_hidden()
             .child(self.render_request_menu(window, cx))

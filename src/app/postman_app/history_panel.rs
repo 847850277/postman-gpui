@@ -6,13 +6,13 @@ use crate::ui::theme::{
     SUBTEXT, TEXT,
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, EventEmitter,
+    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, EventEmitter,
     FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, MouseButton,
     ParentElement, Render, Role, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use std::collections::{HashMap, HashSet};
 
-const HISTORY_SELECTED_BORDER: u32 = 0x00f2_b89f;
+const HISTORY_SELECTED_BORDER: crate::ui::theme::ColorToken = crate::ui::theme::ACCENT;
 
 actions!(
     history_list,
@@ -302,9 +302,9 @@ impl Render for HistoryList {
             .gap(px(12.0))
             .px(px(16.0))
             .py(px(18.0))
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_r_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "history-header".into())
@@ -319,7 +319,7 @@ impl Render for HistoryList {
                             .font_family(FONT_HEADING)
                             .text_size(px(20.0))
                             .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child("History"),
                     )
                     .child(
@@ -343,14 +343,14 @@ impl Render for HistoryList {
                                     .justify_center()
                                     .rounded(px(6.0))
                                     .border_1()
-                                    .border_color(rgb(LINE))
+                                    .border_color(LINE.resolve(cx))
                                     .cursor_pointer()
                                     .font_family(FONT_UI)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(MUTED))
-                                    .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(TEXT)))
+                                    .text_color(MUTED.resolve(cx))
+                                    .hover(|style| style.bg(PANEL_ALT.resolve(cx)).text_color(TEXT.resolve(cx)))
                                     .when(self.refresh_focus_handle.is_focused(window), |button| {
-                                        button.border_color(rgb(HISTORY_SELECTED_BORDER))
+                                        button.border_color(HISTORY_SELECTED_BORDER.resolve(cx))
                                     })
                                     .on_action(cx.listener(
                                         |_this, _: &ActivateControl, _window, cx| {
@@ -381,14 +381,14 @@ impl Render for HistoryList {
                                     .justify_center()
                                     .rounded(px(6.0))
                                     .border_1()
-                                    .border_color(rgb(LINE))
+                                    .border_color(LINE.resolve(cx))
                                     .cursor_pointer()
                                     .font_family(FONT_UI)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(MUTED))
-                                    .hover(|style| style.bg(rgb(PANEL_ALT)).text_color(rgb(ERROR)))
+                                    .text_color(MUTED.resolve(cx))
+                                    .hover(|style| style.bg(PANEL_ALT.resolve(cx)).text_color(ERROR.resolve(cx)))
                                     .when(self.clear_focus_handle.is_focused(window), |button| {
-                                        button.border_color(rgb(HISTORY_SELECTED_BORDER))
+                                        button.border_color(HISTORY_SELECTED_BORDER.resolve(cx))
                                     })
                                     .on_action(cx.listener(
                                         |_this, _: &ActivateControl, _window, cx| {
@@ -412,7 +412,7 @@ impl Render for HistoryList {
                     .overflow_hidden()
                     .font_family(FONT_UI)
                     .text_size(px(12.0))
-                    .text_color(rgb(storage_color))
+                    .text_color(storage_color.resolve(cx))
                     .child(storage_text),
             )
             .child(
@@ -427,13 +427,13 @@ impl Render for HistoryList {
                     .gap(px(8.0))
                     .px(px(11.0))
                     .rounded(px(8.0))
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_1()
-                    .border_color(rgb(if search_focused {
+                    .border_color((if search_focused {
                         HISTORY_SELECTED_BORDER
                     } else {
                         LINE
-                    }))
+                    }).resolve(cx))
                     .on_action(cx.listener(Self::focus_first_item))
                     .child(
                         div()
@@ -444,7 +444,7 @@ impl Render for HistoryList {
                             .justify_center()
                             .font_family(FONT_UI)
                             .text_size(px(15.0))
-                            .text_color(rgb(MUTED))
+                            .text_color(MUTED.resolve(cx))
                             .child("⌕"),
                     )
                     .child(
@@ -466,7 +466,7 @@ impl Render for HistoryList {
                         .font_family(FONT_UI)
                         .text_size(px(10.0))
                         .font_weight(gpui::FontWeight::BOLD)
-                        .text_color(rgb(MUTED))
+                        .text_color(MUTED.resolve(cx))
                         .child("TODAY"),
                 )
             })
@@ -488,20 +488,20 @@ impl Render for HistoryList {
                             .px_3()
                             .py_4()
                             .rounded_lg()
-                            .bg(rgb(PANEL_ALT))
+                            .bg(PANEL_ALT.resolve(cx))
                             .font_family(FONT_UI)
                             .child(
                                 div()
                                     .text_size(px(13.0))
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(if has_history {
                                         "No matching requests"
                                     } else {
                                         "No requests yet"
                                     }),
                             )
-                            .child(div().text_size(px(12.0)).text_color(rgb(MUTED)).child(
+                            .child(div().text_size(px(12.0)).text_color(MUTED.resolve(cx)).child(
                                 if has_history {
                                     "Try another method, URL, header, or body value."
                                 } else {
@@ -525,7 +525,7 @@ impl Render for HistoryList {
                                     .selected_entry_id
                                     .as_deref()
                                     .is_some_and(|selected| selected == entry.id);
-                                let method_color = rgb(method_color(entry.request.method));
+                                let method_color = (method_color(entry.request.method)).resolve(cx);
                                 let request_name = Self::request_name(&entry);
                                 let accessible_label = format!(
                                     "Replay {} {}",
@@ -537,9 +537,9 @@ impl Render for HistoryList {
                                 let keyboard_entry_id = entry.id.clone();
 
                                 let bg_color = if is_selected {
-                                    rgb(ACCENT_SOFT)
+                                    ACCENT_SOFT.resolve(cx)
                                 } else {
-                                    rgb(PANEL)
+                                    PANEL.resolve(cx)
                                 };
 
                                 div()
@@ -557,18 +557,18 @@ impl Render for HistoryList {
                                     .px(px(10.0))
                                     .rounded(px(9.0))
                                     .border_1()
-                                    .border_color(rgb(if is_selected || focused {
+                                    .border_color((if is_selected || focused {
                                         HISTORY_SELECTED_BORDER
                                     } else {
                                         PANEL
-                                    }))
+                                    }).resolve(cx))
                                     .cursor_pointer()
                                     .bg(bg_color)
                                     .hover(|style| {
                                         if is_selected {
-                                            style.bg(rgb(ACCENT_SOFT))
+                                            style.bg(ACCENT_SOFT.resolve(cx))
                                         } else {
-                                            style.bg(rgb(PANEL_ALT))
+                                            style.bg(PANEL_ALT.resolve(cx))
                                         }
                                     })
                                     .on_mouse_up(
@@ -608,7 +608,7 @@ impl Render for HistoryList {
                                             .items_center()
                                             .justify_center()
                                             .rounded(px(6.0))
-                                            .bg(rgb(if is_selected { PANEL } else { PANEL_ALT }))
+                                            .bg((if is_selected { PANEL } else { PANEL_ALT }).resolve(cx))
                                             .font_family(FONT_UI)
                                             .text_size(px(10.0))
                                             .font_weight(gpui::FontWeight::BOLD)
@@ -635,7 +635,7 @@ impl Render for HistoryList {
                                                     } else {
                                                         gpui::FontWeight::SEMIBOLD
                                                     })
-                                                    .text_color(rgb(TEXT))
+                                                    .text_color(TEXT.resolve(cx))
                                                     .child(request_name),
                                             )
                                             .child(
@@ -645,7 +645,7 @@ impl Render for HistoryList {
                                                     })
                                                     .overflow_hidden()
                                                     .text_size(px(10.0))
-                                                    .text_color(rgb(SUBTEXT))
+                                                    .text_color(SUBTEXT.resolve(cx))
                                                     .child(
                                                         div()
                                                             .when_some(

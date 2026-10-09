@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement, IntoElement,
+    div, prelude::FluentBuilder, px, Context, FontWeight, InteractiveElement, IntoElement,
     ParentElement, Role, StatefulInteractiveElement, Styled, Window,
 };
 
@@ -26,26 +26,46 @@ impl PostmanApp {
             .flex()
             .items_center()
             .px_5()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_b_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .child(
                 div()
                     .flex()
                     .items_center()
                     .gap_3()
-                    .child(div().size(px(20.0)).rounded_full().bg(rgb(ACCENT_VIVID)))
+                    .child(
+                        div()
+                            .size(px(20.0))
+                            .rounded_full()
+                            .bg(ACCENT_VIVID.resolve(cx)),
+                    )
                     .child(
                         div()
                             .font_family(FONT_HEADING)
                             .text_size(px(22.0))
                             .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(TEXT))
+                            .text_color(TEXT.resolve(cx))
                             .child("Postman GPUI"),
                     ),
             )
             .child(div().flex_1())
             .child(self.render_global_search(window, cx))
+            .when(
+                cx.try_global::<gpui_kit::component::Theme>().is_some(),
+                |header| header.child(crate::app::appearance::button("appearance-toggle", cx)),
+            )
+            .when_some(
+                crate::app::appearance::Appearance::error(cx).map(str::to_owned),
+                |header, error| {
+                    header.child(
+                        div()
+                            .text_size(px(11.))
+                            .text_color(crate::ui::theme::ERROR.resolve(cx))
+                            .child(error),
+                    )
+                },
+            )
             .child(div().flex_1())
             .child(
                 div()
@@ -62,16 +82,20 @@ impl PostmanApp {
                     .gap_2()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(if cookie_jar_open { INFO } else { LINE }))
-                    .bg(rgb(INFO_SOFT))
+                    .border_color((if cookie_jar_open { INFO } else { LINE }).resolve(cx))
+                    .bg(INFO_SOFT.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(11.0))
                     .font_weight(FontWeight::BOLD)
-                    .text_color(rgb(INFO))
+                    .text_color(INFO.resolve(cx))
                     .cursor_pointer()
-                    .hover(|style| style.border_color(rgb(INFO)).bg(rgb(PANEL_ALT)))
+                    .hover(|style| {
+                        style
+                            .border_color(INFO.resolve(cx))
+                            .bg(PANEL_ALT.resolve(cx))
+                    })
                     .when(self.cookie_trigger_focus.is_focused(window), |button| {
-                        button.border_1().border_color(rgb(ACCENT))
+                        button.border_1().border_color(ACCENT.resolve(cx))
                     })
                     .child("◫")
                     .child(format!("Cookie Jar · {cookie_count} stored"))
@@ -101,16 +125,24 @@ impl PostmanApp {
                     .justify_center()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL_ALT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
                     .font_family(FONT_UI)
                     .font_weight(FontWeight::BOLD)
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT_DARK)))
+                    .hover(|style| {
+                        style
+                            .bg(ACCENT_SOFT.resolve(cx))
+                            .text_color(ACCENT_DARK.resolve(cx))
+                    })
                     .when(
                         self.shortcut_help_button_focus.is_focused(window),
-                        |button| button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT)),
+                        |button| {
+                            button
+                                .border_color(ACCENT.resolve(cx))
+                                .text_color(ACCENT.resolve(cx))
+                        },
                     )
                     .child("⌘")
                     .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
@@ -143,9 +175,9 @@ impl PostmanApp {
             .gap_4()
             .px_2()
             .py_3()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_r_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .child(
                 div()
                     .id(("rail-slot", 0usize))
@@ -159,15 +191,15 @@ impl PostmanApp {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(ACCENT_SOFT))
-                    .text_color(rgb(ACCENT_DARK))
+                    .bg(ACCENT_SOFT.resolve(cx))
+                    .text_color(ACCENT_DARK.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(22.0))
                     .font_weight(FontWeight::SEMIBOLD)
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(0x00ff_e4d5)))
+                    .hover(|style| style.bg(crate::ui::theme::ACCENT_SOFT.resolve(cx)))
                     .when(self.new_request_focus.is_focused(window), |button| {
-                        button.border_1().border_color(rgb(ACCENT))
+                        button.border_1().border_color(ACCENT.resolve(cx))
                     })
                     .child("+")
                     .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
@@ -189,8 +221,8 @@ impl PostmanApp {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(PANEL_ALT))
-                    .text_color(rgb(SUBTEXT))
+                    .bg(PANEL_ALT.resolve(cx))
+                    .text_color(SUBTEXT.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(16.0))
                     .font_weight(FontWeight::SEMIBOLD)

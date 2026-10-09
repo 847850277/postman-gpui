@@ -67,12 +67,12 @@ impl MethodSelector {
 impl EventEmitter<MethodSelectorEvent> for MethodSelector {}
 
 impl Render for MethodSelector {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .w(gpui::px(120.0))
             .h_full()
             .flex_none()
-            .bg(gpui::rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .rounded_lg()
             .font_family(FONT_HEADING)
             .child(self.dropdown.clone())

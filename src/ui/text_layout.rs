@@ -1,5 +1,5 @@
 use crate::ui::text_editor::TextRange;
-use gpui::{fill, point, px, rgba, Bounds, Hsla, PaintQuad, Pixels, Point, ShapedLine};
+use gpui::{fill, point, px, Bounds, Hsla, PaintQuad, Pixels, Point, ShapedLine};
 
 const NEWLINE_SELECTION_WIDTH: Pixels = px(4.0);
 
@@ -107,7 +107,12 @@ impl MultilineTextLayout {
         ))
     }
 
-    pub(crate) fn selection_quads(&self, text: &str, selection: TextRange) -> Vec<PaintQuad> {
+    pub(crate) fn selection_quads(
+        &self,
+        text: &str,
+        selection: TextRange,
+        color: gpui::Rgba,
+    ) -> Vec<PaintQuad> {
         if selection.is_empty() || !self.matches(text) || self.lines.is_empty() {
             return Vec::new();
         }
@@ -141,7 +146,7 @@ impl MultilineTextLayout {
                     point(self.bounds.left() + start_x, top),
                     point(self.bounds.left() + end_x, top + self.line_height),
                 ),
-                rgba(0x3366_ff33),
+                color,
             ));
         }
         quads

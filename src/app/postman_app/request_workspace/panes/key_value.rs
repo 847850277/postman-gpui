@@ -18,7 +18,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, rgb, AppContext, Context, Entity, EventEmitter,
+    div, prelude::FluentBuilder, px, relative, AppContext, Context, Entity, EventEmitter,
     FocusHandle, Focusable, FontWeight, InteractiveElement, IntoElement, ParentElement, Render,
     Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
@@ -753,7 +753,7 @@ impl KeyValueRowsPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .h(px(42.0))
@@ -765,7 +765,7 @@ impl KeyValueRowsPane {
                     .px_3()
                     .font_family(FONT_UI)
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .flex()
@@ -775,13 +775,13 @@ impl KeyValueRowsPane {
                                 div()
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Query parameters"),
                             )
                             .child(
                                 div()
                                     .text_size(px(11.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Synchronized with the URL query string"),
                             ),
                     )
@@ -795,10 +795,10 @@ impl KeyValueRowsPane {
                             .items_center()
                             .gap_1()
                             .rounded_lg()
-                            .bg(rgb(OK_SOFT))
+                            .bg(OK_SOFT.resolve(cx))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(OK))
+                            .text_color(OK.resolve(cx))
                             .child("●")
                             .child(format!("{enabled_count} enabled")),
                     ),
@@ -811,13 +811,13 @@ impl KeyValueRowsPane {
                     .items_center()
                     .gap_2()
                     .px_3()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .font_weight(FontWeight::BOLD)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(div().w(px(18.0)))
                     .child(div().flex_1().child("KEY"))
                     .child(div().flex_1().child("VALUE"))
@@ -888,16 +888,18 @@ impl KeyValueRowsPane {
                                                 .justify_center()
                                                 .rounded_sm()
                                                 .border_1()
-                                                .border_color(rgb(if is_enabled {
-                                                    INFO
-                                                } else {
-                                                    LINE
-                                                }))
-                                                .bg(rgb(if is_enabled { INFO } else { PANEL }))
-                                                .text_color(rgb(PANEL))
+                                                .border_color(
+                                                    (if is_enabled { INFO } else { LINE })
+                                                        .resolve(cx),
+                                                )
+                                                .bg((if is_enabled { INFO } else { PANEL })
+                                                    .resolve(cx))
+                                                .text_color(PANEL.resolve(cx))
                                                 .cursor_pointer()
                                                 .when(toggle_focused, |control| {
-                                                    control.border_2().border_color(rgb(ACCENT))
+                                                    control
+                                                        .border_2()
+                                                        .border_color(ACCENT.resolve(cx))
                                                 })
                                                 .child(if is_enabled { "✓" } else { "" })
                                                 .on_action(cx.listener(
@@ -932,14 +934,16 @@ impl KeyValueRowsPane {
                                                 .justify_center()
                                                 .rounded_lg()
                                                 .cursor_pointer()
-                                                .text_color(rgb(MUTED))
+                                                .text_color(MUTED.resolve(cx))
                                                 .hover(|style| {
                                                     style
-                                                        .bg(rgb(ACCENT_SOFT))
-                                                        .text_color(rgb(ERROR))
+                                                        .bg(ACCENT_SOFT.resolve(cx))
+                                                        .text_color(ERROR.resolve(cx))
                                                 })
                                                 .when(delete_focused, |control| {
-                                                    control.border_1().border_color(rgb(ACCENT))
+                                                    control
+                                                        .border_1()
+                                                        .border_color(ACCENT.resolve(cx))
                                                 })
                                                 .child("×")
                                                 .on_action(cx.listener(
@@ -980,13 +984,13 @@ impl KeyValueRowsPane {
                                             .justify_center()
                                             .rounded_sm()
                                             .border_1()
-                                            .border_color(rgb(if draft_enabled {
-                                                INFO
-                                            } else {
-                                                LINE
-                                            }))
-                                            .bg(rgb(if draft_enabled { INFO } else { PANEL }))
-                                            .text_color(rgb(PANEL))
+                                            .border_color(
+                                                (if draft_enabled { INFO } else { LINE })
+                                                    .resolve(cx),
+                                            )
+                                            .bg((if draft_enabled { INFO } else { PANEL })
+                                                .resolve(cx))
+                                            .text_color(PANEL.resolve(cx))
                                             .child(if draft_enabled { "✓" } else { "" }),
                                     )
                                     .child(
@@ -1026,9 +1030,9 @@ impl KeyValueRowsPane {
                                 .bottom(px(8.0))
                                 .w(px(8.0))
                                 .rounded_full()
-                                .bg(rgb(PANEL_ALT))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .border_1()
-                                .border_color(rgb(LINE))
+                                .border_color(LINE.resolve(cx))
                                 .child(
                                     div()
                                         .debug_selector(|| "params-scrollbar-thumb".into())
@@ -1037,7 +1041,7 @@ impl KeyValueRowsPane {
                                         .w_full()
                                         .h(relative(scrollbar.thumb_height))
                                         .rounded_full()
-                                        .bg(rgb(INFO)),
+                                        .bg(INFO.resolve(cx)),
                                 ),
                         )
                     }),
@@ -1050,8 +1054,8 @@ impl KeyValueRowsPane {
                     .items_center()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL.resolve(cx))
                     .child(
                         div()
                             .id("params-add-row-button")
@@ -1067,21 +1071,23 @@ impl KeyValueRowsPane {
                             .items_center()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(LINE))
-                            .bg(rgb(PANEL_ALT))
-                            .text_color(rgb(SUBTEXT))
+                            .border_color(LINE.resolve(cx))
+                            .bg(PANEL_ALT.resolve(cx))
+                            .text_color(SUBTEXT.resolve(cx))
                             .font_family(FONT_UI)
                             .text_size(px(11.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .cursor_pointer()
                             .hover(|style| {
                                 style
-                                    .bg(rgb(INFO_SOFT))
-                                    .border_color(rgb(INFO))
-                                    .text_color(rgb(INFO))
+                                    .bg(INFO_SOFT.resolve(cx))
+                                    .border_color(INFO.resolve(cx))
+                                    .text_color(INFO.resolve(cx))
                             })
                             .when(self.add_row_focus_handle.is_focused(window), |button| {
-                                button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT))
+                                button
+                                    .border_color(ACCENT.resolve(cx))
+                                    .text_color(ACCENT.resolve(cx))
                             })
                             .child("＋ Add parameter")
                             .on_action(cx.listener(|this, _: &ActivateControl, _window, cx| {
@@ -1106,9 +1112,9 @@ impl KeyValueRowsPane {
                     .justify_between()
                     .gap_3()
                     .px_3()
-                    .bg(rgb(INFO_SOFT))
+                    .bg(INFO_SOFT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .min_w_0()
@@ -1121,7 +1127,7 @@ impl KeyValueRowsPane {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(10.0))
-                                    .text_color(rgb(INFO))
+                                    .text_color(INFO.resolve(cx))
                                     .child("↗  EFFECTIVE URL"),
                             )
                             .child(
@@ -1130,7 +1136,7 @@ impl KeyValueRowsPane {
                                     .overflow_hidden()
                                     .font_family(FONT_MONO)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(effective_url),
                             ),
                     )
@@ -1140,11 +1146,11 @@ impl KeyValueRowsPane {
                             .py_1()
                             .flex_none()
                             .rounded_lg()
-                            .bg(rgb(PANEL))
+                            .bg(PANEL.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child("encoded"),
                     ),
             )
@@ -1159,8 +1165,8 @@ impl KeyValueRowsPane {
                     .px_3()
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
-                    .child(div().text_color(rgb(OK)).child("✓"))
+                    .text_color(SUBTEXT.resolve(cx))
+                    .child(div().text_color(OK.resolve(cx)).child("✓"))
                     .child("Ready to send — the active value is already in the ViewModel"),
             )
             .into_any_element()
@@ -1223,7 +1229,7 @@ impl KeyValueRowsPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "headers-summary".into())
@@ -1236,7 +1242,7 @@ impl KeyValueRowsPane {
                     .px_3()
                     .font_family(FONT_UI)
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .min_w_0()
@@ -1246,7 +1252,7 @@ impl KeyValueRowsPane {
                             .child(
                                 div()
                                     .flex_none()
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
                                     .child("Request headers"),
@@ -1255,7 +1261,7 @@ impl KeyValueRowsPane {
                                 div()
                                     .overflow_hidden()
                                     .text_size(px(11.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Disabled rows stay saved but are excluded from Send"),
                             ),
                     )
@@ -1269,10 +1275,10 @@ impl KeyValueRowsPane {
                             .items_center()
                             .gap_1()
                             .rounded_lg()
-                            .bg(rgb(OK_SOFT))
+                            .bg(OK_SOFT.resolve(cx))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(OK))
+                            .text_color(OK.resolve(cx))
                             .child("●")
                             .child(format!(
                                 "{enabled_count} enabled · {disabled_count} disabled"
@@ -1288,13 +1294,13 @@ impl KeyValueRowsPane {
                     .items_center()
                     .gap_2()
                     .px_3()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .font_weight(FontWeight::BOLD)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(div().w(px(18.0)))
                     .child(div().flex_1().child("KEY"))
                     .child(div().flex_1().child("VALUE"))
@@ -1377,16 +1383,16 @@ impl KeyValueRowsPane {
                                                 .justify_center()
                                                 .rounded_sm()
                                                 .border_1()
-                                                .border_color(rgb(if is_sent {
+                                                .border_color((if is_sent {
                                                     INFO
                                                 } else {
                                                     LINE
-                                                }))
-                                                .bg(rgb(if is_sent { INFO } else { PANEL }))
-                                                .text_color(rgb(PANEL))
+                                                }).resolve(cx))
+                                                .bg((if is_sent { INFO } else { PANEL }).resolve(cx))
+                                                .text_color(PANEL.resolve(cx))
                                                 .cursor_pointer()
                                                 .when(toggle_focused, |control| {
-                                                    control.border_2().border_color(rgb(ACCENT))
+                                                    control.border_2().border_color(ACCENT.resolve(cx))
                                                 })
                                                 .child(if is_sent { "✓" } else { "" })
                                                 .on_action(cx.listener(
@@ -1425,11 +1431,11 @@ impl KeyValueRowsPane {
                                                         .items_center()
                                                         .justify_center()
                                                         .rounded_lg()
-                                                        .bg(rgb(status_bg))
+                                                        .bg(status_bg.resolve(cx))
                                                         .font_family(FONT_UI)
                                                         .font_weight(FontWeight::SEMIBOLD)
                                                         .text_size(px(9.0))
-                                                        .text_color(rgb(status_color))
+                                                        .text_color(status_color.resolve(cx))
                                                         .child(status),
                                                 )
                                                 .child(
@@ -1451,16 +1457,16 @@ impl KeyValueRowsPane {
                                                         .justify_center()
                                                         .rounded_lg()
                                                         .cursor_pointer()
-                                                        .text_color(rgb(MUTED))
+                                                        .text_color(MUTED.resolve(cx))
                                                         .hover(|style| {
                                                             style
-                                                                .bg(rgb(ACCENT_SOFT))
-                                                                .text_color(rgb(ERROR))
+                                                                .bg(ACCENT_SOFT.resolve(cx))
+                                                                .text_color(ERROR.resolve(cx))
                                                         })
                                                         .when(delete_focused, |control| {
                                                             control
                                                                 .border_1()
-                                                                .border_color(rgb(ACCENT))
+                                                                .border_color(ACCENT.resolve(cx))
                                                         })
                                                         .child("×")
                                                         .on_action(cx.listener(
@@ -1518,15 +1524,15 @@ impl KeyValueRowsPane {
                                             .justify_center()
                                             .rounded_sm()
                                             .border_1()
-                                            .border_color(rgb(if draft_complete {
+                                            .border_color((if draft_complete {
                                                 INFO
                                             } else {
                                                 LINE
-                                            }))
-                                            .bg(rgb(if draft_complete { INFO } else { PANEL }))
-                                            .text_color(rgb(PANEL))
+                                            }).resolve(cx))
+                                            .bg((if draft_complete { INFO } else { PANEL }).resolve(cx))
+                                            .text_color(PANEL.resolve(cx))
                                             .when(draft_toggle_focused, |control| {
-                                                control.border_2().border_color(rgb(ACCENT))
+                                                control.border_2().border_color(ACCENT.resolve(cx))
                                             })
                                             .child(if draft_complete { "✓" } else { "" })
                                             .on_action(cx.listener(
@@ -1624,19 +1630,19 @@ impl KeyValueRowsPane {
                                                     .items_center()
                                                     .justify_center()
                                                     .rounded_lg()
-                                                    .bg(rgb(if draft_complete {
+                                                    .bg((if draft_complete {
                                                         OK_SOFT
                                                     } else {
                                                         PANEL_ALT
-                                                    }))
+                                                    }).resolve(cx))
                                                     .font_family(FONT_UI)
                                                     .font_weight(FontWeight::SEMIBOLD)
                                                     .text_size(px(9.0))
-                                                    .text_color(rgb(if draft_complete {
+                                                    .text_color((if draft_complete {
                                                         OK
                                                     } else {
                                                         SUBTEXT
-                                                    }))
+                                                    }).resolve(cx))
                                                     .child(if draft_complete {
                                                         "SENT"
                                                     } else {
@@ -1659,16 +1665,16 @@ impl KeyValueRowsPane {
                                                     .justify_center()
                                                     .rounded_lg()
                                                     .cursor_pointer()
-                                                    .text_color(rgb(MUTED))
+                                                    .text_color(MUTED.resolve(cx))
                                                     .hover(|style| {
                                                         style
-                                                            .bg(rgb(ACCENT_SOFT))
-                                                            .text_color(rgb(ERROR))
+                                                            .bg(ACCENT_SOFT.resolve(cx))
+                                                            .text_color(ERROR.resolve(cx))
                                                     })
                                                     .when(draft_delete_focused, |control| {
                                                         control
                                                             .border_1()
-                                                            .border_color(rgb(ACCENT))
+                                                            .border_color(ACCENT.resolve(cx))
                                                     })
                                                     .child("×")
                                                     .on_action(cx.listener(
@@ -1698,9 +1704,9 @@ impl KeyValueRowsPane {
                                 .bottom(px(8.0))
                                 .w(px(8.0))
                                 .rounded_full()
-                                .bg(rgb(PANEL_ALT))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .border_1()
-                                .border_color(rgb(LINE))
+                                .border_color(LINE.resolve(cx))
                                 .child(
                                     div()
                                         .debug_selector(|| "headers-scrollbar-thumb".into())
@@ -1709,7 +1715,7 @@ impl KeyValueRowsPane {
                                         .w_full()
                                         .h(relative(scrollbar.thumb_height))
                                         .rounded_full()
-                                        .bg(rgb(INFO)),
+                                        .bg(INFO.resolve(cx)),
                                 ),
                         )
                     }),
@@ -1722,8 +1728,8 @@ impl KeyValueRowsPane {
                     .items_center()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(INFO_SOFT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(INFO_SOFT.resolve(cx))
                     .child(
                         div()
                             .id("headers-add-row-button")
@@ -1741,27 +1747,27 @@ impl KeyValueRowsPane {
                             .gap_3()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(LINE))
-                            .bg(rgb(PANEL_ALT))
-                            .text_color(rgb(SUBTEXT))
+                            .border_color(LINE.resolve(cx))
+                            .bg(PANEL_ALT.resolve(cx))
+                            .text_color(SUBTEXT.resolve(cx))
                             .font_family(FONT_UI)
                             .text_size(px(11.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .cursor_pointer()
                             .hover(|style| {
                                 style
-                                    .bg(rgb(INFO_SOFT))
-                                    .border_color(rgb(INFO))
-                                    .text_color(rgb(INFO))
+                                    .bg(INFO_SOFT.resolve(cx))
+                                    .border_color(INFO.resolve(cx))
+                                    .text_color(INFO.resolve(cx))
                             })
                             .when(self.add_row_focus_handle.is_focused(window), |button| {
-                                button.border_color(rgb(ACCENT)).text_color(rgb(ACCENT))
+                                button.border_color(ACCENT.resolve(cx)).text_color(ACCENT.resolve(cx))
                             })
                             .child("＋ Add another header row")
                             .child(
                                 div()
                                     .font_weight(FontWeight::NORMAL)
-                                    .text_color(rgb(MUTED))
+                                    .text_color(MUTED.resolve(cx))
                                     .child("Click repeatedly — rows are unlimited"),
                             )
                             .on_action(cx.listener(
@@ -1789,20 +1795,20 @@ impl KeyValueRowsPane {
                     .gap_2()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(10.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .child(div().text_color(rgb(OK)).child("✓"))
+                            .child(div().text_color(OK.resolve(cx)).child("✓"))
                             .child("Ready to send — active values are already in the ViewModel"),
                     )
                     .child(
-                        div().font_family(FONT_MONO).text_color(rgb(INFO)).child(
+                        div().font_family(FONT_MONO).text_color(INFO.resolve(cx)).child(
                             "Only complete, checked rows participate in request construction",
                         ),
                     ),
