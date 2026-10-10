@@ -149,7 +149,23 @@
     const headers = request.headers.filter(h => h.enabled && h.key);
     for (const h of headers) lines.push("  --header " + quote(h.key + (h.value ? ": " + h.value : h.forceEmpty ? ";" : ":")));
     if (request.authKind === "bearer" && request.token && !headers.some(h => h.key.toLowerCase() === "authorization")) lines.push("  --header " + quote("Authorization: Bearer " + request.token));
-    if (request.hasBody) lines.push("  --data-raw " + quote(request.body));
+    if (request.hasBody) {
+      if (request.bodyFormat === 'multipart') {
+        // cURL's form grammar has its own quoting, inside shell quoting.
+        // https://curl.se/docs/manpage.html#-F
+        const filePath = name => '"./' + name.replace(/["\\]/g, '\\$&') + '"';
+        for (const part of request.multipart || []) {
+          if (part.type === 'file') {
+            if (!part.file) throw new Error('Choose a file for ' + part.key + '.');
+            const mime = /^[\w.+-]+\/[\w.+-]+$/.test(part.file.type || '') ? ';type=' + part.file.type : '';
+            lines.push('  --form ' + quote(part.key + '=@' + filePath(part.file.name) + mime));
+          } else lines.push('  --form-string ' + quote(part.key + '=' + part.value));
+        }
+      } else if (request.bodyFormat === 'binary') {
+        if (!request.binary) throw new Error('Choose a file for the binary body.');
+        lines.push('  --data-binary ' + quote('@./' + request.binary.name));
+      } else lines.push("  --data-raw " + quote(request.body));
+    }
     return lines.join(" \\\n");
   }
 
