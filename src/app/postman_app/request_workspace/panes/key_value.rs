@@ -1,26 +1,18 @@
-use super::super::layout::{
-    header_row_complete, row_scrollbar_geometry, visible_row_capacity, RequestPanelLayout,
-};
+use super::super::layout::{row_scrollbar_geometry, RequestPanelLayout};
 use crate::{
-    app::{
-        ActivateControl, KeyValueRow, RequestPane, RequestTabId, RequestViewModel,
-        WorkspaceViewModel,
-    },
+    app::{KeyValueRow, RequestPane, RequestTabId, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::table_cell_input::{
             TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
             TableRowId,
         },
-        theme::{
-            ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK,
-            OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
-        },
+        theme::{FONT_MONO, LINE, MUTED, PANEL_ALT, TEXT},
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, FontWeight, InteractiveElement, IntoElement, ParentElement, Render,
-    Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
+    div, prelude::FluentBuilder, relative, AppContext, Context, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,7 +105,7 @@ impl PersistentRowEditor {
 impl EventEmitter<PersistentRowEditorEvent> for PersistentRowEditor {}
 
 impl Render for PersistentRowEditor {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (key_cell_selector, key_input_selector, value_cell_selector, value_input_selector) =
             match self.kind {
                 KeyValueRowsKind::Params => (
@@ -135,11 +127,12 @@ impl Render for PersistentRowEditor {
             .min_w_0()
             .flex()
             .items_center()
-            .gap_2()
             .child(
                 div()
                     .debug_selector(move || key_cell_selector.clone())
                     .h_full()
+                    .border_l_1()
+                    .border_color(LINE.resolve(cx))
                     .flex_1()
                     .min_w_0()
                     .child(
@@ -155,6 +148,8 @@ impl Render for PersistentRowEditor {
                 div()
                     .debug_selector(move || value_cell_selector.clone())
                     .h_full()
+                    .border_l_1()
+                    .border_color(LINE.resolve(cx))
                     .flex_1()
                     .min_w_0()
                     .child(
@@ -711,1114 +706,340 @@ impl KeyValueRowsPane {
         cx.notify();
     }
 
-    fn render_params_editor(
-        &self,
-        panel_height: f32,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
-        let row_editors = self.row_editors.clone();
-        let toggle_focus_handles = self.row_toggle_focus_handles.clone();
-        let delete_focus_handles = self.row_delete_focus_handles.clone();
-        let (rows, draft_key, visible_row_count, enabled_count, effective_url) = {
-            let view_model = self.view_model.read(cx);
-            let Some(request) = view_model.active_request() else {
-                return div().into_any_element();
-            };
-            let (draft_key, _) = request.row_draft(RequestPane::Params).unwrap_or_default();
-            (
-                request.params().to_vec(),
-                draft_key.to_string(),
-                request.visible_param_row_count(),
-                request.enabled_param_count(),
-                request.effective_url(),
-            )
+    fn render_rows_editor(&self, panel_height: f32, cx: &mut Context<Self>) -> gpui::AnyElement {
+        use crate::ui::{components::kit_controls, theme::metrics as m};
+        use gpui_kit::{assets::IconName, component::Icon};
+        let headers = self.kind == KeyValueRowsKind::Headers;
+        let compact = panel_height < 300.;
+        let prefix = if headers { "header" } else { "param" };
+        let plural = if headers { "headers" } else { "params" };
+        let (_, rows) = self.active_projection(cx);
+        let model = self.view_model.read(cx);
+        let Some(request) = model.active_request() else {
+            return div().into_any_element();
         };
-        let draft_enabled = !draft_key.trim().is_empty();
-        let draft_index = visible_row_count - 1;
-        let draft_row_selector = format!("param-row-{draft_index}");
-        let draft_key_selector = format!("param-row-key-input-{draft_index}");
-        let draft_value_selector = format!("param-row-value-input-{draft_index}");
-        let visible_capacity = visible_row_capacity(RequestPane::Params, panel_height);
-        let show_scrollbar = visible_row_count > visible_capacity;
+        let (draft_key, draft_value) = request
+            .row_draft(self.kind.request_pane())
+            .unwrap_or_default();
+        let draft_enabled =
+            !draft_key.trim().is_empty() && (!headers || !draft_value.trim().is_empty());
+        let count = if headers {
+            request.enabled_header_count()
+        } else {
+            request.enabled_param_count()
+        };
+        let effective_url = request.effective_url();
+        // Size the grid to its rows, with remaining space below Add rather than
+        // inside an empty table. Overflow stays local to the row viewport.
+        let section_height = if compact { 32. } else { 55. };
+        let preview_height = if !headers && !compact { 70. } else { 0. };
+        let table_available =
+            (panel_height - 2. - 43. - section_height - 40. - 12. - preview_height).max(34.);
+        let table_height = (34. + (rows.len() + 1) as f32 * 40.).min(table_available);
+        let capacity = ((table_height - 34.) / 40.).ceil().max(1.) as usize;
         let scrollbar = row_scrollbar_geometry(
-            visible_row_count,
-            visible_capacity,
+            rows.len() + 1,
+            capacity,
             self.rows_scroll_handle.offset().y.as_f32(),
             self.rows_scroll_handle.max_offset().y.as_f32(),
         );
-
-        div()
+        let scroll_selector = format!("{plural}-rows-scroll");
+        let mut table_rows = div()
+            .id((plural, 0usize))
+            .debug_selector(move || scroll_selector.clone())
             .flex_1()
             .min_h_0()
+            .overflow_y_scroll()
+            .track_scroll(&self.rows_scroll_handle)
             .flex()
-            .flex_col()
-            .bg(PANEL.resolve(cx))
-            .child(
+            .flex_col();
+        for (index, row) in rows.iter().enumerate() {
+            let row_selector = format!("{prefix}-row-{index}");
+            let toggle_selector = format!("{prefix}-row-toggle-{index}");
+            let delete_selector = format!("{prefix}-row-delete-{index}");
+            let stable_id = self.row_editors[index].entity_id();
+            let on_toggle = cx.listener(move |this, _: &gpui::ClickEvent, _, cx| {
+                if headers {
+                    this.toggle_header(index, cx);
+                } else {
+                    this.toggle_param(index, cx);
+                }
+            });
+            table_rows = table_rows.child(
                 div()
-                    .h(px(42.0))
+                    .id(("row", stable_id))
+                    .debug_selector(move || row_selector.clone())
+                    .h(m::TABLE_ROW)
                     .flex_none()
                     .flex()
                     .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .px_3()
-                    .font_family(FONT_UI)
                     .border_b_1()
                     .border_color(LINE.resolve(cx))
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_size(px(12.0))
-                                    .text_color(TEXT.resolve(cx))
-                                    .child("Query parameters"),
+                        div().w_10().flex_none().flex().justify_center().child(
+                            kit_controls::parameter_checkbox(
+                                ("enabled", stable_id),
+                                row.enabled,
+                                cx,
                             )
-                            .child(
-                                div()
-                                    .text_size(px(11.0))
-                                    .text_color(SUBTEXT.resolve(cx))
-                                    .child("Synchronized with the URL query string"),
-                            ),
+                            .debug_selector(move || toggle_selector.clone())
+                            .track_focus(&self.row_toggle_focus_handles[index])
+                            .accessibility_label(format!("Enable {prefix} {}", index + 1))
+                            .on_change(move |_, event, window, cx| on_toggle(event, window, cx)),
+                        ),
                     )
+                    .child(self.row_editors[index].clone())
                     .child(
-                        div()
-                            .debug_selector(|| "params-enabled-count".into())
-                            .h(px(24.0))
-                            .px_2()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .rounded_lg()
-                            .bg(OK_SOFT.resolve(cx))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(px(10.0))
-                            .text_color(OK.resolve(cx))
-                            .child("●")
-                            .child(format!("{enabled_count} enabled")),
-                    ),
-            )
-            .child(
-                div()
-                    .h(px(32.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .font_family(FONT_UI)
-                    .font_weight(FontWeight::BOLD)
-                    .text_size(px(10.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(div().w(px(18.0)))
-                    .child(div().flex_1().child("KEY"))
-                    .child(div().flex_1().child("VALUE"))
-                    .child(
-                        div()
-                            .w(px(56.0))
-                            .text_align(gpui::TextAlign::Center)
-                            .child("ACTION"),
-                    ),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .relative()
-                    .child(
-                        div()
-                            .id("params-rows-scroll")
-                            .debug_selector(|| "params-rows-scroll".into())
-                            .flex_1()
-                            .min_h_0()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .p_3()
-                            .when(show_scrollbar, |this| this.pr(px(22.0)))
-                            .overflow_y_scroll()
-                            .track_scroll(&self.rows_scroll_handle)
-                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
-                            .children(rows.into_iter().zip(row_editors).enumerate().map(
-                                |(index, (row, row_editor))| {
-                                    let is_enabled = row.enabled;
-                                    let row_selector = format!("param-row-{index}");
-                                    let toggle_selector = format!("param-row-toggle-{index}");
-                                    let delete_selector = format!("param-row-delete-{index}");
-                                    let toggle_focus = toggle_focus_handles[index].clone();
-                                    let mouse_toggle_focus = toggle_focus.clone();
-                                    let toggle_focused = toggle_focus.is_focused(window);
-                                    let delete_focus = delete_focus_handles[index].clone();
-                                    let mouse_delete_focus = delete_focus.clone();
-                                    let delete_focused = delete_focus.is_focused(window);
-                                    div()
-                                        .debug_selector(move || row_selector.clone())
-                                        .h(px(38.0))
-                                        .flex_none()
-                                        .flex()
-                                        .items_center()
-                                        .gap_2()
-                                        .font_family(FONT_MONO)
-                                        .text_size(px(12.0))
-                                        .child(
-                                            div()
-                                                .id(("param-row-toggle", index))
-                                                .debug_selector(move || toggle_selector.clone())
-                                                .track_focus(&toggle_focus)
-                                                .key_context("KeyboardButton")
-                                                .role(Role::CheckBox)
-                                                .aria_label(format!(
-                                                    "{} parameter row {}",
-                                                    if is_enabled { "Disable" } else { "Enable" },
-                                                    index + 1
-                                                ))
-                                                .aria_selected(is_enabled)
-                                                .size(px(18.0))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded_sm()
-                                                .border_1()
-                                                .border_color(
-                                                    (if is_enabled { INFO } else { LINE })
-                                                        .resolve(cx),
-                                                )
-                                                .bg((if is_enabled { INFO } else { PANEL })
-                                                    .resolve(cx))
-                                                .text_color(PANEL.resolve(cx))
-                                                .cursor_pointer()
-                                                .when(toggle_focused, |control| {
-                                                    control
-                                                        .border_2()
-                                                        .border_color(ACCENT.resolve(cx))
-                                                })
-                                                .child(if is_enabled { "✓" } else { "" })
-                                                .on_action(cx.listener(
-                                                    move |this, _: &ActivateControl, _, cx| {
-                                                        this.toggle_param(index, cx)
-                                                    },
-                                                ))
-                                                .on_mouse_up(
-                                                    gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        mouse_toggle_focus.focus(window, cx);
-                                                        this.toggle_param(index, cx)
-                                                    }),
-                                                ),
-                                        )
-                                        .child(row_editor)
-                                        .child(
-                                            div()
-                                                .id(("param-row-delete", index))
-                                                .debug_selector(move || delete_selector.clone())
-                                                .track_focus(&delete_focus)
-                                                .key_context("KeyboardButton")
-                                                .role(Role::Button)
-                                                .aria_label(format!(
-                                                    "Delete parameter row {}",
-                                                    index + 1
-                                                ))
-                                                .w(px(56.0))
-                                                .h(px(32.0))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded_lg()
-                                                .cursor_pointer()
-                                                .text_color(MUTED.resolve(cx))
-                                                .hover(|style| {
-                                                    style
-                                                        .bg(ACCENT_SOFT.resolve(cx))
-                                                        .text_color(ERROR.resolve(cx))
-                                                })
-                                                .when(delete_focused, |control| {
-                                                    control
-                                                        .border_1()
-                                                        .border_color(ACCENT.resolve(cx))
-                                                })
-                                                .child("×")
-                                                .on_action(cx.listener(
-                                                    move |this, _: &ActivateControl, window, cx| {
-                                                        this.remove_param(index, cx);
-                                                        this.focus_after_row_removal(
-                                                            index, window, cx,
-                                                        );
-                                                    },
-                                                ))
-                                                .on_mouse_up(
-                                                    gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        mouse_delete_focus.focus(window, cx);
-                                                        this.remove_param(index, cx);
-                                                        this.focus_after_row_removal(
-                                                            index, window, cx,
-                                                        );
-                                                    }),
-                                                ),
-                                        )
-                                },
-                            ))
-                            .child(
-                                div()
-                                    .debug_selector(move || draft_row_selector.clone())
-                                    .h(px(38.0))
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(
-                                        div()
-                                            .debug_selector(|| "params-draft-toggle".into())
-                                            .size(px(18.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded_sm()
-                                            .border_1()
-                                            .border_color(
-                                                (if draft_enabled { INFO } else { LINE })
-                                                    .resolve(cx),
-                                            )
-                                            .bg((if draft_enabled { INFO } else { PANEL })
-                                                .resolve(cx))
-                                            .text_color(PANEL.resolve(cx))
-                                            .child(if draft_enabled { "✓" } else { "" }),
-                                    )
-                                    .child(
-                                        div()
-                                            .debug_selector(move || draft_key_selector.clone())
-                                            .h_full()
-                                            .flex_1()
-                                            .child(
-                                                div()
-                                                    .debug_selector(|| "row-key-input".into())
-                                                    .h_full()
-                                                    .child(self.draft_key_input.clone()),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .debug_selector(move || draft_value_selector.clone())
-                                            .h_full()
-                                            .flex_1()
-                                            .child(
-                                                div()
-                                                    .debug_selector(|| "row-value-input".into())
-                                                    .h_full()
-                                                    .child(self.draft_value_input.clone()),
-                                            ),
-                                    )
-                                    .child(div().w(px(56.0)).h(px(32.0))),
-                            ),
-                    )
-                    .when_some(scrollbar, |this, scrollbar| {
-                        this.child(
-                            div()
-                                .debug_selector(|| "params-scrollbar".into())
-                                .absolute()
-                                .top(px(8.0))
-                                .right(px(5.0))
-                                .bottom(px(8.0))
-                                .w(px(8.0))
-                                .rounded_full()
-                                .bg(PANEL_ALT.resolve(cx))
-                                .border_1()
-                                .border_color(LINE.resolve(cx))
-                                .child(
-                                    div()
-                                        .debug_selector(|| "params-scrollbar-thumb".into())
-                                        .absolute()
-                                        .top(relative(scrollbar.thumb_top))
-                                        .w_full()
-                                        .h(relative(scrollbar.thumb_height))
-                                        .rounded_full()
-                                        .bg(INFO.resolve(cx)),
-                                ),
-                        )
-                    }),
-            )
-            .child(
-                div()
-                    .h(px(44.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .px_3()
-                    .border_t_1()
-                    .border_color(LINE.resolve(cx))
-                    .bg(PANEL.resolve(cx))
-                    .child(
-                        div()
-                            .id("params-add-row-button")
-                            .debug_selector(|| "add-row-button".into())
-                            .track_focus(&self.add_row_focus_handle)
-                            .key_context("KeyboardButton")
-                            .role(Role::Button)
-                            .aria_label("Add parameter row")
-                            .h(px(32.0))
-                            .w_full()
-                            .px_3()
-                            .flex()
-                            .items_center()
-                            .rounded_lg()
-                            .border_1()
-                            .border_color(LINE.resolve(cx))
-                            .bg(PANEL_ALT.resolve(cx))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .font_family(FONT_UI)
-                            .text_size(px(11.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .cursor_pointer()
-                            .hover(|style| {
-                                style
-                                    .bg(INFO_SOFT.resolve(cx))
-                                    .border_color(INFO.resolve(cx))
-                                    .text_color(INFO.resolve(cx))
-                            })
-                            .when(self.add_row_focus_handle.is_focused(window), |button| {
-                                button
-                                    .border_color(ACCENT.resolve(cx))
-                                    .text_color(ACCENT.resolve(cx))
-                            })
-                            .child("＋ Add parameter")
-                            .on_action(cx.listener(|this, _: &ActivateControl, _window, cx| {
-                                this.add_current_row(cx)
-                            }))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.add_row_focus_handle.focus(window, cx);
-                                    this.add_current_row(cx);
-                                }),
-                            ),
-                    ),
-            )
-            .child(
-                div()
-                    .debug_selector(|| "effective-url-preview".into())
-                    .h(px(64.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .px_3()
-                    .bg(INFO_SOFT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .child(
-                                div()
-                                    .font_family(FONT_UI)
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_size(px(10.0))
-                                    .text_color(INFO.resolve(cx))
-                                    .child("↗  EFFECTIVE URL"),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "effective-url-value".into())
-                                    .overflow_hidden()
-                                    .font_family(FONT_MONO)
-                                    .text_size(px(11.0))
-                                    .text_color(TEXT.resolve(cx))
-                                    .child(effective_url),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .px_2()
-                            .py_1()
-                            .flex_none()
-                            .rounded_lg()
-                            .bg(PANEL.resolve(cx))
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(px(10.0))
-                            .text_color(INFO.resolve(cx))
-                            .child("encoded"),
-                    ),
-            )
-            .child(
-                div()
-                    .debug_selector(|| "params-ready-indicator".into())
-                    .h(px(34.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .font_family(FONT_UI)
-                    .text_size(px(10.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(div().text_color(OK.resolve(cx)).child("✓"))
-                    .child("Ready to send — the active value is already in the ViewModel"),
-            )
-            .into_any_element()
-    }
-    fn render_headers_editor(
-        &self,
-        panel_height: f32,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
-        let row_editors = self.row_editors.clone();
-        let toggle_focus_handles = self.row_toggle_focus_handles.clone();
-        let delete_focus_handles = self.row_delete_focus_handles.clone();
-        let (rows, draft_key, draft_value, visible_row_count, enabled_count) = {
-            let view_model = self.view_model.read(cx);
-            let Some(request) = view_model.active_request() else {
-                return div().into_any_element();
-            };
-            let (draft_key, draft_value) =
-                request.row_draft(RequestPane::Headers).unwrap_or_default();
-            (
-                request.headers().to_vec(),
-                draft_key.to_string(),
-                draft_value.to_string(),
-                request.visible_header_row_count(),
-                request.enabled_header_count(),
-            )
-        };
-        let disabled_count = rows
-            .iter()
-            .filter(|row| header_row_complete(row) && !row.enabled)
-            .count();
-        let draft_complete = !draft_key.trim().is_empty() && !draft_value.trim().is_empty();
-        let draft_index = visible_row_count - 1;
-        let draft_row_selector = format!("header-row-{draft_index}");
-        let draft_toggle_selector = format!("header-row-toggle-{draft_index}");
-        let draft_key_selector = format!("header-row-key-{draft_index}");
-        let draft_key_input_selector = format!("header-row-key-input-{draft_index}");
-        let draft_value_selector = format!("header-row-value-{draft_index}");
-        let draft_value_input_selector = format!("header-row-value-input-{draft_index}");
-        let draft_status_selector = format!("header-row-status-{draft_index}");
-        let draft_delete_selector = format!("header-row-delete-{draft_index}");
-        let draft_toggle_focus = self.draft_toggle_focus_handle.clone();
-        let mouse_draft_toggle_focus = draft_toggle_focus.clone();
-        let draft_toggle_focused = draft_toggle_focus.is_focused(window);
-        let draft_delete_focus = self.draft_delete_focus_handle.clone();
-        let mouse_draft_delete_focus = draft_delete_focus.clone();
-        let draft_delete_focused = draft_delete_focus.is_focused(window);
-        let visible_capacity = visible_row_capacity(RequestPane::Headers, panel_height);
-        let show_scrollbar = visible_row_count > visible_capacity;
-        let scrollbar = row_scrollbar_geometry(
-            visible_row_count,
-            visible_capacity,
-            self.rows_scroll_handle.offset().y.as_f32(),
-            self.rows_scroll_handle.max_offset().y.as_f32(),
-        );
-
-        div()
-            .flex_1()
-            .min_h_0()
-            .flex()
-            .flex_col()
-            .bg(PANEL.resolve(cx))
-            .child(
-                div()
-                    .debug_selector(|| "headers-summary".into())
-                    .h(px(42.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .px_3()
-                    .font_family(FONT_UI)
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .text_color(TEXT.resolve(cx))
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_size(px(12.0))
-                                    .child("Request headers"),
-                            )
-                            .child(
-                                div()
-                                    .overflow_hidden()
-                                    .text_size(px(11.0))
-                                    .text_color(SUBTEXT.resolve(cx))
-                                    .child("Disabled rows stay saved but are excluded from Send"),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .debug_selector(|| "headers-enabled-count".into())
-                            .h(px(24.0))
-                            .px_2()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .rounded_lg()
-                            .bg(OK_SOFT.resolve(cx))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(px(10.0))
-                            .text_color(OK.resolve(cx))
-                            .child("●")
-                            .child(format!(
-                                "{enabled_count} enabled · {disabled_count} disabled"
-                            )),
-                    ),
-            )
-            .child(
-                div()
-                    .debug_selector(|| "headers-table-header".into())
-                    .h(px(32.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .font_family(FONT_UI)
-                    .font_weight(FontWeight::BOLD)
-                    .text_size(px(10.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(div().w(px(18.0)))
-                    .child(div().flex_1().child("KEY"))
-                    .child(div().flex_1().child("VALUE"))
-                    .child(
-                        div()
-                            .w(px(112.0))
-                            .text_align(gpui::TextAlign::Center)
-                            .child("ACTION"),
-                    ),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .relative()
-                    .child(
-                        div()
-                            .id("headers-rows-scroll")
-                            .debug_selector(|| "headers-rows-scroll".into())
-                            .flex_1()
-                            .min_h_0()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .p_3()
-                            .when(show_scrollbar, |this| this.pr(px(22.0)))
-                            .overflow_y_scroll()
-                            .track_scroll(&self.rows_scroll_handle)
-                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
-                            .children(rows.into_iter().zip(row_editors).enumerate().map(
-                                |(index, (row, row_editor))| {
-                                    let is_complete = header_row_complete(&row);
-                                    let row_enabled = row.enabled;
-                                    let is_sent = row.enabled && is_complete;
-                                    let (status, status_bg, status_color) = if !is_complete {
-                                        ("DRAFT", PANEL_ALT, SUBTEXT)
-                                    } else if row.enabled {
-                                        ("SENT", OK_SOFT, OK)
+                        div().w_10().flex_none().flex().justify_center().child(
+                            kit_controls::editor_button(("delete", stable_id), "", cx)
+                                .accessibility_label("Remove row")
+                                .size_8()
+                                .p_0()
+                                .child(Icon::new(IconName::X).size(m::SMALL_ICON))
+                                .debug_selector(move || delete_selector.clone())
+                                .track_focus(&self.row_delete_focus_handles[index])
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    if headers {
+                                        this.remove_header(index, cx);
                                     } else {
-                                        ("EXCLUDED", ACCENT_SOFT, ACCENT)
-                                    };
-                                    let row_selector = format!("header-row-{index}");
-                                    let toggle_selector = format!("header-row-toggle-{index}");
-                                    let status_selector = format!("header-row-status-{index}");
-                                    let delete_selector = format!("header-row-delete-{index}");
-                                    let toggle_focus = toggle_focus_handles[index].clone();
-                                    let mouse_toggle_focus = toggle_focus.clone();
-                                    let toggle_focused = toggle_focus.is_focused(window);
-                                    let delete_focus = delete_focus_handles[index].clone();
-                                    let mouse_delete_focus = delete_focus.clone();
-                                    let delete_focused = delete_focus.is_focused(window);
-
-                                    div()
-                                        .debug_selector(move || row_selector.clone())
-                                        .h(px(40.0))
-                                        .flex_none()
-                                        .flex()
-                                        .items_center()
-                                        .gap_2()
-                                        .font_family(FONT_MONO)
-                                        .text_size(px(12.0))
-                                        .child(
-                                            div()
-                                                .id(("header-row-toggle", index))
-                                                .debug_selector(move || toggle_selector.clone())
-                                                .track_focus(&toggle_focus)
-                                                .key_context("KeyboardButton")
-                                                .role(Role::CheckBox)
-                                                .aria_label(format!(
-                                                    "{} header row {}",
-                                                    if row_enabled { "Disable" } else { "Enable" },
-                                                    index + 1
-                                                ))
-                                                .aria_selected(row_enabled)
-                                                .size(px(18.0))
-                                                .flex_none()
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded_sm()
-                                                .border_1()
-                                                .border_color((if is_sent {
-                                                    INFO
-                                                } else {
-                                                    LINE
-                                                }).resolve(cx))
-                                                .bg((if is_sent { INFO } else { PANEL }).resolve(cx))
-                                                .text_color(PANEL.resolve(cx))
-                                                .cursor_pointer()
-                                                .when(toggle_focused, |control| {
-                                                    control.border_2().border_color(ACCENT.resolve(cx))
-                                                })
-                                                .child(if is_sent { "✓" } else { "" })
-                                                .on_action(cx.listener(
-                                                    move |this,
-                                                          _: &ActivateControl,
-                                                          _,
-                                                          cx| {
-                                                        this.toggle_header(index, cx)
-                                                    },
-                                                ))
-                                                .on_mouse_up(
-                                                    gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        mouse_toggle_focus.focus(window, cx);
-                                                        this.toggle_header(index, cx)
-                                                    }),
-                                                ),
-                                        )
-                                        .child(row_editor)
-                                        .child(
-                                            div()
-                                                .w(px(112.0))
-                                                .flex_none()
-                                                .flex()
-                                                .items_center()
-                                                .justify_between()
-                                                .gap_2()
-                                                .child(
-                                                    div()
-                                                        .debug_selector(move || {
-                                                            status_selector.clone()
-                                                        })
-                                                        .h(px(24.0))
-                                                        .w(px(76.0))
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .rounded_lg()
-                                                        .bg(status_bg.resolve(cx))
-                                                        .font_family(FONT_UI)
-                                                        .font_weight(FontWeight::SEMIBOLD)
-                                                        .text_size(px(9.0))
-                                                        .text_color(status_color.resolve(cx))
-                                                        .child(status),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .id(("header-row-delete", index))
-                                                        .debug_selector(move || {
-                                                            delete_selector.clone()
-                                                        })
-                                                        .track_focus(&delete_focus)
-                                                        .key_context("KeyboardButton")
-                                                        .role(Role::Button)
-                                                        .aria_label(format!(
-                                                            "Delete header row {}",
-                                                            index + 1
-                                                        ))
-                                                        .size(px(28.0))
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .rounded_lg()
-                                                        .cursor_pointer()
-                                                        .text_color(MUTED.resolve(cx))
-                                                        .hover(|style| {
-                                                            style
-                                                                .bg(ACCENT_SOFT.resolve(cx))
-                                                                .text_color(ERROR.resolve(cx))
-                                                        })
-                                                        .when(delete_focused, |control| {
-                                                            control
-                                                                .border_1()
-                                                                .border_color(ACCENT.resolve(cx))
-                                                        })
-                                                        .child("×")
-                                                        .on_action(cx.listener(
-                                                            move |this,
-                                                                  _: &ActivateControl,
-                                                                  window,
-                                                                  cx| {
-                                                                this.remove_header(index, cx);
-                                                                this.focus_after_row_removal(
-                                                                    index, window, cx,
-                                                                );
-                                                            },
-                                                        ))
-                                                        .on_mouse_up(
-                                                            gpui::MouseButton::Left,
-                                                            cx.listener(move |this, _, window, cx| {
-                                                                mouse_delete_focus.focus(window, cx);
-                                                                this.remove_header(index, cx);
-                                                                this.focus_after_row_removal(
-                                                                    index, window, cx,
-                                                                );
-                                                            }),
-                                                        ),
-                                                ),
-                                        )
-                                },
-                            ))
-                            .child(
-                                div()
-                                    .debug_selector(move || draft_row_selector.clone())
-                                    .h(px(40.0))
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .font_family(FONT_MONO)
-                                    .text_size(px(12.0))
-                                    .child(
-                                        div()
-                                            .id("header-draft-toggle")
-                                            .debug_selector(move || draft_toggle_selector.clone())
-                                            .track_focus(&draft_toggle_focus)
-                                            .key_context("KeyboardButton")
-                                            .role(Role::CheckBox)
-                                            .aria_label(if draft_complete {
-                                                "Commit and disable draft header row"
-                                            } else {
-                                                "Complete the draft header before toggling"
-                                            })
-                                            .aria_selected(draft_complete)
-                                            .size(px(18.0))
-                                            .flex_none()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded_sm()
-                                            .border_1()
-                                            .border_color((if draft_complete {
-                                                INFO
-                                            } else {
-                                                LINE
-                                            }).resolve(cx))
-                                            .bg((if draft_complete { INFO } else { PANEL }).resolve(cx))
-                                            .text_color(PANEL.resolve(cx))
-                                            .when(draft_toggle_focused, |control| {
-                                                control.border_2().border_color(ACCENT.resolve(cx))
-                                            })
-                                            .child(if draft_complete { "✓" } else { "" })
-                                            .on_action(cx.listener(
-                                                move |this,
-                                                      _: &ActivateControl,
-                                                      window,
-                                                      cx| {
-                                                    if draft_complete {
-                                                        this.toggle_header_draft(cx);
-                                                        if let Some(focus) = this
-                                                            .row_toggle_focus_handles
-                                                            .last()
-                                                        {
-                                                            focus.focus(window, cx);
-                                                        }
-                                                    }
-                                                },
-                                            ))
-                                            .when(draft_complete, |this| {
-                                                this.cursor_pointer().on_mouse_up(
-                                                    gpui::MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        mouse_draft_toggle_focus.focus(window, cx);
-                                                        this.toggle_header_draft(cx);
-                                                        if let Some(focus) = this
-                                                            .row_toggle_focus_handles
-                                                            .last()
-                                                        {
-                                                            focus.focus(window, cx);
-                                                        }
-                                                    }),
-                                                )
-                                            }),
-                                    )
-                                    .child(
-                                        div()
-                                            .debug_selector(move || draft_key_selector.clone())
-                                            .h_full()
-                                            .min_w_0()
-                                            .flex_1()
-                                            .child(
-                                                div()
-                                                    .debug_selector(move || {
-                                                        draft_key_input_selector.clone()
-                                                    })
-                                                    .h_full()
-                                                    .child(
-                                                        div()
-                                                            .debug_selector(|| {
-                                                                "row-key-input".into()
-                                                            })
-                                                            .h_full()
-                                                            .child(self.draft_key_input.clone()),
-                                                    ),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .debug_selector(move || draft_value_selector.clone())
-                                            .h_full()
-                                            .min_w_0()
-                                            .flex_1()
-                                            .child(
-                                                div()
-                                                    .debug_selector(move || {
-                                                        draft_value_input_selector.clone()
-                                                    })
-                                                    .h_full()
-                                                    .child(
-                                                        div()
-                                                            .debug_selector(|| {
-                                                                "row-value-input".into()
-                                                            })
-                                                            .h_full()
-                                                            .child(self.draft_value_input.clone()),
-                                                    ),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .w(px(112.0))
-                                            .flex_none()
-                                            .flex()
-                                            .items_center()
-                                            .justify_between()
-                                            .gap_2()
-                                            .child(
-                                                div()
-                                                    .debug_selector(move || {
-                                                        draft_status_selector.clone()
-                                                    })
-                                                    .h(px(24.0))
-                                                    .w(px(76.0))
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .rounded_lg()
-                                                    .bg((if draft_complete {
-                                                        OK_SOFT
-                                                    } else {
-                                                        PANEL_ALT
-                                                    }).resolve(cx))
-                                                    .font_family(FONT_UI)
-                                                    .font_weight(FontWeight::SEMIBOLD)
-                                                    .text_size(px(9.0))
-                                                    .text_color((if draft_complete {
-                                                        OK
-                                                    } else {
-                                                        SUBTEXT
-                                                    }).resolve(cx))
-                                                    .child(if draft_complete {
-                                                        "SENT"
-                                                    } else {
-                                                        "DRAFT"
-                                                    }),
-                                            )
-                                            .child(
-                                                div()
-                                                    .id("header-draft-delete")
-                                                    .debug_selector(move || {
-                                                        draft_delete_selector.clone()
-                                                    })
-                                                    .track_focus(&draft_delete_focus)
-                                                    .key_context("KeyboardButton")
-                                                    .role(Role::Button)
-                                                    .aria_label("Clear draft header row")
-                                                    .size(px(28.0))
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .rounded_lg()
-                                                    .cursor_pointer()
-                                                    .text_color(MUTED.resolve(cx))
-                                                    .hover(|style| {
-                                                        style
-                                                            .bg(ACCENT_SOFT.resolve(cx))
-                                                            .text_color(ERROR.resolve(cx))
-                                                    })
-                                                    .when(draft_delete_focused, |control| {
-                                                        control
-                                                            .border_1()
-                                                            .border_color(ACCENT.resolve(cx))
-                                                    })
-                                                    .child("×")
-                                                    .on_action(cx.listener(
-                                                        |this, _: &ActivateControl, _, cx| {
-                                                            this.clear_header_draft(cx)
-                                                        },
-                                                    ))
-                                                    .on_mouse_up(
-                                                        gpui::MouseButton::Left,
-                                                        cx.listener(move |this, _, window, cx| {
-                                                            mouse_draft_delete_focus
-                                                                .focus(window, cx);
-                                                            this.clear_header_draft(cx)
-                                                        }),
-                                                    ),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .when_some(scrollbar, |this, scrollbar| {
-                        this.child(
-                            div()
-                                .debug_selector(|| "headers-scrollbar".into())
-                                .absolute()
-                                .top(px(8.0))
-                                .right(px(5.0))
-                                .bottom(px(8.0))
-                                .w(px(8.0))
-                                .rounded_full()
-                                .bg(PANEL_ALT.resolve(cx))
-                                .border_1()
-                                .border_color(LINE.resolve(cx))
-                                .child(
-                                    div()
-                                        .debug_selector(|| "headers-scrollbar-thumb".into())
-                                        .absolute()
-                                        .top(relative(scrollbar.thumb_top))
-                                        .w_full()
-                                        .h(relative(scrollbar.thumb_height))
-                                        .rounded_full()
-                                        .bg(INFO.resolve(cx)),
-                                ),
-                        )
-                    }),
-            )
-            .child(
-                div()
-                    .h(px(44.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .px_3()
-                    .border_t_1()
-                    .border_color(LINE.resolve(cx))
-                    .bg(INFO_SOFT.resolve(cx))
-                    .child(
-                        div()
-                            .id("headers-add-row-button")
-                            .debug_selector(|| "add-row-button".into())
-                            .track_focus(&self.add_row_focus_handle)
-                            .key_context("KeyboardButton")
-                            .role(Role::Button)
-                            .aria_label("Add header row")
-                            .h(px(32.0))
-                            .w_full()
-                            .px_3()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .gap_3()
-                            .rounded_lg()
-                            .border_1()
-                            .border_color(LINE.resolve(cx))
-                            .bg(PANEL_ALT.resolve(cx))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .font_family(FONT_UI)
-                            .text_size(px(11.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .cursor_pointer()
-                            .hover(|style| {
-                                style
-                                    .bg(INFO_SOFT.resolve(cx))
-                                    .border_color(INFO.resolve(cx))
-                                    .text_color(INFO.resolve(cx))
-                            })
-                            .when(self.add_row_focus_handle.is_focused(window), |button| {
-                                button.border_color(ACCENT.resolve(cx)).text_color(ACCENT.resolve(cx))
-                            })
-                            .child("＋ Add another header row")
-                            .child(
-                                div()
-                                    .font_weight(FontWeight::NORMAL)
-                                    .text_color(MUTED.resolve(cx))
-                                    .child("Click repeatedly — rows are unlimited"),
-                            )
-                            .on_action(cx.listener(
-                                |this, _: &ActivateControl, _window, cx| {
-                                    this.add_current_row(cx)
-                                },
-                            ))
-                            .on_mouse_up(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.add_row_focus_handle.focus(window, cx);
-                                    this.add_current_row(cx);
-                                }),
-                            ),
-                    ),
-            )
-            .child(
-                div()
-                    .debug_selector(|| "headers-ready-indicator".into())
-                    .h(px(54.0))
-                    .flex_none()
-                    .flex()
-                    .flex_col()
-                    .justify_center()
-                    .gap_2()
-                    .px_3()
-                    .border_t_1()
-                    .border_color(LINE.resolve(cx))
-                    .font_family(FONT_UI)
-                    .text_size(px(10.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(div().text_color(OK.resolve(cx)).child("✓"))
-                            .child("Ready to send — active values are already in the ViewModel"),
-                    )
-                    .child(
-                        div().font_family(FONT_MONO).text_color(INFO.resolve(cx)).child(
-                            "Only complete, checked rows participate in request construction",
+                                        this.remove_param(index, cx);
+                                    }
+                                    this.focus_after_row_removal(index, window, cx);
+                                })),
                         ),
                     ),
+            );
+        }
+        let index = rows.len();
+        let draft_row_selector = format!("{prefix}-row-{index}");
+        let draft_toggle_selector = if headers {
+            format!("header-row-toggle-{index}")
+        } else {
+            "params-draft-toggle".into()
+        };
+        let on_draft_toggle =
+            cx.listener(|this, _: &gpui::ClickEvent, _, cx| this.toggle_header_draft(cx));
+        let mut draft = div()
+            .id((plural, 1usize))
+            .debug_selector(move || draft_row_selector.clone())
+            .h(m::TABLE_ROW)
+            .flex_none()
+            .flex()
+            .items_center()
+            .border_b_1()
+            .border_color(LINE.resolve(cx))
+            .child(
+                div().w_10().flex_none().flex().justify_center().child(
+                    kit_controls::parameter_checkbox((plural, 2usize), draft_enabled, cx)
+                        .debug_selector(move || draft_toggle_selector.clone())
+                        .track_focus(&self.draft_toggle_focus_handle)
+                        .accessibility_label(if headers {
+                            "Enable new header"
+                        } else {
+                            "New parameter is enabled when it has a key"
+                        })
+                        .disabled(!headers)
+                        .on_change(move |_, event, window, cx| on_draft_toggle(event, window, cx)),
+                ),
+            );
+        for (column, input) in [
+            ("key", self.draft_key_input.clone()),
+            ("value", self.draft_value_input.clone()),
+        ] {
+            let selector = format!("{prefix}-row-{column}-input-{index}");
+            let legacy = format!("row-{column}-input");
+            let cell_selector = format!("{prefix}-row-{column}-{index}");
+            draft = draft.child(
+                div()
+                    .debug_selector(move || cell_selector.clone())
+                    .h_full()
+                    .flex_1()
+                    .min_w_0()
+                    .border_l_1()
+                    .border_color(LINE.resolve(cx))
+                    .child(
+                        div()
+                            .debug_selector(move || selector.clone())
+                            .h_full()
+                            .child(
+                                div()
+                                    .debug_selector(move || legacy.clone())
+                                    .h_full()
+                                    .child(input),
+                            ),
+                    ),
+            );
+        }
+        let delete_selector = format!("header-row-delete-{index}");
+        draft = draft.child(div().w_10().flex_none().when(headers, |cell| {
+            cell.child(
+                kit_controls::editor_button((plural, 3usize), "", cx)
+                    .accessibility_label("Clear new header")
+                    .size_8()
+                    .p_0()
+                    .child(Icon::new(IconName::X).size(m::SMALL_ICON))
+                    .debug_selector(move || delete_selector.clone())
+                    .track_focus(&self.draft_delete_focus_handle)
+                    .on_click(cx.listener(|this, _, _, cx| this.clear_header_draft(cx))),
             )
+        }));
+        table_rows = table_rows.child(draft);
+        let count_selector = format!("{plural}-enabled-count");
+        let scrollbar_selector = format!("{plural}-scrollbar");
+        let thumb_selector = format!("{plural}-scrollbar-thumb");
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .px_7()
+            .pb_3()
+            .child(
+                div()
+                    .h(gpui::rems(if compact { 2. } else { 3.4375 }))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .text_size(m::LABEL)
+                    .text_color(TEXT.resolve(cx))
+                    .child(if headers {
+                        "Request headers"
+                    } else {
+                        "Query parameters"
+                    })
+                    .child(
+                        div()
+                            .debug_selector(move || count_selector.clone())
+                            .text_size(m::CAPTION)
+                            .text_color(MUTED.resolve(cx))
+                            .child(if headers {
+                                format!("{count} enabled")
+                            } else {
+                                "Synced with URL".to_string()
+                            }),
+                    ),
+            )
+            .child(
+                div()
+                    .h(gpui::px(table_height))
+                    .flex_none()
+                    .min_h_0()
+                    .flex()
+                    .flex_col()
+                    .border_1()
+                    .border_color(LINE.resolve(cx))
+                    .rounded(m::RADIUS)
+                    .overflow_hidden()
+                    .child(
+                        div()
+                            .h(m::TABLE_HEADER)
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .bg(PANEL_ALT.resolve(cx))
+                            .text_size(m::CAPTION)
+                            .font_family(FONT_MONO)
+                            .text_color(MUTED.resolve(cx))
+                            .child(div().w_10())
+                            .child(div().flex_1().px_3().child("KEY"))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .px_3()
+                                    .border_l_1()
+                                    .border_color(LINE.resolve(cx))
+                                    .child("VALUE"),
+                            )
+                            .child(div().w_10()),
+                    )
+                    .child(div().flex_1().min_h_0().flex().child(table_rows).when_some(
+                        scrollbar,
+                        |area, bar| {
+                            area.child(
+                                div()
+                                    .debug_selector(move || scrollbar_selector.clone())
+                                    .w(gpui::rems(0.375))
+                                    .h_full()
+                                    .flex_none()
+                                    .relative()
+                                    .child(
+                                        div()
+                                            .debug_selector(move || thumb_selector.clone())
+                                            .absolute()
+                                            .top(relative(bar.thumb_top))
+                                            .h(relative(bar.thumb_height))
+                                            .w_full()
+                                            .rounded_full()
+                                            .bg(MUTED.resolve(cx)),
+                                    ),
+                            )
+                        },
+                    )),
+            )
+            .child(
+                div().h_10().flex_none().flex().items_center().child(
+                    kit_controls::editor_button(
+                        "add-row-button",
+                        if headers {
+                            "+ Add header"
+                        } else {
+                            "+ Add parameter"
+                        },
+                        cx,
+                    )
+                    .debug_selector(|| "add-row-button".into())
+                    .track_focus(&self.add_row_focus_handle)
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_row_focus_handle.focus(window, cx);
+                        this.add_current_row(cx);
+                    })),
+                ),
+            )
+            .child(div().flex_1().min_h_0())
+            .when(!headers && !compact, |pane| {
+                pane.child(
+                    div()
+                        .debug_selector(|| "effective-url-preview".into())
+                        .flex_none()
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .child(
+                            div()
+                                .text_size(m::CAPTION)
+                                .text_color(MUTED.resolve(cx))
+                                .child("REQUEST URL"),
+                        )
+                        .child(
+                            div()
+                                .debug_selector(|| "effective-url-value".into())
+                                .h_9()
+                                .flex()
+                                .items_center()
+                                .px_3()
+                                .rounded(m::RADIUS)
+                                .border_1()
+                                .border_color(LINE.resolve(cx))
+                                .bg(PANEL_ALT.resolve(cx))
+                                .font_family(FONT_MONO)
+                                .text_size(m::CODE)
+                                .text_color(MUTED.resolve(cx))
+                                .truncate()
+                                .child(effective_url),
+                        ),
+                )
+            })
             .into_any_element()
     }
 }
 
 impl Render for KeyValueRowsPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let (_, rows) = self.active_projection(cx);
+        if !self.row_editors_match(&rows, cx) {
+            self.sync_row_editors(&rows, false, cx);
+        }
         self.apply_pending_focus(window, cx);
         let pane = self.kind.request_pane();
         let visible_rows = {
@@ -1835,10 +1056,7 @@ impl Render for KeyValueRowsPane {
             visible_rows,
             window.viewport_size().height.as_f32(),
         );
-        match self.kind {
-            KeyValueRowsKind::Params => self.render_params_editor(panel_height, window, cx),
-            KeyValueRowsKind::Headers => self.render_headers_editor(panel_height, window, cx),
-        }
+        self.render_rows_editor(panel_height, cx)
     }
 }
 

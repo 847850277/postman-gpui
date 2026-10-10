@@ -116,8 +116,10 @@ fn main() {
             })
             .expect("failed to open Kit compatibility window");
         } else {
-            gpui_kit::open_window(option, cx, |_window, cx| cx.new(PostmanApp::new))
-                .expect("failed to open window");
+            gpui_kit::open_window(option, cx, |window, cx| {
+                cx.new(|cx| PostmanApp::new(window, cx))
+            })
+            .expect("failed to open window");
         }
     });
 }

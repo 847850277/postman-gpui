@@ -66,7 +66,7 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) {
         self.navigate(AppRoute::Http, window, cx);
-        self.new_request(cx);
+        self.new_request(window, cx);
         self.request_workspace.update(cx, |workspace, cx| {
             workspace.focus_active_request_tab(window, cx)
         });

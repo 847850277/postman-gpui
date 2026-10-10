@@ -1,18 +1,18 @@
-use super::{composer::RequestComposer, layout::REQUEST_HEAD_HEIGHT};
+use super::composer::RequestComposer;
 use crate::{
-    app::{ActivateControl, AuthorizationKind, RequestPane},
-    ui::theme::{
-        ACCENT, ACCENT_INK, ACCENT_SOFT, ACCENT_VIVID, ERROR, FONT_HEADING, FONT_UI, INFO,
-        INFO_SOFT, LINE, MUTED, PANEL, PANEL_ALT, TEXT,
+    app::{ActivateControl, RequestPane},
+    ui::{
+        components::kit_controls,
+        theme::{metrics as m, ACCENT, LINE, MUTED, PANEL, PANEL_ALT, TEXT},
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, Context, FontWeight, InteractiveElement, IntoElement,
-    KeyBinding, ParentElement, Role, StatefulInteractiveElement, Styled, Window,
+    actions, div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement,
+    KeyBinding, ParentElement, Styled, Window,
 };
+use gpui_kit::{base::Tab, component::input::Input};
 
 actions!(request_pane_tabs, [NextRequestPane, PreviousRequestPane]);
-
 pub(super) fn setup_request_pane_key_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new("right", NextRequestPane, Some("RequestPaneTab")),
@@ -23,52 +23,59 @@ pub(super) fn setup_request_pane_key_bindings() -> Vec<KeyBinding> {
 }
 
 impl RequestComposer {
-    pub(super) fn request_tab(
+    fn request_tab(
         &self,
         pane: RequestPane,
-        label: impl Into<String>,
-        window: &Window,
+        label: &'static str,
+        count: Option<usize>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let active = self
             .view_model
             .read(cx)
             .active_request()
-            .is_some_and(|request| request.request_pane() == pane);
-        let selector = request_pane_selector(pane);
-        let label = label.into();
-        let accessible_label = format!("{label} request pane");
-        let focus_handle = self.request_pane_focus_handles[request_pane_index(pane)].clone();
-        let mouse_focus_handle = focus_handle.clone();
-        let focused = focus_handle.is_focused(window);
-        div()
-            .id(selector)
-            .debug_selector(move || selector.into())
-            .track_focus(&focus_handle)
+            .is_some_and(|r| r.request_pane() == pane);
+        let id = request_pane_selector(pane);
+        let focus = self.request_pane_focus_handles[request_pane_index(pane)].clone();
+        let mouse_focus = focus.clone();
+        // Kit 0.7.1 Base Tab supplies semantics/pointer activation; compound arrow-key
+        // navigation is not yet supplied upstream, so retain the application's tab actions.
+        Tab::new(id)
+            .debug_selector(move || id.into())
+            .selected(active)
+            .accessibility_label(format!("{label} request pane"))
+            .track_focus(&focus)
             .key_context("KeyboardButton RequestPaneTab")
-            .role(Role::Tab)
-            .aria_label(accessible_label)
-            .aria_selected(active)
-            .h_full()
+            .h(m::PANE_TAB)
+            .flex_none()
             .flex()
             .items_center()
-            .px_2()
-            .cursor_pointer()
-            .font_family(FONT_UI)
-            .text_size(px(13.0))
-            .font_weight(if active {
-                FontWeight::BOLD
+            .gap_1()
+            .border_b_2()
+            .border_color(if active {
+                ACCENT.resolve(cx)
             } else {
-                FontWeight::SEMIBOLD
+                gpui::rgba(0)
             })
-            .text_color((if active { TEXT } else { MUTED }).resolve(cx))
-            .hover(|style| style.text_color(TEXT.resolve(cx)))
-            .when(focused, |tab| {
-                tab.bg(ACCENT_SOFT.resolve(cx))
-                    .border_1()
-                    .border_color(ACCENT.resolve(cx))
-            })
+            .text_size(m::LABEL)
+            .font_weight(m::MEDIUM)
+            .text_color(if active { ACCENT } else { MUTED }.resolve(cx))
+            .focus_visible(|s| s.bg(PANEL_ALT.resolve(cx)).border_color(ACCENT.resolve(cx)))
             .child(label)
+            .when_some(count.filter(|n| *n > 0), |tab, n| {
+                tab.child(
+                    div()
+                        .px_1()
+                        .rounded_sm()
+                        .bg(PANEL_ALT.resolve(cx))
+                        .text_size(m::CAPTION)
+                        .child(n.to_string()),
+                )
+            })
+            .on_click(cx.listener(move |this, _, window, cx| {
+                mouse_focus.focus(window, cx);
+                this.set_request_pane(pane, cx);
+            }))
             .on_action(
                 cx.listener(move |this, _: &ActivateControl, _, cx| {
                     this.set_request_pane(pane, cx)
@@ -82,13 +89,6 @@ impl RequestComposer {
                     this.activate_relative_request_pane(pane, -1, window, cx)
                 }),
             )
-            .on_mouse_up(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    mouse_focus_handle.focus(window, cx);
-                    this.set_request_pane(pane, cx);
-                }),
-            )
     }
 
     fn activate_relative_request_pane(
@@ -98,10 +98,10 @@ impl RequestComposer {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let next = (request_pane_index(pane) as isize + delta).rem_euclid(7) as usize;
-        let pane = REQUEST_PANES[next];
+        let next = (request_pane_index(pane) as isize + delta)
+            .rem_euclid(REQUEST_PANES.len() as isize) as usize;
         self.request_pane_focus_handles[next].focus(window, cx);
-        self.set_request_pane(pane, cx);
+        self.set_request_pane(REQUEST_PANES[next], cx);
     }
 
     pub(super) fn render_request_head(
@@ -109,220 +109,184 @@ impl RequestComposer {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let (is_sending, url_query_count, request_id, in_flight_count) = {
-            let view_model = self.view_model.read(cx);
-            let active = view_model.active_request();
-            (
-                active.is_some_and(|request| request.is_sending()),
-                active.map_or(0, |request| request.url_query_parameter_count()),
-                view_model.active_request_id(),
-                view_model.in_flight_count(),
-            )
-        };
+        let model = self.view_model.read(cx);
+        let active = model.active_request();
+        let sending = active.is_some_and(|r| r.is_sending());
+        let title = active
+            .map(|r| r.tab_title())
+            .unwrap_or_else(|| "Untitled request".into());
+        let compact = window.viewport_size().height < gpui::px(700.);
         div()
             .debug_selector(|| "request-head".into())
-            .h(px(REQUEST_HEAD_HEIGHT))
             .flex_none()
             .flex()
-            .items_center()
-            .gap_2()
-            .child(self.method_selector.clone())
+            .flex_col()
+            .gap(if compact { rems(0.75) } else { rems(23. / 16.) })
+            .px(rems(
+                (window.viewport_size().width.as_f32() * 0.02).clamp(12., 36.) / 16.,
+            ))
+            .py(rems(
+                if compact {
+                    12.
+                } else {
+                    (window.viewport_size().height.as_f32() * 0.022).clamp(12., 22.)
+                } / 16.,
+            ))
+            .font_weight(gpui::FontWeight::NORMAL)
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
-                    .flex_1()
                     .min_w_0()
-                    .h_full()
                     .flex()
-                    .items_center()
+                    .flex_col()
                     .gap_2()
-                    .child(self.url_input.clone())
-                    .when(url_query_count > 0, |url| {
-                        url.child(
+                    .child(
+                        div()
+                            .debug_selector(|| "request-title".into())
+                            .truncate()
+                            .text_size(if compact { rems(22. / 16.) } else { m::TITLE })
+                            .line_height(if compact {
+                                rems(27.5 / 16.)
+                            } else {
+                                rems(32.5 / 16.)
+                            })
+                            .font_weight(m::SEMIBOLD)
+                            .text_color(TEXT.resolve(cx))
+                            .child(title),
+                    )
+                    .when(!compact, |h| {
+                        h.child(
                             div()
-                                .debug_selector(|| "url-query-count".into())
-                                .h(px(28.0))
-                                .px_2()
-                                .flex_none()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(INFO_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::BOLD)
-                                .text_size(px(11.0))
-                                .text_color(INFO.resolve(cx))
-                                .child(format!("{url_query_count} in URL")),
+                                .text_size(m::LABEL)
+                                .line_height(rems(1.125))
+                                .text_color(MUTED.resolve(cx))
+                                .child("Configure and send an HTTP request."),
                         )
                     }),
             )
-            .when_some(request_id, |head, request_id| {
-                head.child(
-                    div()
-                        .debug_selector(|| "request-in-flight-id".into())
-                        .h(px(28.0))
-                        .px_2()
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .rounded_lg()
-                        .bg(INFO_SOFT.resolve(cx))
-                        .font_family(FONT_UI)
-                        .font_weight(FontWeight::BOLD)
-                        .text_size(px(10.0))
-                        .text_color(INFO.resolve(cx))
-                        .child(format!("{request_id} · in_flight={in_flight_count}")),
-                )
-            })
             .child(
                 div()
-                    .id("send-button")
-                    .debug_selector(|| "send-button".into())
-                    .track_focus(&self.send_focus_handle)
-                    .key_context("KeyboardButton")
-                    .role(Role::Button)
-                    .aria_label(if is_sending {
-                        "Cancel active request"
-                    } else {
-                        "Send active request"
-                    })
-                    .w(px(110.0))
-                    .h_full()
-                    .flex_none()
                     .flex()
                     .items_center()
-                    .justify_center()
-                    .rounded_lg()
-                    .bg((if is_sending { ERROR } else { ACCENT_VIVID }).resolve(cx))
-                    .text_color((if is_sending { PANEL } else { ACCENT_INK }).resolve(cx))
-                    .font_family(FONT_HEADING)
-                    .text_size(px(15.0))
-                    .font_weight(FontWeight::BOLD)
-                    .cursor_pointer()
-                    .hover(|style| {
-                        if is_sending {
-                            style.bg(crate::ui::theme::ERROR.resolve(cx))
-                        } else {
-                            style.bg(ACCENT.resolve(cx)).text_color(PANEL.resolve(cx))
-                        }
-                    })
-                    .when(self.send_focus_handle.is_focused(window), |button| {
-                        button.border_2().border_color(INFO.resolve(cx))
-                    })
+                    .gap(rems(10. / 16.))
+                    .h(m::URL)
                     .child(
                         div()
-                            .when(is_sending, |label| {
-                                label.debug_selector(|| "cancel-send-control".into())
+                            .id("request-url-container")
+                            .key_context("RequestUrl")
+                            .debug_selector(|| "url-input".into())
+                            .flex_1()
+                            .min_w_0()
+                            .child(kit_controls::request_url(
+                                "request-url-group",
+                                Input::new(&self.url_input).id("request-url-input"),
+                                &self.url_input,
+                                &self.method_selector,
+                                false,
+                                false,
+                                window,
+                                cx,
+                            )),
+                    )
+                    .child(
+                        kit_controls::editor_primary_button("send-button", "", cx)
+                            .debug_selector(|| "send-button".into())
+                            .track_focus(&self.send_focus_handle)
+                            .accessibility_label(if sending {
+                                "Cancel active request"
+                            } else {
+                                "Send active request"
                             })
-                            .child(if is_sending { "Cancel" } else { "Send" }),
-                    )
-                    .on_action(
-                        cx.listener(|this, _: &ActivateControl, _window, cx| this.click_send(cx)),
-                    )
-                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::on_send_clicked)),
+                            .bg(if sending {
+                                crate::ui::theme::ERROR
+                            } else {
+                                ACCENT
+                            }
+                            .resolve(cx))
+                            .text_color(crate::ui::theme::ON_ACCENT.resolve(cx))
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .when(!sending, |d| {
+                                        d.child(
+                                            gpui_kit::component::Icon::new(
+                                                gpui_kit::assets::IconName::Send,
+                                            )
+                                            .size(m::SMALL_ICON),
+                                        )
+                                    })
+                                    .child(if sending { "Cancel" } else { "Send" })
+                                    .when(!sending, |d| {
+                                        d.child(div().text_size(m::CAPTION).child(
+                                            if cfg!(target_os = "macos") {
+                                                "⌘ ↵"
+                                            } else {
+                                                "Ctrl ↵"
+                                            },
+                                        ))
+                                    }),
+                            )
+                            .h(m::URL)
+                            .w(rems(8.))
+                            .flex_none()
+                            .when(sending, |b| {
+                                b.child(div().debug_selector(|| "cancel-send-control".into()))
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| this.click_send(cx))),
+                    ),
             )
     }
 
     pub(super) fn render_request_menu(
         &self,
-        window: &Window,
+        _window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let (header_count, authorization_kind, has_authorization, has_body, has_script, has_tests) = {
-            let view_model = self.view_model.read(cx);
-            view_model.active_request().map_or(
-                (0, AuthorizationKind::Bearer, false, false, false, false),
-                |request| {
-                    (
-                        request.headers().iter().filter(|row| row.enabled).count(),
-                        request.authorization_kind(),
-                        match request.authorization_kind() {
-                            AuthorizationKind::Bearer => !request.bearer_token().is_empty(),
-                            AuthorizationKind::Basic => {
-                                !request.basic_username().is_empty()
-                                    || !request.basic_password().is_empty()
-                            }
-                        },
-                        !request.request_body().is_empty(),
-                        !request.pre_request_script().is_empty(),
-                        !request.tests_script().is_empty(),
-                    )
-                },
-            )
-        };
+        let model = self.view_model.read(cx);
+        let request = model.active_request();
+        let params = request.map_or(0, |r| r.enabled_param_count());
+        let headers = request.map_or(0, |r| r.headers().iter().filter(|h| h.enabled).count());
         div()
-            .h(px(44.0))
+            .h(m::PANE_TAB)
             .flex_none()
             .flex()
             .items_center()
-            .gap_2()
-            .px_3()
-            .bg(PANEL_ALT.resolve(cx))
+            .gap(rems(23. / 16.))
+            .px_7()
             .border_b_1()
             .border_color(LINE.resolve(cx))
-            .child(self.request_tab(RequestPane::Params, "Params", window, cx))
-            .child(self.request_tab(
-                RequestPane::Authorization,
-                format!(
-                    "Authorization ({}){}",
-                    match authorization_kind {
-                        AuthorizationKind::Bearer => "Bearer",
-                        AuthorizationKind::Basic => "Basic",
-                    },
-                    if has_authorization { " ●" } else { "" }
-                ),
-                window,
-                cx,
-            ))
-            .child(self.request_tab(
-                RequestPane::Headers,
-                format!("Headers ({header_count})"),
-                window,
-                cx,
-            ))
-            .child(self.request_tab(
-                RequestPane::Body,
-                if has_body { "Body ●" } else { "Body" },
-                window,
-                cx,
-            ))
-            .child(self.request_tab(
-                RequestPane::Scripts,
-                if has_script { "Scripts ●" } else { "Scripts" },
-                window,
-                cx,
-            ))
-            .child(self.request_tab(
-                RequestPane::Tests,
-                if has_tests { "Tests ●" } else { "Tests" },
-                window,
-                cx,
-            ))
-            .child(self.request_tab(RequestPane::Options, "Options", window, cx))
+            .child(self.request_tab(RequestPane::Params, "Params", Some(params), cx))
+            .child(self.request_tab(RequestPane::Headers, "Headers", Some(headers), cx))
+            .child(self.request_tab(RequestPane::Body, "Body", None, cx))
+            .child(self.request_tab(RequestPane::Authorization, "Auth", None, cx))
+            .child(self.request_tab(RequestPane::Scripts, "Scripts", None, cx))
+            .child(self.request_tab(RequestPane::Tests, "Tests", None, cx))
+            .child(self.request_tab(RequestPane::Options, "Options", None, cx))
     }
 }
-
 const REQUEST_PANES: [RequestPane; 7] = [
     RequestPane::Params,
-    RequestPane::Authorization,
     RequestPane::Headers,
     RequestPane::Body,
+    RequestPane::Authorization,
     RequestPane::Scripts,
     RequestPane::Tests,
     RequestPane::Options,
 ];
-
 fn request_pane_index(pane: RequestPane) -> usize {
     REQUEST_PANES
         .iter()
-        .position(|candidate| *candidate == pane)
-        .expect("all request panes are represented in keyboard order")
+        .position(|p| *p == pane)
+        .expect("all panes have a tab")
 }
 fn request_pane_selector(pane: RequestPane) -> &'static str {
     match pane {
         RequestPane::Params => "request-pane-params",
-        RequestPane::Authorization => "request-pane-authorization",
         RequestPane::Headers => "request-pane-headers",
         RequestPane::Body => "request-pane-body",
+        RequestPane::Authorization => "request-pane-authorization",
         RequestPane::Scripts => "request-pane-scripts",
         RequestPane::Tests => "request-pane-tests",
         RequestPane::Options => "request-pane-options",

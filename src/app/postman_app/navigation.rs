@@ -53,8 +53,9 @@ impl PostmanApp {
         if self.view_model.read(cx).request_for_tab(id).is_none() {
             return;
         }
-        self.request_workspace
-            .update(cx, |workspace, cx| workspace.activate_request_tab(id, cx));
+        self.request_workspace.update(cx, |workspace, cx| {
+            workspace.activate_request_tab(id, window, cx)
+        });
         self.navigate(AppRoute::Http, window, cx);
     }
 }

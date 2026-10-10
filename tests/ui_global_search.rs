@@ -53,8 +53,8 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -120,8 +120,8 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, window, cx)
         })
     });
     ui::open_http(cx);

@@ -1,7 +1,4 @@
-use crate::{
-    app::{KeyValueRow, RequestPane},
-    ui::components::common::scrollbar::scrollbar_geometry,
-};
+use crate::{app::RequestPane, ui::components::common::scrollbar::scrollbar_geometry};
 
 pub(super) use crate::ui::components::common::scrollbar::ScrollbarGeometry as RowScrollbarGeometry;
 
@@ -13,9 +10,9 @@ const HEADER_PANEL_MAX_VISIBLE_ROWS: usize = 4;
 const URL_ENCODED_PANEL_MAX_VISIBLE_ROWS: usize = 6;
 const REQUEST_EDITOR_RESERVED_HEIGHT: f32 = 400.0;
 
-pub(super) const REQUEST_HEAD_HEIGHT: f32 = 46.0;
-pub(super) const REQUEST_COMPOSER_GAP: f32 = 12.0;
-pub(super) const WORKSPACE_CONTENT_PADDING: f32 = 12.0;
+pub(super) const REQUEST_HEAD_HEIGHT: f32 = 173.5;
+pub(super) const REQUEST_COMPOSER_GAP: f32 = 0.0;
+pub(super) const WORKSPACE_CONTENT_PADDING: f32 = 0.0;
 pub(super) const RESPONSE_RESIZE_TRACK_HEIGHT: f32 = 12.0;
 pub(super) const RESPONSE_PANEL_MIN_HEIGHT: f32 = 180.0;
 pub(super) const REQUEST_PANEL_RESIZE_MIN_HEIGHT: f32 = 300.0;
@@ -34,8 +31,14 @@ impl RequestPanelLayout {
         visible_rows: usize,
         viewport_height: f32,
     ) -> f32 {
-        self.manual_height
-            .unwrap_or_else(|| adaptive_request_panel_height(pane, visible_rows, viewport_height))
+        let height = self
+            .manual_height
+            .unwrap_or_else(|| adaptive_request_panel_height(pane, visible_rows, viewport_height));
+        // Leave room for shell, wrapped tabs, composer and the existing Response panel.
+        // PR2 replaces the legacy vertical split, but PR1 must still fit small windows.
+        let compact = viewport_height < 700.;
+        let reserved = if compact { 420. } else { 490. };
+        height.min((viewport_height - reserved).max(176.))
     }
 
     pub(super) fn set_manual_height(&mut self, height: f32) -> bool {
@@ -59,10 +62,6 @@ pub(super) fn resizable_request_panel_height_bounds(workspace_content_height: f3
         + RESPONSE_PANEL_MIN_HEIGHT;
     let maximum = (workspace_content_height - reserved_height).max(REQUEST_PANEL_RESIZE_MIN_HEIGHT);
     (REQUEST_PANEL_RESIZE_MIN_HEIGHT, maximum)
-}
-
-pub(super) fn header_row_complete(row: &KeyValueRow) -> bool {
-    !row.key.trim().is_empty() && !row.value.trim().is_empty()
 }
 
 pub(super) fn adaptive_request_panel_height(
@@ -100,20 +99,6 @@ pub(super) fn adaptive_request_panel_height(
     desired_height.min(viewport_height)
 }
 
-pub(super) fn visible_row_capacity(pane: RequestPane, panel_height: f32) -> usize {
-    let max_visible_rows = match pane {
-        RequestPane::Params => PARAM_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Headers => HEADER_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Body => URL_ENCODED_PANEL_MAX_VISIBLE_ROWS,
-        RequestPane::Authorization
-        | RequestPane::Scripts
-        | RequestPane::Tests
-        | RequestPane::Options => return 0,
-    };
-    let row_delta = ((panel_height - REQUEST_PANEL_BASE_HEIGHT) / PARAM_ROW_PITCH).floor() as isize;
-    (PARAM_ROWS_AT_BASE_HEIGHT as isize + row_delta).clamp(1, max_visible_rows as isize) as usize
-}
-
 pub(super) fn row_scrollbar_geometry(
     visible_rows: usize,
     visible_capacity: usize,
@@ -135,7 +120,7 @@ pub(super) fn row_scrollbar_geometry(
 mod tests {
     use super::{
         adaptive_request_panel_height, resizable_request_panel_height_bounds,
-        row_scrollbar_geometry, visible_row_capacity, RequestPanelLayout, RowScrollbarGeometry,
+        row_scrollbar_geometry, RequestPanelLayout, RowScrollbarGeometry,
     };
     use crate::app::RequestPane;
 
@@ -178,12 +163,6 @@ mod tests {
             544.0
         );
 
-        assert_eq!(visible_row_capacity(RequestPane::Params, 360.0), 2);
-        assert_eq!(visible_row_capacity(RequestPane::Params, 300.0), 1);
-        assert_eq!(visible_row_capacity(RequestPane::Params, 406.0), 3);
-        assert_eq!(visible_row_capacity(RequestPane::Params, 544.0), 6);
-        assert_eq!(visible_row_capacity(RequestPane::Headers, 452.0), 4);
-        assert_eq!(visible_row_capacity(RequestPane::Body, 544.0), 6);
         assert_eq!(row_scrollbar_geometry(6, 6, 0.0, 0.0), None);
         assert_eq!(
             row_scrollbar_geometry(12, 6, -100.0, 200.0),
@@ -194,13 +173,13 @@ mod tests {
         );
 
         let mut layout = RequestPanelLayout::default();
-        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 544.0);
+        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 490.0);
         assert!(layout.set_manual_height(320.0));
         assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 320.0);
         assert!(layout.reset());
-        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 544.0);
+        assert_eq!(layout.resolved_height(RequestPane::Params, 6, 980.0), 490.0);
 
-        assert_eq!(resizable_request_panel_height_bounds(980.0), (300.0, 706.0));
+        assert_eq!(resizable_request_panel_height_bounds(980.0), (300.0, 614.5));
         assert_eq!(resizable_request_panel_height_bounds(500.0), (300.0, 300.0));
     }
 }

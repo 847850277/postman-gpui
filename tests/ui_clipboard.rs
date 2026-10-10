@@ -20,7 +20,9 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -142,7 +144,9 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -151,8 +155,9 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
         server.url()
     )));
     right_click(cx, "url-input").unwrap();
-    assert!(cx.debug_bounds("url-edit-menu").is_some());
-    click(cx, "url-edit-menu-paste").unwrap();
+    // Kit uses the OS menu; the headless GPUI platform cannot select NSMenu items.
+    // Exercise the same public action here; native menu interaction is checked manually.
+    cx.update(|window, cx| window.dispatch_action(Box::new(gpui_kit::component::input::Paste), cx));
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -214,7 +219,9 @@ fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -292,7 +299,9 @@ fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppCon
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -318,7 +327,9 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -351,7 +362,9 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 

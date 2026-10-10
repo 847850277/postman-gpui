@@ -182,7 +182,7 @@ impl PostmanApp {
         match target {
             GlobalSearchTarget::Request(tab_id) => {
                 self.request_workspace.update(cx, |workspace, cx| {
-                    workspace.activate_request_tab(tab_id, cx);
+                    workspace.activate_request_tab(tab_id, window, cx);
                     workspace.focus_active_request_tab(window, cx);
                 });
             }
@@ -196,7 +196,7 @@ impl PostmanApp {
                     .cloned();
                 if let Some(entry) = entry {
                     self.request_workspace.update(cx, |workspace, cx| {
-                        workspace.load_history_entry(&entry, cx);
+                        workspace.load_history_entry(&entry, window, cx);
                         workspace.focus_url(window, cx);
                     });
                 }

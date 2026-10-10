@@ -120,17 +120,21 @@ pub fn scroll_up(
 }
 
 pub fn choose_method(cx: &mut VisualTestContext, method: &str) -> Result<(), String> {
-    click(cx, "method-dropdown-button")?;
-    match method.to_ascii_lowercase().as_str() {
-        "get" => click(cx, "method-option-get"),
-        "post" => click(cx, "method-option-post"),
-        "put" => click(cx, "method-option-put"),
-        "delete" => click(cx, "method-option-delete"),
-        "patch" => click(cx, "method-option-patch"),
-        "head" => click(cx, "method-option-head"),
-        "options" => click(cx, "method-option-options"),
-        _ => Err(format!("unsupported method `{method}`")),
-    }
+    use gpui_kit::test::TestWindowExt;
+    let method = method.to_ascii_uppercase();
+    let index = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        .iter()
+        .position(|m| *m == method)
+        .ok_or_else(|| format!("unsupported method `{method}`"))?;
+    cx.update(|window, cx| window.click("method-select", cx));
+    cx.update(|window, cx| {
+        window.press("home", cx);
+        for _ in 0..index {
+            window.press("down", cx);
+        }
+        window.press("enter", cx);
+    });
+    Ok(())
 }
 
 /// Build the same Kit Root and Home-first shell as the executable; HTTP tests navigate
@@ -139,6 +143,7 @@ pub fn shell(
     window: &mut gpui::Window,
     cx: &mut gpui::Context<gpui_kit::component::Root>,
     build: impl FnOnce(
+        &mut gpui::Window,
         &mut gpui::Context<postman_gpui::app::PostmanApp>,
     ) -> postman_gpui::app::PostmanApp,
 ) -> gpui_kit::component::Root {
@@ -148,11 +153,28 @@ pub fn shell(
         postman_gpui::ui::kit::init(cx);
         cx.set_reduce_motion(true);
     }
-    let app = cx.new(build);
+    let app = cx.new(|cx| build(window, cx));
     gpui_kit::component::Root::new(app, window, cx)
 }
 
 pub fn open_http(cx: &mut VisualTestContext) {
     click(cx, "nav-http").unwrap();
     click(cx, "rail-history").unwrap();
+}
+
+/// Kit controls expose stable IDs through Kit's native test observations.
+pub fn kit_control_exists(cx: &mut VisualTestContext, id: &'static str) -> bool {
+    use gpui_kit::test::TestWindowExt;
+    cx.update(|window, cx| {
+        window.render_frame(cx);
+        window.try_find(id).is_some()
+    })
+}
+
+/// Complete native key-down/key-up pairs (Kit buttons activate on key-up).
+pub fn press(cx: &mut VisualTestContext, keys: &str) {
+    use gpui_kit::test::TestWindowExt;
+    for key in keys.split_whitespace() {
+        cx.update(|window, cx| window.press(key, cx));
+    }
 }

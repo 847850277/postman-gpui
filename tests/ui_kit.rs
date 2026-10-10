@@ -135,7 +135,7 @@ fn kit_root_preserves_existing_http_shortcuts_focused_input_and_history(cx: &mut
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_, cx) = cx.add_window_view(move |window, cx| {
-        let app = cx.new(|cx| PostmanApp::with_view_model(observed, cx));
+        let app = cx.new(|cx| PostmanApp::with_view_model(observed, window, cx));
         Root::new(app, window, cx)
     });
 

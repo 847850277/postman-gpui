@@ -154,7 +154,7 @@ pub fn request_url(
                     .appearance(false)
                     .focus_ring(false)
                     .disabled(disabled)
-                    .h(gpui::rems(1.5))
+                    .h(m::URL - gpui::rems(2. / 16.))
                     .border(px(0.))
                     .border_r_1()
                     .border_color(cx.theme().input)
@@ -162,6 +162,7 @@ pub fn request_url(
                     .w(m::METHOD_WIDTH)
                     .font_family(FONT_MONO)
                     .text_size(m::CODE)
+                    .font_weight(m::SEMIBOLD)
                     .text_color(method_color),
             ),
     )
@@ -285,4 +286,60 @@ pub fn dialog(dialog: Dialog, title: &'static str, window: &Window, cx: &App) ->
         .bg(cx.theme().background)
         .border_color(cx.theme().input)
         .shadow(theme::dialog_shadow(cx))
+}
+
+/// A Kit Base button for editors that retain a FocusHandle for cell traversal.
+/// Component Button 0.7.1 always creates its own handle; its inherited track_focus
+/// styles an outer element and cannot replace that handle. Using Base here keeps
+/// one focus target while sharing product metrics and Kit activation semantics.
+pub fn editor_button(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    cx: &App,
+) -> gpui_kit::base::Button {
+    editor_button_variant(id, label, false, cx)
+}
+
+pub fn editor_primary_button(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    cx: &App,
+) -> gpui_kit::base::Button {
+    editor_button_variant(id, label, true, cx)
+}
+
+fn editor_button_variant(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    primary: bool,
+    cx: &App,
+) -> gpui_kit::base::Button {
+    let label = label.into();
+    let hover = if primary {
+        theme::ACCENT_HOVER
+    } else {
+        theme::PANEL_ALT
+    }
+    .resolve(cx);
+    let ring = theme::ACCENT.resolve(cx);
+    gpui_kit::base::Button::new(id)
+        .accessibility_label(label.clone())
+        .h(m::CONTROL)
+        .px_3()
+        .rounded(m::RADIUS)
+        .text_size(if primary { m::BODY } else { m::LABEL })
+        .font_weight(if primary { m::SEMIBOLD } else { m::MEDIUM })
+        .text_color(
+            if primary {
+                theme::ON_ACCENT
+            } else {
+                theme::SUBTEXT
+            }
+            .resolve(cx),
+        )
+        .when(primary, |b| b.bg(theme::ACCENT.resolve(cx)))
+        .cursor_pointer()
+        .hover(move |s| s.bg(hover))
+        .focus_visible(move |s| s.border_1().border_color(ring))
+        .child(label)
 }

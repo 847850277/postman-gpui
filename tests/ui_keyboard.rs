@@ -24,7 +24,9 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -103,12 +105,13 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
-    click(cx, "method-dropdown-button").unwrap();
-    cx.simulate_keystrokes("down escape");
+    ui::choose_method(cx, "POST").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -116,10 +119,10 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
             .method()),
         HttpMethod::POST
     );
-    assert!(cx.debug_bounds("method-dropdown-menu").is_none());
+    assert!(ui::kit_control_exists(cx, "method-select"));
 
     click(cx, "request-pane-params").unwrap();
-    cx.simulate_keystrokes("right");
+    cx.simulate_keystrokes("right right right");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -183,7 +186,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         workspace.active_request().unwrap().params().len()
     });
     click(cx, "add-row-button").unwrap();
-    cx.simulate_keystrokes("enter");
+    ui::press(cx, "enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -194,7 +197,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     );
 
     // From Add: draft value, draft key, then the final row's Delete control.
-    cx.simulate_keystrokes("shift-tab shift-tab shift-tab enter");
+    ui::press(cx, "shift-tab shift-tab shift-tab enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -204,7 +207,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         initial_rows + 1
     );
     // Deletion moves focus to a surviving row toggle, so Space remains a valid next command.
-    cx.simulate_keystrokes("space");
+    ui::press(cx, "space");
     assert!(!workspace.read_with(cx, |workspace, _| workspace
         .active_request()
         .unwrap()
@@ -247,7 +250,9 @@ fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut T
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -270,7 +275,9 @@ fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppConte
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -305,4 +312,60 @@ fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppConte
             .to_string()),
         ""
     );
+}
+
+#[gpui::test]
+fn kit_url_submit_shortcuts_send_exactly_once_from_the_focused_edit(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    for (index, keys) in ["enter", "ctrl-enter", "cmd-enter"].iter().enumerate() {
+        let path = format!("/focused-{index}");
+        let request = server
+            .mock("GET", path.as_str())
+            .expect(1)
+            .with_status(200)
+            .with_body("sent once")
+            .create();
+        ui::replace_text(cx, "url-input", &format!("{}{path}", server.url())).unwrap();
+        ui::press(cx, keys);
+        cx.run_until_parked();
+        assert!(
+            matches!(
+                workspace.read_with(cx, |m, _| m.active_request().unwrap().response().clone()),
+                ResponseState::Success { status: 200, .. }
+            ),
+            "{keys}"
+        );
+        request.assert();
+    }
+}
+
+#[gpui::test]
+fn identical_urls_in_different_tabs_do_not_share_undo_history(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    let url = "https://example.test/shared-url";
+    ui::replace_text(cx, "url-input", url).unwrap();
+    click(cx, "new-tab-button").unwrap();
+    ui::replace_text(cx, "url-input", url).unwrap();
+    click(cx, "request-tab-0").unwrap();
+    click(cx, "url-input").unwrap();
+    ui::press(cx, "ctrl-z");
+    workspace.read_with(cx, |m, _| {
+        assert_eq!(m.tabs()[0].url(), url);
+        assert_eq!(m.tabs()[1].url(), url);
+    });
 }
