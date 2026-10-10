@@ -57,7 +57,7 @@ pub(super) fn render_raw_request_semantics(
 
     div()
         .debug_selector(|| "body-raw-effective-request".into())
-        .w(px(360.0))
+        .w_full()
         .flex_none()
         .min_h_0()
         .flex()

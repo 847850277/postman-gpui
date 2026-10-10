@@ -18,8 +18,9 @@ use crate::{
     },
 };
 use gpui::{
-    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
+    div, prelude::FluentBuilder, App, AppContext, Context, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription,
+    Window,
 };
 use gpui_kit::base::ElementExt;
 
@@ -36,6 +37,7 @@ pub(super) enum RequestComposerEvent {
 pub(super) struct RequestComposer {
     pub(super) view_model: Entity<WorkspaceViewModel>,
     panel_layout: Entity<RequestPanelLayout>,
+    pub(super) stacked: bool,
     pub(super) method_selector: Entity<MethodState>,
     pub(super) url_input: Entity<InputState>,
     projected_url_tab: Option<crate::app::RequestTabId>,
@@ -99,8 +101,10 @@ impl RequestComposer {
                 cx,
             )
         });
-        let authorization_pane = cx.new(|cx| AuthorizationPane::new(view_model.clone(), cx));
-        let body_pane = cx.new(|cx| BodyPane::new(view_model.clone(), panel_layout.clone(), cx));
+        let authorization_pane =
+            cx.new(|cx| AuthorizationPane::new(view_model.clone(), window, cx));
+        let body_pane =
+            cx.new(|cx| BodyPane::new(view_model.clone(), panel_layout.clone(), window, cx));
         let script_pane =
             cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, cx));
         let tests_pane =
@@ -119,6 +123,7 @@ impl RequestComposer {
         let mut composer = Self {
             view_model,
             panel_layout,
+            stacked: false,
             method_selector,
             url_input,
             projected_url_tab: None,
@@ -386,25 +391,41 @@ impl RequestComposer {
             .flex_col()
             .min_w_0()
             .bg(PANEL.resolve(cx))
+            .font_weight(gpui::FontWeight::NORMAL)
             .overflow_hidden()
-            .on_prepaint({
-                let layout = self.panel_layout.clone();
-                move |bounds, window, cx| {
-                    let height = bounds.size.height.as_f32();
-                    if (layout.read(cx).height() - height).abs() >= 0.5 {
-                        let layout = layout.clone();
-                        window.defer(cx, move |_, cx| {
-                            layout.update(cx, |layout, cx| {
-                                if layout.set_height(height) {
-                                    cx.notify();
-                                }
-                            })
-                        });
-                    }
-                }
-            })
             .child(self.render_request_menu(window, cx))
-            .child(editor)
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .flex()
+                    .flex_col()
+                    .on_prepaint({
+                        let layout = self.panel_layout.clone();
+                        move |bounds, window, cx| {
+                            let height = bounds.size.height.as_f32();
+                            let width = bounds.size.width.as_f32();
+                            if (layout.read(cx).height() - height).abs() >= 0.5
+                                || (layout.read(cx).width() - width).abs() >= 0.5
+                            {
+                                let layout = layout.clone();
+                                window.defer(cx, move |_, cx| {
+                                    layout.update(cx, |layout, cx| {
+                                        if layout.set_height(height) | layout.set_width(width) {
+                                            cx.notify();
+                                        }
+                                    })
+                                });
+                            }
+                        }
+                    })
+                    .child(editor),
+            )
+            .when(
+                !self.stacked && window.viewport_size().height >= gpui::px(700.),
+                |panel| panel.child(self.render_request_context(cx)),
+            )
             .into_any_element()
     }
 }

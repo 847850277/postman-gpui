@@ -1399,7 +1399,7 @@ fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
     choose_method(cx, "PUT").unwrap();
     type_into(cx, "url-input", &format!("{}/item", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", r#"{"a":1}"#).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -1449,7 +1449,7 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
     let url = format!("{}/patch", server.url());
     type_into(cx, "url-input", &url).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", r#"{"patched":true}"#).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
@@ -1546,7 +1546,7 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
     )
     .unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", body).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
@@ -1559,8 +1559,8 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
             RequestBody::Json(body.to_string())
         );
     });
+    ui::show_body_details(cx).unwrap();
     for selector in [
-        "body-live-saved",
         "body-effective-headers",
         "body-effective-header-content-type",
         "body-effective-header-accept",
@@ -1636,7 +1636,7 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
     choose_method(cx, "PUT").unwrap();
     type_into(cx, "url-input", &format!("{}/anything/raw", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     replace_text(cx, "body-input", body).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
@@ -1659,8 +1659,8 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
             .effective_headers()
             .is_empty());
     });
+    ui::show_body_details(cx).unwrap();
     for selector in [
-        "body-raw-live-saved",
         "body-editor-shell",
         "body-input",
         "body-raw-effective-request",
@@ -1791,7 +1791,7 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     let url = format!("{}/anything/form", server.url());
     type_into(cx, "url-input", &url).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
 
     // Precreate blank rows before entering any data. Every Add click must append exactly one row,
     // preserve all existing drafts, and remain reachable outside the scrolling viewport.
@@ -1863,9 +1863,9 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
             );
         }
     });
+    ui::show_body_details(cx).unwrap();
     for selector in [
         "body-url-encoded-editor",
-        "body-url-encoded-row-count",
         "body-form-table-header",
         "body-form-row-0",
         "body-form-row-1",
@@ -2448,6 +2448,7 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
         vec![
             KeyValueRow::enabled("X-Scenario", "httpbingo-headers"),
             KeyValueRow {
+                description: String::new(),
                 enabled: false,
                 key: "X-Disabled".to_string(),
                 value: "must-not-be-sent".to_string(),
@@ -2734,7 +2735,7 @@ fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppCon
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-sample-json").unwrap();
+    ui::body_action(cx, 0).unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -2748,7 +2749,7 @@ fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppCon
         .body()
         .contains("Ada Lovelace")));
 
-    click(cx, "body-clear-button").unwrap();
+    ui::body_action(cx, 1).unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -2799,7 +2800,7 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     for index in 0..KEY_SELECTORS.len() {
         if index > 0 {
             click(cx, "body-form-add-row").unwrap();
@@ -2850,7 +2851,7 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
     choose_method(cx, "POST").unwrap();
     type_into(cx, "url-input", &format!("{}/post", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     for expected_rows in [2, 3] {
         click(cx, "body-form-add-row").unwrap();
         let actual_rows = workspace.read_with(cx, |workspace, _| {
@@ -2869,9 +2870,8 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
     type_into(cx, "body-form-key-1", "category").unwrap();
     type_into(cx, "body-form-value-1", "gpui").unwrap();
 
+    ui::show_body_details(cx).unwrap();
     for selector in [
-        "body-multipart-live-saved",
-        "body-multipart-row-count",
         "body-multipart-editor",
         "body-multipart-effective-request",
         "body-multipart-effective-parts",
@@ -2985,7 +2985,7 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "note").unwrap();
     type_into(cx, "body-form-value-0", "hello multipart").unwrap();
     click(cx, "body-form-add-row").unwrap();
@@ -3008,6 +3008,7 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     });
     cx.run_until_parked();
 
+    ui::show_body_details(cx).unwrap();
     for selector in [
         "body-form-file-1",
         "body-form-file-name-1",
@@ -3137,7 +3138,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "enabled_note").unwrap();
     type_into(cx, "body-form-value-0", "sent").unwrap();
 
@@ -3174,6 +3175,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
         workspace.read_with(cx, |workspace, _| workspace.request_editor_intent()),
         Some(expected_intent.clone())
     );
+    ui::show_body_details(cx).unwrap();
     for selector in [
         "body-form-ready-0",
         "body-form-ready-1",
@@ -3225,7 +3227,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     });
     submitted.assert();
 
-    click(cx, "body-kind-none").unwrap();
+    ui::choose_body_kind(cx, "body-kind-none").unwrap();
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -3294,7 +3296,7 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "upload").unwrap();
     cx.simulate_keystrokes("enter");
     click(cx, "body-form-type-0").unwrap();
@@ -3345,6 +3347,7 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
                     && content_type.as_deref() == Some("text/plain")
         ));
     });
+    ui::show_body_details(cx).unwrap();
     for selector in [
         "body-multipart-file-error",
         "body-multipart-file-error-message",

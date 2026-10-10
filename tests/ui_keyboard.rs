@@ -131,8 +131,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         RequestPane::Authorization
     );
 
-    click(cx, "auth-kind-bearer").unwrap();
-    cx.simulate_keystrokes("right");
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -171,8 +170,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     );
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-raw").unwrap();
-    cx.simulate_keystrokes("right");
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -196,7 +194,10 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         initial_rows + 2
     );
 
-    // From Add: draft value, draft key, then the final row's Delete control.
+    // Reverse through the optional Description cell, then Value/Key to Delete.
+    if cx.debug_bounds("param-row-description-input-2").is_some() {
+        ui::press(cx, "shift-tab");
+    }
     ui::press(cx, "shift-tab shift-tab shift-tab enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -215,7 +216,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         .enabled));
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     let initial_form_rows = workspace.read_with(cx, |workspace, _| {
         match workspace.active_request().unwrap().body_draft() {
             RequestBodyDraft::UrlEncoded(rows) => rows.len(),

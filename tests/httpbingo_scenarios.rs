@@ -2536,7 +2536,7 @@ fn run_application_scenario(
     }
     if let Some(credentials) = &scenario.draft.basic_auth {
         click(cx, "request-pane-authorization")?;
-        click(cx, "auth-kind-basic")?;
+        ui::choose_auth_kind(cx, "auth-kind-basic")?;
         assert_basic_auth_editor_contract(cx)?;
         type_into(cx, "basic-auth-username-input", &credentials.username)?;
         let live_username = workspace.read_with(cx, |workspace, _| {
@@ -3002,10 +3002,10 @@ fn assert_json_body_editor_contract(
         ));
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-json",
-        "body-live-saved",
         "body-editor-shell",
         "body-input",
         "body-effective-headers",
@@ -3082,10 +3082,10 @@ fn assert_raw_body_editor_contract(
         return Err("Raw Body generated an unexpected Content-Type header".to_string());
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-raw",
-        "body-raw-live-saved",
         "body-editor-shell",
         "body-input",
         "body-raw-effective-request",
@@ -3144,11 +3144,10 @@ fn assert_url_encoded_body_editor_contract(
         ));
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-url-encoded",
-        "body-url-encoded-live-saved",
-        "body-url-encoded-row-count",
         "body-url-encoded-editor",
         "body-form-table-header",
         "body-form-scroll",
@@ -3298,11 +3297,10 @@ fn assert_multipart_body_editor_contract(
         }
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-form-data",
-        "body-multipart-live-saved",
-        "body-multipart-row-count",
         "body-multipart-editor",
         "body-form-table-header",
         "body-form-scroll",
@@ -4020,13 +4018,13 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
 
     match kind.to_ascii_lowercase().as_str() {
         "none" => {
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body.as_deref().is_some_and(|body| !body.is_empty()) {
                 return Err("a `none` body cannot contain a payload".to_string());
             }
         }
         "json" | "raw" => {
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             let body = draft
                 .body
                 .as_deref()
@@ -4038,8 +4036,8 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
         "url_encoded" => {
             // POST starts with a sample JSON body. Clear it through the same body-kind controls a
             // user sees, then select the key/value editor.
-            click(cx, "body-kind-none")?;
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, "body-kind-none")?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body_rows.is_empty()
                 && draft.multipart_parts.is_empty()
                 && draft.precreate_body_rows == 0
@@ -4054,8 +4052,8 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
             }
         }
         "multipart" => {
-            click(cx, "body-kind-none")?;
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, "body-kind-none")?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body_rows.is_empty()
                 && draft.multipart_parts.is_empty()
                 && draft.precreate_body_rows == 0

@@ -61,17 +61,32 @@ impl RequestComposer {
                 gpui::rgba(0)
             })
             .text_size(m::LABEL)
-            .font_weight(m::MEDIUM)
+            .font_weight(if active {
+                m::MEDIUM
+            } else {
+                gpui::FontWeight::NORMAL
+            })
             .text_color(if active { ACCENT } else { MUTED }.resolve(cx))
             .focus_visible(|s| s.bg(PANEL_ALT.resolve(cx)).border_color(ACCENT.resolve(cx)))
             .child(label)
+            .when(pane == RequestPane::Authorization, |tab| {
+                tab.child(
+                    gpui_kit::component::Icon::new(gpui_kit::assets::IconName::Lock)
+                        .size(m::SMALL_ICON),
+                )
+            })
             .when_some(count.filter(|n| *n > 0), |tab, n| {
                 tab.child(
                     div()
                         .px_1()
                         .rounded_sm()
-                        .bg(PANEL_ALT.resolve(cx))
-                        .text_size(m::CAPTION)
+                        .bg(if active {
+                            crate::ui::theme::ACCENT_SOFT
+                        } else {
+                            PANEL_ALT
+                        }
+                        .resolve(cx))
+                        .text_size(rems(9. / 16.))
                         .child(n.to_string()),
                 )
             })
@@ -106,6 +121,97 @@ impl RequestComposer {
         self.pane_tabs_scroll.scroll_to_item(next);
         self.request_pane_focus_handles[next].focus(window, cx);
         self.set_request_pane(REQUEST_PANES[next], cx);
+    }
+
+    pub(super) fn render_request_context(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::app::AuthorizationKind;
+        use crate::ui::theme::{FONT_MONO, OK};
+        use gpui_kit::{assets::IconName, component::Icon};
+        let request = self.view_model.read(cx).active_request().unwrap();
+        let url = request.effective_url();
+        let query = reqwest::Url::parse(&url)
+            .map(|url| {
+                url.query()
+                    .filter(|q| !q.is_empty())
+                    .map(|q| format!("?{q}"))
+                    .unwrap_or_else(|| "No query parameters".into())
+            })
+            .unwrap_or_else(|_| "Add a valid URL to preview query parameters".into());
+        let auth = if request.authorization_header_preview().is_none() {
+            "No auth"
+        } else if request.authorization_kind() == AuthorizationKind::Basic {
+            "Basic auth"
+        } else {
+            "Bearer token"
+        };
+        div()
+            .debug_selector(|| "request-context".into())
+            .flex_none()
+            .min_w_0()
+            .px_7()
+            .py_6()
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .mb(rems(10. / 16.))
+                    .text_size(m::CAPTION)
+                    .text_color(MUTED.resolve(cx))
+                    .child("QUERY STRING"),
+            )
+            .child(
+                div()
+                    .debug_selector(|| "effective-url-preview".into())
+                    .h(rems(46. / 16.))
+                    .flex_none()
+                    .min_w_0()
+                    .flex()
+                    .items_center()
+                    .px_3()
+                    .rounded(m::RADIUS)
+                    .border_1()
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
+                    .font_family(FONT_MONO)
+                    .text_size(rems(11. / 16.))
+                    .text_color(MUTED.resolve(cx))
+                    .child(
+                        div()
+                            .debug_selector(|| "effective-url-value".into())
+                            .truncate()
+                            .child(query),
+                    ),
+            )
+            .child(
+                kit_controls::editor_button("request-auth-summary", "", cx)
+                    .debug_selector(|| "request-auth-summary".into())
+                    .accessibility_label("Configure request authorization")
+                    .mt(rems(14. / 16.))
+                    .h(rems(14. / 16.))
+                    .p_0()
+                    .w_full()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .w_full()
+                            .gap_2()
+                            .child(
+                                Icon::new(IconName::Lock)
+                                    .size(rems(14. / 16.))
+                                    .text_color(OK.resolve(cx)),
+                            )
+                            .child(div().text_size(rems(11. / 16.)).child(auth))
+                            .child(div().flex_1())
+                            .child(div().text_size(m::CAPTION).child("Configure →")),
+                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.request_pane_focus_handles
+                            [request_pane_index(RequestPane::Authorization)]
+                        .focus(window, cx);
+                        this.set_request_pane(RequestPane::Authorization, cx);
+                    })),
+            )
     }
 
     pub(super) fn render_request_head(
@@ -263,8 +369,8 @@ impl RequestComposer {
             .flex_none()
             .flex()
             .items_center()
-            .gap_3()
-            .px_7()
+            .gap(rems(23. / 16.))
+            .mx_7()
             .border_b_1()
             .border_color(LINE.resolve(cx))
             .child(self.request_tab(RequestPane::Params, "Params", Some(params), cx))

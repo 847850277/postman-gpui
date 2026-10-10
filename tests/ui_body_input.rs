@@ -30,7 +30,7 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
     let body = "A😀中e\u{301}";
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", body).unwrap();
     click(cx, "body-input").unwrap();
     cx.simulate_keystrokes("home right shift-right cmd-c");
@@ -69,7 +69,7 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
     let body = "first 😀\n中间 e\u{301}\nlast";
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string(body.to_string()));
     click(cx, "body-input").unwrap();
     cx.simulate_keystrokes("ctrl-v");
@@ -109,13 +109,13 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
     click(cx, "body-edit-menu-copy").unwrap();
     assert_eq!(clipboard_text(cx), body);
 
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     workspace.read_with(cx, |workspace, _| {
         let request = workspace.active_request().unwrap();
         assert_eq!(request.body_kind(), BodyKind::Raw);
         assert_eq!(request.body(), body);
     });
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     workspace.read_with(cx, |workspace, _| {
         let request = workspace.active_request().unwrap();
         assert_eq!(request.body_kind(), BodyKind::Json);
@@ -135,7 +135,7 @@ fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut T
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     click(cx, "body-form-key-0").unwrap();
     cx.simulate_input("标签");
     cx.simulate_keystrokes("tab");
@@ -175,7 +175,7 @@ fn cancelling_multipart_file_selection_leaves_the_typed_row_unchanged(cx: &mut T
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     click(cx, "body-form-key-0").unwrap();
     cx.simulate_input("upload");
     cx.simulate_keystrokes("enter");

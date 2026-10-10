@@ -65,6 +65,8 @@ pub struct KeyValueRow {
     pub enabled: bool,
     pub key: String,
     pub value: String,
+    /// Optional editor note. Never participates in the outgoing request.
+    pub description: String,
 }
 
 impl KeyValueRow {
@@ -73,6 +75,7 @@ impl KeyValueRow {
             enabled: true,
             key: key.into(),
             value: value.into(),
+            description: String::new(),
         }
     }
 }
@@ -301,6 +304,7 @@ impl RequestBodyDraft {
                     parts
                         .iter()
                         .map(|part| KeyValueRow {
+                            description: String::new(),
                             enabled: part.enabled,
                             key: part.name.clone(),
                             value: match &part.value {
@@ -336,6 +340,7 @@ impl RequestBodyDraft {
 struct KeyValueDraft {
     key: String,
     value: String,
+    description: String,
 }
 
 /// Immutable normalized output shared by request previews and Send.
@@ -719,7 +724,19 @@ impl RequestDraft {
         if self.url == url {
             return false;
         }
-        self.params = parse_query_params(&url);
+        let mut previous = self.effective_params();
+        self.params = parse_query_params(&url)
+            .into_iter()
+            .map(|mut row| {
+                if let Some(index) = previous
+                    .iter()
+                    .position(|old| old.enabled && old.key == row.key)
+                {
+                    row.description = previous.remove(index).description;
+                }
+                row
+            })
+            .collect();
         self.param_draft = KeyValueDraft::default();
         self.url = url;
         true
@@ -910,10 +927,65 @@ impl RequestDraft {
         }
     }
 
+    /// Notes belong to the draft, independent of enabled flags and transport normalization.
+    pub fn row_description(&self, headers: bool, index: Option<usize>) -> &str {
+        match index {
+            Some(index) => (if headers { &self.headers } else { &self.params })
+                .get(index)
+                .map_or("", |row| row.description.as_str()),
+            None => {
+                &(if headers {
+                    &self.header_draft
+                } else {
+                    &self.param_draft
+                })
+                .description
+            }
+        }
+    }
+
+    pub fn set_row_description(
+        &mut self,
+        headers: bool,
+        index: Option<usize>,
+        value: String,
+    ) -> bool {
+        let description = match index {
+            Some(index) => {
+                let Some(row) = (if headers {
+                    &mut self.headers
+                } else {
+                    &mut self.params
+                })
+                .get_mut(index) else {
+                    return false;
+                };
+                &mut row.description
+            }
+            None => {
+                &mut (if headers {
+                    &mut self.header_draft
+                } else {
+                    &mut self.param_draft
+                })
+                .description
+            }
+        };
+        if *description == value {
+            return false;
+        }
+        *description = value;
+        true
+    }
+
     pub fn append_param_row(&mut self) -> bool {
         let draft = std::mem::take(&mut self.param_draft);
-        self.params
-            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.params.push(KeyValueRow {
+            enabled: true,
+            key: draft.key,
+            value: draft.value,
+            description: draft.description,
+        });
         self.sync_url_from_params();
         true
     }
@@ -926,8 +998,12 @@ impl RequestDraft {
         if draft.key.eq_ignore_ascii_case("accept") {
             self.accept_source = ManagedHeaderSource::User;
         }
-        self.headers
-            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.headers.push(KeyValueRow {
+            enabled: true,
+            key: draft.key,
+            value: draft.value,
+            description: draft.description,
+        });
         true
     }
 
@@ -1213,10 +1289,12 @@ impl RequestDraft {
     fn effective_params(&self) -> Vec<KeyValueRow> {
         let mut params = self.params.clone();
         if !self.param_draft.key.trim().is_empty() {
-            params.push(KeyValueRow::enabled(
-                self.param_draft.key.clone(),
-                self.param_draft.value.clone(),
-            ));
+            params.push(KeyValueRow {
+                enabled: true,
+                key: self.param_draft.key.clone(),
+                value: self.param_draft.value.clone(),
+                description: self.param_draft.description.clone(),
+            });
         }
         params
     }
@@ -1428,6 +1506,27 @@ mod tests {
     }
 
     #[test]
+    fn descriptions_are_draft_only_and_follow_duplicate_query_occurrences() {
+        let mut draft = super::RequestDraft::new();
+        draft.set_url("https://example.test/users?tag=first&tag=second");
+        let before = draft.construct().request().clone();
+        draft.set_row_description(false, Some(0), "First tag".into());
+        draft.set_row_description(false, Some(1), "Second tag".into());
+        assert_eq!(draft.construct().request(), &before);
+        draft.set_url("https://example.test/other?tag=changed&tag=second#anchor");
+        assert_eq!(draft.params()[0].description, "First tag");
+        assert_eq!(draft.params()[1].description, "Second tag");
+        draft.remove_param(0);
+        assert_eq!(draft.params()[0].description, "Second tag");
+        draft.set_param_draft_key("page");
+        draft.set_param_draft_value("1");
+        draft.set_row_description(false, None, "Page number".into());
+        draft.append_param_row();
+        assert_eq!(draft.params()[1].description, "Page number");
+        assert_eq!(draft.row_description(false, None), "");
+    }
+
+    #[test]
     fn draft_builds_and_validates_without_a_workspace() {
         let mut draft = RequestDraft::new();
         assert_eq!(draft.build().unwrap_err(), RequestDraftError::UrlEmpty);
@@ -1589,6 +1688,7 @@ mod tests {
                     draft.set_url_encoded_rows(vec![
                         KeyValueRow::enabled("name", "Ada Lovelace"),
                         KeyValueRow {
+                            description: String::new(),
                             enabled: false,
                             key: "disabled".to_string(),
                             value: "omitted".to_string(),

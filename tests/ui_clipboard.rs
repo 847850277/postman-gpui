@@ -70,7 +70,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
             .unwrap()
             .bearer_token()
             .to_string()),
-        ""
+        "clipboard-token"
     );
     cx.simulate_keystrokes("cmd-v");
     assert_eq!(
@@ -83,7 +83,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string(
         "{\n  \"copied\": true\n}".to_string(),
     ));
@@ -99,7 +99,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
     assert_eq!(clipboard_text(cx), "{\n  \"copied\": true\n}");
 
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     click(cx, "body-input").unwrap();
     cx.simulate_keystrokes("ctrl-a ctrl-x");
     cx.write_to_clipboard(ClipboardItem::new_string("raw clipboard body".to_string()));
@@ -114,7 +114,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
     assert_eq!(clipboard_text(cx), "raw clipboard body");
 
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("pizza".to_string()));
     click(cx, "body-form-key-0").unwrap();
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c tab");
@@ -334,7 +334,7 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("menu\nkey".to_string()));
     right_click(cx, "body-form-key-0").unwrap();
     assert!(cx.debug_bounds("body-edit-menu").is_some());
@@ -369,7 +369,7 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     ui::open_http(cx);
 
     click(cx, "request-pane-authorization").unwrap();
-    click(cx, "auth-kind-basic").unwrap();
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("pässword-🔐".to_string()));
     click(cx, "basic-auth-password-input").unwrap();
     cx.simulate_keystrokes("ctrl-v");

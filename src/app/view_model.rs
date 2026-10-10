@@ -430,6 +430,14 @@ impl RequestViewModel {
         }
     }
 
+    pub fn set_row_description(&mut self, pane: RequestPane, index: Option<usize>, value: String) {
+        if matches!(pane, RequestPane::Params | RequestPane::Headers) {
+            self.edit_draft(|draft| {
+                draft.set_row_description(pane == RequestPane::Headers, index, value)
+            });
+        }
+    }
+
     /// Preserves the current Params row and appends one fresh Key/Value row.
     ///
     /// Empty rows are intentional and there is no row limit: every call appends exactly one row,
@@ -2028,6 +2036,7 @@ mod tests {
         let rows = vec![
             KeyValueRow::enabled("tag", "rust"),
             KeyValueRow {
+                description: String::new(),
                 enabled: false,
                 key: "ignored".to_string(),
                 value: "draft-only".to_string(),

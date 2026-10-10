@@ -156,6 +156,12 @@ impl RequestWorkspace {
             self.cancel_split_drag(window, cx);
             self.split.stacked = stacked;
         }
+        self.composer.update(cx, |composer, cx| {
+            if composer.stacked != stacked {
+                composer.stacked = stacked;
+                cx.notify();
+            }
+        });
         self.response_viewer.update(cx, |viewer, cx| {
             viewer.set_stacked(stacked, cx);
         });
@@ -290,7 +296,24 @@ impl RequestWorkspace {
                         .items_center()
                         .text_size(m::LABEL)
                         .text_color(SUBTEXT.resolve(cx))
-                        .child("Request"),
+                        .gap_2()
+                        .child(
+                            gpui_kit::component::Icon::new(gpui_kit::assets::IconName::Terminal)
+                                .size(m::SMALL_ICON),
+                        )
+                        .child(
+                            div()
+                                .font_weight(m::MEDIUM)
+                                .text_color(crate::ui::theme::TEXT.resolve(cx))
+                                .child("Request"),
+                        )
+                        .child(div().flex_1())
+                        .child(
+                            div()
+                                .font_family(crate::ui::theme::FONT_MONO)
+                                .text_size(m::CAPTION)
+                                .child("HTTP"),
+                        ),
                 )
             })
             .child(

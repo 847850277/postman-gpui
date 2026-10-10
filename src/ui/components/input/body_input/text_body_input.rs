@@ -6,7 +6,7 @@ use crate::ui::{
             self as multiline, MultilineInputHost, MultilineInputState, MultilineTextElement,
         },
     },
-    theme::{CODE_BG, CODE_TEXT, FONT_MONO, INFO, LINE},
+    theme::{CODE_BG, FONT_MONO, INFO, LINE},
 };
 use gpui::{
     div, prelude::FluentBuilder, px, App, Bounds, Context, CursorStyle, EntityInputHandler,
@@ -34,7 +34,7 @@ impl TextBodyInput {
     pub(super) fn new(cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            input: MultilineInputState::new("Enter JSON body here..."),
+            input: MultilineInputState::new("Enter request body…"),
         }
     }
 
@@ -221,7 +221,7 @@ impl Render for TextBodyInput {
                     .h_full()
                     .min_h_0()
                     .px_3()
-                    .py_2()
+                    .py_3()
                     .when(scrollbar.is_some(), |editor| editor.pr(px(20.0)))
                     .bg(CODE_BG.resolve(cx))
                     .border_1()
@@ -230,10 +230,11 @@ impl Render for TextBodyInput {
                     } else {
                         LINE.resolve(cx)
                     })
-                    .rounded_lg()
+                    .rounded(crate::ui::theme::metrics::RADIUS)
                     .font_family(FONT_MONO)
-                    .text_size(px(13.0))
-                    .text_color(CODE_TEXT.resolve(cx))
+                    .text_size(crate::ui::theme::metrics::CODE)
+                    .line_height(gpui::relative(crate::ui::theme::metrics::CODE_LINE_HEIGHT))
+                    .text_color(crate::ui::theme::CODE_STRING.resolve(cx))
                     .cursor(CursorStyle::IBeam)
                     .track_focus(&self.focus_handle(cx))
                     .key_context("BodyInput")

@@ -401,7 +401,8 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
     let status = cx.debug_bounds("authorization-status").unwrap();
     assert!(kind.origin.y >= panel.origin.y);
     let input = cx.debug_bounds("authorization-input").unwrap();
-    assert!(kind.bottom() <= input.origin.y);
+    assert!(kind.right() < input.left());
+    assert_eq!(kind.bottom(), input.bottom());
     assert!(input.size.width > px(0.));
     assert!(input.bottom() <= status.origin.y);
     assert!(status.bottom() <= panel.bottom());
@@ -449,9 +450,10 @@ fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut T
     assert!(kind.origin.y >= panel.origin.y);
     let username = cx.debug_bounds("basic-auth-username-input").unwrap();
     let password = cx.debug_bounds("basic-auth-password-input").unwrap();
-    assert!(kind.bottom() <= username.origin.y);
-    assert_eq!(username.origin.y, password.origin.y);
-    assert!(username.right() <= password.origin.x);
+    assert!(kind.right() < username.left());
+    assert_eq!(kind.bottom(), username.bottom());
+    assert!(username.bottom() < password.top());
+    assert_eq!(username.left(), password.left());
     assert!(username.size.width > px(0.));
     assert!(password.size.width > px(0.));
     assert!(password.bottom() <= status.origin.y);
@@ -503,6 +505,7 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
         })
     });
     ui::open_http(cx);
+    ui::show_body_details(cx).unwrap();
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -519,7 +522,6 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
 
     for selector in [
         "body-kind-json",
-        "body-live-saved",
         "body-input",
         "body-effective-header-content-type",
         "body-effective-header-accept",
@@ -531,10 +533,10 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
         );
     }
     assert!(panel.size.height > px(180.));
-    assert_eq!(kinds.size.height, px(44.0));
+    assert_eq!(kinds.size.height, px(55.0));
     assert!(kinds.origin.y >= panel.origin.y);
     assert!(editor.origin.y >= kinds.bottom());
-    assert!(editor.origin.x < headers.origin.x);
+    assert!(editor.bottom() <= headers.top());
     assert!(editor.bottom() <= panel.bottom());
     assert!(headers.bottom() <= panel.bottom());
     assert!(cx
@@ -578,6 +580,15 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     let text_thumb = cx
         .debug_bounds("body-text-scrollbar-thumb")
         .expect("the JSON body scrollbar should expose its thumb");
+    assert!(text_thumb.origin.y >= text_scrollbar.origin.y);
+    assert!(text_thumb.bottom() <= text_scrollbar.bottom());
+    assert!(text_thumb.size.height < text_scrollbar.size.height);
+    scroll_down(cx, "body-text-scroll", 90.0).unwrap();
+    let text_thumb_after = cx
+        .debug_bounds("body-text-scrollbar-thumb")
+        .expect("the JSON body scrollbar should remain visible after scrolling");
+    assert!(text_thumb_after.origin.y > text_thumb.origin.y);
+    ui::show_body_details(cx).unwrap();
     let headers_scrollbar = cx
         .debug_bounds("body-effective-headers-scrollbar")
         .expect("many effective headers should expose a visible scrollbar");
@@ -585,18 +596,11 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
         .debug_bounds("body-effective-headers-scrollbar-thumb")
         .expect("the effective-header scrollbar should expose its thumb");
 
-    assert!(text_thumb.origin.y >= text_scrollbar.origin.y);
-    assert!(text_thumb.bottom() <= text_scrollbar.bottom());
-    assert!(text_thumb.size.height < text_scrollbar.size.height);
     assert!(headers_thumb.origin.y >= headers_scrollbar.origin.y);
     assert!(headers_thumb.bottom() <= headers_scrollbar.bottom());
     assert!(headers_thumb.size.height < headers_scrollbar.size.height);
 
-    scroll_down(cx, "body-text-scroll", 90.0).unwrap();
     scroll_down(cx, "body-effective-headers-scroll", 90.0).unwrap();
-    let text_thumb_after = cx
-        .debug_bounds("body-text-scrollbar-thumb")
-        .expect("the JSON body scrollbar should remain visible after scrolling");
     let headers_thumb_after = cx
         .debug_bounds("body-effective-headers-scrollbar-thumb")
         .expect("the effective-header scrollbar should remain visible after scrolling");
@@ -637,6 +641,7 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         })
     });
     ui::open_http(cx);
+    ui::show_body_details(cx).unwrap();
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -662,7 +667,6 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
 
     for selector in [
         "body-kind-raw",
-        "body-raw-live-saved",
         "body-input",
         "body-raw-generated-header-count",
         "body-raw-effective-body",
@@ -681,9 +685,9 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         .is_empty()));
 
     assert!(panel.size.height > px(180.));
-    assert_eq!(kinds.size.height, px(44.0));
+    assert_eq!(kinds.size.height, px(55.0));
     assert!(editor.origin.y >= kinds.bottom());
-    assert!(editor.origin.x < semantics.origin.x);
+    assert!(editor.bottom() <= semantics.top());
     assert!(editor.bottom() <= panel.bottom());
     assert!(content_type.origin.y >= semantics.origin.y);
     assert!(content_type.bottom() <= exact_body.origin.y);
@@ -715,6 +719,7 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
         })
     });
     ui::open_http(cx);
+    ui::show_body_details(cx).unwrap();
     click(cx, "response-layout-toggle").unwrap();
     let initial_height = cx.debug_bounds("request-panel").unwrap().size.height;
 
@@ -770,7 +775,7 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
     let footer_after = cx
         .debug_bounds("body-raw-semantics-footer")
         .expect("the Raw footer should remain visible after scrolling");
-    assert!(thumb_after.origin.y > thumb.origin.y);
+    assert!(thumb_after.origin.y > thumb.origin.y, "rows={rows:?} bar={scrollbar:?} before={thumb:?} after={thumb_after:?} ready={ready_after:?}");
     assert!(ready_after.bottom() <= rows.bottom());
     assert_eq!(footer_after.origin.y, footer.origin.y);
 }
@@ -808,6 +813,7 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
         })
     });
     ui::open_http(cx);
+    ui::show_body_details(cx).unwrap();
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -836,7 +842,6 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
 
     for selector in [
         "body-kind-url-encoded",
-        "body-url-encoded-live-saved",
         "body-form-toggle-0",
         "body-form-key-0",
         "body-form-value-0",
@@ -860,7 +865,7 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
         .expect("Accept preview should render");
 
     assert!(panel.size.height > px(180.));
-    assert_eq!(kinds.size.height, px(44.0));
+    assert_eq!(kinds.size.height, px(55.0));
     assert!(editor.origin.y >= kinds.bottom());
     assert!(table.origin.y >= editor.origin.y);
     assert!(first_row.origin.y >= table.bottom());
@@ -898,6 +903,7 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
         })
     });
     ui::open_http(cx);
+    ui::show_body_details(cx).unwrap();
 
     let initial_panel = cx
         .debug_bounds("request-panel")
@@ -968,7 +974,7 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
     assert!(effective.origin.y >= add_action.bottom());
     assert!(ready.origin.y >= effective.bottom());
     assert!(cx.debug_bounds("body-form-add-row-hint").is_some());
-    assert!(cx.debug_bounds("body-url-encoded-row-count").is_some());
+    assert!(cx.debug_bounds("body-url-encoded-field-count").is_some());
 
     scroll_down(cx, "body-form-scroll", 90.0).unwrap();
     let add_after_scroll = cx
@@ -1247,11 +1253,18 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
         assert!(cx.debug_bounds(track).is_none());
 
         cx.simulate_window_resize(handle, gpui::size(px(1440.), px(short_height)));
+        let mut adjusted_height = px(short_height);
+        // Crossing the compact section-heading breakpoint needs a second measured frame.
+        for _ in 0..3 {
+            let clipped = cx.debug_bounds(scroll).unwrap().size.height;
+            adjusted_height += content_height - row_height / 2. - clipped;
+            cx.simulate_window_resize(handle, gpui::size(px(1440.), adjusted_height));
+        }
         let viewport = cx.debug_bounds(scroll).unwrap();
         assert!(viewport.size.height < content_height);
         assert!(
             viewport.size.height > content_height - row_height,
-            "last row should be partially visible"
+            "{pane}: partial row viewport={viewport:?}, content={content_height:?}, adjusted_height={adjusted_height:?}"
         );
         assert!(
             cx.debug_bounds(track).is_some(),
@@ -1302,7 +1315,7 @@ fn kit_request_editor_fits_minimum_window_in_both_themes_and_scales(cx: &mut Tes
                 ] {
                     click(cx, pane).unwrap();
                     if pane == "request-pane-body" {
-                        click(cx, "body-kind-json").unwrap();
+                        ui::choose_body_kind(cx, "body-kind-json").unwrap();
                     }
                     let footer = cx.debug_bounds("status-bar").unwrap();
                     let panel = cx.debug_bounds("request-panel").unwrap();

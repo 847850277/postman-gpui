@@ -137,6 +137,60 @@ pub fn choose_method(cx: &mut VisualTestContext, method: &str) -> Result<(), Str
     Ok(())
 }
 
+/// Select through the real Kit popup, including its keyboard confirmation path.
+pub fn choose_body_kind(cx: &mut VisualTestContext, kind: &'static str) -> Result<(), String> {
+    let index = [
+        "body-kind-none",
+        "body-kind-form-data",
+        "body-kind-url-encoded",
+        "body-kind-raw",
+        "body-kind-json",
+    ]
+    .iter()
+    .position(|candidate| *candidate == kind)
+    .ok_or_else(|| format!("unknown body kind {kind}"))?;
+    choose_option(cx, "body-kind-select", index);
+    Ok(())
+}
+pub fn choose_auth_kind(cx: &mut VisualTestContext, kind: &'static str) -> Result<(), String> {
+    let index = ["auth-kind-bearer", "auth-kind-basic"]
+        .iter()
+        .position(|candidate| *candidate == kind)
+        .ok_or_else(|| format!("unknown auth kind {kind}"))?;
+    choose_option(cx, "authorization-kind-select", index);
+    Ok(())
+}
+pub fn choose_option(cx: &mut VisualTestContext, selector: &'static str, index: usize) {
+    use gpui_kit::test::TestWindowExt;
+    let labels: &[&str] = if selector == "body-kind-select" {
+        &["None", "Form data", "URL encoded", "Raw", "JSON"]
+    } else {
+        &["Bearer token", "Basic auth"]
+    };
+    let current = cx.update(|window, _| {
+        let observed = window.find(selector);
+        labels
+            .iter()
+            .position(|label| Some(*label) == observed.value())
+            .unwrap()
+    });
+    cx.update(|window, cx| window.click(selector, cx));
+    for _ in 0..index.abs_diff(current) {
+        press(cx, if index > current { "down" } else { "up" });
+    }
+    press(cx, "enter");
+    cx.run_until_parked();
+}
+pub fn body_action(cx: &mut VisualTestContext, index: usize) -> Result<(), String> {
+    click(cx, "body-actions")?;
+    press(cx, "down");
+    for _ in 0..index {
+        press(cx, "down");
+    }
+    press(cx, "enter");
+    Ok(())
+}
+
 /// Build the same Kit Root and Home-first shell as the executable; HTTP tests navigate
 /// through visible controls explicitly rather than substituting a test-only start route.
 pub fn shell(
@@ -177,4 +231,12 @@ pub fn press(cx: &mut VisualTestContext, keys: &str) {
     for key in keys.split_whitespace() {
         cx.update(|window, cx| window.press(key, cx));
     }
+}
+
+/// Diagnostics are a deliberate disclosure, not a permanent sibling of the editor.
+pub fn show_body_details(cx: &mut VisualTestContext) -> Result<(), String> {
+    if cx.debug_bounds("body-details").is_none() {
+        click(cx, "body-details-toggle")?;
+    }
+    Ok(())
 }

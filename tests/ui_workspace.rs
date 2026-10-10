@@ -128,7 +128,7 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     click(cx, "request-pane-authorization").unwrap();
     type_into(cx, "authorization-input", "tab-b-e2e-token").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", tab_b_body).unwrap();
 
     workspace.read_with(cx, |workspace, _| {
@@ -292,7 +292,7 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
     click(cx, "request-pane-authorization").unwrap();
     type_into(cx, "authorization-input", "first-token").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", r#"{"tab":1}"#).unwrap();
     click(cx, "request-pane-scripts").unwrap();
     type_into(cx, "script-editor", "prepare-first()").unwrap();
@@ -308,11 +308,11 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
     type_into(cx, "row-key-input", "X-Second").unwrap();
     type_into(cx, "row-value-input", "header-two").unwrap();
     click(cx, "request-pane-authorization").unwrap();
-    click(cx, "auth-kind-basic").unwrap();
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     type_into(cx, "basic-auth-username-input", "second-user").unwrap();
     type_into(cx, "basic-auth-password-input", "second-pass").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     replace_text(cx, "body-input", "second-body").unwrap();
     click(cx, "request-pane-scripts").unwrap();
     type_into(cx, "script-editor", "prepare-second()").unwrap();
@@ -635,7 +635,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     type_into(cx, "body-form-key-0", "tag").unwrap();
     type_into(cx, "body-form-value-0", "rust 你好").unwrap();
 
@@ -659,6 +659,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
             &RequestBodyDraft::UrlEncoded(vec![
                 KeyValueRow::enabled("tag", "rust 你好"),
                 KeyValueRow {
+                    description: String::new(),
                     enabled: false,
                     key: "ignored".to_string(),
                     value: "draft-only".to_string(),
@@ -715,7 +716,7 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "note").unwrap();
     type_into(cx, "body-form-value-0", "hello").unwrap();
 
@@ -981,7 +982,7 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
 
     type_into(cx, "url-input", &format!("{}/basic-auth", server.url())).unwrap();
     click(cx, "request-pane-authorization").unwrap();
-    click(cx, "auth-kind-basic").unwrap();
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     for selector in [
         "authorization-kind-selector",
         "basic-auth-credentials",

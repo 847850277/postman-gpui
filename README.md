@@ -84,7 +84,14 @@ Home/End, and Escape to cancel a drag. Enter opens the same **Panel sizes** dial
 as the toolbar button. Each arrangement's ratio and the explicit layout preference
 are saved locally; an invalid/unavailable preference file falls back to a usable session.
 
-Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout` for navigation, in-flight
+Params and Headers include editable Description notes, retained in the current tab's draft
+and excluded from the outgoing request. History replays the effective request; it does not
+persist these notes. Wide layouts share a Query String preview and an authorization shortcut
+across request panes. Body formats use a Kit dropdown; **Details** expands the effective
+request preview, and the actions menu contains Sample JSON and Clear body. Auth places its
+scheme selector beside the credential fields, with both bearer tokens and passwords masked.
+
+Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout --test ui_request_panels` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through
 1920 × 1080 in both themes. `tests/ui_visual_compare.py` compares captured HTML/native
 control regions with separate color and text-antialiasing tolerances; its module

@@ -763,6 +763,7 @@ fn apply_draft(
                     .body_rows
                     .iter()
                     .map(|row| postman_gpui::app::KeyValueRow {
+                        description: String::new(),
                         enabled: row.enabled,
                         key: row.key.clone(),
                         value: row.value.clone(),

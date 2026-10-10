@@ -232,7 +232,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     click(cx, "request-pane-authorization").unwrap();
     type_into(cx, "authorization-input", "Bearer history-e2e-token").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", json_body).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -426,7 +426,7 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     click(cx, "request-pane-authorization").unwrap();
     type_into(cx, "authorization-input", "Bearer bearer-secret").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", json_body).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -590,7 +590,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     choose_method(cx, "POST").unwrap();
     type_into(cx, "url-input", &format!("{}/raw-replay", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     replace_text(cx, "body-input", raw_body).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -599,7 +599,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     choose_method(cx, "POST").unwrap();
     type_into(cx, "url-input", &format!("{}/form-replay", server.url())).unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     type_into(cx, "body-form-key-0", "name").unwrap();
     type_into(cx, "body-form-value-0", "Ada Lovelace").unwrap();
     click(cx, "body-form-add-row").unwrap();
@@ -743,7 +743,7 @@ fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &m
     )
     .unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "note").unwrap();
     type_into(cx, "body-form-value-0", "persisted multipart").unwrap();
 
@@ -848,7 +848,7 @@ fn missing_multipart_file_after_restart_uses_the_normal_validation_error(
     )
     .unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-form-data").unwrap();
+    ui::choose_body_kind(cx, "body-kind-form-data").unwrap();
     type_into(cx, "body-form-key-0", "upload").unwrap();
     click(cx, "body-form-type-0").unwrap();
     click(cx, "body-form-file-0").unwrap();
@@ -1415,7 +1415,7 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     click(cx, "request-pane-authorization").unwrap();
     type_into(cx, "authorization-input", "Bearer bearer-secret").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", body).unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -1431,7 +1431,7 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     )
     .unwrap();
     click(cx, "request-pane-authorization").unwrap();
-    click(cx, "auth-kind-basic").unwrap();
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     type_into(cx, "basic-auth-username-input", "security-user").unwrap();
     type_into(cx, "basic-auth-password-input", "security-pass").unwrap();
     click(cx, "send-button").unwrap();
