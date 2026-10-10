@@ -19,8 +19,10 @@ fn clipboard_text(cx: &TestAppContext) -> String {
 fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     cx.write_to_clipboard(ClipboardItem::new_string(
         "https://clipboard.example/items".to_string(),
@@ -139,8 +141,10 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     cx.write_to_clipboard(ClipboardItem::new_string(format!(
         "{}/clipboard",
@@ -209,8 +213,10 @@ fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     assert!(
         cx.debug_bounds("response-copy-button").is_none(),
@@ -285,8 +291,10 @@ fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppCon
     let response = server.mock("GET", "/no-content").with_status(204).create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     cx.write_to_clipboard(ClipboardItem::new_string(format!(
         "{}/no-content",
@@ -309,8 +317,10 @@ fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppCon
 fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-url-encoded").unwrap();
@@ -340,8 +350,10 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
 ) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-authorization").unwrap();
     click(cx, "auth-kind-basic").unwrap();

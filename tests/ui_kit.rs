@@ -139,6 +139,7 @@ fn kit_root_preserves_existing_http_shortcuts_focused_input_and_history(cx: &mut
         Root::new(app, window, cx)
     });
 
+    ui::open_http(cx);
     cx.write_to_clipboard(ClipboardItem::new_string(format!("{}/kit", server.url())));
     cx.simulate_keystrokes("ctrl-l ctrl-a ctrl-v ctrl-enter");
     cx.run_until_parked();

@@ -6,7 +6,7 @@ use crate::ui::{
     theme::INFO,
 };
 use gpui::{
-    actions, fill, hsla, point, px, relative, size, App, Bounds, ClipboardItem, Context, Element,
+    actions, fill, point, px, relative, size, App, Bounds, ClipboardItem, Context, Element,
     ElementId, ElementInputHandler, Entity, EntityInputHandler, FocusHandle, GlobalElementId,
     IntoElement, LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
     ShapedLine, SharedString, Style, TextAlign, TextRun, UTF16Selection, Window,
@@ -793,7 +793,10 @@ impl<H: SingleLineInputHost> Element for SingleLineTextElement<H> {
         let cursor = input.editor.selection().cursor().utf8();
         let style = window.text_style();
         let (display_text, color) = if content_empty {
-            (input.placeholder().clone(), hsla(0., 0., 0., 0.4))
+            (
+                input.placeholder().clone(),
+                crate::ui::theme::MUTED.resolve(cx).into(),
+            )
         } else {
             (input.display_text(), style.color)
         };

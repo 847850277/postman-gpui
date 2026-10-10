@@ -55,9 +55,12 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     workspace.read_with(cx, |workspace, _| {
@@ -129,9 +132,12 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let sent_url = format!("{}/ok?api_key=history-secret", server.url());
@@ -204,9 +210,12 @@ fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     type_into(
@@ -275,9 +284,12 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let (binary_index, truncated_index) = workspace.read_with(cx, |workspace, _| {
@@ -339,9 +351,12 @@ fn corrupt_database_shows_unavailable_state_without_an_in_memory_fallback(cx: &m
     std::fs::write(&database_path, b"this is not a SQLite database").unwrap();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     workspace.read_with(cx, |workspace, _| {

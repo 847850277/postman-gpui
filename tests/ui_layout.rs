@@ -16,8 +16,10 @@ use ui::{click, scroll_down};
 fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let top_header = cx
         .debug_bounds("top-header")
@@ -48,7 +50,7 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
         "response panel should render"
     );
 
-    assert_eq!(top_header.size.height, px(72.0));
+    assert_eq!(top_header.size.height, px(52.0));
     assert_eq!(left_rail.size.width, px(72.0));
     assert_eq!(history.size.width, px(260.0));
     assert_eq!(request_tabs.size.height, px(54.0));
@@ -64,8 +66,10 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
 fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let resize_handle = cx
         .debug_bounds("history-resize-handle")
@@ -125,8 +129,10 @@ fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
 fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let initial_request = cx
         .debug_bounds("request-panel")
@@ -210,8 +216,10 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
 fn method_menu_opens_directly_below_its_button(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let button = cx
         .debug_bounds("method-dropdown-button")
@@ -257,9 +265,12 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
         .unwrap();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let panel = cx
@@ -324,8 +335,10 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -366,8 +379,10 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -429,8 +444,10 @@ fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut T
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -507,8 +524,10 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -573,8 +592,10 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let text_scrollbar = cx
@@ -636,8 +657,10 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -714,8 +737,10 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let resize_handle = cx
         .debug_bounds("response-resize-handle")
@@ -804,8 +829,10 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
@@ -890,8 +917,10 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let initial_panel = cx
         .debug_bounds("request-panel")
@@ -987,8 +1016,10 @@ fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mu
             request.set_request_pane(RequestPane::Body);
             workspace
         });
-        let (_app, cx) =
-            cx.add_window_view(move |_, cx| PostmanApp::with_view_model(workspace, cx));
+        let (_app, cx) = cx.add_window_view(move |window, cx| {
+            ui::shell(window, cx, |cx| PostmanApp::with_view_model(workspace, cx))
+        });
+        ui::open_http(cx);
         let initial = cx.debug_bounds("request-panel").unwrap().size.height;
         for _ in 0..4 {
             click(cx, "body-form-add-row").unwrap();
@@ -1022,8 +1053,10 @@ fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mu
 fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let initial_panel = cx
         .debug_bounds("request-panel")
@@ -1106,8 +1139,10 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
         workspace
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let initial_panel = cx
         .debug_bounds("request-panel")

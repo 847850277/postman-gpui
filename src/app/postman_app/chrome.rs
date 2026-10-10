@@ -1,15 +1,50 @@
-use super::{PostmanApp, LEFT_RAIL_WIDTH};
+use super::{navigation::AppRoute, PostmanApp};
 use crate::{
-    app::{ActivateControl, NewRequest, ToggleShortcutHelp},
-    ui::theme::{
-        ACCENT, ACCENT_DARK, ACCENT_SOFT, ACCENT_VIVID, FONT_HEADING, FONT_UI, INFO, INFO_SOFT,
-        LINE, PANEL, PANEL_ALT, SUBTEXT, TEXT,
+    app::{NewRequest, ToggleShortcutHelp},
+    ui::{
+        components::kit_controls,
+        theme::{metrics as m, ACCENT, ACCENT_SOFT, BG, LINE, MUTED, SIDEBAR, SUBTEXT, TEXT},
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, Context, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Role, StatefulInteractiveElement, Styled, Window,
+    div, prelude::FluentBuilder, App, Context, InteractiveElement, IntoElement, ParentElement,
+    Styled, Window,
 };
+use gpui_kit::{
+    assets::IconName,
+    component::{
+        button::{Button, ButtonVariants},
+        Icon, TitleBar,
+    },
+};
+
+fn rail_button(
+    id: &'static str,
+    label: &'static str,
+    icon: IconName,
+    selected: bool,
+    cx: &App,
+) -> Button {
+    Button::new(id)
+        .ghost()
+        .debug_selector(move || id.into())
+        .accessibility_label(label)
+        .toggled(selected)
+        .w_full()
+        .h(gpui::rems(3.5))
+        .p_1()
+        .bg(if selected { ACCENT_SOFT } else { SIDEBAR }.resolve(cx))
+        .text_color(if selected { ACCENT } else { MUTED }.resolve(cx))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap_1()
+                .child(Icon::new(icon).size(m::ICON))
+                .child(div().text_size(m::CAPTION).child(label)),
+        )
+}
 
 impl PostmanApp {
     pub(super) fn render_top_header(
@@ -17,216 +52,220 @@ impl PostmanApp {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let cookie_count = self.view_model.read(cx).cookie_count();
-        let cookie_jar_open = self.cookie_jar_open;
         div()
             .debug_selector(|| "top-header".into())
-            .h(px(72.0))
+            .flex_none()
+            .child(
+                TitleBar::new()
+                    .h(m::TITLEBAR)
+                    .bg(BG.resolve(cx))
+                    .border_color(LINE.resolve(cx))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .text_size(m::BODY)
+                            .text_color(TEXT.resolve(cx))
+                            .child(div().font_weight(m::SEMIBOLD).child("Postman"))
+                            .child(
+                                div()
+                                    .px_1()
+                                    .border_1()
+                                    .border_color(LINE.resolve(cx))
+                                    .rounded_sm()
+                                    .text_size(m::CAPTION)
+                                    .text_color(SUBTEXT.resolve(cx))
+                                    .child("GPUI"),
+                            )
+                            .child(
+                                div()
+                                    .ml_3()
+                                    .pl_4()
+                                    .border_l_1()
+                                    .border_color(LINE.resolve(cx))
+                                    .text_size(m::LABEL)
+                                    .text_color(MUTED.resolve(cx))
+                                    .child(self.route.label()),
+                            ),
+                    )
+                    .child(div().mr_3().child(self.render_global_search(window, cx))),
+            )
+    }
+
+    pub(super) fn render_left_rail(
+        &self,
+        _window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        div()
+            .id("left-rail")
+            .debug_selector(|| "left-rail".into())
+            .w(m::RAIL)
+            .h_full()
             .flex_none()
             .flex()
+            .flex_col()
             .items_center()
-            .px_5()
-            .bg(PANEL.resolve(cx))
-            .border_b_1()
+            .gap_1()
+            .p_2()
+            .bg(SIDEBAR.resolve(cx))
+            .border_r_1()
             .border_color(LINE.resolve(cx))
+            .children(
+                [
+                    (AppRoute::Home, "nav-home", "Home", IconName::House),
+                    (AppRoute::Http, "nav-http", "HTTP", IconName::Terminal),
+                    (AppRoute::Flows, "nav-flows", "Flows", IconName::Workflow),
+                ]
+                .into_iter()
+                .map(|(route, id, label, icon)| {
+                    rail_button(id, label, icon, self.route == route, cx).on_click(
+                        cx.listener(move |this, _, window, cx| this.navigate(route, window, cx)),
+                    )
+                }),
+            )
+            .when(self.route == AppRoute::Http, |rail| {
+                rail.child(
+                    div()
+                        .w_6()
+                        .my_2()
+                        .border_t_1()
+                        .border_color(LINE.resolve(cx)),
+                )
+                .child(
+                    kit_controls::icon_button("rail-new-request", IconName::Plus, "New request")
+                        .debug_selector(|| "rail-new-request".into())
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.new_request_command(&NewRequest, window, cx)
+                        })),
+                )
+                .child(
+                    rail_button(
+                        "rail-history",
+                        "History",
+                        IconName::RotateCcw,
+                        self.history_panel_open,
+                        cx,
+                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.history_panel_open = !this.history_panel_open;
+                        if this.history_panel_open {
+                            this.history_list
+                                .update(cx, |history, cx| history.focus_search(window, cx));
+                        } else {
+                            this.app_focus_handle.focus(window, cx);
+                        }
+                        cx.notify();
+                    })),
+                )
+                .child(
+                    rail_button("rail-search", "Search", IconName::Search, false, cx).on_click(
+                        cx.listener(|this, _, window, cx| {
+                            this.begin_global_search_focus(window, cx)
+                        }),
+                    ),
+                )
+                .child(
+                    gpui_kit::base::Button::new("cookie-jar-trigger")
+                        .debug_selector(|| "cookie-jar-trigger".into())
+                        .accessibility_label("Cookies")
+                        .track_focus(&self.cookie_trigger_focus)
+                        .key_context("OverlayTrigger")
+                        .w_full()
+                        .h(gpui::rems(3.5))
+                        .p_1()
+                        .rounded(m::RADIUS)
+                        .bg(if self.cookie_jar_open {
+                            ACCENT_SOFT
+                        } else {
+                            SIDEBAR
+                        }
+                        .resolve(cx))
+                        .text_color(MUTED.resolve(cx))
+                        .hover(|style| style.bg(ACCENT_SOFT.resolve(cx)))
+                        .focus_visible(|style| style.border_1().border_color(ACCENT.resolve(cx)))
+                        .child(
+                            div()
+                                .size_full()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_center()
+                                .gap_1()
+                                .child(Icon::new(IconName::Cookie).size(m::ICON))
+                                .child(div().text_size(m::CAPTION).child("Cookies")),
+                        )
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.toggle_cookie_jar(window, cx)),
+                        ),
+                )
+            })
+            .child(div().flex_1().min_h_0())
+            .child(
+                crate::app::appearance::button("appearance-toggle", cx)
+                    .debug_selector(|| "appearance-toggle".into()),
+            )
             .child(
                 div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .child(
-                        div()
-                            .size(px(20.0))
-                            .rounded_full()
-                            .bg(ACCENT_VIVID.resolve(cx)),
-                    )
-                    .child(
-                        div()
-                            .font_family(FONT_HEADING)
-                            .text_size(px(22.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(TEXT.resolve(cx))
-                            .child("Postman GPUI"),
-                    ),
+                    .w_6()
+                    .my_2()
+                    .border_t_1()
+                    .border_color(LINE.resolve(cx)),
             )
-            .child(div().flex_1())
-            .child(self.render_global_search(window, cx))
-            .when(
-                cx.try_global::<gpui_kit::component::Theme>().is_some(),
-                |header| header.child(crate::app::appearance::button("appearance-toggle", cx)),
+            .child(
+                kit_controls::icon_button(
+                    "shortcut-help-button",
+                    IconName::Keyboard,
+                    "Keyboard shortcuts",
+                )
+                .debug_selector(|| "shortcut-help-button".into())
+                .on_click(cx.listener(|this, _, window, cx| {
+                    this.toggle_shortcut_help(&ToggleShortcutHelp, window, cx)
+                })),
             )
+    }
+
+    pub(super) fn render_status_bar(&self, cx: &Context<Self>) -> impl IntoElement {
+        let model = self.view_model.read(cx);
+        let running = model.tabs().iter().filter(|tab| tab.is_sending()).count();
+        let status = if running > 0 {
+            format!("Sending {running} request(s)…")
+        } else {
+            match self.route {
+                AppRoute::Home => "Ready when you are",
+                AppRoute::Http => "Requests stay open in this session",
+                AppRoute::Flows => "Flow editing is not available yet",
+            }
+            .into()
+        };
+        div()
+            .debug_selector(|| "status-bar".into())
+            .h(m::STATUSBAR)
+            .flex_none()
+            .px_3()
+            .flex()
+            .items_center()
+            .gap_3()
+            .border_t_1()
+            .border_color(LINE.resolve(cx))
+            .bg(BG.resolve(cx))
+            .text_size(m::CAPTION)
+            .text_color(MUTED.resolve(cx))
+            .child(status)
             .when_some(
                 crate::app::appearance::Appearance::error(cx).map(str::to_owned),
-                |header, error| {
-                    header.child(
+                |bar, error| {
+                    bar.child(
                         div()
-                            .text_size(px(11.))
                             .text_color(crate::ui::theme::ERROR.resolve(cx))
                             .child(error),
                     )
                 },
             )
             .child(div().flex_1())
-            .child(
-                div()
-                    .id("cookie-jar-trigger")
-                    .debug_selector(|| "cookie-jar-trigger".into())
-                    .track_focus(&self.cookie_trigger_focus)
-                    .key_context("KeyboardButton OverlayTrigger")
-                    .role(Role::Button)
-                    .aria_label(format!("Cookie Jar, {cookie_count} stored"))
-                    .h(px(34.0))
-                    .px_3()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color((if cookie_jar_open { INFO } else { LINE }).resolve(cx))
-                    .bg(INFO_SOFT.resolve(cx))
-                    .font_family(FONT_UI)
-                    .text_size(px(11.0))
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(INFO.resolve(cx))
-                    .cursor_pointer()
-                    .hover(|style| {
-                        style
-                            .border_color(INFO.resolve(cx))
-                            .bg(PANEL_ALT.resolve(cx))
-                    })
-                    .when(self.cookie_trigger_focus.is_focused(window), |button| {
-                        button.border_1().border_color(ACCENT.resolve(cx))
-                    })
-                    .child("◫")
-                    .child(format!("Cookie Jar · {cookie_count} stored"))
-                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
-                        this.toggle_cookie_jar(window, cx)
-                    }))
-                    .on_mouse_up(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.cookie_trigger_focus.focus(window, cx);
-                            this.toggle_cookie_jar(window, cx);
-                        }),
-                    ),
-            )
-            .child(
-                div()
-                    .id("shortcut-help-button")
-                    .debug_selector(|| "shortcut-help-button".into())
-                    .track_focus(&self.shortcut_help_button_focus)
-                    .key_context("KeyboardButton")
-                    .role(Role::Button)
-                    .aria_label("Keyboard shortcuts")
-                    .ml_2()
-                    .size(px(34.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(LINE.resolve(cx))
-                    .bg(PANEL_ALT.resolve(cx))
-                    .font_family(FONT_UI)
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(SUBTEXT.resolve(cx))
-                    .cursor_pointer()
-                    .hover(|style| {
-                        style
-                            .bg(ACCENT_SOFT.resolve(cx))
-                            .text_color(ACCENT_DARK.resolve(cx))
-                    })
-                    .when(
-                        self.shortcut_help_button_focus.is_focused(window),
-                        |button| {
-                            button
-                                .border_color(ACCENT.resolve(cx))
-                                .text_color(ACCENT.resolve(cx))
-                        },
-                    )
-                    .child("⌘")
-                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
-                        this.toggle_shortcut_help(&ToggleShortcutHelp, window, cx)
-                    }))
-                    .on_mouse_up(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.shortcut_help_button_focus.focus(window, cx);
-                            this.toggle_shortcut_help(&ToggleShortcutHelp, window, cx);
-                        }),
-                    ),
-            )
-    }
-
-    pub(super) fn render_left_rail(
-        &self,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let passive_slots = ["?"];
-        div()
-            .debug_selector(|| "left-rail".into())
-            .w(px(LEFT_RAIL_WIDTH))
-            .h_full()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .items_center()
-            .gap_4()
-            .px_2()
-            .py_3()
-            .bg(PANEL.resolve(cx))
-            .border_r_1()
-            .border_color(LINE.resolve(cx))
-            .child(
-                div()
-                    .id(("rail-slot", 0usize))
-                    .debug_selector(|| "rail-new-request".into())
-                    .track_focus(&self.new_request_focus)
-                    .key_context("KeyboardButton")
-                    .role(Role::Button)
-                    .aria_label("New request")
-                    .size(px(40.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_lg()
-                    .bg(ACCENT_SOFT.resolve(cx))
-                    .text_color(ACCENT_DARK.resolve(cx))
-                    .font_family(FONT_UI)
-                    .text_size(px(22.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .cursor_pointer()
-                    .hover(|style| style.bg(crate::ui::theme::ACCENT_SOFT.resolve(cx)))
-                    .when(self.new_request_focus.is_focused(window), |button| {
-                        button.border_1().border_color(ACCENT.resolve(cx))
-                    })
-                    .child("+")
-                    .on_action(cx.listener(|this, _: &ActivateControl, window, cx| {
-                        this.new_request_command(&NewRequest, window, cx)
-                    }))
-                    .on_mouse_up(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.new_request_focus.focus(window, cx);
-                            this.new_request_command(&NewRequest, window, cx);
-                        }),
-                    ),
-            )
-            .children(passive_slots.into_iter().enumerate().map(|(index, label)| {
-                div()
-                    .id(("rail-slot", index + 1))
-                    .size(px(40.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_lg()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .font_family(FONT_UI)
-                    .text_size(px(16.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(label)
-            }))
+            .when(self.route == AppRoute::Http, |bar| {
+                bar.child("⌘/Ctrl ↵  Send request")
+            })
     }
 }

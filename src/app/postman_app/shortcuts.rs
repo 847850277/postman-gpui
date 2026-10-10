@@ -1,4 +1,4 @@
-use super::PostmanApp;
+use super::{navigation::AppRoute, PostmanApp};
 use crate::{
     app::{
         ActivateControl, ActivateNextRequest, ActivatePreviousRequest, CloseRequest,
@@ -52,6 +52,9 @@ impl PostmanApp {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route != AppRoute::Http {
+            return;
+        }
         self.request_workspace
             .update(cx, |workspace, cx| workspace.send_or_cancel(cx));
     }
@@ -62,6 +65,7 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.navigate(AppRoute::Http, window, cx);
         self.new_request(cx);
         self.request_workspace.update(cx, |workspace, cx| {
             workspace.focus_active_request_tab(window, cx)
@@ -74,12 +78,18 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route != AppRoute::Http {
+            return;
+        }
         self.request_workspace.update(cx, |workspace, cx| {
             workspace.close_active_request(window, cx)
         });
     }
 
     pub(super) fn focus_url(&mut self, _: &FocusUrl, window: &mut Window, cx: &mut Context<Self>) {
+        if self.route != AppRoute::Http {
+            return;
+        }
         self.request_workspace
             .update(cx, |workspace, cx| workspace.focus_url(window, cx));
     }
@@ -90,6 +100,9 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.navigate(AppRoute::Http, window, cx);
+        self.history_panel_open = true;
+        cx.notify();
         self.history_list
             .update(cx, |history, cx| history.focus_search(window, cx));
     }
@@ -100,6 +113,9 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route != AppRoute::Http {
+            return;
+        }
         self.request_workspace.update(cx, |workspace, cx| {
             workspace.activate_relative_request(1, window, cx)
         });
@@ -111,6 +127,9 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route != AppRoute::Http {
+            return;
+        }
         self.request_workspace.update(cx, |workspace, cx| {
             workspace.activate_relative_request(-1, window, cx)
         });

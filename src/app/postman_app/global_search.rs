@@ -48,7 +48,11 @@ impl PostmanApp {
         self.begin_global_search_focus(window, cx);
     }
 
-    fn begin_global_search_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn begin_global_search_focus(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.remember_global_search_return_focus(window, cx);
         let search_focus = self.global_search_input.read(cx).focus_handle(cx);
         search_focus.focus(window, cx);
@@ -143,7 +147,7 @@ impl PostmanApp {
         cx.notify();
     }
 
-    fn reset_global_search(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn reset_global_search(&mut self, cx: &mut Context<Self>) {
         self.global_search_query.clear();
         self.global_search_selected_index = 0;
         self.global_search_input
@@ -174,8 +178,7 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.reset_global_search(cx);
-        self.global_search_return_focus = None;
+        self.navigate(super::navigation::AppRoute::Http, window, cx);
         match target {
             GlobalSearchTarget::Request(tab_id) => {
                 self.request_workspace.update(cx, |workspace, cx| {
@@ -220,8 +223,8 @@ impl PostmanApp {
             .role(Role::ComboBox)
             .aria_label("Search requests and history")
             .aria_expanded(has_query)
-            .w(px(430.0))
-            .h(px(40.0))
+            .w(gpui::rems(310. / 16.))
+            .h(gpui::rems(32. / 16.))
             .flex_none()
             .flex()
             .items_center()
@@ -240,7 +243,10 @@ impl PostmanApp {
             ))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.begin_global_search_focus(window, cx)),
+                cx.listener(|this, _, window, cx| {
+                    cx.stop_propagation(); // Search editing must not start a title-bar drag.
+                    this.begin_global_search_focus(window, cx);
+                }),
             )
             .child(
                 div()
@@ -352,7 +358,7 @@ impl PostmanApp {
                         .id("global-search-popover")
                         .debug_selector(|| "global-search-popover".into())
                         .occlude()
-                        .w(px(430.0))
+                        .w(gpui::rems(310. / 16.))
                         .max_h(px(440.0))
                         .flex()
                         .flex_col()

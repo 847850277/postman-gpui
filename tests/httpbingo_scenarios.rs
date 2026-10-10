@@ -1027,9 +1027,12 @@ fn run_response_headers_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &scenario.draft.method)?;
@@ -1193,9 +1196,12 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let first_url = format!("{HTTPBINGO_BASE_URL}/get?issue=141&request=keyboard-a");
@@ -1378,9 +1384,12 @@ fn run_multi_tab_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &workflow.tab_a.draft.method)?;
@@ -1632,9 +1641,12 @@ fn run_history_replay_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &scenario.draft.method)?;
@@ -1777,9 +1789,12 @@ fn run_head_options_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &head.draft.method)?;
@@ -1905,9 +1920,12 @@ fn run_compression_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
     let mut expected_requests = Vec::new();
 
@@ -2062,9 +2080,12 @@ fn run_html_form_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &workflow.discovery.draft.method)?;
@@ -2198,9 +2219,12 @@ fn run_cookie_workflow(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     let set_url = format!("{HTTPBINGO_BASE_URL}{}", workflow.set.draft.path);
@@ -2422,9 +2446,12 @@ fn run_application_scenario(
     let app_history_path = history_database.app_path();
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) = test_cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
 
     choose_method(cx, &scenario.draft.method)?;
