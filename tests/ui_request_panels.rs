@@ -2,7 +2,6 @@
 #[path = "common/ui.rs"]
 mod ui;
 use gpui::{px, size, AppContext, ClipboardItem, TestAppContext};
-use gpui_kit::test::TestWindowExt;
 use postman_gpui::app::{BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 
 #[gpui::test]
@@ -35,22 +34,23 @@ fn request_context_and_compact_forms_follow_the_selected_request(cx: &mut TestAp
         "request-pane-authorization",
     ] {
         ui::click(cx, pane).unwrap();
-        assert_eq!(cx.debug_bounds("request-context").unwrap(), context);
-        assert!(cx.debug_bounds("effective-url-preview").unwrap().bottom() < context.bottom());
+        if pane != "request-pane-body" {
+            assert_eq!(cx.debug_bounds("request-context").unwrap(), context);
+            assert!(cx.debug_bounds("effective-url-preview").unwrap().bottom() < context.bottom());
+        } else {
+            assert!(cx.debug_bounds("request-context").is_none());
+        }
         if pane == "request-pane-body" {
             assert!(cx.debug_bounds("body-details").is_none());
             let editor = cx.debug_bounds("body-input").unwrap();
-            assert!(editor.bottom() <= context.top());
             assert!(editor.size.height > px(250.));
-            cx.update(|window, cx| window.click("body-kind-select", cx));
-            ui::press(cx, "up escape");
+            assert!(cx.debug_bounds("body-kind-json").is_some());
+            assert!(cx.debug_bounds("body-kind-binary").is_some());
+            ui::choose_body_kind(cx, "body-kind-raw").unwrap();
+            ui::choose_body_kind(cx, "body-kind-json").unwrap();
             assert_eq!(
-                model.read_with(cx, |m, _| m.active_request().unwrap().body_kind()),
-                BodyKind::Json
-            );
-            assert_eq!(
-                cx.update(|window, _| window.find("body-kind-select").value().map(str::to_owned)),
-                Some("JSON".into())
+                model.read_with(cx, |m, _| m.active_request().unwrap().body()),
+                "{\"name\":\"你好🦀\"}"
             );
             ui::show_body_details(cx).unwrap();
             assert!(cx.debug_bounds("body-effective-headers").is_some());

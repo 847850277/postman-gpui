@@ -53,6 +53,9 @@ pub enum HistorySnapshotError {
     MissingMultipartFile {
         path: PathBuf,
     },
+    MissingBinaryFile {
+        path: PathBuf,
+    },
 }
 
 impl fmt::Display for HistorySnapshotError {
@@ -92,6 +95,13 @@ impl fmt::Display for HistorySnapshotError {
                 write!(
                     formatter,
                     "multipart replay file is unavailable: {}",
+                    path.display()
+                )
+            }
+            Self::MissingBinaryFile { path } => {
+                write!(
+                    formatter,
+                    "binary replay file is unavailable: {}",
                     path.display()
                 )
             }
@@ -1155,6 +1165,7 @@ pub enum RequestBodySnapshotV1 {
     Raw(String),
     UrlEncoded(String),
     Multipart(Vec<MultipartPartSnapshotV1>),
+    Binary(String),
 }
 
 impl RequestBodySnapshotV1 {
@@ -1164,6 +1175,7 @@ impl RequestBodySnapshotV1 {
             Self::Json(value) => RequestBody::Json(value.clone()),
             Self::Raw(value) => RequestBody::Raw(value.clone()),
             Self::UrlEncoded(value) => RequestBody::UrlEncoded(value.clone()),
+            Self::Binary(path) => RequestBody::File(PathBuf::from(path)),
             Self::Multipart(parts) => RequestBody::Multipart(
                 parts
                     .iter()
@@ -1174,6 +1186,12 @@ impl RequestBodySnapshotV1 {
     }
 
     fn validate(&self) -> Result<(), HistorySnapshotError> {
+        if matches!(self, Self::Binary(path) if path.is_empty()) {
+            return Err(invalid_field(
+                "request.body.binary.path",
+                "must not be empty",
+            ));
+        }
         if let Self::Multipart(parts) = self {
             for part in parts {
                 if part.name.trim().is_empty() {
@@ -1195,6 +1213,13 @@ impl RequestBodySnapshotV1 {
     }
 
     fn validate_replay_files(&self) -> Result<(), HistorySnapshotError> {
+        if let Self::Binary(path) = self {
+            if !PathBuf::from(path).is_file() {
+                return Err(HistorySnapshotError::MissingBinaryFile {
+                    path: PathBuf::from(path),
+                });
+            }
+        }
         if let Self::Multipart(parts) = self {
             for part in parts {
                 part.value.validate_replay_file()?;
@@ -1213,7 +1238,13 @@ impl TryFrom<&RequestBody> for RequestBodySnapshotV1 {
             RequestBody::Json(value) => Ok(Self::Json(value.clone())),
             RequestBody::Raw(value) => Ok(Self::Raw(value.clone())),
             RequestBody::UrlEncoded(value) => Ok(Self::UrlEncoded(value.clone())),
-            RequestBody::File(path) => Ok(Self::Raw(format!("@{}", path.display()))),
+            RequestBody::File(path) => Ok(Self::Binary(
+                path.to_str()
+                    .ok_or(HistorySnapshotError::NonUtf8Path {
+                        field: "binary.path",
+                    })?
+                    .to_string(),
+            )),
             RequestBody::Multipart(parts) => parts
                 .iter()
                 .map(MultipartPartSnapshotV1::try_from)

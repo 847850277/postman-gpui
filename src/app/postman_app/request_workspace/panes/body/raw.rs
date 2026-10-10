@@ -44,7 +44,15 @@ pub(super) fn render_raw_request_semantics(
         .find(|header| header.name.eq_ignore_ascii_case("content-type"));
     let has_content_type = content_type.is_some();
     let (content_type_mark, content_type_value, content_type_state) = match content_type {
-        Some(header) => ("i", header.value.clone(), "USER ROW"),
+        Some(header) => (
+            "i",
+            header.value.clone(),
+            if header.source == EffectiveHeaderSource::Generated {
+                "AUTOMATIC"
+            } else {
+                "USER ROW"
+            },
+        ),
         None => ("∅", "not generated".to_string(), "ABSENT"),
     };
     let byte_count = body.len();
@@ -95,7 +103,9 @@ pub(super) fn render_raw_request_semantics(
                                 .font_family(FONT_UI)
                                 .text_size(px(9.0))
                                 .text_color(SUBTEXT.resolve(cx))
-                                .child("Raw never synthesizes a Content-Type header."),
+                                .child(
+                                    "Raw format supplies Content-Type unless Headers overrides it.",
+                                ),
                         ),
                 )
                 .child(
@@ -193,9 +203,9 @@ pub(super) fn render_raw_request_semantics(
                 .text_size(px(8.0))
                 .text_color(SUBTEXT.resolve(cx))
                 .child(if has_content_type {
-                    "Manual Content-Type preserved · exact body bytes remain unchanged."
+                    "Effective Content-Type shown above · exact body bytes remain unchanged."
                 } else {
-                    "No Content-Type generated · exact body bytes will be sent."
+                    "No Content-Type set · body bytes remain unchanged."
                 })
                 .child(
                     div()

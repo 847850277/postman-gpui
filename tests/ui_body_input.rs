@@ -113,7 +113,7 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
     workspace.read_with(cx, |workspace, _| {
         let request = workspace.active_request().unwrap();
         assert_eq!(request.body_kind(), BodyKind::Raw);
-        assert_eq!(request.body(), body);
+        assert_eq!(request.body(), "");
     });
     ui::choose_body_kind(cx, "body-kind-json").unwrap();
     workspace.read_with(cx, |workspace, _| {

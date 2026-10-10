@@ -78,14 +78,44 @@ fn request_scenarios_reject_unknown_contract_fields() {
 }
 
 #[test]
-fn raw_put_scenario_requires_exact_body_without_generated_headers() {
+fn request_scenarios_reject_unsupported_binary_bodies() {
+    let suite = serde_json::json!({
+        "schema_version": 5,
+        "target": "local",
+        "cases": [{
+            "name": "Binary requires a dedicated file fixture contract",
+            "draft": {"method": "PUT", "path": "/binary", "body_kind": "raw", "body": "payload"},
+            "expect": {
+                "request": {"method": "PUT", "path": "/binary", "body_kind": "raw", "body": "payload"},
+                "response": {"kind": "success", "status": 200},
+                "history_len": 1
+            }
+        }]
+    });
+    for pointer in [
+        "/cases/0/draft/body_kind",
+        "/cases/0/expect/request/body_kind",
+    ] {
+        let mut invalid = suite.clone();
+        *invalid.pointer_mut(pointer).unwrap() = serde_json::json!("binary");
+        let error =
+            load_suite(&invalid.to_string()).expect_err("Binary is outside the scenario DSL");
+        assert!(
+            error.contains("binary bodies are not supported by the scenario DSL"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn raw_put_scenario_requires_exact_body_and_automatic_text_content_type() {
     let files = scenario_files();
     let scenario = files
         .iter()
         .filter(|file| file.suite.target == ScenarioTarget::Httpbingo)
         .flat_map(|file| &file.suite.cases)
         .find(|scenario| {
-            scenario.name == "HTTPBingo receives a raw PUT body without generated content type"
+            scenario.name == "HTTPBingo receives a raw PUT body with automatic text content type"
         })
         .expect("Issue #60 raw PUT scenario should exist");
 
@@ -98,7 +128,10 @@ fn raw_put_scenario_requires_exact_body_without_generated_headers() {
         expected.body,
         RequestBody::Raw("plain text body".to_string())
     );
-    assert!(expected.headers.is_empty());
+    assert_eq!(
+        expected.headers,
+        vec![("Content-Type".to_string(), "text/plain".to_string())]
+    );
 }
 
 #[test]

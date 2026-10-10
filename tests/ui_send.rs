@@ -1609,14 +1609,14 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
 }
 
 #[gpui::test]
-fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_history(
+fn put_raw_sends_active_exact_body_with_automatic_text_content_type_and_records_history(
     cx: &mut TestAppContext,
 ) {
     let body = "plain text body";
     let mut server = mockito::Server::new();
     let request = server
         .mock("PUT", "/anything/raw")
-        .match_header("content-type", Matcher::Missing)
+        .match_header("content-type", "text/plain")
         .match_body(Matcher::Exact(body.to_string()))
         .with_status(200)
         .with_header("content-type", "application/json")
@@ -1653,11 +1653,14 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
             workspace.active_request().unwrap().request_body(),
             RequestBody::Raw(body.to_string())
         );
-        assert!(workspace
-            .active_request()
-            .unwrap()
-            .effective_headers()
-            .is_empty());
+        assert_eq!(
+            workspace.active_request().unwrap().effective_headers(),
+            vec![postman_gpui::app::EffectiveHeader {
+                name: "Content-Type".to_string(),
+                value: "text/plain".to_string(),
+                source: postman_gpui::app::EffectiveHeaderSource::Generated,
+            }]
+        );
     });
     ui::show_body_details(cx).unwrap();
     for selector in [
@@ -1710,7 +1713,10 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
         assert_eq!(entry.request.method, HttpMethod::PUT);
         assert_eq!(entry.request.url, format!("{}/anything/raw", server.url()));
         assert_eq!(entry.request.body, RequestBody::Raw(body.to_string()));
-        assert!(entry.request.headers.is_empty());
+        assert_eq!(
+            entry.request.headers,
+            vec![("Content-Type".to_string(), "text/plain".to_string())]
+        );
         assert_eq!(entry.status, Some(200));
     });
     assert!(cx.debug_bounds("history-method-0").is_some());
@@ -1718,7 +1724,7 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
 }
 
 #[gpui::test]
-fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut TestAppContext) {
+fn post_urlencoded_validates_incomplete_rows_then_sends_the_active_value(cx: &mut TestAppContext) {
     const ROW_SELECTORS: [&str; 10] = [
         "body-form-row-0",
         "body-form-row-1",
@@ -1873,7 +1879,6 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         "body-form-row-8",
         "body-form-scroll",
         "body-form-add-row",
-        "body-form-add-row-hint",
         "body-url-encoded-effective-request",
         "body-url-encoded-effective-body",
         "body-effective-header-content-type",
@@ -1889,16 +1894,69 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
     let viewport = cx.debug_bounds("body-form-scroll").unwrap();
     let first = cx.debug_bounds("body-form-row-0").unwrap();
     let last = cx.debug_bounds("body-form-row-8").unwrap();
-    let overflow = last.bottom() - first.top() + gpui::px(16.) > viewport.size.height;
-    for selector in ["body-form-scrollbar", "body-form-scrollbar-thumb"] {
-        assert_eq!(
-            cx.debug_bounds(selector).is_some(),
-            overflow,
-            "scrollbar follows the resized viewport"
-        );
-    }
+    let overflow = last.bottom() - first.top() > viewport.size.height;
+    assert_eq!(
+        cx.debug_bounds("body-form-scrollbar").is_some(),
+        overflow,
+        "the Kit scrollbar follows the table's actual row overflow"
+    );
 
-    // Send while the final Value cell is active: no Enter, Tab, blur, or extra Add action.
+    // A meaningful enabled value needs a key. Validation must preserve every draft and avoid
+    // producing a response or History entry before the user corrects or excludes that row.
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("body-validation-error").is_some());
+    workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(
+            request.body_validation_error().as_deref(),
+            Some("Enter a key for field 5.")
+        );
+        assert!(matches!(request.response(), ResponseState::NotSent));
+        assert_eq!(workspace.history_len(), 0);
+        assert_eq!(
+            request.request_body(),
+            RequestBody::UrlEncoded(encoded_body.to_string())
+        );
+        let RequestBodyDraft::UrlEncoded(rows) = request.body_draft() else {
+            panic!("validation should retain the URL-encoded draft");
+        };
+        assert!(rows[4].enabled);
+        assert_eq!(rows[4].key, "");
+        assert_eq!(rows[4].value, "draft-only");
+    });
+
+    scroll_up(cx, "body-form-scroll", 10_000.0).unwrap();
+    let viewport = cx.debug_bounds("body-form-scroll").unwrap();
+    let incomplete_row = cx.debug_bounds("body-form-row-4").unwrap();
+    scroll_down(
+        cx,
+        "body-form-scroll",
+        (incomplete_row.top() - viewport.top()).as_f32(),
+    )
+    .unwrap();
+    click(cx, "body-form-toggle-4").unwrap();
+    workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_validation_error(), None);
+        let RequestBodyDraft::UrlEncoded(rows) = request.body_draft() else {
+            panic!("excluding an incomplete row should retain its draft");
+        };
+        assert!(!rows[4].enabled);
+        assert_eq!(rows[4].value, "draft-only");
+    });
+
+    let viewport = cx.debug_bounds("body-form-scroll").unwrap();
+    let final_row = cx.debug_bounds("body-form-row-7").unwrap();
+    scroll_down(
+        cx,
+        "body-form-scroll",
+        (final_row.top() - viewport.top()).as_f32(),
+    )
+    .unwrap();
+    // Send with the final Value cell active, without Enter, Tab, or an extra Add action.
+    // Replacing it also proves that the corrected draft reaches transport without a commit step.
+    replace_text(cx, "body-form-value-7", "gpui").unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
 
@@ -3177,10 +3235,10 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     );
     ui::show_body_details(cx).unwrap();
     for selector in [
-        "body-form-ready-0",
-        "body-form-ready-1",
-        "body-form-omitted-2",
-        "body-form-omitted-3",
+        "body-form-toggle-0",
+        "body-form-toggle-1",
+        "body-form-toggle-2",
+        "body-form-toggle-3",
         "body-multipart-omitted-count",
     ] {
         assert!(cx.debug_bounds(selector).is_some(), "missing `{selector}`");
@@ -3243,7 +3301,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
             Some(expected_intent.clone())
         );
     });
-    assert!(cx.debug_bounds("body-form-omitted-2").is_some());
+    assert!(cx.debug_bounds("body-form-toggle-2").is_some());
     assert!(cx.debug_bounds("body-form-file-metadata-2").is_some());
 }
 

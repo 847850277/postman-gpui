@@ -1,3 +1,4 @@
+mod editor;
 mod raw;
 
 use super::super::layout::RequestPanelLayout;
@@ -46,7 +47,12 @@ pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     effective_headers_scroll: ScrollHandle,
     raw_semantics_scroll: ScrollHandle,
     kind_selector: Entity<MethodState>,
+    raw_selector: Entity<MethodState>,
+    editor_scroll: ScrollHandle,
+    editor_error: Option<String>,
     projected_kind: Option<BodyKind>,
+    projected_input_kind: Option<BodyKind>,
+    projected_raw_format: Option<crate::models::request_draft::RawBodyFormat>,
     show_details: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -66,12 +72,34 @@ impl BodyPane {
                 cx,
             )
         });
+        let raw_selector = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(editor::RAW_LABELS.to_vec()),
+                Some(IndexPath::new(0)),
+                window,
+                cx,
+            )
+        });
         let body_input = cx.new(|cx| {
             BodyInput::new(cx)
                 .with_placeholder("Enter request body (JSON, form data, etc.)")
                 .with_type_tabs(false)
         });
         let subscriptions = vec![
+            cx.subscribe(
+                &raw_selector,
+                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, cx| {
+                    if let SelectEvent::Confirm(Some(label)) = event {
+                        if let Some(index) =
+                            editor::RAW_LABELS.iter().position(|item| item == label)
+                        {
+                            this.update_active_request(cx, |request| {
+                                request.set_raw_body_format(editor::RAW_FORMATS[index])
+                            });
+                        }
+                    }
+                },
+            ),
             cx.subscribe(&body_input, Self::on_body_event),
             cx.subscribe(
                 &kind_selector,
@@ -94,7 +122,12 @@ impl BodyPane {
             effective_headers_scroll: ScrollHandle::new(),
             raw_semantics_scroll: ScrollHandle::new(),
             kind_selector,
+            raw_selector,
+            editor_scroll: ScrollHandle::new(),
+            editor_error: None,
             projected_kind: None,
+            projected_input_kind: None,
+            projected_raw_format: None,
             show_details: false,
             _subscriptions: subscriptions,
         };
@@ -122,6 +155,7 @@ impl BodyPane {
         event: &BodyInputEvent,
         cx: &mut Context<Self>,
     ) {
+        self.editor_error = None;
         match event {
             BodyInputEvent::ValueChanged(value) => {
                 self.update_active_request(cx, |request| request.set_body(value));
@@ -161,7 +195,7 @@ impl BodyPane {
                             .collect();
                         request.set_multipart_draft_parts(parts);
                     }
-                    BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
+                    BodyKind::None | BodyKind::Json | BodyKind::Raw | BodyKind::Binary => {}
                 });
             }
         }
@@ -169,15 +203,9 @@ impl BodyPane {
 
     fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
         self.show_details = false;
-        self.update_active_request(cx, |request| {
-            let current = request.body_kind();
-            let current_is_form = matches!(current, BodyKind::UrlEncoded | BodyKind::Multipart);
-            let next_is_form = matches!(kind, BodyKind::UrlEncoded | BodyKind::Multipart);
-            if current != kind && current_is_form != next_is_form {
-                request.clear_body();
-            }
-            request.set_body_kind(kind);
-        });
+        self.editor_error = None;
+        self.editor_scroll.set_offset(gpui::point(px(0.), px(0.)));
+        self.update_active_request(cx, |request| request.set_body_kind(kind));
         self.project_active_request(cx);
     }
 
@@ -196,6 +224,7 @@ impl BodyPane {
     }
 
     fn clear_body(&mut self, cx: &mut Context<Self>) {
+        self.editor_error = None;
         self.update_active_request(cx, RequestViewModel::clear_body);
         self.project_active_request(cx);
     }
@@ -222,18 +251,24 @@ impl BodyPane {
             )
         };
         let tab_changed = self.projected_tab_id != tab_id;
+        if tab_changed {
+            self.editor_error = None;
+            self.show_details = false;
+        }
+        let projection_changed = tab_changed || self.projected_input_kind != Some(body_kind);
+        self.projected_input_kind = Some(body_kind);
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
             input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
             match body_draft {
-                RequestBodyDraft::None => {
-                    if tab_changed {
+                RequestBodyDraft::None | RequestBodyDraft::Binary(_) => {
+                    if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), cx);
                     }
                     input.project_content("", cx);
                 }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
-                    if tab_changed {
+                    if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), cx);
                     }
                     input.project_content(body, cx)
@@ -243,7 +278,7 @@ impl BodyPane {
                         .into_iter()
                         .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
                         .collect();
-                    if tab_changed {
+                    if projection_changed {
                         input.project_form_data_entries_with_rebind(entries, cx);
                     } else {
                         input.project_form_data_entries(entries, cx);
@@ -269,7 +304,7 @@ impl BodyPane {
                             ),
                         })
                         .collect();
-                    if tab_changed {
+                    if projection_changed {
                         input.project_form_data_entries_with_rebind(entries, cx);
                     } else {
                         input.project_form_data_entries(entries, cx);
@@ -282,6 +317,9 @@ impl BodyPane {
     }
 
     fn render_body_editor(&self, window: &Window, cx: &mut Context<Self>) -> gpui::AnyElement {
+        if !self.show_details {
+            return self.render_prototype_editor(cx);
+        }
         let (
             kind,
             body,
@@ -975,6 +1013,22 @@ impl Render for BodyPane {
             self.kind_selector
                 .update(cx, |state, cx| state.set_selected_value(&label, window, cx));
         }
+        let raw_format = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(|request| request.raw_body_format())
+            .unwrap_or_default();
+        let raw_label = editor::RAW_LABELS[editor::RAW_FORMATS
+            .iter()
+            .position(|format| *format == raw_format)
+            .unwrap_or(0)];
+        if self.projected_raw_format != Some(raw_format) {
+            self.projected_raw_format = Some(raw_format);
+            self.raw_selector.update(cx, |state, cx| {
+                state.set_selected_value(&raw_label, window, cx)
+            });
+        }
         self.render_body_editor(window, cx)
     }
 }
@@ -1021,20 +1075,22 @@ fn effective_headers_scrollbar_geometry(
     ))
 }
 
-const BODY_LABELS: [&str; 5] = ["None", "Form data", "URL encoded", "Raw", "JSON"];
-const BODY_SELECTORS: [&str; 5] = [
+const BODY_LABELS: [&str; 6] = ["None", "Form-data", "URL encoded", "Raw", "JSON", "Binary"];
+const BODY_SELECTORS: [&str; 6] = [
     "body-kind-none",
     "body-kind-form-data",
     "body-kind-url-encoded",
     "body-kind-raw",
     "body-kind-json",
+    "body-kind-binary",
 ];
-const BODY_KINDS: [BodyKind; 5] = [
+const BODY_KINDS: [BodyKind; 6] = [
     BodyKind::None,
     BodyKind::Multipart,
     BodyKind::UrlEncoded,
     BodyKind::Raw,
     BodyKind::Json,
+    BodyKind::Binary,
 ];
 
 fn body_kind_index(kind: BodyKind) -> usize {
@@ -1048,7 +1104,7 @@ fn body_type_from_kind(kind: BodyKind) -> BodyType {
     match kind {
         BodyKind::Json => BodyType::Json,
         BodyKind::UrlEncoded | BodyKind::Multipart => BodyType::FormData,
-        BodyKind::None | BodyKind::Raw => BodyType::Raw,
+        BodyKind::None | BodyKind::Raw | BodyKind::Binary => BodyType::Raw,
     }
 }
 

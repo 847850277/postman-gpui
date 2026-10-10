@@ -572,6 +572,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     let mut server = mockito::Server::new();
     let raw = server
         .mock("POST", "/raw-replay")
+        .match_header("content-type", "text/plain")
         .match_body(Matcher::Exact(raw_body.to_string()))
         .with_status(200)
         .with_body("raw-ok")
@@ -673,6 +674,135 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(unique_ids.len(), replayed.len());
 
+    close_app(second_app, cx);
+}
+
+#[gpui::test]
+fn binary_file_validation_and_exact_replay_survive_a_sqlite_restart(test_cx: &mut TestAppContext) {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("history.sqlite3");
+    let upload_path = directory.path().join("binary-replay.bin");
+    let bytes = vec![0, 255, 128, 1, 13, 10, 0, 42];
+    std::fs::write(&upload_path, &bytes).unwrap();
+    let mut server = mockito::Server::new();
+    let upload = server
+        .mock("POST", "/binary-replay")
+        .match_header("content-type", "application/octet-stream")
+        .match_body(bytes.clone())
+        .with_status(201)
+        .with_body("binary-ok")
+        .expect(2)
+        .create();
+
+    let (first_app, first_workspace, cx) = launch_app(test_cx, &database_path);
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", &format!("{}/binary-replay", server.url())).unwrap();
+    click(cx, "request-pane-body").unwrap();
+    ui::choose_body_kind(cx, "body-kind-binary").unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("body-validation-error").is_some());
+    first_workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_kind(), BodyKind::Binary);
+        assert_eq!(
+            request.body_draft(),
+            &RequestBodyDraft::Binary(PathBuf::new())
+        );
+        assert!(matches!(request.response(), ResponseState::NotSent));
+    });
+    assert!(assert_visible_matches_sqlite(&first_workspace, cx, &database_path).is_empty());
+
+    click(cx, "body-choose-file").unwrap();
+    let selected = upload_path.clone();
+    cx.simulate_path_prompt_response(move |options| {
+        assert!(options.files && !options.directories && !options.multiple);
+        Some(vec![selected])
+    });
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("body-validation-error").is_none());
+    assert!(cx.debug_bounds("body-binary-file-name").is_some());
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    let original = assert_visible_matches_sqlite(&first_workspace, cx, &database_path);
+    assert_eq!(original.len(), 1);
+    assert_eq!(
+        original[0].request.body,
+        RequestBody::File(upload_path.clone())
+    );
+    assert_eq!(original[0].status, Some(201));
+    let original_id = original[0].id.clone();
+    let snapshot = VersionedHistorySnapshot::try_from(&original[0]).unwrap();
+    snapshot.validate_replay_files().unwrap();
+    let payload: serde_json::Value =
+        serde_json::from_str(&database_payload(&database_path)).unwrap();
+    assert_eq!(
+        payload["snapshot"]["request"]["body"],
+        serde_json::json!({"kind": "binary", "value": upload_path.to_str().unwrap()}),
+        "History must persist a typed file path, never a Raw @path marker or file contents"
+    );
+
+    close_app(first_app, cx);
+    drop(first_workspace);
+    let (second_app, second_workspace, cx) = launch_app(&mut cx.cx, &database_path);
+    assert_eq!(
+        assert_visible_matches_sqlite(&second_workspace, cx, &database_path)[0]
+            .request
+            .body,
+        RequestBody::File(upload_path.clone())
+    );
+    click(cx, "history-item-0").unwrap();
+    second_workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_kind(), BodyKind::Binary);
+        assert_eq!(request.body_draft(), &RequestBodyDraft::Binary(upload_path.clone()));
+        assert_eq!(request.request_body(), RequestBody::File(upload_path.clone()));
+        assert!(matches!(
+            request.response(),
+            ResponseState::Historical { entry_id, response }
+                if entry_id == &original_id
+                    && matches!(&response.body, HistoricalResponseBody::Text(body) if body == "binary-ok")
+        ));
+    });
+    assert!(cx.debug_bounds("body-binary-file-name").is_some());
+    assert!(cx.debug_bounds("body-remove-file").is_some());
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    upload.assert();
+    let replayed = assert_visible_matches_sqlite(&second_workspace, cx, &database_path);
+    assert_eq!(replayed.len(), 2);
+    assert_ne!(replayed[0].id, original_id);
+    assert_eq!(replayed[1].id, original_id);
+    for entry in &replayed {
+        assert_eq!(entry.request.body, RequestBody::File(upload_path.clone()));
+        assert_eq!(entry.status, Some(201));
+    }
+
+    // Missing files remain correctable drafts; neither validation nor transport invents History.
+    std::fs::remove_file(&upload_path).unwrap();
+    assert!(matches!(
+        snapshot.validate_replay_files(),
+        Err(postman_gpui::persistence::HistorySnapshotError::MissingBinaryFile { path })
+            if path == upload_path
+    ));
+    click(cx, "history-item-1").unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    second_workspace.read_with(cx, |workspace, _| {
+        let request = workspace.active_request().unwrap();
+        assert_eq!(request.body_draft(), &RequestBodyDraft::Binary(upload_path.clone()));
+        assert!(matches!(
+            request.response(),
+            ResponseState::Error { message }
+                if message.contains("cannot open body file") && message.contains("binary-replay.bin")
+        ));
+    });
+    assert!(cx.debug_bounds("body-validation-error").is_some());
+    assert_eq!(
+        assert_visible_matches_sqlite(&second_workspace, cx, &database_path).len(),
+        2
+    );
+    upload.assert();
     close_app(second_app, cx);
 }
 
@@ -808,7 +938,33 @@ fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &m
         ));
     });
     assert!(cx.debug_bounds("body-form-file-metadata-1").is_some());
-    assert!(cx.debug_bounds("body-form-omitted-2").is_some());
+    assert!(cx.debug_bounds("body-form-toggle-2").is_some());
+
+    // The checkbox replaces the omitted badge and must still restore the saved row on demand.
+    click(cx, "body-form-toggle-2").unwrap();
+    assert_eq!(
+        second_workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .request_body()),
+        RequestBody::Multipart(vec![
+            MultipartPart::text("note", "persisted multipart"),
+            MultipartPart {
+                name: "upload".to_string(),
+                value: MultipartValue::File {
+                    path: fixture_path.clone(),
+                    file_name: Some("httpbingo-upload.txt".to_string()),
+                    content_type: Some("text/plain".to_string()),
+                },
+            },
+            MultipartPart::text("disabled-note", "editor-only"),
+        ])
+    );
+    ui::press(cx, "space");
+    assert_eq!(
+        second_workspace.read_with(cx, |workspace, _| workspace.request_editor_intent()),
+        Some(expected_intent.clone())
+    );
 
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -892,6 +1048,8 @@ fn missing_multipart_file_after_restart_uses_the_normal_validation_error(
         }
         other => panic!("missing replay file should fail normally, got {other:?}"),
     }
+    assert!(cx.debug_bounds("body-validation-error").is_some());
+    ui::show_body_details(cx).unwrap();
     assert!(cx.debug_bounds("body-multipart-file-error").is_some());
     assert_eq!(
         assert_visible_matches_sqlite(&second_workspace, cx, &database_path).len(),

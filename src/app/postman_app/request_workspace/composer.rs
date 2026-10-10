@@ -317,6 +317,13 @@ impl RequestComposer {
             return;
         }
 
+        if !self
+            .body_pane
+            .update(cx, |pane, cx| pane.validate_before_send(cx))
+        {
+            return;
+        }
+
         let Some(pending) = self.update_view_model(cx, WorkspaceViewModel::begin_send) else {
             return;
         };
@@ -423,7 +430,9 @@ impl RequestComposer {
                     .child(editor),
             )
             .when(
-                !self.stacked && window.viewport_size().height >= gpui::px(700.),
+                request_pane != RequestPane::Body
+                    && !self.stacked
+                    && window.viewport_size().height >= gpui::px(700.),
                 |panel| panel.child(self.render_request_context(cx)),
             )
             .into_any_element()

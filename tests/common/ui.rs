@@ -137,20 +137,12 @@ pub fn choose_method(cx: &mut VisualTestContext, method: &str) -> Result<(), Str
     Ok(())
 }
 
-/// Select through the real Kit popup, including its keyboard confirmation path.
+/// Select a visible Body type without opening an unrelated popup.
 pub fn choose_body_kind(cx: &mut VisualTestContext, kind: &'static str) -> Result<(), String> {
-    let index = [
-        "body-kind-none",
-        "body-kind-form-data",
-        "body-kind-url-encoded",
-        "body-kind-raw",
-        "body-kind-json",
-    ]
-    .iter()
-    .position(|candidate| *candidate == kind)
-    .ok_or_else(|| format!("unknown body kind {kind}"))?;
-    choose_option(cx, "body-kind-select", index);
-    Ok(())
+    if cx.debug_bounds("body-details").is_some() {
+        click(cx, "body-details-toggle")?;
+    }
+    click(cx, kind)
 }
 pub fn choose_auth_kind(cx: &mut VisualTestContext, kind: &'static str) -> Result<(), String> {
     let index = ["auth-kind-bearer", "auth-kind-basic"]
@@ -163,7 +155,9 @@ pub fn choose_auth_kind(cx: &mut VisualTestContext, kind: &'static str) -> Resul
 pub fn choose_option(cx: &mut VisualTestContext, selector: &'static str, index: usize) {
     use gpui_kit::test::TestWindowExt;
     let labels: &[&str] = if selector == "body-kind-select" {
-        &["None", "Form data", "URL encoded", "Raw", "JSON"]
+        &["None", "Form-data", "URL encoded", "Raw", "JSON", "Binary"]
+    } else if selector == "body-raw-format" {
+        &["Text", "XML", "HTML", "JavaScript"]
     } else {
         &["Bearer token", "Basic auth"]
     };
@@ -175,6 +169,7 @@ pub fn choose_option(cx: &mut VisualTestContext, selector: &'static str, index: 
             .unwrap()
     });
     cx.update(|window, cx| window.click(selector, cx));
+    cx.run_until_parked();
     for _ in 0..index.abs_diff(current) {
         press(cx, if index > current { "down" } else { "up" });
     }
@@ -236,7 +231,7 @@ pub fn press(cx: &mut VisualTestContext, keys: &str) {
 /// Diagnostics are a deliberate disclosure, not a permanent sibling of the editor.
 pub fn show_body_details(cx: &mut VisualTestContext) -> Result<(), String> {
     if cx.debug_bounds("body-details").is_none() {
-        click(cx, "body-details-toggle")?;
+        body_action(cx, 2)?;
     }
     Ok(())
 }

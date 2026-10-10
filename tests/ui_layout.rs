@@ -10,7 +10,7 @@ use postman_gpui::persistence::{
     HistoryRepository, SqliteHistoryRepository, VersionedHistorySnapshot,
     DEFAULT_HISTORY_RETENTION_LIMIT,
 };
-use ui::{click, scroll_down};
+use ui::{click, scroll_down, scroll_up};
 
 #[gpui::test]
 fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
@@ -574,6 +574,7 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     click(cx, "response-layout-toggle").unwrap();
     cx.run_until_parked();
 
+    scroll_up(cx, "body-text-scroll", 10_000.0).unwrap();
     let text_scrollbar = cx
         .debug_bounds("body-text-scrollbar")
         .expect("a long JSON body should expose a visible scrollbar");
@@ -587,7 +588,14 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     let text_thumb_after = cx
         .debug_bounds("body-text-scrollbar-thumb")
         .expect("the JSON body scrollbar should remain visible after scrolling");
-    assert!(text_thumb_after.origin.y > text_thumb.origin.y);
+    let text_scrollbar_after = cx.debug_bounds("body-text-scrollbar").unwrap();
+    // The prototype also scrolls its outer editor at compact heights, so compare the
+    // thumb within its own track instead of assuming a fixed window coordinate.
+    assert!(
+        text_thumb_after.top() - text_scrollbar_after.top()
+            > text_thumb.top() - text_scrollbar.top(),
+        "JSON thumb should advance along its track: before={text_thumb:?}/{text_scrollbar:?}, after={text_thumb_after:?}/{text_scrollbar_after:?}"
+    );
     ui::show_body_details(cx).unwrap();
     let headers_scrollbar = cx
         .debug_bounds("body-effective-headers-scrollbar")
@@ -604,7 +612,6 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     let headers_thumb_after = cx
         .debug_bounds("body-effective-headers-scrollbar-thumb")
         .expect("the effective-header scrollbar should remain visible after scrolling");
-    assert!(text_thumb_after.origin.y > text_thumb.origin.y);
     assert!(headers_thumb_after.origin.y > headers_thumb.origin.y);
 }
 
@@ -678,11 +685,17 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         );
     }
     assert!(cx.debug_bounds("body-sample-json").is_none());
-    assert!(workspace.read_with(cx, |workspace, _| workspace
-        .active_request()
-        .unwrap()
-        .effective_headers()
-        .is_empty()));
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .effective_headers()),
+        vec![postman_gpui::app::EffectiveHeader {
+            name: "Content-Type".to_string(),
+            value: "text/plain".to_string(),
+            source: postman_gpui::app::EffectiveHeaderSource::Generated,
+        }]
+    );
 
     assert!(panel.size.height > px(180.));
     assert_eq!(kinds.size.height, px(55.0));
@@ -878,7 +891,9 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
 }
 
 #[gpui::test]
-fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppContext) {
+fn urlencoded_prototype_rows_grow_then_scroll_with_the_preview_below_the_table(
+    cx: &mut TestAppContext,
+) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
         workspace
@@ -903,8 +918,6 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
         })
     });
     ui::open_http(cx);
-    ui::show_body_details(cx).unwrap();
-
     let initial_panel = cx
         .debug_bounds("request-panel")
         .expect("URL-encoded request panel should render");
@@ -913,6 +926,23 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
         .expect("URL-encoded row viewport should render");
     assert!(initial_panel.size.height > px(180.));
     assert!(cx.debug_bounds("body-form-scrollbar").is_none());
+    assert!(cx.debug_bounds("body-encoded-preview").is_some());
+    assert!(cx.debug_bounds("request-context").is_none());
+    let types = cx.debug_bounds("body-types").unwrap();
+    for selector in [
+        "body-kind-none",
+        "body-kind-json",
+        "body-kind-raw",
+        "body-kind-url-encoded",
+        "body-kind-form-data",
+        "body-kind-binary",
+    ] {
+        let button = cx
+            .debug_bounds(selector)
+            .expect("all six body types are visible");
+        assert!(button.left() >= types.left() && button.right() <= types.right());
+        assert!(button.top() >= types.top() && button.bottom() <= types.bottom());
+    }
 
     for _ in 0..4 {
         click(cx, "body-form-add-row").unwrap();
@@ -921,7 +951,7 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
 
     let grown_panel = cx
         .debug_bounds("request-panel")
-        .expect("URL-encoded request panel should grow with rows");
+        .expect("URL-encoded request panel should retain its divider");
     let grown_rows = cx
         .debug_bounds("body-form-scroll")
         .expect("URL-encoded row viewport should grow with rows");
@@ -929,11 +959,17 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
         grown_panel.size.height, initial_panel.size.height,
         "rows must not move the user-owned divider"
     );
-    assert_eq!(
-        grown_rows.size.height - initial_rows.size.height,
-        px(0.) // Rows use the available split viewport; adding rows does not resize it.
+    assert!(
+        grown_rows.size.height > initial_rows.size.height,
+        "the table should grow with its content until it reaches the available viewport"
     );
-    assert!(cx.debug_bounds("body-form-scrollbar").is_none());
+    let first_row = cx.debug_bounds("body-form-row-0").unwrap();
+    let fifth_row = cx.debug_bounds("body-form-row-4").unwrap();
+    assert_eq!(
+        cx.debug_bounds("body-form-scrollbar").is_some(),
+        fifth_row.bottom() - first_row.top() > grown_rows.size.height,
+        "a partially filled table needs a scrollbar only when its rows actually overflow"
+    );
 
     for _ in 0..20 {
         click(cx, "body-form-add-row").unwrap();
@@ -952,43 +988,39 @@ fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppC
     let scrollbar = cx
         .debug_bounds("body-form-scrollbar")
         .expect("overflowing URL-encoded rows should expose a scrollbar");
-    let thumb = cx
-        .debug_bounds("body-form-scrollbar-thumb")
-        .expect("the URL-encoded scrollbar should expose its thumb");
     let add_action = cx
         .debug_bounds("body-form-add-row")
         .expect("Add form field should remain outside the row viewport");
-    let effective = cx
-        .debug_bounds("body-url-encoded-effective-request")
-        .expect("effective request preview should remain fixed");
-    let ready = cx
-        .debug_bounds("body-url-encoded-ready-indicator")
-        .expect("ready state should remain fixed");
+    let preview = cx
+        .debug_bounds("body-encoded-preview")
+        .expect("encoded preview should remain available without opening Details");
 
     assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
-    assert!(thumb.origin.y >= scrollbar.origin.y);
-    assert!(thumb.bottom() <= scrollbar.bottom());
-    assert!(thumb.size.height < scrollbar.size.height);
+    assert_eq!(scrollbar.top(), rows_viewport.top());
+    assert_eq!(scrollbar.bottom(), rows_viewport.bottom());
+    assert_eq!(scrollbar.right(), rows_viewport.right());
     assert!(add_action.origin.y >= rows_viewport.bottom());
-    assert!(effective.origin.y >= add_action.bottom());
-    assert!(ready.origin.y >= effective.bottom());
-    assert!(cx.debug_bounds("body-form-add-row-hint").is_some());
-    assert!(cx.debug_bounds("body-url-encoded-field-count").is_some());
+    assert!(preview.origin.y >= add_action.bottom());
+    assert!(preview.bottom() <= capped_panel.bottom());
+    assert!(cx.debug_bounds("body-form-add-row-hint").is_none());
 
+    // Add field reveals the new row; return to the top before exercising wheel scrolling.
+    scroll_up(cx, "body-form-scroll", 10_000.0).unwrap();
+    let first_before_scroll = cx.debug_bounds("body-form-row-0").unwrap();
+    assert!(first_before_scroll.top() >= rows_viewport.top());
     scroll_down(cx, "body-form-scroll", 90.0).unwrap();
+    let first_after_scroll = cx.debug_bounds("body-form-row-0").unwrap();
+    assert!(first_after_scroll.top() < first_before_scroll.top());
     let add_after_scroll = cx
         .debug_bounds("body-form-add-row")
         .expect("Add form field should remain visible after scrolling");
-    let effective_after_scroll = cx
-        .debug_bounds("body-url-encoded-effective-request")
-        .expect("effective preview should remain visible after scrolling");
-    let ready_after_scroll = cx
-        .debug_bounds("body-url-encoded-ready-indicator")
-        .expect("ready state should remain visible after scrolling");
+    let preview_after_scroll = cx
+        .debug_bounds("body-encoded-preview")
+        .expect("encoded preview should remain visible after scrolling");
     assert_eq!(add_after_scroll.origin.y, add_action.origin.y);
-    assert_eq!(effective_after_scroll.origin.y, effective.origin.y);
-    assert_eq!(ready_after_scroll.origin.y, ready.origin.y);
+    assert_eq!(preview_after_scroll.origin.y, preview.origin.y);
+    assert_eq!(cx.debug_bounds("request-panel").unwrap(), capped_panel);
 }
 
 #[gpui::test]

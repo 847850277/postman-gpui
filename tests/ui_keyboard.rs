@@ -224,7 +224,13 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         }
     });
     click(cx, "body-form-add-row").unwrap();
-    cx.simulate_keystrokes("enter");
+    // The prototype focuses the new key immediately. Continue editing with the
+    // keyboard; tabbing out of the last value creates the next editable row.
+    cx.simulate_input("second");
+    ui::press(cx, "tab");
+    cx.simulate_input("value");
+    ui::press(cx, "tab");
+    cx.simulate_input("third");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             match workspace.active_request().unwrap().body_draft() {
@@ -234,7 +240,20 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         }),
         initial_form_rows + 2
     );
-    cx.simulate_keystrokes("shift-tab enter");
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
+        else {
+            panic!("the form remains URL encoded");
+        };
+        assert_eq!(
+            (&rows[1].key, &rows[1].value),
+            (&"second".to_string(), &"value".to_string())
+        );
+        assert_eq!(rows[2].key, "third");
+    });
+    // Reverse from the next row's checkbox to the previous row's Delete button.
+    click(cx, "body-form-toggle-2").unwrap();
+    ui::press(cx, "shift-tab enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             match workspace.active_request().unwrap().body_draft() {

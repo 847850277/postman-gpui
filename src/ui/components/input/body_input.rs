@@ -208,6 +208,14 @@ impl BodyInput {
         });
     }
 
+    /// Content-fit height of the form table and its separate Add field button.
+    /// Pass the actual editor width and clamp the result to the available pane height;
+    /// rows scroll within a smaller allocation while Add field remains accessible.
+    /// Excludes the optional BodyInput type tabs and any surrounding pane chrome.
+    pub fn preferred_form_height(&self, width: gpui::Pixels, cx: &App) -> gpui::Pixels {
+        self.form_input.read(cx).preferred_height(width, cx)
+    }
+
     pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         if self.current_type != BodyType::FormData {
             let content = content.into();

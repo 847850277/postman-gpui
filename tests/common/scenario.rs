@@ -280,6 +280,11 @@ pub fn load_suite(json: &str) -> Result<ScenarioSuite, String> {
         ));
     }
     for scenario in &suite.cases {
+        if let Some(kind) = scenario.draft.body_kind.as_deref() {
+            parse_body_kind(kind).map_err(|error| {
+                format!("scenario `{}` draft is invalid: {error}", scenario.name)
+            })?;
+        }
         validate_body_row_contract(&scenario.draft)
             .map_err(|error| format!("scenario `{}` draft is invalid: {error}", scenario.name))?;
         expected_request_options(&scenario.draft).map_err(|error| {
@@ -734,14 +739,14 @@ fn apply_draft(
             }
         }
     }
-    if let Some(body) = &draft.body {
-        workspace.active_request_mut().unwrap().set_body(body);
-    }
     if let Some(body_kind) = &draft.body_kind {
         workspace
             .active_request_mut()
             .unwrap()
             .set_body_kind(parse_body_kind(body_kind)?);
+    }
+    if let Some(body) = &draft.body {
+        workspace.active_request_mut().unwrap().set_body(body);
     }
     if !draft.body_rows.is_empty()
         || !draft.multipart_parts.is_empty()
@@ -941,6 +946,9 @@ fn expected_body(spec: &RequestSpec) -> Result<RequestBody, String> {
                     .map(|(name, value)| MultipartPart::text(name.into_owned(), value.into_owned()))
                     .collect(),
             ),
+            BodyKind::Binary => {
+                return Err("binary bodies are not supported by the scenario DSL".to_string());
+            }
         });
     }
 
@@ -990,6 +998,7 @@ fn parse_body_kind(value: &str) -> Result<BodyKind, String> {
         "multipart" => Ok(BodyKind::Multipart),
         "none" => Ok(BodyKind::None),
         "raw" => Ok(BodyKind::Raw),
+        "binary" => Err("binary bodies are not supported by the scenario DSL".to_string()),
         _ => Err(format!("invalid body kind `{value}`")),
     }
 }
