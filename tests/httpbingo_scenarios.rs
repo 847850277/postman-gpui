@@ -3878,12 +3878,10 @@ fn apply_precreated_header_rows(
     // The editor now sizes rows to the available pane height; four rows is no longer
     // a fixed overflow threshold. Assert the rendered layout, including partial rows.
     let overflowing = row_height * expected_visible_rows as f32 > viewport.size.height;
-    for selector in ["headers-scrollbar", "headers-scrollbar-thumb"] {
-        if cx.debug_bounds(selector).is_some() != overflowing {
-            return Err(format!(
-                "Header scrollbar `{selector}` does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
-            ));
-        }
+    if cx.debug_bounds("headers-scrollbar").is_some() != overflowing {
+        return Err(format!(
+            "Header scrollbar does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
+        ));
     }
     let add_button = cx
         .debug_bounds("add-row-button")

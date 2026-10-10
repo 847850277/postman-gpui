@@ -1,3 +1,4 @@
+use gpui_kit::base::ElementExt;
 mod editor;
 mod raw;
 
@@ -11,10 +12,7 @@ use crate::{
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
-        components::{
-            common::scrollbar::{scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry},
-            input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
-        },
+        components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
         theme::{
             ACCENT, ACCENT_INK, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK,
             OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -32,6 +30,7 @@ use crate::ui::components::kit_controls::MethodState;
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     menu::DropdownMenu,
+    scroll::{Scrollbar, ScrollbarMode},
     searchable_list::SearchableVec,
     select::{Select, SelectEvent, SelectState},
     IndexPath,
@@ -46,6 +45,8 @@ pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     projected_tab_id: Option<RequestTabId>,
     effective_headers_scroll: ScrollHandle,
     raw_semantics_scroll: ScrollHandle,
+    effective_headers_have_overflow: bool,
+    raw_semantics_have_overflow: bool,
     kind_selector: Entity<MethodState>,
     raw_selector: Entity<MethodState>,
     editor_scroll: ScrollHandle,
@@ -80,11 +81,7 @@ impl BodyPane {
                 cx,
             )
         });
-        let body_input = cx.new(|cx| {
-            BodyInput::new(cx)
-                .with_placeholder("Enter request body (JSON, form data, etc.)")
-                .with_type_tabs(false)
-        });
+        let body_input = cx.new(BodyInput::new);
         let subscriptions = vec![
             cx.subscribe(
                 &raw_selector,
@@ -121,6 +118,8 @@ impl BodyPane {
             projected_tab_id: None,
             effective_headers_scroll: ScrollHandle::new(),
             raw_semantics_scroll: ScrollHandle::new(),
+            effective_headers_have_overflow: false,
+            raw_semantics_have_overflow: false,
             kind_selector,
             raw_selector,
             editor_scroll: ScrollHandle::new(),
@@ -429,9 +428,8 @@ impl BodyPane {
         let (method, effective_url, effective_headers) = request_projection;
         let is_json = kind == BodyKind::Json;
         let is_raw = kind == BodyKind::Raw;
-        let side_height = (panel_height - 128.).max(0.);
         let side_panel = if is_json {
-            Some(self.render_effective_headers(effective_headers, side_height, cx))
+            Some(self.render_effective_headers(effective_headers, cx))
         } else if is_raw {
             Some(render_raw_request_semantics(
                 &body,
@@ -439,7 +437,7 @@ impl BodyPane {
                 &effective_url,
                 effective_headers,
                 &self.raw_semantics_scroll,
-                side_height,
+                self.raw_semantics_have_overflow,
                 cx,
             ))
         } else {
@@ -867,15 +865,9 @@ impl BodyPane {
     fn render_effective_headers(
         &self,
         headers: Vec<EffectiveHeader>,
-        viewport_height: f32,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let count = headers.len();
-        let scrollbar = effective_headers_scrollbar_geometry(
-            count,
-            viewport_height,
-            &self.effective_headers_scroll,
-        );
         div()
             .debug_selector(|| "body-effective-headers".into())
             .w_full()
@@ -953,7 +945,7 @@ impl BodyPane {
                             .gap_2()
                             .px_2()
                             .pb_2()
-                            .when(scrollbar.is_some(), |list| list.pr(px(20.0)))
+                            .when(self.effective_headers_have_overflow, |list| list.pr_5())
                             .when(count == 0, |list| {
                                 list.child(
                                     div()
@@ -973,13 +965,39 @@ impl BodyPane {
                                     .map(|item| render_effective_header(item, cx)),
                             ),
                     )
-                    .when_some(scrollbar, |viewport, scrollbar| {
-                        viewport.child(vertical_scrollbar(
-                            "body-effective-headers-scrollbar",
-                            "body-effective-headers-scrollbar-thumb",
-                            scrollbar,
-                            cx,
-                        ))
+                    .on_prepaint({
+                        let this = cx.weak_entity();
+                        let scroll = self.effective_headers_scroll.clone();
+                        let previous = self.effective_headers_have_overflow;
+                        move |_, window, cx| {
+                            let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                            if has_overflow != previous {
+                                window.defer(cx, move |_, cx| {
+                                    let _ = this.update(cx, |this, cx| {
+                                        if this.effective_headers_have_overflow != has_overflow {
+                                            this.effective_headers_have_overflow = has_overflow;
+                                            cx.notify();
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    })
+                    .when(self.effective_headers_have_overflow, |viewport| {
+                        viewport.child(
+                            div()
+                                .debug_selector(|| "body-effective-headers-scrollbar".into())
+                                .absolute()
+                                .top_0()
+                                .right_0()
+                                .bottom_0()
+                                .w(Scrollbar::width())
+                                .child(
+                                    Scrollbar::vertical(&self.effective_headers_scroll)
+                                        .id("body-effective-headers-scrollbar-control")
+                                        .mode(ScrollbarMode::Always),
+                                ),
+                        )
                     }),
             )
             .child(
@@ -1031,48 +1049,6 @@ impl Render for BodyPane {
         }
         self.render_body_editor(window, cx)
     }
-}
-
-const EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS: usize = 3;
-const EFFECTIVE_HEADER_ROW_HEIGHT: f32 = 48.0;
-const EFFECTIVE_HEADER_ROW_GAP: f32 = 8.0;
-const EFFECTIVE_HEADER_LIST_BOTTOM_PADDING: f32 = 8.0;
-
-fn effective_headers_scrollbar_geometry(
-    header_count: usize,
-    viewport_height: f32,
-    scroll_handle: &ScrollHandle,
-) -> Option<ScrollbarGeometry> {
-    if header_count == 0 {
-        return None;
-    }
-
-    let content_height = EFFECTIVE_HEADER_ROW_HEIGHT * header_count as f32
-        + EFFECTIVE_HEADER_ROW_GAP * header_count.saturating_sub(1) as f32
-        + EFFECTIVE_HEADER_LIST_BOTTOM_PADDING;
-    let max_offset_y = scroll_handle.max_offset().y.as_f32();
-    let overflows = max_offset_y > 0.0
-        || (viewport_height > 0.0 && content_height > viewport_height)
-        || (viewport_height <= 0.0 && header_count > EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS);
-    if !overflows {
-        return None;
-    }
-
-    let visible_fraction = if viewport_height > 0.0 {
-        let measured_content_height = if max_offset_y > 0.0 {
-            viewport_height + max_offset_y
-        } else {
-            content_height
-        };
-        viewport_height / measured_content_height.max(viewport_height)
-    } else {
-        EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS as f32 / header_count as f32
-    };
-    Some(scrollbar_geometry(
-        visible_fraction,
-        scroll_handle.offset().y.as_f32(),
-        max_offset_y,
-    ))
 }
 
 const BODY_LABELS: [&str; 6] = ["None", "Form-data", "URL encoded", "Raw", "JSON", "Binary"];

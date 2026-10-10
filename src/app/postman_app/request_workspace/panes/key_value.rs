@@ -1,4 +1,4 @@
-use super::super::layout::{row_scrollbar_geometry, RequestPanelLayout};
+use super::super::layout::RequestPanelLayout;
 use crate::{
     app::{KeyValueRow, RequestPane, RequestTabId, RequestViewModel, WorkspaceViewModel},
     ui::{
@@ -11,9 +11,13 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, relative, AppContext, Context, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
     StatefulInteractiveElement, Styled, Subscription, Window,
+};
+use gpui_kit::{
+    base::ElementExt,
+    component::scroll::{Scrollbar, ScrollbarMode},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -235,6 +239,7 @@ pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     row_toggle_focus_handles: Vec<FocusHandle>,
     row_delete_focus_handles: Vec<FocusHandle>,
     rows_scroll_handle: ScrollHandle,
+    rows_have_overflow: bool,
     draft_row_id: TableRowId,
     draft_key_input: Entity<TableCellInput>,
     draft_value_input: Entity<TableCellInput>,
@@ -324,6 +329,7 @@ impl KeyValueRowsPane {
             row_toggle_focus_handles: Vec::new(),
             row_delete_focus_handles: Vec::new(),
             rows_scroll_handle: ScrollHandle::new(),
+            rows_have_overflow: false,
             draft_row_id,
             draft_key_input,
             draft_value_input,
@@ -845,14 +851,6 @@ impl KeyValueRowsPane {
         let section_height = if compact { 32. } else { 55. };
         let table_available = (panel_height - 2. - section_height - 40. - 12.).max(34.);
         let table_height = (34. + (rows.len() + 1) as f32 * 40.).min(table_available);
-        // Keep the fractional row: rounding up hides the bar when the last row is clipped.
-        let capacity = ((table_height - 34.) / 40.).max(0.);
-        let scrollbar = row_scrollbar_geometry(
-            rows.len() + 1,
-            capacity,
-            self.rows_scroll_handle.offset().y.as_f32(),
-            self.rows_scroll_handle.max_offset().y.as_f32(),
-        );
         let scroll_selector = format!("{plural}-rows-scroll");
         let mut table_rows = div()
             .id((plural, 0usize))
@@ -861,6 +859,7 @@ impl KeyValueRowsPane {
             .min_h_0()
             .overflow_y_scroll()
             .track_scroll(&self.rows_scroll_handle)
+            .when(self.rows_have_overflow, |rows| rows.pr_4())
             .flex()
             .flex_col();
         for (index, row) in rows.iter().enumerate() {
@@ -1014,7 +1013,7 @@ impl KeyValueRowsPane {
         table_rows = table_rows.child(draft);
         let count_selector = format!("{plural}-enabled-count");
         let scrollbar_selector = format!("{plural}-scrollbar");
-        let thumb_selector = format!("{plural}-scrollbar-thumb");
+
         div()
             .flex_1()
             .min_h_0()
@@ -1062,6 +1061,7 @@ impl KeyValueRowsPane {
                     .child(
                         div()
                             .h(m::TABLE_HEADER)
+                            .when(self.rows_have_overflow, |head| head.pr_4())
                             .flex_none()
                             .flex()
                             .items_center()
@@ -1091,29 +1091,48 @@ impl KeyValueRowsPane {
                             })
                             .child(div().w_10().flex_none()),
                     )
-                    .child(div().flex_1().min_h_0().flex().child(table_rows).when_some(
-                        scrollbar,
-                        |area, bar| {
-                            area.child(
-                                div()
-                                    .debug_selector(move || scrollbar_selector.clone())
-                                    .w(gpui::rems(0.375))
-                                    .h_full()
-                                    .flex_none()
-                                    .relative()
-                                    .child(
-                                        div()
-                                            .debug_selector(move || thumb_selector.clone())
-                                            .absolute()
-                                            .top(relative(bar.thumb_top))
-                                            .h(relative(bar.thumb_height))
-                                            .w_full()
-                                            .rounded_full()
-                                            .bg(MUTED.resolve(cx)),
-                                    ),
-                            )
-                        },
-                    )),
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .relative()
+                            .child(table_rows)
+                            .on_prepaint({
+                                let this = cx.weak_entity();
+                                let scroll = self.rows_scroll_handle.clone();
+                                let previous = self.rows_have_overflow;
+                                move |_, window, cx| {
+                                    let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                                    if has_overflow != previous {
+                                        window.defer(cx, move |_, cx| {
+                                            let _ = this.update(cx, |this, cx| {
+                                                if this.rows_have_overflow != has_overflow {
+                                                    this.rows_have_overflow = has_overflow;
+                                                    cx.notify();
+                                                }
+                                            });
+                                        });
+                                    }
+                                }
+                            })
+                            .when(self.rows_have_overflow, |area| {
+                                area.child(
+                                    div()
+                                        .debug_selector(move || scrollbar_selector.clone())
+                                        .absolute()
+                                        .top_0()
+                                        .right_0()
+                                        .bottom_0()
+                                        .w(Scrollbar::width())
+                                        .child(
+                                            Scrollbar::vertical(&self.rows_scroll_handle)
+                                                .id((plural, 4usize))
+                                                .mode(ScrollbarMode::Always),
+                                        ),
+                                )
+                            }),
+                    ),
             )
             .child(
                 div().h_10().flex_none().flex().items_center().child(

@@ -12,6 +12,76 @@ use postman_gpui::persistence::{
 };
 use ui::{click, scroll_down, scroll_up};
 
+/// The wrapper follows the viewport; Kit owns the painted thumb and its hit testing.
+fn assert_scrollbar_at_viewport(
+    cx: &mut gpui::VisualTestContext,
+    track: &'static str,
+    scroll: &'static str,
+) -> gpui::Bounds<gpui::Pixels> {
+    let bar = cx
+        .debug_bounds(track)
+        .expect("overflow should expose a scrollbar");
+    let viewport = cx.debug_bounds(scroll).unwrap();
+    assert_eq!(bar.top(), viewport.top(), "{track}");
+    assert_eq!(bar.bottom(), viewport.bottom(), "{track}");
+    assert_eq!(bar.right(), viewport.right(), "{track}");
+    bar
+}
+
+fn assert_scrollbar_pointer_moves_rows(
+    cx: &mut gpui::VisualTestContext,
+    track: &'static str,
+    scroll: &'static str,
+    first_row: &'static str,
+) {
+    scroll_up(cx, scroll, 10_000.).unwrap();
+    let bar = assert_scrollbar_at_viewport(cx, track, scroll);
+    let first = cx.debug_bounds(first_row).unwrap();
+    // At the top, this point lies inside Kit's actual thumb, regardless of content ratio.
+    let start = point(bar.center().x, bar.top() + px(8.));
+    let end = point(start.x, bar.center().y);
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(
+        point(start.x, start.y + px(6.)),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::none());
+    assert!(
+        cx.debug_bounds(first_row).unwrap().top() < first.top(),
+        "{track}: dragging the thumb must move content"
+    );
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, track, scroll),
+        bar,
+        "the overlay must not move with its content"
+    );
+
+    scroll_up(cx, scroll, 10_000.).unwrap();
+    assert_eq!(cx.debug_bounds(first_row).unwrap().top(), first.top());
+    // Click beyond the thumb, near the track end, to reach the final rows.
+    let end = point(bar.center().x, bar.bottom() - px(2.));
+    cx.simulate_mouse_down(end, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::none());
+    assert!(
+        cx.debug_bounds(first_row).unwrap().top() < first.top(),
+        "{track}: clicking the track must move content"
+    );
+    assert_eq!(assert_scrollbar_at_viewport(cx, track, scroll), bar);
+}
+
+fn copy_visible_json_line(cx: &mut gpui::VisualTestContext) -> u64 {
+    click(cx, "body-text-scroll").unwrap();
+    cx.simulate_keystrokes("home shift-down cmd-c");
+    let copied = cx
+        .read_from_clipboard()
+        .and_then(|item| item.text())
+        .unwrap();
+    let line: serde_json::Value = serde_json::from_str(copied.trim()).unwrap();
+    line["line"].as_u64().unwrap()
+}
+
 #[gpui::test]
 fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
@@ -539,9 +609,19 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     assert!(editor.bottom() <= headers.top());
     assert!(editor.bottom() <= panel.bottom());
     assert!(headers.bottom() <= panel.bottom());
+    let rows = cx.debug_bounds("body-effective-headers-scroll").unwrap();
+    for selector in [
+        "body-effective-header-content-type",
+        "body-effective-header-accept",
+        "body-effective-header-x-scenario",
+    ] {
+        let row = cx.debug_bounds(selector).unwrap();
+        assert!(row.top() >= rows.top() && row.bottom() <= rows.bottom());
+    }
     assert!(cx
         .debug_bounds("body-effective-headers-scrollbar")
         .is_none());
+    assert!(cx.debug_bounds("body-text-scrollbar").is_none());
 }
 
 #[gpui::test]
@@ -575,44 +655,52 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     cx.run_until_parked();
 
     scroll_up(cx, "body-text-scroll", 10_000.0).unwrap();
-    let text_scrollbar = cx
-        .debug_bounds("body-text-scrollbar")
-        .expect("a long JSON body should expose a visible scrollbar");
-    let text_thumb = cx
-        .debug_bounds("body-text-scrollbar-thumb")
-        .expect("the JSON body scrollbar should expose its thumb");
-    assert!(text_thumb.origin.y >= text_scrollbar.origin.y);
-    assert!(text_thumb.bottom() <= text_scrollbar.bottom());
-    assert!(text_thumb.size.height < text_scrollbar.size.height);
+    let line_before = copy_visible_json_line(cx);
+    let text_scrollbar =
+        assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll");
     scroll_down(cx, "body-text-scroll", 90.0).unwrap();
-    let text_thumb_after = cx
-        .debug_bounds("body-text-scrollbar-thumb")
-        .expect("the JSON body scrollbar should remain visible after scrolling");
-    let text_scrollbar_after = cx.debug_bounds("body-text-scrollbar").unwrap();
-    // The prototype also scrolls its outer editor at compact heights, so compare the
-    // thumb within its own track instead of assuming a fixed window coordinate.
+    let line_after = copy_visible_json_line(cx);
     assert!(
-        text_thumb_after.top() - text_scrollbar_after.top()
-            > text_thumb.top() - text_scrollbar.top(),
-        "JSON thumb should advance along its track: before={text_thumb:?}/{text_scrollbar:?}, after={text_thumb_after:?}/{text_scrollbar_after:?}"
+        line_after > line_before,
+        "wheel scrolling must reveal later JSON lines"
     );
+    // The prototype's ancestor can scroll too; the overlay must stay pinned
+    // to this editor's viewport, rather than follow its text content.
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll").size,
+        text_scrollbar.size
+    );
+
     ui::show_body_details(cx).unwrap();
-    let headers_scrollbar = cx
-        .debug_bounds("body-effective-headers-scrollbar")
-        .expect("many effective headers should expose a visible scrollbar");
-    let headers_thumb = cx
-        .debug_bounds("body-effective-headers-scrollbar-thumb")
-        .expect("the effective-header scrollbar should expose its thumb");
-
-    assert!(headers_thumb.origin.y >= headers_scrollbar.origin.y);
-    assert!(headers_thumb.bottom() <= headers_scrollbar.bottom());
-    assert!(headers_thumb.size.height < headers_scrollbar.size.height);
-
+    let headers_scrollbar = assert_scrollbar_at_viewport(
+        cx,
+        "body-effective-headers-scrollbar",
+        "body-effective-headers-scroll",
+    );
+    let first_header = cx
+        .debug_bounds("body-effective-header-content-type")
+        .unwrap();
     scroll_down(cx, "body-effective-headers-scroll", 90.0).unwrap();
-    let headers_thumb_after = cx
-        .debug_bounds("body-effective-headers-scrollbar-thumb")
-        .expect("the effective-header scrollbar should remain visible after scrolling");
-    assert!(headers_thumb_after.origin.y > headers_thumb.origin.y);
+    assert!(
+        cx.debug_bounds("body-effective-header-content-type")
+            .unwrap()
+            .top()
+            < first_header.top()
+    );
+    assert_eq!(
+        assert_scrollbar_at_viewport(
+            cx,
+            "body-effective-headers-scrollbar",
+            "body-effective-headers-scroll"
+        ),
+        headers_scrollbar
+    );
+    assert_scrollbar_pointer_moves_rows(
+        cx,
+        "body-effective-headers-scrollbar",
+        "body-effective-headers-scroll",
+        "body-effective-header-content-type",
+    );
 }
 
 #[gpui::test]
@@ -714,6 +802,68 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
 }
 
 #[gpui::test]
+fn text_body_scrollbar_disappears_when_empty_or_short_content_fits(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| {
+        let mut workspace = WorkspaceViewModel::new();
+        let request = workspace.active_request_mut().unwrap();
+        request.set_method(HttpMethod::POST);
+        request.set_body_kind(BodyKind::Json);
+        request.set_request_pane(RequestPane::Body);
+        workspace
+    });
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    let handle = cx.update(|window, _| window.window_handle());
+    // Match the native preview where an empty editor previously showed a full track.
+    cx.simulate_window_resize(handle, gpui::size(px(1480.), px(978.)));
+    ui::open_http(cx);
+    for (kind, selector) in [
+        (BodyKind::Json, "body-kind-json"),
+        (BodyKind::Raw, "body-kind-raw"),
+    ] {
+        ui::choose_body_kind(cx, selector).unwrap();
+        for body in [
+            String::new(),
+            (0..80).map(|line| format!("line-{line}\n")).collect(),
+            String::new(),
+            "short body".to_string(),
+        ] {
+            click(cx, "body-text-scroll").unwrap();
+            cx.simulate_keystrokes("cmd-a");
+            if body.is_empty() {
+                cx.simulate_keystrokes("backspace");
+            } else {
+                cx.simulate_input(&body);
+            }
+            cx.run_until_parked();
+            assert_eq!(
+                workspace.read_with(cx, |model, _| model
+                    .active_request()
+                    .unwrap()
+                    .body()
+                    .to_string()),
+                body
+            );
+            let viewport = cx.debug_bounds("body-text-scroll").unwrap();
+            assert!(viewport.size.height > px(100.));
+            if body.lines().count() > 1 {
+                assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll");
+                scroll_down(cx, "body-text-scroll", 1000.).unwrap();
+            } else {
+                assert!(
+                    cx.debug_bounds("body-text-scrollbar").is_none(),
+                    "{kind:?}: fitting content {body:?} must not show a scrollbar in {viewport:?}"
+                );
+            }
+        }
+    }
+}
+
+#[gpui::test]
 fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -767,30 +917,46 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
     let scrollbar = cx
         .debug_bounds("body-raw-scrollbar")
         .expect("overflowing Raw semantics should expose a scrollbar");
-    let thumb = cx
-        .debug_bounds("body-raw-scrollbar-thumb")
-        .expect("the Raw semantics scrollbar should expose its thumb");
     let footer = cx
         .debug_bounds("body-raw-semantics-footer")
         .expect("the Raw semantics footer should remain fixed");
-    assert!(thumb.origin.y >= scrollbar.origin.y);
-    assert!(thumb.bottom() <= scrollbar.bottom());
-    assert!(thumb.size.height < scrollbar.size.height);
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, "body-raw-scrollbar", "body-raw-semantics-scroll"),
+        scrollbar
+    );
+    let ready_before = cx.debug_bounds("body-raw-ready-indicator").unwrap();
     assert!(footer.origin.y >= rows.bottom());
 
     scroll_down(cx, "body-raw-semantics-scroll", 60.0).unwrap();
-    let thumb_after = cx
-        .debug_bounds("body-raw-scrollbar-thumb")
-        .expect("the Raw scrollbar should remain visible after scrolling");
     let ready_after = cx
         .debug_bounds("body-raw-ready-indicator")
         .expect("the final Raw semantics row should be reachable by scrolling");
     let footer_after = cx
         .debug_bounds("body-raw-semantics-footer")
         .expect("the Raw footer should remain visible after scrolling");
-    assert!(thumb_after.origin.y > thumb.origin.y, "rows={rows:?} bar={scrollbar:?} before={thumb:?} after={thumb_after:?} ready={ready_after:?}");
+    assert!(ready_after.top() < ready_before.top());
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, "body-raw-scrollbar", "body-raw-semantics-scroll"),
+        scrollbar
+    );
     assert!(ready_after.bottom() <= rows.bottom());
     assert_eq!(footer_after.origin.y, footer.origin.y);
+    assert_scrollbar_pointer_moves_rows(
+        cx,
+        "body-raw-scrollbar",
+        "body-raw-semantics-scroll",
+        "body-raw-content-type-state",
+    );
+    assert!(
+        cx.debug_bounds("body-raw-ready-indicator")
+            .unwrap()
+            .bottom()
+            <= rows.bottom()
+    );
+    assert_eq!(
+        cx.debug_bounds("body-raw-semantics-footer").unwrap(),
+        footer
+    );
 }
 
 #[gpui::test]
@@ -1134,15 +1300,20 @@ fn params_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let scrollbar = cx
         .debug_bounds("params-scrollbar")
         .expect("overflowing Params rows should expose a scrollbar");
-    let thumb = cx
-        .debug_bounds("params-scrollbar-thumb")
-        .expect("the Params scrollbar should expose its thumb");
+
     assert!(capped_panel.size.height >= grown_panel.size.height);
     assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
-    assert!(thumb.origin.y >= scrollbar.origin.y);
-    assert!(thumb.bottom() <= scrollbar.bottom());
-    assert!(thumb.size.height < scrollbar.size.height);
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, "params-scrollbar", "params-rows-scroll"),
+        scrollbar
+    );
+    assert_scrollbar_pointer_moves_rows(
+        cx,
+        "params-scrollbar",
+        "params-rows-scroll",
+        "param-row-0",
+    );
 
     workspace.update(cx, |workspace, cx| {
         workspace.active_request_mut().unwrap().append_param_row();
@@ -1225,9 +1396,7 @@ fn header_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let scrollbar = cx
         .debug_bounds("headers-scrollbar")
         .expect("overflowing Header rows should expose a scrollbar");
-    let thumb = cx
-        .debug_bounds("headers-scrollbar-thumb")
-        .expect("the Headers scrollbar should expose its thumb");
+
     let add_action = cx
         .debug_bounds("add-row-button")
         .expect("Add Header should remain outside the scroll region");
@@ -1238,22 +1407,28 @@ fn header_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     assert!(capped_panel.size.height >= grown_panel.size.height);
     assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
-    assert!(thumb.origin.y >= scrollbar.origin.y);
-    assert!(thumb.bottom() <= scrollbar.bottom());
-    assert!(thumb.size.height < scrollbar.size.height);
+    assert_eq!(
+        assert_scrollbar_at_viewport(cx, "headers-scrollbar", "headers-rows-scroll"),
+        scrollbar
+    );
+    assert_scrollbar_pointer_moves_rows(
+        cx,
+        "headers-scrollbar",
+        "headers-rows-scroll",
+        "header-row-0",
+    );
     assert!(add_action.origin.y >= rows_viewport.bottom());
 }
 
 #[gpui::test]
 fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut TestAppContext) {
-    for (pane, first, last, scroll, track, thumb, short_height) in [
+    for (pane, first, last, scroll, track, short_height) in [
         (
             "request-pane-headers",
             "header-row-0",
             "header-row-5",
             "headers-rows-scroll",
             "headers-scrollbar",
-            "headers-scrollbar-thumb",
             740.,
         ),
         (
@@ -1262,7 +1437,6 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
             "param-row-5",
             "params-rows-scroll",
             "params-scrollbar",
-            "params-scrollbar-thumb",
             810.,
         ),
     ] {
@@ -1302,10 +1476,11 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
             cx.debug_bounds(track).is_some(),
             "{pane}: a partially clipped row needs a scrollbar"
         );
-        let start_thumb = cx.debug_bounds(thumb).unwrap();
+        let bar = assert_scrollbar_at_viewport(cx, track, scroll);
+        let first_before = cx.debug_bounds(first).unwrap();
         scroll_down(cx, scroll, 1000.).unwrap();
-        let end_thumb = cx.debug_bounds(thumb).unwrap();
-        assert!(end_thumb.top() > start_thumb.top());
+        assert!(cx.debug_bounds(first).unwrap().top() < first_before.top());
+        assert_eq!(assert_scrollbar_at_viewport(cx, track, scroll), bar);
         assert!(cx.debug_bounds(last).unwrap().bottom() <= viewport.bottom() + px(0.5));
         assert!(cx.debug_bounds("add-row-button").unwrap().top() >= viewport.bottom());
 

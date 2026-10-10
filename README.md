@@ -86,10 +86,12 @@ are saved locally; an invalid/unavailable preference file falls back to a usable
 
 Params and Headers include editable Description notes, retained in the current tab's draft
 and excluded from the outgoing request. History replays the effective request; it does not
-persist these notes. Wide layouts share a Query String preview and an authorization shortcut
-across request panes. Body formats use a Kit dropdown; **Details** expands the effective
-request preview, and the actions menu contains Sample JSON and Clear body. Auth places its
-scheme selector beside the credential fields, with both bearer tokens and passwords masked.
+persist these notes. Wide layouts show a Query String preview and an authorization shortcut
+outside the Body editor. Body offers None, JSON, Raw, URL encoded, Form-data and Binary,
+retaining each type's draft when switching. Its actions menu contains Request details,
+Sample JSON and Clear body. Auth places its scheme selector beside the credential fields,
+with both bearer tokens and passwords masked. Request tables, body editors and response
+panels use Kit scrollbars for wheel, thumb-drag and track-click scrolling.
 
 Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout --test ui_request_panels` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through

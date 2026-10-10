@@ -56,7 +56,9 @@ cargo run --locked
 Linux 需要先安装[安装指南](docs/installation.md#linux)列出的 GPUI 开发依赖。
 
 GPUI Kit 迁移直接在 `cargo run --locked` 打开的真实应用中逐步进行，
-从 Home 进入 HTTP 即可查看请求编辑区。使用
+从 Home 进入 HTTP 即可查看请求编辑区。Body 支持 None、JSON、Raw、URL encoded、
+Form-data 和 Binary，切换类型保留各自草稿。请求表格、Body 编辑器和响应面板
+使用 Kit 滚动条，支持滚轮、拖动滑块和点击轨道。使用
 `cargo test --locked --test ui_shell --test ui_kit --test ui_layout`
 验证页面导航、原生控件交互和布局。
 

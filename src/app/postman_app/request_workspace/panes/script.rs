@@ -30,15 +30,7 @@ impl ScriptPane {
         kind: ScriptPaneKind,
         cx: &mut Context<Self>,
     ) -> Self {
-        let placeholder = match kind {
-            ScriptPaneKind::PreRequest => "Pre-request script",
-            ScriptPaneKind::Tests => "Response tests",
-        };
-        let input = cx.new(|cx| {
-            BodyInput::new(cx)
-                .with_placeholder(placeholder)
-                .with_type_tabs(false)
-        });
+        let input = cx.new(BodyInput::new);
         let subscriptions = vec![cx.subscribe(&input, Self::on_input_event)];
         let mut pane = Self {
             view_model,

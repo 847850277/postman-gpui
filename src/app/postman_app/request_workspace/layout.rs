@@ -1,7 +1,3 @@
-use crate::ui::components::common::scrollbar::scrollbar_geometry;
-
-pub(super) use crate::ui::components::common::scrollbar::ScrollbarGeometry as RowScrollbarGeometry;
-
 /// Resolved request viewport, shared with the editors that own row scrolling.
 /// The split measures this region; window chrome is never subtracted a second time.
 pub(super) struct RequestPanelLayout {
@@ -40,21 +36,4 @@ impl RequestPanelLayout {
         self.height = height;
         true
     }
-}
-
-pub(super) fn row_scrollbar_geometry(
-    visible_rows: usize,
-    visible_capacity: f32,
-    offset_y: f32,
-    max_offset_y: f32,
-) -> Option<RowScrollbarGeometry> {
-    if visible_rows as f32 <= visible_capacity || visible_capacity <= 0.0 {
-        return None;
-    }
-
-    Some(scrollbar_geometry(
-        visible_capacity / visible_rows as f32,
-        offset_y,
-        max_offset_y,
-    ))
 }

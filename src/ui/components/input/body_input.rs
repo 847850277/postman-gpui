@@ -1,19 +1,19 @@
-//! Compatibility adapter for the two request-body editing surfaces.
+//! Retained text and form editors selected by their owning pane.
 //!
-//! `BodyInput` owns type selection and forwards the existing public events. Text editing mechanics
-//! live in `TextBodyInput`; typed form-row mechanics live in `FormBodyInput`. Neither child owns
-//! request semantics or transport serialization—the workspace ViewModel remains authoritative.
+//! `BodyInput` projects the pane-selected editor mode and forwards child edit events. Text editing
+//! mechanics live in `TextBodyInput`; typed form-row mechanics live in `FormBodyInput`. Request
+//! semantics and transport serialization remain authoritative in the workspace ViewModel.
 
 use form_body_input::{FormBodyInput, FormBodyInputEvent};
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render,
-    Styled, Subscription, Window,
+    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Styled, Subscription,
+    Window,
 };
 use std::path::PathBuf;
 use text_body_input::{TextBodyInput, TextBodyInputEvent};
 
-use crate::ui::theme::{CODE_BG, FONT_UI, INFO, PANEL, TEXT};
+use crate::ui::theme::{CODE_BG, PANEL};
 
 mod form_body_input;
 mod text_body_input;
@@ -108,9 +108,8 @@ impl FormDataEntry {
     }
 }
 
-/// Thin compatibility surface for callers that switch between JSON/raw and form body modes.
+/// Presents the text or form editor selected by the owning pane.
 pub struct BodyInput {
-    show_type_tabs: bool,
     current_type: BodyType,
     text_input: Entity<TextBodyInput>,
     form_input: Entity<FormBodyInput>,
@@ -138,21 +137,11 @@ impl BodyInput {
         ];
 
         Self {
-            show_type_tabs: true,
             current_type: BodyType::Json,
             text_input,
             form_input,
             _subscriptions: subscriptions,
         }
-    }
-
-    pub fn with_placeholder(self, _placeholder: &str) -> Self {
-        self
-    }
-
-    pub fn with_type_tabs(mut self, show_type_tabs: bool) -> Self {
-        self.show_type_tabs = show_type_tabs;
-        self
     }
 
     fn on_text_event(
@@ -177,23 +166,6 @@ impl BodyInput {
         cx.notify();
     }
 
-    pub fn set_type(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
-        if self.current_type == body_type {
-            return;
-        }
-
-        self.current_type = body_type;
-        match body_type {
-            BodyType::Json | BodyType::Raw => cx.emit(BodyInputEvent::ValueChanged(
-                self.text_input.read(cx).content().to_string(),
-            )),
-            BodyType::FormData => cx.emit(BodyInputEvent::FormDataChanged(
-                self.form_input.read(cx).entries().to_vec(),
-            )),
-        }
-        cx.notify();
-    }
-
     /// Change editor presentation without emitting a draft-value event.
     pub fn set_type_silent(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
         if self.current_type != body_type {
@@ -211,12 +183,13 @@ impl BodyInput {
     /// Content-fit height of the form table and its separate Add field button.
     /// Pass the actual editor width and clamp the result to the available pane height;
     /// rows scroll within a smaller allocation while Add field remains accessible.
-    /// Excludes the optional BodyInput type tabs and any surrounding pane chrome.
+    /// Excludes surrounding pane chrome.
     pub fn preferred_form_height(&self, width: gpui::Pixels, cx: &App) -> gpui::Pixels {
         self.form_input.read(cx).preferred_height(width, cx)
     }
 
-    pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         if self.current_type != BodyType::FormData {
             let content = content.into();
             self.text_input
@@ -233,17 +206,20 @@ impl BodyInput {
         }
     }
 
-    pub fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, FormBodyInput::add_form_data_entry);
     }
 
-    pub fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.remove_form_data_entry(index, cx));
     }
 
-    pub fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.toggle_form_data_entry(index, cx));
     }
@@ -253,7 +229,8 @@ impl BodyInput {
         self.form_input.read(cx).entries().len()
     }
 
-    pub fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.set_form_data_entries(entries, cx));
     }
@@ -279,7 +256,8 @@ impl BodyInput {
         });
     }
 
-    pub fn clear(&mut self, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn clear(&mut self, cx: &mut Context<Self>) {
         match self.current_type {
             BodyType::Json | BodyType::Raw => {
                 self.text_input.update(cx, TextBodyInput::clear);
@@ -288,34 +266,6 @@ impl BodyInput {
                 self.form_input.update(cx, FormBodyInput::clear);
             }
         }
-    }
-
-    pub fn start_editing_key(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.start_editing_key(index, cx));
-    }
-
-    pub fn start_editing_value(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.start_editing_value(index, cx));
-    }
-
-    pub fn finish_editing(&mut self, cx: &mut Context<Self>) {
-        self.form_input.update(cx, FormBodyInput::finish_editing);
-    }
-
-    pub fn finish_key_editing_only(&mut self, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, FormBodyInput::finish_key_editing_only);
-    }
-
-    pub fn finish_value_editing_only(&mut self, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, FormBodyInput::finish_value_editing_only);
-    }
-
-    pub fn cancel_editing(&mut self, cx: &mut Context<Self>) {
-        self.form_input.update(cx, FormBodyInput::cancel_editing);
     }
 }
 
@@ -336,79 +286,6 @@ impl Render for BodyInput {
                 CODE_BG
             })
             .resolve(cx))
-            .when(self.show_type_tabs, |root| {
-                root.child(
-                    div()
-                        .h(px(40.0))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .gap_4()
-                        .px_4()
-                        .bg(crate::ui::theme::PANEL.resolve(cx))
-                        .border_b_1()
-                        .border_color(crate::ui::theme::LINE.resolve(cx))
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::Json, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::Json, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("● JSON ▾")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| this.set_type(BodyType::Json, cx)),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::FormData, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::FormData, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("○ form-data")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.set_type(BodyType::FormData, cx)
-                                    }),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::Raw, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::Raw, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("○ raw")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| this.set_type(BodyType::Raw, cx)),
-                                ),
-                        ),
-                )
-            })
             .child(match current_type {
                 BodyType::Json | BodyType::Raw => self.text_input.clone().into_any_element(),
                 BodyType::FormData => self.form_input.clone().into_any_element(),

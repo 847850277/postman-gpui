@@ -81,8 +81,9 @@ impl MultilineInputState {
         self.context_menu_position.take().is_some()
     }
 
-    /// Programmatic user mutation used by the Body compatibility surface. The previous selection
+    /// Programmatic user mutation for editor tests. The previous selection
     /// is retained where possible, while the complete replacement remains one Undo transaction.
+    #[cfg(test)]
     pub(crate) fn set_text(&mut self, text: impl Into<String>) -> bool {
         let text = text.into();
         if self.editor.text() == text {
@@ -122,6 +123,7 @@ impl MultilineInputState {
         self.editor.text() != before
     }
 
+    #[cfg(test)]
     pub(crate) fn clear(&mut self) -> bool {
         if self.editor.text().is_empty() {
             return false;

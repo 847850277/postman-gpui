@@ -332,6 +332,7 @@ impl FormBodyInput {
         .detach();
     }
 
+    #[cfg(test)]
     pub(super) fn set_form_data_entries(
         &mut self,
         mut entries: Vec<FormDataEntry>,
@@ -373,39 +374,7 @@ impl FormBodyInput {
         cx.notify();
     }
 
-    pub(super) fn start_editing_key(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(editor) = self.row_editors.get(index) {
-            self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
-                editor.row_id,
-                TableCellColumn::Key,
-            )));
-            cx.notify();
-        }
-    }
-
-    pub(super) fn start_editing_value(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self
-            .form_data_entries
-            .get(index)
-            .is_some_and(|entry| entry.file.is_none())
-        {
-            let row_id = self.row_editors[index].row_id;
-            self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
-                row_id,
-                TableCellColumn::Value,
-            )));
-            cx.notify();
-        }
-    }
-
-    pub(super) fn finish_editing(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn finish_key_editing_only(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn finish_value_editing_only(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn cancel_editing(&mut self, _cx: &mut Context<Self>) {}
-
+    #[cfg(test)]
     pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
         if self.form_data_entries == [FormDataEntry::text("", "", true)] {
             return;
