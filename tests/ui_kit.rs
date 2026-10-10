@@ -1,17 +1,15 @@
-//! P0 compatibility checks through the same Kit root used by the native executable.
+//! Kit integration checks through the production application and HTTP editor.
 
 #[path = "common/ui.rs"]
 mod ui;
 
-use std::time::Duration;
-
-use gpui::{AppContext, ClipboardItem, TestAppContext, WindowOptions};
+use gpui::{AppContext, ClipboardItem, TestAppContext};
 use gpui_kit::{
     component::{Root, Theme, ThemeMode},
-    test::{TestAppContextExt, TestWindowExt},
+    test::TestWindowExt,
 };
 use postman_gpui::{
-    app::{kit_smoke::KitSmokeView, PostmanApp, ResponseState, WorkspaceViewModel},
+    app::{PostmanApp, ResponseState, WorkspaceViewModel},
     assets::fonts::load_embedded_fonts,
     ui::kit,
 };
@@ -29,98 +27,55 @@ fn init(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn kit_input_keyboard_clipboard_and_dialog_share_the_application_root(
+fn http_url_clipboard_and_help_preserve_text_and_focus_across_theme_changes(
     cx: &mut TestAppContext,
 ) {
     init(cx);
-    let (handle, _) = cx
-        .update(|cx| {
-            gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
-                cx.new(|cx| KitSmokeView::new(window, cx))
-            })
-        })
-        .unwrap();
-    assert!(handle.downcast::<Root>().is_some());
-
-    cx.update_window(handle, |_, window, cx| {
-        window.click("kit-smoke-input", cx);
-        window.input("Hello, 世界 🦀", cx);
-        window.press(
-            if cfg!(target_os = "macos") {
-                "cmd-a"
-            } else {
-                "ctrl-a"
-            },
-            cx,
-        );
-        window.press(
-            if cfg!(target_os = "macos") {
-                "cmd-c"
-            } else {
-                "ctrl-c"
-            },
-            cx,
-        );
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let observed = model.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        let app = cx.new(|cx| PostmanApp::with_view_model(observed, window, cx));
+        Root::new(app, window, cx)
+    });
+    ui::click(cx, "home-open-http").unwrap();
+    let value = "https://example.test/世界/🦀";
+    cx.update(|window, cx| {
+        window.click("request-url-input", cx);
+        window.input(value, cx);
+        window.press("secondary-a", cx);
+        window.press("secondary-c", cx);
         assert_eq!(
             cx.read_from_clipboard().and_then(|item| item.text()),
-            Some("Hello, 世界 🦀".into())
+            Some(value.into())
         );
         window.press("backspace", cx);
-        assert_eq!(window.find("kit-smoke-input").value(), Some(""));
-        window.press(
-            if cfg!(target_os = "macos") {
-                "cmd-v"
-            } else {
-                "ctrl-v"
-            },
-            cx,
-        );
-        assert_eq!(
-            window.find("kit-smoke-input").value(),
-            Some("Hello, 世界 🦀")
-        );
+        assert_eq!(window.find("request-url-input").value(), Some(""));
+        window.press("secondary-v", cx);
+        assert_eq!(window.find("request-url-input").value(), Some(value));
         window.press("tab", cx);
-        assert_eq!(window.find("kit-smoke-open").focused(), Some(true));
+        assert_eq!(window.find("send-button").focused(), Some(true));
         window.press("shift-tab", cx);
-        assert_eq!(window.find("kit-smoke-input").focused(), Some(true));
-        window.press("tab", cx);
-        window.press("enter", cx);
-    })
-    .unwrap();
-    cx.wait_for(handle, Duration::from_secs(1), |window, _| {
-        window.try_find("dialog").is_some()
-    })
-    .await;
-    cx.update_window(handle, |_, window, cx| {
-        assert_eq!(
-            window.within("dialog").find("kit-smoke-value").label(),
-            Some("Hello, 世界 🦀")
-        );
-        window.press("escape", cx);
-    })
-    .unwrap();
-    cx.wait_for(handle, Duration::from_secs(1), |window, _| {
-        window.try_find("dialog").is_none()
-    })
-    .await;
-    cx.update_window(handle, |_, window, cx| {
-        assert_eq!(window.find("kit-smoke-open").focused(), Some(true));
-        window.click("kit-smoke-input", cx);
+        assert_eq!(window.find("request-url-input").focused(), Some(true));
+        window.press("ctrl-/", cx);
+    });
+    assert!(cx.debug_bounds("shortcut-help-dialog").is_some());
+    cx.update(|window, cx| {
+        postman_gpui::ui::theme::apply(ThemeMode::Dark, cx);
+        window.render_frame(cx);
+        assert_eq!(Theme::global(cx).mode, ThemeMode::Dark);
+        assert_eq!(window.find("request-url-input").value(), Some(value));
+    });
+    assert!(cx.debug_bounds("shortcut-help-dialog").is_some());
+    ui::press(cx, "escape");
+    assert!(cx.debug_bounds("shortcut-help-dialog").is_none());
+    cx.update(|window, cx| {
+        assert_eq!(window.find("request-url-input").focused(), Some(true));
         window.input("!", cx);
-        window.click("kit-smoke-open", cx);
-    })
-    .unwrap();
-    cx.wait_for(handle, Duration::from_secs(1), |window, _| {
-        window.try_find("dialog").is_some()
-    })
-    .await;
-    cx.update_window(handle, |_, window, _| {
-        assert_eq!(
-            window.within("dialog").find("kit-smoke-value").label(),
-            Some("Hello, 世界 🦀!")
-        );
-    })
-    .unwrap();
+    });
+    assert_eq!(
+        model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
+        format!("{value}!")
+    );
 }
 
 #[gpui::test]
@@ -188,130 +143,51 @@ fn assert_one_focus_frame(window: &gpui::Window, cx: &gpui::App, group: &'static
 }
 
 #[gpui_kit::test]
-fn shared_groups_keep_text_inside_their_frames_at_reference_and_minimum_sizes(
-    cx: &mut TestAppContext,
-) {
+fn http_url_group_keeps_one_focus_frame_and_long_text_inside_its_bounds(cx: &mut TestAppContext) {
     init(cx);
     for (width, height) in [(1440., 960.), (960., 640.)] {
         let handle = cx.open_window(
             gpui::size(gpui::px(width), gpui::px(height)),
             |window, cx| {
-                let view = cx.new(|cx| KitSmokeView::new(window, cx));
+                let model = cx.new(|_| WorkspaceViewModel::new());
+                let view = cx.new(|cx| PostmanApp::with_view_model(model, window, cx));
                 Root::new(view, window, cx)
             },
         );
         cx.update_window(handle.into(), |_, window, cx| {
-            window.render_frame(cx);
-            let group = window.find("kit-url-group").bounds();
-            let input = window.find("kit-url").bounds();
+            window.click("home-open-http", cx);
+            let group = window.find("request-url-group").bounds();
+            let input = window.find("request-url-input").bounds();
             let method = window.find("method-select").bounds();
             assert!((f32::from(group.size.height) - 48.).abs() <= GEOMETRY_EPSILON);
-            assert!(
-                (f32::from(window.find("kit-search-group").bounds().size.height) - 36.).abs()
-                    <= GEOMETRY_EPSILON
-            );
             assert!(input.left() >= method.right());
             assert!(input.right() < group.right());
             assert!(input.top() >= group.top() && input.bottom() <= group.bottom());
             assert!(group.right() <= gpui::px(width));
-            window.click("kit-search", cx);
-            assert_one_focus_frame(window, cx, "kit-search-group");
-            window.click("kit-url", cx);
-            assert_one_focus_frame(window, cx, "kit-url-group");
+            window.click("request-url-input", cx);
+            assert_one_focus_frame(window, cx, "request-url-group");
             let long = format!("https://example.test/{}", "长路径🦀?q=x&".repeat(80));
             cx.write_to_clipboard(ClipboardItem::new_string(long.clone()));
             window.press("secondary-a", cx);
             window.press("secondary-v", cx);
-            assert_eq!(window.find("kit-url").value(), Some(long.as_str()));
-            assert_eq!(window.find("kit-url").bounds(), input);
+            assert_eq!(
+                window.find("request-url-input").value(),
+                Some(long.as_str())
+            );
+            assert_eq!(window.find("request-url-input").bounds(), input);
             postman_gpui::ui::theme::apply(ThemeMode::Dark, cx);
             window.render_frame(cx);
-            assert_eq!(window.find("kit-url").focused(), Some(true));
-            assert_eq!(window.find("kit-url").value(), Some(long.as_str()));
-            assert_eq!(window.find("kit-url").bounds(), input);
+            assert_eq!(window.find("request-url-input").focused(), Some(true));
             assert_eq!(
-                Theme::global(cx).background,
-                postman_gpui::ui::theme::PANEL
-                    .for_mode(ThemeMode::Dark)
-                    .into()
+                window.find("request-url-input").value(),
+                Some(long.as_str())
             );
-            window.press("secondary-a", cx);
-            window.input("bad-url", cx);
-            assert_eq!(
-                window.find("kit-url-error").label(),
-                Some("Enter a valid URL")
-            );
-            window.click("kit-disable-url", cx);
-            window.click("kit-url", cx);
-            window.input("must not edit", cx);
-            assert_eq!(window.find("kit-url").value(), Some("bad-url"));
-            let method = window.find("method-select").value().map(str::to_owned);
-            window.click("method-select", cx);
-            window.press("down", cx);
-            window.press("enter", cx);
-            assert_eq!(window.find("method-select").value(), method.as_deref());
-            window.click("kit-row-enabled", cx);
-            window.click("kit-row-value", cx);
-            window.input("2", cx);
-            assert_eq!(window.find("kit-row-value").value(), Some("1"));
-            window.click("kit-disabled", cx);
-            window.click("kit-loading", cx);
-            assert_eq!(window.find("kit-action-count").label(), Some("0 actions"));
-            window.click("kit-action", cx);
-            assert_eq!(window.find("kit-action-count").label(), Some("1 actions"));
+            assert_eq!(window.find("request-url-input").bounds(), input);
+            assert_one_focus_frame(window, cx, "request-url-group");
             postman_gpui::ui::theme::apply(ThemeMode::Light, cx);
         })
         .unwrap();
     }
-}
-
-#[gpui_kit::test]
-async fn theme_switch_updates_an_open_dialog_without_losing_its_value_or_focus_return(
-    cx: &mut TestAppContext,
-) {
-    init(cx);
-    let (handle, _) = cx
-        .update(|cx| {
-            gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
-                cx.new(|cx| KitSmokeView::new(window, cx))
-            })
-        })
-        .unwrap();
-    cx.update_window(handle, |_, window, cx| {
-        window.click("kit-smoke-input", cx);
-        window.input("Draft 世界 🦀", cx);
-        window.press("tab", cx);
-        window.press("enter", cx);
-    })
-    .unwrap();
-    cx.wait_for(handle, Duration::from_secs(1), |window, _| {
-        window.try_find("dialog").is_some()
-    })
-    .await;
-    cx.update_window(handle, |_, window, cx| {
-        window.click("kit-dialog-theme", cx);
-        assert_eq!(Theme::global(cx).mode, ThemeMode::Dark);
-        assert_eq!(
-            window.within("dialog").find("kit-smoke-value").label(),
-            Some("Draft 世界 🦀")
-        );
-        window.press("escape", cx);
-    })
-    .unwrap();
-    cx.wait_for(handle, Duration::from_secs(1), |window, _| {
-        window.try_find("dialog").is_none()
-    })
-    .await;
-    cx.update_window(handle, |_, window, cx| {
-        assert_eq!(window.find("kit-smoke-open").focused(), Some(true));
-        assert_eq!(
-            window.find("kit-smoke-input").value(),
-            Some("Draft 世界 🦀")
-        );
-        window.click("kit-theme", cx);
-        assert_eq!(Theme::global(cx).mode, ThemeMode::Light);
-    })
-    .unwrap();
 }
 
 #[test]

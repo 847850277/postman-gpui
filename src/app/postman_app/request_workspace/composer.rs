@@ -425,6 +425,61 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
     use mockito::Matcher;
 
+    // Exercise the IME protocol on the actual URL input and its ViewModel subscription.
+    // Platform candidate windows still require native input-method checks.
+    #[gpui::test]
+    fn url_composes_and_commits_chinese_after_an_astral_character(cx: &mut TestAppContext) {
+        use gpui::{ElementInputHandler, InputHandler, WindowOptions};
+        use gpui_kit::test::TestWindowExt;
+
+        cx.update(crate::ui::kit::init);
+        let model = cx.new(|_| WorkspaceViewModel::new());
+        let observed = model.clone();
+        let (handle, app) = cx
+            .update(|cx| {
+                gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+                    cx.new(|cx| PostmanApp::with_view_model(observed, window, cx))
+                })
+            })
+            .unwrap();
+        cx.update_window(handle, |_, window, cx| {
+            window.click("home-open-http", cx);
+            window.click("request-url-input", cx);
+            window.input("A🦀", cx);
+            let workspace = app.read(cx).request_workspace.clone();
+            let composer = workspace.read(cx).composer.clone();
+            let mut handler = ElementInputHandler::new(
+                window.find("request-url-input").bounds(),
+                composer.read(cx).url_input.clone(),
+            );
+            handler.replace_and_mark_text_in_range(None, "ni", Some(2..2), window, cx);
+            assert_eq!(handler.marked_text_range(window, cx), Some(3..5));
+            handler.replace_and_mark_text_in_range(None, "你好", Some(2..2), window, cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀你好"));
+            handler.replace_text_in_range(None, "你好", window, cx);
+            assert_eq!(handler.marked_text_range(window, cx), None);
+            window.render_frame(cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀你好"));
+        })
+        .unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
+            "A🦀你好"
+        );
+        cx.update_window(handle, |_, window, cx| {
+            window.press("secondary-z", cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀"));
+        })
+        .unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
+            "A🦀"
+        );
+    }
+
     #[gpui::test]
     fn send_command_is_built_only_from_the_view_model(cx: &mut TestAppContext) {
         let mut server = mockito::Server::new();

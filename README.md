@@ -71,14 +71,10 @@ The shell defaults to light appearance; the rail's theme button switches it manu
 and restores that choice on restart. Home cards stack at compact window widths;
 the native minimum remains 960 × 640.
 
-For the GPUI Kit migration, `cargo run --locked -- --kit-smoke` opens the native
-component validation window (requests 1440 × 960; actual viewport and scale are
-shown in its footer). It exercises shared themed Kit controls,
-input groups, editable rows, and dialog/keyboard behavior. The appearance button
-switches light/dark mode; the choice is restored on restart. Missing or invalid
-preferences use light mode. Preference write failures remain visible in the UI.
+GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
+Use Home → HTTP to review the request editor as each part is replaced.
 
-Run `cargo test --locked --test ui_shell --test ui_kit` for navigation, in-flight
+Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through
 1920 × 1080 in both themes. `tests/ui_visual_compare.py` compares captured HTML/native
 control regions with separate color and text-antialiasing tolerances; its module

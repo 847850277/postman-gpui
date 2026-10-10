@@ -55,7 +55,10 @@ cargo run --locked
 
 Linux 需要先安装[安装指南](docs/installation.md#linux)列出的 GPUI 开发依赖。
 
-GPUI Kit 迁移的原生控件验证窗口可通过 `cargo run --locked -- --kit-smoke` 打开。
+GPUI Kit 迁移直接在 `cargo run --locked` 打开的真实应用中逐步进行，
+从 Home 进入 HTTP 即可查看请求编辑区。使用
+`cargo test --locked --test ui_shell --test ui_kit --test ui_layout`
+验证页面导航、原生控件交互和布局。
 
 在本机生成对应平台的安装包：
 

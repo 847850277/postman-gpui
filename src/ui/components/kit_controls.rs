@@ -1,30 +1,19 @@
 //! Product presentation for native Kit controls. State and callbacks stay with callers.
 use crate::ui::theme::{self, metrics as m, FONT_MONO};
 use gpui::{
-    div, point, prelude::FluentBuilder, px, App, BoxShadow, ElementId, Entity, Focusable,
-    InteractiveElement, IntoElement, ParentElement, SharedString, Styled, Window,
+    point, prelude::FluentBuilder, px, App, BoxShadow, ElementId, Entity, Focusable,
+    InteractiveElement, ParentElement, SharedString, Styled, Window,
 };
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
-    dialog::Dialog,
     input::{Input, InputGroup, InputGroupAddon, InputGroupAddonAlignment, InputState},
     searchable_list::SearchableVec,
     select::{Select, SelectState},
-    tab::{Tab, TabBar},
     ActiveTheme, FocusableExt, Icon,
 };
 
 pub type MethodState = SelectState<SearchableVec<&'static str>>;
-
-pub fn button(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Button {
-    Button::new(id)
-        .label(label)
-        .h(m::CONTROL)
-        .px_3()
-        .text_size(m::LABEL)
-        .font_weight(m::MEDIUM)
-}
 
 pub fn icon_button(id: impl Into<ElementId>, icon: IconName, label: &'static str) -> Button {
     Button::new(id)
@@ -71,30 +60,6 @@ fn focus_shadow(color: gpui::Hsla) -> Vec<BoxShadow> {
         blur_radius: px(0.),
         spread_radius: px(1.),
     }]
-}
-
-pub fn search_input(
-    id: impl Into<ElementId>,
-    input: Input,
-    state: &Entity<InputState>,
-    window: &Window,
-    cx: &App,
-) -> InputGroup {
-    frame(
-        id,
-        input
-            .text_size(m::LABEL)
-            .font_family(theme::FONT_UI)
-            .font_weight(gpui::FontWeight::NORMAL)
-            .line_height(gpui::relative(m::LINE_HEIGHT)),
-        state.focus_handle(cx).is_focused(window),
-        false,
-        false,
-        cx,
-    )
-    .addon(
-        InputGroupAddon::new("search-icon").child(Icon::new(IconName::Search).size(m::SMALL_ICON)),
-    )
 }
 
 /// A single frame owns focus/error styling; Kit owns editing and the Select popup.
@@ -175,22 +140,6 @@ pub fn request_url(
     )
 }
 
-pub fn tabs(id: impl Into<ElementId>, labels: &[&'static str], selected: usize) -> TabBar {
-    TabBar::new(id)
-        .underline()
-        .selected_index(selected)
-        .h(m::PANE_TAB)
-        .flex_none()
-        .children(labels.iter().map(|label| {
-            Tab::new()
-                .label(*label)
-                .aria_label(*label)
-                .h(m::PANE_TAB)
-                .text_size(m::LABEL)
-                .font_weight(m::MEDIUM)
-        }))
-}
-
 /// Component Checkbox fixes its check color to primary (orange). The Kit Base
 /// primitive lets the row use the prototype's green mark while retaining Kit's
 /// focus, keyboard toggle, disabled semantics, and accessible checked state.
@@ -224,68 +173,6 @@ pub fn parameter_checkbox(
                     .text_color(cx.theme().background),
             )
         })
-}
-
-pub fn editable_row(
-    id: impl Into<ElementId>,
-    checkbox: impl IntoElement,
-    key: Input,
-    value: Input,
-    cx: &App,
-) -> impl IntoElement {
-    div()
-        .id(id)
-        .h(m::TABLE_ROW)
-        .flex()
-        .items_center()
-        .border_b_1()
-        .border_color(cx.theme().border)
-        .child(
-            div()
-                .w_10()
-                .flex_none()
-                .flex()
-                .justify_center()
-                .child(checkbox),
-        )
-        .child(
-            div()
-                .flex_1()
-                .min_w_0()
-                .border_l_1()
-                .border_color(cx.theme().border)
-                .child(
-                    key.appearance(false)
-                        .h(m::TABLE_ROW)
-                        .font_family(FONT_MONO)
-                        .text_size(m::CODE),
-                ),
-        )
-        .child(
-            div()
-                .flex_1()
-                .min_w_0()
-                .border_l_1()
-                .border_color(cx.theme().border)
-                .child(
-                    value
-                        .appearance(false)
-                        .h(m::TABLE_ROW)
-                        .font_family(FONT_MONO)
-                        .text_size(m::CODE),
-                ),
-        )
-}
-
-pub fn dialog(dialog: Dialog, title: &'static str, window: &Window, cx: &App) -> Dialog {
-    dialog
-        .title(title)
-        .width(m::DIALOG_WIDTH.to_pixels(window.rem_size()))
-        .rounded(m::DIALOG_RADIUS)
-        .text_size(m::BODY)
-        .bg(cx.theme().background)
-        .border_color(cx.theme().input)
-        .shadow(theme::dialog_shadow(cx))
 }
 
 /// A Kit Base button for editors that retain a FocusHandle for cell traversal.
