@@ -19,8 +19,8 @@ Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requ
 | Flow MCP server | Schema, examples, validation, inspection, and YAML generation for agents | [postman-flow-mcp](crates/postman-flow-mcp/README.md) |
 | HTML UI prototype | Separate Home, HTTP, and Flows screens with simulated responses | [Preview guide](prototypes/README.md) |
 
-The new HTTP/Flows navigation and visual flow editor are currently HTML prototypes. The native
-desktop app has not yet integrated the Flow editor; executable workflows use the CLI or Rust API.
+The native app now opens Home with separate HTTP and Flows destinations. The visual flow
+editor is still an HTML prototype; executable workflows use the CLI or Rust API.
 
 ## Desktop HTTP features
 
@@ -61,6 +61,16 @@ cargo run --locked
 Linux needs the GPUI development libraries listed in the
 [installation guide](docs/installation.md#linux).
 
+Normal startup opens **Home**, with separate **HTTP** and **Flows** destinations.
+Home resumes real requests from the current session; changing pages preserves HTTP
+drafts, responses, and running requests. History, search, cookies, and keyboard help
+remain available. The Flows page is an explicit unavailable state until its editor
+and execution UI land. Drafts are not restored across application restarts.
+
+The shell defaults to light appearance; the rail's theme button switches it manually
+and restores that choice on restart. Home cards stack at compact window widths;
+the native minimum remains 960 × 640.
+
 For the GPUI Kit migration, `cargo run --locked -- --kit-smoke` opens the native
 component validation window (requests 1440 × 960; actual viewport and scale are
 shown in its footer). It exercises shared themed Kit controls,
@@ -68,8 +78,9 @@ input groups, editable rows, and dialog/keyboard behavior. The appearance button
 switches light/dark mode; the choice is restored on restart. Missing or invalid
 preferences use light mode. Preference write failures remain visible in the UI.
 
-Run `cargo test --locked --test ui_kit` for native interaction and 960 × 640
-geometry checks. `tests/ui_visual_compare.py` compares captured HTML/native
+Run `cargo test --locked --test ui_shell --test ui_kit` for navigation, in-flight
+request preservation, keyboard behavior, and geometry at 960 × 640 through
+1920 × 1080 in both themes. `tests/ui_visual_compare.py` compares captured HTML/native
 control regions with separate color and text-antialiasing tolerances; its module
 docstring describes the comparison manifest. Screenshots belong in PR evidence.
 

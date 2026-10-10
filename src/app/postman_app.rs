@@ -19,12 +19,17 @@ use std::{fs, path::PathBuf, sync::Arc};
 use uuid::Uuid;
 
 mod chrome;
+mod flows;
 mod global_search;
 mod history_panel;
+mod home;
+mod navigation;
 mod request_workspace;
 mod shortcuts;
 
+use flows::FlowsView;
 use history_panel::{HistoryList, HistoryListEvent};
+use navigation::AppRoute;
 use request_workspace::{CookiePane, CookiePaneEvent, RequestWorkspace, RequestWorkspaceEvent};
 
 const LEFT_RAIL_WIDTH: f32 = 72.0;
@@ -40,6 +45,10 @@ struct HistoryPanelResize;
 /// entities; this type only wires the shell together.
 pub struct PostmanApp {
     view_model: Entity<WorkspaceViewModel>,
+    route: AppRoute,
+    flows: Entity<FlowsView>,
+    home_scroll: gpui::ScrollHandle,
+    history_panel_open: bool,
     request_workspace: Entity<RequestWorkspace>,
     request_runner: Entity<RequestRunner>,
     history_list: Entity<HistoryList>,
@@ -58,8 +67,6 @@ pub struct PostmanApp {
     app_focus_handle: FocusHandle,
     shortcut_help_focus: FocusHandle,
     cookie_trigger_focus: FocusHandle,
-    new_request_focus: FocusHandle,
-    shortcut_help_button_focus: FocusHandle,
     history_panel_width: Pixels,
     _subscriptions: Vec<Subscription>,
 }
@@ -131,7 +138,12 @@ impl PostmanApp {
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
+        let flows = cx.new(FlowsView::new);
         let app = Self {
+            route: AppRoute::Home,
+            flows,
+            home_scroll: gpui::ScrollHandle::new(),
+            history_panel_open: false,
             view_model,
             request_workspace,
             request_runner,
@@ -151,8 +163,6 @@ impl PostmanApp {
             app_focus_handle: cx.focus_handle(),
             shortcut_help_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             cookie_trigger_focus: cx.focus_handle().tab_index(0).tab_stop(true),
-            new_request_focus: cx.focus_handle().tab_index(0).tab_stop(true),
-            shortcut_help_button_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             history_panel_width: px(HISTORY_PANEL_DEFAULT_WIDTH),
             _subscriptions: subscriptions,
         };
@@ -304,11 +314,10 @@ impl PostmanApp {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let available_max_width =
-            event.bounds.size.width - px(LEFT_RAIL_WIDTH + REQUEST_WORKSPACE_MIN_WIDTH);
+        let available_max_width = event.bounds.size.width - px(REQUEST_WORKSPACE_MIN_WIDTH);
         let max_width =
             px(HISTORY_PANEL_MAX_WIDTH).min(available_max_width.max(px(HISTORY_PANEL_MIN_WIDTH)));
-        let width = (event.event.position.x - event.bounds.left() - px(LEFT_RAIL_WIDTH))
+        let width = (event.event.position.x - event.bounds.left())
             .clamp(px(HISTORY_PANEL_MIN_WIDTH), max_width);
 
         if width != self.history_panel_width {
@@ -363,6 +372,7 @@ impl Render for PostmanApp {
         }
         div()
             .id("main-container")
+            .debug_selector(|| "main-container".into())
             .relative()
             .size_full()
             .min_w_0()
@@ -394,48 +404,16 @@ impl Render for PostmanApp {
                 div()
                     .flex_1()
                     .min_h_0()
+                    .min_w_0()
                     .flex()
-                    .on_drag_move::<HistoryPanelResize>(cx.listener(Self::resize_history_panel))
                     .child(self.render_left_rail(window, cx))
-                    .child(
-                        div()
-                            .id("history-panel-container")
-                            .relative()
-                            .h_full()
-                            .w(self.history_panel_width)
-                            .flex_none()
-                            .child(self.history_list.clone())
-                            .child(deferred(
-                                div()
-                                    .id("history-resize-handle")
-                                    .debug_selector(|| "history-resize-handle".into())
-                                    .absolute()
-                                    .right(px(-HISTORY_RESIZE_HANDLE_WIDTH / 2.0))
-                                    .top_0()
-                                    .h_full()
-                                    .w(px(HISTORY_RESIZE_HANDLE_WIDTH))
-                                    .cursor_col_resize()
-                                    .aria_label("Resize History panel")
-                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                        cx.stop_propagation();
-                                    })
-                                    .on_mouse_up(
-                                        MouseButton::Left,
-                                        cx.listener(|this, event: &MouseUpEvent, _window, cx| {
-                                            if event.click_count >= 2 {
-                                                this.reset_history_panel_width(cx);
-                                            }
-                                            cx.stop_propagation();
-                                        }),
-                                    )
-                                    .on_drag(HistoryPanelResize, |_, _, _, cx| {
-                                        cx.stop_propagation();
-                                        cx.new(|_| gpui::Empty)
-                                    }),
-                            )),
-                    )
-                    .child(self.request_workspace.clone()),
+                    .child(match self.route {
+                        AppRoute::Home => self.render_home(window, cx).into_any_element(),
+                        AppRoute::Http => self.render_http(window, cx).into_any_element(),
+                        AppRoute::Flows => self.flows.clone().into_any_element(),
+                    }),
             )
+            .child(self.render_status_bar(cx))
             .when(self.cookie_jar_open, |root| {
                 root.child(
                     div()
@@ -456,5 +434,59 @@ impl Render for PostmanApp {
             .when(self.shortcut_help_open, |root| {
                 root.child(self.render_shortcut_help(cx))
             })
+    }
+}
+
+impl PostmanApp {
+    fn render_http(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .on_drag_move::<HistoryPanelResize>(cx.listener(Self::resize_history_panel))
+            .when(self.history_panel_open, |row| {
+                row.child(
+                    div()
+                        .id("history-panel-container")
+                        .relative()
+                        .h_full()
+                        .w(self.history_panel_width.min(
+                            (window.viewport_size().width
+                                - px(LEFT_RAIL_WIDTH + REQUEST_WORKSPACE_MIN_WIDTH))
+                            .max(px(HISTORY_PANEL_MIN_WIDTH)),
+                        ))
+                        .flex_none()
+                        .child(self.history_list.clone())
+                        .child(deferred(
+                            div()
+                                .id("history-resize-handle")
+                                .debug_selector(|| "history-resize-handle".into())
+                                .absolute()
+                                .right(px(-HISTORY_RESIZE_HANDLE_WIDTH / 2.0))
+                                .top_0()
+                                .h_full()
+                                .w(px(HISTORY_RESIZE_HANDLE_WIDTH))
+                                .cursor_col_resize()
+                                .aria_label("Resize History panel")
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                    cx.stop_propagation();
+                                })
+                                .on_mouse_up(
+                                    MouseButton::Left,
+                                    cx.listener(|this, event: &MouseUpEvent, _window, cx| {
+                                        if event.click_count >= 2 {
+                                            this.reset_history_panel_width(cx);
+                                        }
+                                        cx.stop_propagation();
+                                    }),
+                                )
+                                .on_drag(HistoryPanelResize, |_, _, _, cx| {
+                                    cx.stop_propagation();
+                                    cx.new(|_| gpui::Empty)
+                                }),
+                        )),
+                )
+            })
+            .child(self.request_workspace.clone())
     }
 }

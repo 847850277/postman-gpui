@@ -94,11 +94,19 @@ fn main() {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {
                 title: Some("Postman GPUI".into()),
-                ..Default::default()
+                ..if kit_smoke {
+                    TitlebarOptions::default()
+                } else {
+                    gpui_kit::component::TitleBar::title_bar_options()
+                }
             }),
             app_id: Some("postman-gpui".into()),
             window_min_size: Some(size(px(960.), px(640.))),
-            ..Default::default()
+            ..if kit_smoke {
+                WindowOptions::default()
+            } else {
+                gpui_kit::component::TitleBar::window_options()
+            }
         };
 
         if kit_smoke {

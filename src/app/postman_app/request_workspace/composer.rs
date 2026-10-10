@@ -421,8 +421,16 @@ mod tests {
                 .set_body(expected_body);
         });
         let observed = workspace.clone();
-        let (app, cx) =
-            cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+        cx.update(crate::ui::kit::init);
+        let app = cx.new(|cx| PostmanApp::with_view_model(observed, cx));
+        let retained = app.clone();
+        let (_, cx) = cx.add_window_view(move |window, cx| {
+            gpui_kit::component::Root::new(retained, window, cx)
+        });
+        cx.update(|window, cx| {
+            use gpui_kit::test::TestWindowExt;
+            window.click("nav-http", cx);
+        });
         let request_workspace = app.read_with(cx, |app, _| app.request_workspace.clone());
         let composer = request_workspace.read_with(cx, |workspace, _| workspace.composer.clone());
 

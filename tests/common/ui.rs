@@ -132,3 +132,27 @@ pub fn choose_method(cx: &mut VisualTestContext, method: &str) -> Result<(), Str
         _ => Err(format!("unsupported method `{method}`")),
     }
 }
+
+/// Build the same Kit Root and Home-first shell as the executable; HTTP tests navigate
+/// through visible controls explicitly rather than substituting a test-only start route.
+pub fn shell(
+    window: &mut gpui::Window,
+    cx: &mut gpui::Context<gpui_kit::component::Root>,
+    build: impl FnOnce(
+        &mut gpui::Context<postman_gpui::app::PostmanApp>,
+    ) -> postman_gpui::app::PostmanApp,
+) -> gpui_kit::component::Root {
+    use gpui::AppContext;
+    if cx.try_global::<gpui_kit::component::Theme>().is_none() {
+        postman_gpui::assets::fonts::load_embedded_fonts(cx).unwrap();
+        postman_gpui::ui::kit::init(cx);
+        cx.set_reduce_motion(true);
+    }
+    let app = cx.new(build);
+    gpui_kit::component::Root::new(app, window, cx)
+}
+
+pub fn open_http(cx: &mut VisualTestContext) {
+    click(cx, "nav-http").unwrap();
+    click(cx, "rail-history").unwrap();
+}

@@ -23,8 +23,10 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     cx.simulate_keystrokes("ctrl-t");
     assert_eq!(
@@ -100,8 +102,10 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
 fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "method-dropdown-button").unwrap();
     cx.simulate_keystrokes("down escape");
@@ -242,16 +246,20 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
 fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
-    // Global search is the first header tab stop and Cookie Jar is the next. Opening the overlay
-    // moves focus into it; Escape returns focus to the trigger instead of orphaning the handle.
-    cx.simulate_keystrokes("tab tab enter");
+    // Cookies now lives in the rail. Escape must still restore its keyboard target.
+    click(cx, "cookie-jar-trigger").unwrap();
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
     cx.simulate_keystrokes("tab escape");
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
-    cx.simulate_keystrokes("enter");
+    cx.update(|window, cx| {
+        use gpui_kit::test::TestWindowExt;
+        window.press("enter", cx);
+    });
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
     cx.simulate_keystrokes("escape");
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
@@ -261,8 +269,10 @@ fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut T
 fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "url-input").unwrap();
     cx.simulate_input("https://unicode.example/中文/items");

@@ -66,8 +66,10 @@ fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
 
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        test_cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = test_cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/delay/complete", server.url()))
         .expect("completion URL should be editable");

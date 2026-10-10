@@ -131,8 +131,10 @@ fn brotli(body: &str) -> Vec<u8> {
 fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -164,8 +166,10 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/missing", server.url())).unwrap();
     click(cx, "send-button").unwrap();
@@ -200,8 +204,10 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let url = format!("{}/status/418", server.url());
     type_into(cx, "url-input", &url).unwrap();
@@ -305,8 +311,10 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let original_url = format!(
         "{}/redirect-to?url=%2Fanything%2Fredirected&status_code=302",
@@ -398,8 +406,10 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let url = format!("{}/json", server.url());
     type_into(cx, "url-input", &url).unwrap();
@@ -546,8 +556,10 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let set_url = format!("{}/cookies/set?session=cookie-e2e-demo", server.url());
     type_into(cx, "url-input", &set_url).unwrap();
@@ -726,8 +738,10 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "DELETE").unwrap();
     assert_eq!(
@@ -806,8 +820,10 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     );
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &populated_url).unwrap();
     click(cx, "send-button").unwrap();
@@ -1025,8 +1041,10 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "HEAD").unwrap();
     let head_url = format!("{}/get", server.url());
@@ -1198,8 +1216,10 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "GET").unwrap();
     let mut urls = Vec::new();
@@ -1348,8 +1368,10 @@ fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "PUT").unwrap();
     type_into(cx, "url-input", &format!("{}/item", server.url())).unwrap();
@@ -1384,8 +1406,10 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "PATCH").unwrap();
     assert_eq!(
@@ -1476,8 +1500,10 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     // Add the custom row first. Generated JSON defaults must not depend on Headers being empty.
     click(cx, "request-pane-headers").unwrap();
@@ -1573,8 +1599,10 @@ fn put_raw_sends_active_exact_body_without_generated_content_type_and_records_hi
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "PUT").unwrap();
     type_into(cx, "url-input", &format!("{}/anything/raw", server.url())).unwrap();
@@ -1723,8 +1751,10 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "POST").unwrap();
     let url = format!("{}/anything/form", server.url());
@@ -1894,8 +1924,10 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(
         cx,
@@ -1944,8 +1976,10 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let base_url = format!("{}/live-query?existing=1", server.url());
     type_into(cx, "url-input", &base_url).unwrap();
@@ -2031,8 +2065,10 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/multi-query", server.url())).unwrap();
     click(cx, "request-pane-params").unwrap();
@@ -2139,8 +2175,10 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
 fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-params").unwrap();
     assert_eq!(
@@ -2208,8 +2246,10 @@ fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &m
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let pasted_url = format!(
         "{}/pasted-query?existing=1&q=rust+gpui&locale=%E4%B8%AD%E6%96%87",
@@ -2275,8 +2315,10 @@ fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/live-header", server.url())).unwrap();
     click(cx, "request-pane-headers").unwrap();
@@ -2313,8 +2355,10 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/headers", server.url())).unwrap();
     click(cx, "request-pane-headers").unwrap();
@@ -2409,8 +2453,10 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     type_into(
         cx,
@@ -2507,8 +2553,10 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
 fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-headers").unwrap();
     assert_eq!(
@@ -2574,8 +2622,10 @@ fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
         workspace.begin_send().unwrap()
     });
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     assert!(matches!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -2620,8 +2670,10 @@ fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
 fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-sample-json").unwrap();
@@ -2680,8 +2732,10 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
     ];
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
@@ -2726,8 +2780,10 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "POST").unwrap();
     type_into(cx, "url-input", &format!("{}/post", server.url())).unwrap();
@@ -2858,8 +2914,10 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
@@ -3006,8 +3064,10 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
@@ -3141,8 +3201,10 @@ fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_
         .create();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     let previous_url = format!("{}/previous", server.url());
     type_into(cx, "url-input", &previous_url).unwrap();

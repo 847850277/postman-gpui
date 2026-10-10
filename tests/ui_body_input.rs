@@ -21,8 +21,10 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
 ) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
     let body = "A😀中e\u{301}";
 
     click(cx, "request-pane-body").unwrap();
@@ -56,8 +58,10 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
 ) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
     let body = "first 😀\n中间 e\u{301}\nlast";
 
     click(cx, "request-pane-body").unwrap();
@@ -119,8 +123,10 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
 fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-url-encoded").unwrap();
@@ -154,8 +160,10 @@ fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut T
 fn cancelling_multipart_file_selection_leaves_the_typed_row_unchanged(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
-    let (_app, cx) =
-        cx.add_window_view(move |_window, cx| PostmanApp::with_view_model(observed, cx));
+    let (_app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+    });
+    ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
     click(cx, "body-kind-form-data").unwrap();

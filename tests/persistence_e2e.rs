@@ -39,21 +39,24 @@ fn launch_app<'a>(
     cx: &'a mut TestAppContext,
     database_path: &Path,
 ) -> (
-    Entity<PostmanApp>,
+    Entity<gpui_kit::component::Root>,
     Entity<WorkspaceViewModel>,
     &'a mut VisualTestContext,
 ) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let app_database_path = database_path.to_path_buf();
-    let (app, cx) = cx.add_window_view(move |_window, cx| {
-        PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+    let (app, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        })
     });
+    ui::open_http(cx);
     cx.run_until_parked();
     (app, workspace, cx)
 }
 
-fn close_app(app: Entity<PostmanApp>, cx: &mut VisualTestContext) {
+fn close_app(app: Entity<gpui_kit::component::Root>, cx: &mut VisualTestContext) {
     cx.update(|window, _| window.remove_window());
     cx.run_until_parked();
     drop(app);

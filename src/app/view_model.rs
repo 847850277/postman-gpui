@@ -706,6 +706,8 @@ impl SendCompletion {
 /// models retain explicit owners behind its named APIs.
 pub struct WorkspaceViewModel {
     tabs: RequestTabs<RequestViewModel>,
+    // Session-only MRU order. Responses/history updates must not reorder open drafts.
+    recent_tabs: Vec<RequestTabId>,
     projections: WorkspaceProjections,
     next_send_id: u64,
 }
@@ -716,8 +718,11 @@ impl WorkspaceViewModel {
     }
 
     pub fn with_request(request: RequestViewModel) -> Self {
+        let tabs = RequestTabs::with_initial(request);
+        let recent_tabs = tabs.active_tab_id().into_iter().collect();
         Self {
-            tabs: RequestTabs::with_initial(request),
+            tabs,
+            recent_tabs,
             projections: WorkspaceProjections::new(),
             next_send_id: 1,
         }
@@ -757,6 +762,9 @@ impl WorkspaceViewModel {
     /// Mutable access to the active request. Callers must choose this API explicitly instead of
     /// obtaining a mutable request through workspace deref coercion.
     pub fn active_request_mut(&mut self) -> Option<&mut RequestViewModel> {
+        if let Some(id) = self.active_tab_id() {
+            self.touch_request(id);
+        }
         self.tabs.active_mut()
     }
 
@@ -780,15 +788,44 @@ impl WorkspaceViewModel {
         tab_id: RequestTabId,
         update: impl FnOnce(&mut RequestViewModel) -> R,
     ) -> Option<R> {
+        if self.tabs.get(tab_id).is_some() {
+            self.touch_request(tab_id);
+        }
         self.request_for_tab_mut(tab_id).map(update)
     }
 
     pub fn select_tab(&mut self, index: usize) -> bool {
-        self.tabs.select_index(index)
+        let changed = self.tabs.select_index(index);
+        if let Some(id) = self.tabs.values().get(index).map(RequestViewModel::tab_id) {
+            self.touch_request(id);
+        }
+        changed
     }
 
     pub fn select_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
-        self.tabs.select_id(tab_id)
+        let changed = self.tabs.select_id(tab_id);
+        if self.tabs.get(tab_id).is_some() {
+            self.touch_request(tab_id);
+        }
+        changed
+    }
+
+    fn touch_request(&mut self, id: RequestTabId) {
+        self.recent_tabs.retain(|candidate| *candidate != id);
+        self.recent_tabs.push(id);
+    }
+
+    /// Open, edited requests, most recently edited/selected first. This is not persisted History.
+    pub fn recent_requests(&self) -> impl Iterator<Item = &RequestViewModel> {
+        self.recent_tabs
+            .iter()
+            .rev()
+            .filter_map(|id| self.tabs.get(*id))
+            .filter(|request| {
+                request.is_dirty()
+                    || !request.url().is_empty()
+                    || !matches!(request.response(), ResponseState::NotSent)
+            })
     }
 
     /// Immutable request-tag/tab-label read models derived from current draft state.
@@ -820,10 +857,18 @@ impl WorkspaceViewModel {
 
     pub fn new_request(&mut self) {
         self.tabs.push(RequestViewModel::new());
+        if let Some(id) = self.active_tab_id() {
+            self.touch_request(id);
+        }
     }
 
     pub fn close_tab(&mut self, index: usize) -> bool {
-        self.tabs.close(index).changed()
+        let changed = self.tabs.close(index).changed();
+        self.recent_tabs.retain(|id| self.tabs.get(*id).is_some());
+        if let Some(id) = self.active_tab_id() {
+            self.touch_request(id);
+        }
+        changed
     }
 
     pub fn close_tab_by_id(&mut self, tab_id: RequestTabId) -> bool {
