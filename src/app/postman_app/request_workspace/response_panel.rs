@@ -631,7 +631,7 @@ impl ResponseViewer {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        div()
+        let content = div()
             .id("response-content")
             .debug_selector(|| "response-content".into())
             .cursor(CursorStyle::IBeam)
@@ -666,7 +666,6 @@ impl ResponseViewer {
             .items_start()
             .overflow_scroll()
             .track_scroll(&self.body_scroll)
-            .scrollbar(&self.body_scroll, ScrollbarAxis::Both)
             .child(
                 div()
                     .debug_selector(|| "response-document".into())
@@ -677,7 +676,16 @@ impl ResponseViewer {
                     .child(ResponseTextElement {
                         viewer: cx.entity().clone(),
                     }),
-            )
+            );
+        // The scrollbar overlays the viewport, not its scrolling children. Putting
+        // it inside `content` moves the track with the document and creates overflow.
+        div()
+            .relative()
+            .size_full()
+            .min_w_0()
+            .min_h_0()
+            .child(content)
+            .scrollbar(&self.body_scroll, ScrollbarAxis::Both)
     }
 
     fn render_cookie_content(

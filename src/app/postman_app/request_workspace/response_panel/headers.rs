@@ -117,54 +117,62 @@ pub(super) fn render_response_headers(
                     )
                     .child(
                         div()
-                            .id("response-headers-rows")
-                            .debug_selector(|| "response-headers-rows".into())
+                            .relative()
                             .flex_1()
+                            .min_w_0()
                             .min_h_0()
-                            .overflow_scroll()
-                            .track_scroll(scroll)
-                            .scrollbar(scroll, ScrollbarAxis::Both)
-                            .children(rows.into_iter().enumerate().map(
-                                |(index, (name, value))| {
-                                    div()
-                                        .debug_selector(move || {
-                                            format!("response-header-row-{index}")
-                                        })
-                                        .min_h(px(38.0))
-                                        .flex()
-                                        .items_start()
-                                        .px_4()
-                                        .py_2()
-                                        .border_b_1()
-                                        .border_color(LINE.resolve(cx))
-                                        .when(index % 2 == 1, |row| row.bg(PANEL_ALT.resolve(cx)))
-                                        .child(
+                            .child(
+                                div()
+                                    .id("response-headers-rows")
+                                    .debug_selector(|| "response-headers-rows".into())
+                                    .size_full()
+                                    .min_w_0()
+                                    .min_h_0()
+                                    .overflow_scroll()
+                                    .track_scroll(scroll)
+                                    .children(rows.into_iter().enumerate().map(
+                                        |(index, (name, value))| {
                                             div()
                                                 .debug_selector(move || {
-                                                    format!("response-header-name-{index}")
+                                                    format!("response-header-row-{index}")
                                                 })
-                                                .w_1_3()
-                                                .pr_3()
-                                                .font_family(FONT_MONO)
-                                                .font_weight(FontWeight::SEMIBOLD)
-                                                .text_size(px(11.0))
-                                                .text_color(INFO.resolve(cx))
-                                                .child(name),
-                                        )
-                                        .child(
-                                            div()
-                                                .debug_selector(move || {
-                                                    format!("response-header-value-{index}")
-                                                })
-                                                .flex_1()
-                                                .min_w_0()
-                                                .font_family(FONT_MONO)
-                                                .text_size(px(11.0))
-                                                .text_color(CODE_TEXT.resolve(cx))
-                                                .child(value),
-                                        )
-                                },
-                            )),
+                                                .min_h(px(38.0))
+                                                .flex()
+                                                .items_start()
+                                                .px_4()
+                                                .py_2()
+                                                .border_b_1()
+                                                .border_color(LINE.resolve(cx))
+                                                .when(index % 2 == 1, |row| row.bg(PANEL_ALT.resolve(cx)))
+                                                .child(
+                                                    div()
+                                                        .debug_selector(move || {
+                                                            format!("response-header-name-{index}")
+                                                        })
+                                                        .w_1_3()
+                                                        .pr_3()
+                                                        .font_family(FONT_MONO)
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_size(px(11.0))
+                                                        .text_color(INFO.resolve(cx))
+                                                        .child(name),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .debug_selector(move || {
+                                                            format!("response-header-value-{index}")
+                                                        })
+                                                        .flex_1()
+                                                        .min_w_0()
+                                                        .font_family(FONT_MONO)
+                                                        .text_size(px(11.0))
+                                                        .text_color(CODE_TEXT.resolve(cx))
+                                                        .child(value),
+                                                )
+                                        },
+                                    )),
+                            )
+                            .scrollbar(scroll, ScrollbarAxis::Both),
                     ),
             )
         })

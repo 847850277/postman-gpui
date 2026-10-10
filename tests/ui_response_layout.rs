@@ -67,6 +67,98 @@ fn drag(cx: &mut VisualTestContext, dx: f32, dy: f32, cancel: bool) {
     );
     cx.run_until_parked();
 }
+
+#[gpui::test]
+fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
+    cx: &mut TestAppContext,
+) {
+    use postman_gpui::models::{HistoricalResponse, HistoryEntry, HttpMethod, Request};
+    let body =
+        serde_json::to_string(&(0..80).map(|n| format!("item {n}")).collect::<Vec<_>>()).unwrap();
+    let headers = (0..50)
+        .map(|n| (format!("x-header-{n}"), format!("value {n}")))
+        .collect();
+    let entry = HistoryEntry::completed(
+        Request::new(HttpMethod::GET, "https://example.test/scroll"),
+        "Scrollable response".into(),
+        200,
+        2,
+        body.len(),
+    )
+    .with_historical_response(HistoricalResponse::completed(200, headers, body, 2));
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let observed = model.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    click(cx, "nav-http").unwrap();
+    resize(cx, 1440., 960.);
+    click(cx, "rail-history").unwrap();
+    click(cx, "response-layout-toggle").unwrap();
+    model.update(cx, |model, cx| {
+        assert!(model.load_history_entry(&entry));
+        cx.notify();
+    });
+    for (pane, viewport, first_item) in [
+        (
+            "response-pane-body",
+            "response-content",
+            "response-document",
+        ),
+        (
+            "response-pane-headers",
+            "response-headers-rows",
+            "response-header-row-0",
+        ),
+    ] {
+        click(cx, pane).unwrap();
+        let initial = cx.debug_bounds(first_item).unwrap();
+        ui::scroll_down(cx, viewport, 100.).unwrap();
+        assert!(cx.debug_bounds(first_item).unwrap().top() < initial.top());
+        let assert_edges = |cx: &mut VisualTestContext| {
+            let viewport = cx.debug_bounds(viewport).unwrap();
+            let overlay = cx.debug_bounds("scrollbar-overlay").unwrap();
+            assert!(
+                (overlay.left() - viewport.left()).abs() <= px(1.)
+                    && (overlay.top() - viewport.top()).abs() <= px(1.)
+                    && (overlay.right() - viewport.right()).abs() <= px(1.)
+                    && (overlay.bottom() - viewport.bottom()).abs() <= px(1.),
+                "{pane}: scrollbar must stay at the viewport edge: {overlay:?} {viewport:?}"
+            );
+        };
+        assert_edges(cx);
+        for dy in [-80., 160.] {
+            drag(cx, 0., dy, false);
+            assert_edges(cx);
+        }
+        let before_horizontal = cx.debug_bounds(first_item).unwrap();
+        let position = cx.debug_bounds(viewport).unwrap().center();
+        cx.simulate_event(gpui::ScrollWheelEvent {
+            position,
+            delta: gpui::ScrollDelta::Pixels(point(px(-80.), px(0.))),
+            ..Default::default()
+        });
+        assert_eq!(
+            cx.debug_bounds(first_item).unwrap().left(),
+            before_horizontal.left(),
+            "short content must not have phantom horizontal overflow"
+        );
+        assert_edges(cx);
+        click(cx, "response-layout-toggle").unwrap();
+        drag(cx, 100., 0., false);
+        assert_edges(cx);
+        ui::scroll_down(cx, viewport, 75.).unwrap();
+        assert_edges(cx);
+        resize(cx, 1024., 768.);
+        assert_edges(cx);
+        resize(cx, 1440., 960.);
+        assert_edges(cx);
+        click(cx, "response-layout-toggle").unwrap();
+    }
+}
+
 #[gpui::test]
 fn split_uses_editor_width_restores_preferences_and_keeps_controls_inside_window(
     cx: &mut TestAppContext,
