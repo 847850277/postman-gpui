@@ -1,20 +1,16 @@
 use crate::{
     app::{EffectiveHeader, EffectiveHeaderSource},
     models::HttpMethod,
-    ui::{
-        components::common::scrollbar::{
-            scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry,
-        },
-        theme::{FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, OK, OK_SOFT, PANEL, SUBTEXT, TEXT},
-    },
+    ui::theme::{FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, OK, OK_SOFT, PANEL, SUBTEXT, TEXT},
 };
 use gpui::{
     div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
     ScrollHandle, StatefulInteractiveElement, Styled,
 };
-
-const RAW_SEMANTICS_ROW_COUNT: usize = 3;
-const RAW_SEMANTICS_ROW_HEIGHT: f32 = 48.0;
+use gpui_kit::{
+    base::ElementExt,
+    component::scroll::{Scrollbar, ScrollbarMode},
+};
 
 struct RawSemanticsRow {
     selector: &'static str,
@@ -32,8 +28,8 @@ pub(super) fn render_raw_request_semantics(
     effective_url: &str,
     effective_headers: Vec<EffectiveHeader>,
     scroll_handle: &ScrollHandle,
-    viewport_height: f32,
-    cx: &gpui::App,
+    has_overflow: bool,
+    cx: &mut gpui::Context<super::BodyPane>,
 ) -> gpui::AnyElement {
     let generated_count = effective_headers
         .iter()
@@ -44,7 +40,15 @@ pub(super) fn render_raw_request_semantics(
         .find(|header| header.name.eq_ignore_ascii_case("content-type"));
     let has_content_type = content_type.is_some();
     let (content_type_mark, content_type_value, content_type_state) = match content_type {
-        Some(header) => ("i", header.value.clone(), "USER ROW"),
+        Some(header) => (
+            "i",
+            header.value.clone(),
+            if header.source == EffectiveHeaderSource::Generated {
+                "AUTOMATIC"
+            } else {
+                "USER ROW"
+            },
+        ),
         None => ("∅", "not generated".to_string(), "ABSENT"),
     };
     let byte_count = body.len();
@@ -53,11 +57,10 @@ pub(super) fn render_raw_request_semantics(
     } else {
         body.to_string()
     };
-    let scrollbar = raw_semantics_scrollbar_geometry(viewport_height, scroll_handle);
 
     div()
         .debug_selector(|| "body-raw-effective-request".into())
-        .w(px(360.0))
+        .w_full()
         .flex_none()
         .min_h_0()
         .flex()
@@ -95,7 +98,9 @@ pub(super) fn render_raw_request_semantics(
                                 .font_family(FONT_UI)
                                 .text_size(px(9.0))
                                 .text_color(SUBTEXT.resolve(cx))
-                                .child("Raw never synthesizes a Content-Type header."),
+                                .child(
+                                    "Raw format supplies Content-Type unless Headers overrides it.",
+                                ),
                         ),
                 )
                 .child(
@@ -128,7 +133,7 @@ pub(super) fn render_raw_request_semantics(
                         .min_h_0()
                         .flex()
                         .flex_col()
-                        .when(scrollbar.is_some(), |rows| rows.pr(px(16.0)))
+                        .when(has_overflow, |rows| rows.pr_4())
                         .overflow_y_scroll()
                         .track_scroll(scroll_handle)
                         .children([
@@ -170,13 +175,39 @@ pub(super) fn render_raw_request_semantics(
                             ),
                         ]),
                 )
-                .when_some(scrollbar, |viewport, scrollbar| {
-                    viewport.child(vertical_scrollbar(
-                        "body-raw-scrollbar",
-                        "body-raw-scrollbar-thumb",
-                        scrollbar,
-                        cx,
-                    ))
+                .on_prepaint({
+                    let this = cx.weak_entity();
+                    let scroll = scroll_handle.clone();
+                    let previous = has_overflow;
+                    move |_, window, cx| {
+                        let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                        if has_overflow != previous {
+                            window.defer(cx, move |_, cx| {
+                                let _ = this.update(cx, |this, cx| {
+                                    if this.raw_semantics_have_overflow != has_overflow {
+                                        this.raw_semantics_have_overflow = has_overflow;
+                                        cx.notify();
+                                    }
+                                });
+                            });
+                        }
+                    }
+                })
+                .when(has_overflow, |viewport| {
+                    viewport.child(
+                        div()
+                            .debug_selector(|| "body-raw-scrollbar".into())
+                            .absolute()
+                            .top_0()
+                            .right_0()
+                            .bottom_0()
+                            .w(Scrollbar::width())
+                            .child(
+                                Scrollbar::vertical(scroll_handle)
+                                    .id("body-raw-scrollbar-control")
+                                    .mode(ScrollbarMode::Always),
+                            ),
+                    )
                 }),
         )
         .child(
@@ -193,9 +224,9 @@ pub(super) fn render_raw_request_semantics(
                 .text_size(px(8.0))
                 .text_color(SUBTEXT.resolve(cx))
                 .child(if has_content_type {
-                    "Manual Content-Type preserved · exact body bytes remain unchanged."
+                    "Effective Content-Type shown above · exact body bytes remain unchanged."
                 } else {
-                    "No Content-Type generated · exact body bytes will be sent."
+                    "No Content-Type set · body bytes remain unchanged."
                 })
                 .child(
                     div()
@@ -206,28 +237,6 @@ pub(super) fn render_raw_request_semantics(
                 ),
         )
         .into_any_element()
-}
-
-fn raw_semantics_scrollbar_geometry(
-    viewport_height: f32,
-    scroll_handle: &ScrollHandle,
-) -> Option<ScrollbarGeometry> {
-    let max_offset_y = scroll_handle.max_offset().y.as_f32();
-    let content_height = RAW_SEMANTICS_ROW_HEIGHT * RAW_SEMANTICS_ROW_COUNT as f32;
-    if max_offset_y <= 0.0 && (viewport_height <= 0.0 || content_height <= viewport_height) {
-        return None;
-    }
-
-    let visible_fraction = if max_offset_y > 0.0 && viewport_height > 0.0 {
-        viewport_height / (viewport_height + max_offset_y)
-    } else {
-        viewport_height / content_height
-    };
-    Some(scrollbar_geometry(
-        visible_fraction,
-        scroll_handle.offset().y.as_f32(),
-        max_offset_y,
-    ))
 }
 
 fn render_raw_semantics_row(row: RawSemanticsRow, cx: &gpui::App) -> gpui::AnyElement {

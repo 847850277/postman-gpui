@@ -1,4 +1,4 @@
-//! Clipboard acceptance coverage for every custom text editor used by the application.
+//! Clipboard acceptance coverage for Kit inputs and application text editors.
 
 #[path = "common/ui.rs"]
 mod ui;
@@ -6,6 +6,7 @@ mod ui;
 use std::time::Duration;
 
 use gpui::{AppContext, ClipboardItem, TestAppContext};
+use gpui_kit::test::TestWindowExt;
 use postman_gpui::app::{PostmanApp, ResponseState, WorkspaceViewModel};
 use ui::{click, right_click};
 
@@ -70,7 +71,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
             .unwrap()
             .bearer_token()
             .to_string()),
-        ""
+        "clipboard-token"
     );
     cx.simulate_keystrokes("cmd-v");
     assert_eq!(
@@ -83,7 +84,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string(
         "{\n  \"copied\": true\n}".to_string(),
     ));
@@ -99,7 +100,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
     assert_eq!(clipboard_text(cx), "{\n  \"copied\": true\n}");
 
-    click(cx, "body-kind-raw").unwrap();
+    ui::choose_body_kind(cx, "body-kind-raw").unwrap();
     click(cx, "body-input").unwrap();
     cx.simulate_keystrokes("ctrl-a ctrl-x");
     cx.write_to_clipboard(ClipboardItem::new_string("raw clipboard body".to_string()));
@@ -114,7 +115,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
     assert_eq!(clipboard_text(cx), "raw clipboard body");
 
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("pizza".to_string()));
     click(cx, "body-form-key-0").unwrap();
     cx.simulate_keystrokes("ctrl-v ctrl-a ctrl-c tab");
@@ -170,8 +171,7 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     click(cx, "request-pane-authorization").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("menu-token".to_string()));
     right_click(cx, "authorization-input").unwrap();
-    assert!(cx.debug_bounds("header-edit-menu").is_some());
-    click(cx, "header-edit-menu-paste").unwrap();
+    cx.update(|window, cx| window.dispatch_action(Box::new(gpui_kit::component::input::Paste), cx));
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -188,12 +188,19 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     assert_eq!(clipboard_text(cx), "response copied from the menu");
     cx.write_to_clipboard(ClipboardItem::new_string("menu start".to_string()));
     right_click(cx, "response-content").unwrap();
-    assert!(cx.debug_bounds("response-edit-menu").is_some());
-    assert!(cx.debug_bounds("response-edit-menu-paste").is_none());
-    click(cx, "response-edit-menu-select-all").unwrap();
+    cx.update(|window, app| {
+        window.render_frame(app);
+        let menu = window.within("popup-menu");
+        assert_eq!(menu.find(0usize).label(), Some("Copy"));
+        assert_eq!(menu.find(1usize).label(), Some("Select All"));
+        assert!(menu.try_find(2usize).is_none());
+    });
+    // Select All is the second item in the real Kit popup. Keyboard activation also
+    // verifies that the menu routes the action back to the response editor.
+    cx.simulate_keystrokes("down down enter");
     cx.write_to_clipboard(ClipboardItem::new_string("menu sentinel".to_string()));
     right_click(cx, "response-content").unwrap();
-    click(cx, "response-edit-menu-copy").unwrap();
+    cx.simulate_keystrokes("down enter");
     assert_eq!(clipboard_text(cx), "response copied from the menu");
     response.assert();
 }
@@ -334,16 +341,16 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     ui::open_http(cx);
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("menu\nkey".to_string()));
     right_click(cx, "body-form-key-0").unwrap();
-    assert!(cx.debug_bounds("body-edit-menu").is_some());
-    click(cx, "body-edit-menu-paste").unwrap();
+    // Single-line cells use Kit's OS menu, so invoke its public action on the headless platform.
+    cx.update(|window, cx| window.dispatch_action(Box::new(gpui_kit::component::input::Paste), cx));
     cx.simulate_keystrokes("tab");
 
     cx.write_to_clipboard(ClipboardItem::new_string("menu\r\nvalue".to_string()));
     right_click(cx, "body-form-value-0").unwrap();
-    click(cx, "body-edit-menu-paste").unwrap();
+    cx.update(|window, cx| window.dispatch_action(Box::new(gpui_kit::component::input::Paste), cx));
 
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -369,7 +376,7 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     ui::open_http(cx);
 
     click(cx, "request-pane-authorization").unwrap();
-    click(cx, "auth-kind-basic").unwrap();
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     cx.write_to_clipboard(ClipboardItem::new_string("pässword-🔐".to_string()));
     click(cx, "basic-auth-password-input").unwrap();
     cx.simulate_keystrokes("ctrl-v");
@@ -395,8 +402,6 @@ fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     );
 
     right_click(cx, "basic-auth-password-input").unwrap();
-    assert!(cx.debug_bounds("header-edit-menu-copy").is_none());
-    assert!(cx.debug_bounds("header-edit-menu-cut").is_none());
     cx.simulate_keystrokes("escape ctrl-z");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace

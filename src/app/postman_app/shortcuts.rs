@@ -49,14 +49,14 @@ impl PostmanApp {
     pub(super) fn send_or_cancel(
         &mut self,
         _: &SendOrCancel,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if self.route != AppRoute::Http {
             return;
         }
         self.request_workspace
-            .update(cx, |workspace, cx| workspace.send_or_cancel(cx));
+            .update(cx, |workspace, cx| workspace.send_or_cancel(window, cx));
     }
 
     pub(super) fn new_request_command(

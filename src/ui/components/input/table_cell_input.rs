@@ -1,19 +1,14 @@
-use super::single_line_input::{
-    self as single_line, SingleLineInputHost, SingleLineInputState, SingleLineTextElement,
-};
-use crate::ui::{
-    components::common::edit_context_menu::{edit_context_menu, EDITABLE_ACTIONS},
-    theme::{FONT_MONO, PANEL, TEXT},
-};
+use crate::ui::theme::{FONT_MONO, PANEL, TEXT};
 use gpui::{
-    div, prelude::FluentBuilder, App, Bounds, Context, CursorStyle, EntityInputHandler,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Pixels, Point, Render, Styled, UTF16Selection, Window,
+    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Global,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString, Styled,
+    Subscription, Window,
 };
-use std::{
-    ops::Range,
-    sync::atomic::{AtomicU64, Ordering},
+use gpui_kit::component::{
+    input::{Input, InputEvent, InputState},
+    Sizable,
 };
+use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TABLE_ROW_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -75,33 +70,62 @@ pub(crate) enum TableCellInputEvent {
     },
 }
 
-/// Reusable single-line table cell. Text, selection, composition, and per-cell Undo/Redo are
-/// owned by `SingleLineInputState`/`TextEditorState`; this shell only adds stable identity and
-/// delegates table traversal to its parent.
+actions!(table_cell_input, [TraverseForward, TraverseBackward]);
+
+struct TableCellBindings;
+impl Global for TableCellBindings {}
+
+/// Stable table identity and parent traversal around Kit's retained editing state.
+/// Kit owns text editing, selection, IME, undo, and the input context menu.
 pub(crate) struct TableCellInput {
     identity: TableCellId,
-    focus_handle: FocusHandle,
-    input: SingleLineInputState,
-    context_menu_id: &'static str,
+    input: Entity<InputState>,
+    // Kit may emit Change after Enter even when its single-line value is unchanged.
+    last_value: SharedString,
+    _subscription: Subscription,
 }
 
 impl TableCellInput {
     pub(crate) fn new(
         identity: TableCellId,
-        placeholder: impl Into<String>,
+        placeholder: impl Into<SharedString>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        if !cx.has_global::<TableCellBindings>() {
+            cx.bind_keys([
+                KeyBinding::new("tab", TraverseForward, Some("TableCellInput > Input")),
+                KeyBinding::new(
+                    "shift-tab",
+                    TraverseBackward,
+                    Some("TableCellInput > Input"),
+                ),
+            ]);
+            cx.set_global(TableCellBindings);
+        }
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder));
+        let subscription = cx.subscribe(&input, |this, input, event, cx| match event {
+            InputEvent::Change => {
+                let value = input.read(cx).value();
+                if value != this.last_value {
+                    this.last_value = value.clone();
+                    cx.emit(TableCellInputEvent::ValueChanged {
+                        cell: this.identity,
+                        value: value.to_string(),
+                    });
+                }
+            }
+            InputEvent::PressEnter { .. } => cx.emit(TableCellInputEvent::SubmitRequested {
+                cell: this.identity,
+            }),
+            InputEvent::Focus | InputEvent::Blur => {}
+        });
         Self {
             identity,
-            focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            input: SingleLineInputState::new(placeholder.into()),
-            context_menu_id: "header-edit-menu",
+            input,
+            last_value: SharedString::default(),
+            _subscription: subscription,
         }
-    }
-
-    pub(crate) fn with_context_menu_id(mut self, id: &'static str) -> Self {
-        self.context_menu_id = id;
-        self
     }
 
     #[cfg(test)]
@@ -109,53 +133,33 @@ impl TableCellInput {
         self.identity
     }
 
-    pub(crate) fn content(&self) -> &str {
-        self.input.text()
+    pub(crate) fn content(&self, cx: &App) -> SharedString {
+        self.input.read(cx).value()
     }
 
-    /// Silent domain projection. This is also the explicit history boundary used when a cell is
-    /// rebound to a new request/table projection.
-    pub(crate) fn project_content(&mut self, value: impl Into<String>, cx: &mut Context<Self>) {
-        if self.input.project_text(value) {
-            cx.notify();
+    /// Silent domain projection. Equal values retain the user's selection and undo history.
+    pub(crate) fn project_content(
+        &mut self,
+        value: impl Into<SharedString>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let value = value.into();
+        if self.content(cx) != value {
+            self.input
+                .update(cx, |input, cx| input.set_value(value, window, cx));
         }
-    }
-}
-
-impl SingleLineInputHost for TableCellInput {
-    fn single_line_input(&self) -> &SingleLineInputState {
-        &self.input
+        self.last_value = self.content(cx);
     }
 
-    fn single_line_input_mut(&mut self) -> &mut SingleLineInputState {
-        &mut self.input
-    }
-
-    fn single_line_focus_handle(&self) -> &FocusHandle {
-        &self.focus_handle
-    }
-
-    fn emit_single_line_changed(&mut self, value: String, cx: &mut Context<Self>) {
-        cx.emit(TableCellInputEvent::ValueChanged {
-            cell: self.identity,
-            value,
-        });
-    }
-
-    fn emit_single_line_submit(&mut self, cx: &mut Context<Self>) {
-        cx.emit(TableCellInputEvent::SubmitRequested {
-            cell: self.identity,
-        });
-    }
-
-    fn focus_next_single_line(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+    fn traverse_forward(&mut self, _: &TraverseForward, _: &mut Window, cx: &mut Context<Self>) {
         cx.emit(TableCellInputEvent::TraversalRequested {
             cell: self.identity,
             direction: TableCellTraversal::Forward,
         });
     }
 
-    fn focus_previous_single_line(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+    fn traverse_backward(&mut self, _: &TraverseBackward, _: &mut Window, cx: &mut Context<Self>) {
         cx.emit(TableCellInputEvent::TraversalRequested {
             cell: self.identity,
             direction: TableCellTraversal::Backward,
@@ -163,257 +167,231 @@ impl SingleLineInputHost for TableCellInput {
     }
 }
 
-impl EntityInputHandler for TableCellInput {
-    fn text_for_range(
-        &mut self,
-        range_utf16: Range<usize>,
-        actual_range: &mut Option<Range<usize>>,
-        _: &mut Window,
-        _: &mut Context<Self>,
-    ) -> Option<String> {
-        single_line::text_for_range(self, range_utf16, actual_range)
-    }
-
-    fn selected_text_range(
-        &mut self,
-        _: bool,
-        _: &mut Window,
-        _: &mut Context<Self>,
-    ) -> Option<UTF16Selection> {
-        Some(single_line::selected_text_range(self))
-    }
-
-    fn marked_text_range(&self, _: &mut Window, _: &mut Context<Self>) -> Option<Range<usize>> {
-        single_line::marked_text_range(self)
-    }
-
-    fn unmark_text(&mut self, _: &mut Window, _: &mut Context<Self>) {
-        single_line::unmark_text(self);
-    }
-
-    fn replace_text_in_range(
-        &mut self,
-        range_utf16: Option<Range<usize>>,
-        new_text: &str,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        single_line::replace_text_in_range(self, range_utf16, new_text, cx);
-    }
-
-    fn replace_and_mark_text_in_range(
-        &mut self,
-        range_utf16: Option<Range<usize>>,
-        new_text: &str,
-        new_selected_range_utf16: Option<Range<usize>>,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        single_line::replace_and_mark_text_in_range(
-            self,
-            range_utf16,
-            new_text,
-            new_selected_range_utf16,
-            cx,
-        );
-    }
-
-    fn bounds_for_range(
-        &mut self,
-        range_utf16: Range<usize>,
-        bounds: Bounds<Pixels>,
-        _: &mut Window,
-        _: &mut Context<Self>,
-    ) -> Option<Bounds<Pixels>> {
-        single_line::bounds_for_range(self, range_utf16, bounds)
-    }
-
-    fn character_index_for_point(
-        &mut self,
-        point: Point<Pixels>,
-        _: &mut Window,
-        _: &mut Context<Self>,
-    ) -> Option<usize> {
-        single_line::character_index_for_point(self, point)
-    }
-}
-
 impl EventEmitter<TableCellInputEvent> for TableCellInput {}
 
 impl Focusable for TableCellInput {
-    fn focus_handle(&self, _: &App) -> FocusHandle {
-        self.focus_handle.clone()
+    fn focus_handle(&self, cx: &App) -> FocusHandle {
+        self.input.read(cx).focus_handle(cx)
     }
 }
 
 impl Render for TableCellInput {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let context_menu_position = self.input.context_menu_position();
-        let context_menu_id = self.context_menu_id;
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex_1()
             .h_full()
             .min_w_0()
             .flex()
             .items_center()
-            .px_3()
-            .bg(PANEL.resolve(cx))
-            .border_1()
-            .border_color(if self.focus_handle.is_focused(window) {
-                crate::ui::theme::ACCENT.resolve(cx)
-            } else {
-                gpui::rgba(0)
-            })
-            .rounded_none()
-            .text_color(TEXT.resolve(cx))
-            .font_family(FONT_MONO)
-            .text_size(crate::ui::theme::metrics::CODE)
-            .cursor(CursorStyle::IBeam)
-            .track_focus(&self.focus_handle(cx))
-            // Reuse the established single-line bindings; Tab is intercepted by the host hooks
-            // above and resolved by the parent table from the stable cell identity.
-            .key_context("HeaderInput")
-            .on_action(cx.listener(single_line::backspace::<Self>))
-            .on_action(cx.listener(single_line::delete::<Self>))
-            .on_action(cx.listener(single_line::left::<Self>))
-            .on_action(cx.listener(single_line::right::<Self>))
-            .on_action(cx.listener(single_line::word_left::<Self>))
-            .on_action(cx.listener(single_line::word_right::<Self>))
-            .on_action(cx.listener(single_line::select_left::<Self>))
-            .on_action(cx.listener(single_line::select_right::<Self>))
-            .on_action(cx.listener(single_line::select_word_left::<Self>))
-            .on_action(cx.listener(single_line::select_word_right::<Self>))
-            .on_action(cx.listener(single_line::select_all::<Self>))
-            .on_action(cx.listener(single_line::home::<Self>))
-            .on_action(cx.listener(single_line::end::<Self>))
-            .on_action(cx.listener(single_line::paste::<Self>))
-            .on_action(cx.listener(single_line::cut::<Self>))
-            .on_action(cx.listener(single_line::copy::<Self>))
-            .on_action(cx.listener(single_line::undo::<Self>))
-            .on_action(cx.listener(single_line::redo::<Self>))
-            .on_action(cx.listener(single_line::submit::<Self>))
-            .on_action(cx.listener(single_line::focus_next::<Self>))
-            .on_action(cx.listener(single_line::focus_previous::<Self>))
-            .on_action(cx.listener(single_line::dismiss::<Self>))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(single_line::on_mouse_down::<Self>),
+            .key_context("TableCellInput")
+            .on_action(cx.listener(Self::traverse_forward))
+            .on_action(cx.listener(Self::traverse_backward))
+            .child(
+                Input::new(&self.input)
+                    .small()
+                    .flex_1()
+                    .min_w_0()
+                    .rounded_none()
+                    .bordered(false)
+                    .bg(PANEL.resolve(cx))
+                    .text_color(TEXT.resolve(cx))
+                    .font_family(FONT_MONO)
+                    .text_size(crate::ui::theme::metrics::CODE),
             )
-            .on_mouse_down(
-                MouseButton::Right,
-                cx.listener(single_line::open_context_menu::<Self>),
-            )
-            .on_mouse_up(
-                MouseButton::Left,
-                cx.listener(single_line::on_mouse_up::<Self>),
-            )
-            .on_mouse_up_out(
-                MouseButton::Left,
-                cx.listener(single_line::on_mouse_up::<Self>),
-            )
-            .on_mouse_move(cx.listener(single_line::on_mouse_move::<Self>))
-            .child(SingleLineTextElement::new(cx.entity().clone()))
-            .when_some(context_menu_position, |root, position| {
-                root.child(edit_context_menu(
-                    position,
-                    context_menu_id,
-                    EDITABLE_ACTIONS,
-                    single_line::handle_context_menu_action::<Self>,
-                    window,
-                    cx,
-                ))
-            })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::components::input::single_line_input::Undo;
-    use gpui::{AppContext, Entity, TestAppContext};
+    use gpui::{EntityInputHandler, TestAppContext};
+    use gpui_kit::component::input::{Redo, Undo};
 
     struct CellPair {
         first: Entity<TableCellInput>,
         second: Entity<TableCellInput>,
+        events: Vec<TableCellInputEvent>,
+        _subscriptions: Vec<Subscription>,
+    }
+
+    impl CellPair {
+        fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let first = cx.new(|cx| {
+                TableCellInput::new(
+                    TableCellId::new(TableRowId::next(), TableCellColumn::Key),
+                    "Key",
+                    window,
+                    cx,
+                )
+            });
+            let second = cx.new(|cx| {
+                TableCellInput::new(
+                    TableCellId::new(TableRowId::next(), TableCellColumn::Value),
+                    "Value",
+                    window,
+                    cx,
+                )
+            });
+            let subscriptions = [&first, &second]
+                .into_iter()
+                .map(|cell| {
+                    cx.subscribe(cell, |this, _, event: &TableCellInputEvent, _| {
+                        this.events.push(event.clone());
+                    })
+                })
+                .collect();
+            Self {
+                first,
+                second,
+                events: Vec::new(),
+                _subscriptions: subscriptions,
+            }
+        }
     }
 
     impl Render for CellPair {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            div().child(self.first.clone()).child(self.second.clone())
+            div()
+                .w_96()
+                .flex()
+                .flex_col()
+                .child(div().h_8().child(self.first.clone()))
+                .child(div().h_8().child(self.second.clone()))
         }
     }
 
     #[gpui::test]
     fn cell_identity_survives_unicode_ime_and_per_cell_history(cx: &mut TestAppContext) {
-        let row = TableRowId::next();
-        let identity = TableCellId::new(row, TableCellColumn::Value);
-        let (cell, visual) = cx.add_window_view(|_, cx| TableCellInput::new(identity, "Value", cx));
-
-        cell.update(visual, |cell, cx| {
-            single_line::replace_and_mark_text_in_range(cell, None, "A😀中", Some(1..3), cx);
-            assert_eq!(cell.identity(), identity);
-            assert_eq!(cell.content(), "A😀中");
-            assert_eq!(single_line::marked_text_range(cell), Some(0..4));
-            assert_eq!(single_line::selected_text_range(cell).range, 1..3);
-
-            single_line::replace_text_in_range(cell, None, "完成", cx);
-            assert_eq!(cell.content(), "完成");
+        cx.update(crate::ui::kit::init);
+        let (pair, visual) = cx.add_window_view(CellPair::new);
+        let cell = pair.read_with(visual, |pair, _| pair.first.clone());
+        let identity = cell.read_with(visual, |cell, _| cell.identity());
+        let state = cell.read_with(visual, |cell, _| cell.input.clone());
+        cell.update_in(visual, |cell, window, cx| {
+            cell.focus_handle(cx).focus(window, cx)
         });
-
-        visual.update(|window, app| {
-            cell.update(app, |cell, cx| {
-                single_line::undo(cell, &Undo, window, cx);
-            });
+        state.update_in(visual, |state, window, cx| {
+            state.replace_and_mark_text_in_range(None, "A😀中", Some(1..3), window, cx);
+            assert_eq!(state.value(), "A😀中");
+            assert_eq!(state.marked_text_range(window, cx), Some(0..4));
+            assert_eq!(
+                state.selected_text_range(false, window, cx).unwrap().range,
+                1..3
+            );
+            state.replace_text_in_range(None, "完成", window, cx);
+            assert_eq!(state.value(), "完成");
+            assert_eq!(state.marked_text_range(window, cx), None);
         });
-        assert_eq!(
-            cell.read_with(visual, |cell, _| cell.content().to_string()),
-            ""
+        assert_eq!(cell.read_with(visual, |cell, _| cell.identity()), identity);
+        visual.dispatch_action(Undo);
+        assert_eq!(cell.read_with(visual, |cell, cx| cell.content(cx)), "");
+        visual.dispatch_action(Redo);
+        assert_eq!(cell.read_with(visual, |cell, cx| cell.content(cx)), "完成");
+        assert!(
+            pair.read_with(visual, |pair, _| pair.events.iter().all(|event| {
+                matches!(event, TableCellInputEvent::ValueChanged { cell, .. } if *cell == identity)
+            }))
         );
     }
 
     #[gpui::test]
     fn undo_history_is_isolated_between_neighboring_cells(cx: &mut TestAppContext) {
-        let (pair, visual) = cx.add_window_view(|_, cx| {
-            let first_row = TableRowId::next();
-            let second_row = TableRowId::next();
-            CellPair {
-                first: cx.new(|cx| {
-                    TableCellInput::new(
-                        TableCellId::new(first_row, TableCellColumn::Key),
-                        "Key",
-                        cx,
-                    )
-                }),
-                second: cx.new(|cx| {
-                    TableCellInput::new(
-                        TableCellId::new(second_row, TableCellColumn::Key),
-                        "Key",
-                        cx,
-                    )
-                }),
-            }
-        });
+        cx.update(crate::ui::kit::init);
+        let (pair, visual) = cx.add_window_view(CellPair::new);
         let (first, second) =
             pair.read_with(visual, |pair, _| (pair.first.clone(), pair.second.clone()));
-        first.update(visual, |cell, cx| {
-            single_line::replace_text_in_range(cell, None, "first😀", cx);
+        first.update_in(visual, |cell, window, cx| {
+            cell.focus_handle(cx).focus(window, cx)
         });
-        second.update(visual, |cell, cx| {
-            single_line::replace_text_in_range(cell, None, "second中", cx);
+        visual.simulate_input("first😀");
+        second.update_in(visual, |cell, window, cx| {
+            cell.focus_handle(cx).focus(window, cx)
         });
-
-        visual.update(|window, app| {
-            first.update(app, |cell, cx| {
-                single_line::undo(cell, &Undo, window, cx);
-            });
+        visual.simulate_input("second中");
+        first.update_in(visual, |cell, window, cx| {
+            cell.focus_handle(cx).focus(window, cx)
         });
+        visual.dispatch_action(Undo);
+        assert_eq!(first.read_with(visual, |cell, cx| cell.content(cx)), "");
         assert_eq!(
-            first.read_with(visual, |cell, _| cell.content().to_string()),
-            ""
-        );
-        assert_eq!(
-            second.read_with(visual, |cell, _| cell.content().to_string()),
+            second.read_with(visual, |cell, cx| cell.content(cx)),
             "second中"
+        );
+    }
+
+    #[gpui::test]
+    fn projection_is_silent_and_equal_values_preserve_selection_and_undo(cx: &mut TestAppContext) {
+        cx.update(crate::ui::kit::init);
+        let (pair, visual) = cx.add_window_view(CellPair::new);
+        let cell = pair.read_with(visual, |pair, _| pair.first.clone());
+        cell.update_in(visual, |cell, window, cx| {
+            cell.project_content("seed", window, cx);
+            cell.focus_handle(cx).focus(window, cx);
+        });
+        assert!(pair.read_with(visual, |pair, _| pair.events.is_empty()));
+        visual.simulate_input("😀");
+        visual.simulate_keystrokes("shift-left");
+        let state = cell.read_with(visual, |cell, _| cell.input.clone());
+        let before = state.update_in(visual, |input, window, cx| {
+            input.selected_text_range(false, window, cx).unwrap()
+        });
+        cell.update_in(visual, |cell, window, cx| {
+            cell.project_content("seed😀", window, cx)
+        });
+        let after = state.update_in(visual, |input, window, cx| {
+            input.selected_text_range(false, window, cx).unwrap()
+        });
+        assert_eq!(before.range, after.range);
+        assert_eq!(pair.read_with(visual, |pair, _| pair.events.len()), 1);
+        visual.dispatch_action(Undo);
+        assert_eq!(cell.read_with(visual, |cell, cx| cell.content(cx)), "seed");
+        cell.update_in(visual, |cell, window, cx| {
+            cell.project_content("rebound", window, cx)
+        });
+        visual.dispatch_action(Undo);
+        assert_eq!(
+            cell.read_with(visual, |cell, cx| cell.content(cx)),
+            "rebound"
+        );
+    }
+
+    #[gpui::test]
+    fn kit_typing_submit_and_tab_emit_stable_table_events(cx: &mut TestAppContext) {
+        cx.update(crate::ui::kit::init);
+        let (pair, visual) = cx.add_window_view(CellPair::new);
+        let cell = pair.read_with(visual, |pair, _| pair.first.clone());
+        let identity = cell.read_with(visual, |cell, _| cell.identity());
+        cell.update_in(visual, |cell, window, cx| {
+            cell.focus_handle(cx).focus(window, cx)
+        });
+        visual.simulate_input("key");
+        visual.simulate_keystrokes("enter tab shift-tab");
+        assert_eq!(cell.read_with(visual, |cell, cx| cell.content(cx)), "key");
+        assert_eq!(
+            pair.read_with(visual, |pair, _| pair.events.clone()),
+            vec![
+                TableCellInputEvent::ValueChanged {
+                    cell: identity,
+                    value: "k".into()
+                },
+                TableCellInputEvent::ValueChanged {
+                    cell: identity,
+                    value: "ke".into()
+                },
+                TableCellInputEvent::ValueChanged {
+                    cell: identity,
+                    value: "key".into()
+                },
+                TableCellInputEvent::SubmitRequested { cell: identity },
+                TableCellInputEvent::TraversalRequested {
+                    cell: identity,
+                    direction: TableCellTraversal::Forward
+                },
+                TableCellInputEvent::TraversalRequested {
+                    cell: identity,
+                    direction: TableCellTraversal::Backward
+                },
+            ]
         );
     }
 }

@@ -139,11 +139,10 @@ impl PostmanApp {
         let request_workspace = cx.new(|cx| RequestWorkspace::new(view_model.clone(), window, cx));
         let runner_history_worker = history_worker.clone();
         let request_runner = cx.new(move |_| RequestRunner::new(runner_history_worker));
-        let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), cx));
+        let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), window, cx));
         let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
         let global_search_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Search requests and history")
+            HeaderInput::new("Search requests and history", window, cx)
                 .with_embedded_chrome(true)
                 .with_font_family(FONT_UI)
         });
@@ -462,6 +461,7 @@ impl PostmanApp {
         div()
             .flex_1()
             .min_h_0()
+            .min_w_0()
             .flex()
             .on_drag_move::<HistoryPanelResize>(cx.listener(Self::resize_history_panel))
             .when(self.history_panel_open, |row| {
@@ -508,5 +508,125 @@ impl PostmanApp {
                 )
             })
             .child(self.request_workspace.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{AppContext, TestAppContext};
+
+    #[gpui_kit::test]
+    fn auth_and_options_cannot_undo_into_another_equal_valued_tab(cx: &mut TestAppContext) {
+        use crate::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
+        use gpui::{Modifiers, VisualTestContext};
+
+        fn click(cx: &mut VisualTestContext, selector: &'static str) {
+            let bounds = cx.debug_bounds(selector).expect(selector);
+            cx.simulate_click(bounds.center(), Modifiers::none());
+            let _ = cx.debug_bounds(selector);
+        }
+
+        fn field_value(model: &WorkspaceViewModel, selector: &str) -> String {
+            let request = model.active_request().unwrap();
+            match selector {
+                "authorization-input" => request.bearer_token().to_owned(),
+                "basic-auth-username-input" => request.basic_username().to_owned(),
+                "basic-auth-password-input" => request.basic_password().to_owned(),
+                "request-timeout-input" => request.timeout_ms().to_string(),
+                "redirect-max-hops-input" => request.max_redirect_hops().to_string(),
+                _ => unreachable!(),
+            }
+        }
+
+        cx.update(crate::ui::kit::init);
+        type InputScenario = (
+            RequestPane,
+            AuthorizationKind,
+            &'static [(&'static str, &'static str)],
+        );
+        let scenarios: &[InputScenario] = &[
+            (
+                RequestPane::Authorization,
+                AuthorizationKind::Bearer,
+                &[("authorization-input", "shared-token")],
+            ),
+            (
+                RequestPane::Authorization,
+                AuthorizationKind::Basic,
+                &[
+                    ("basic-auth-username-input", "shared-user"),
+                    ("basic-auth-password-input", "shared-password"),
+                ],
+            ),
+            (
+                RequestPane::Options,
+                AuthorizationKind::Bearer,
+                &[
+                    ("request-timeout-input", "5000"),
+                    ("redirect-max-hops-input", "7"),
+                ],
+            ),
+        ];
+        for &(pane, kind, fields) in scenarios {
+            let model = cx.new(|_| {
+                let mut model = WorkspaceViewModel::new();
+                for index in 0..2 {
+                    if index > 0 {
+                        model.new_request();
+                    }
+                    let request = model.active_request_mut().unwrap();
+                    request.set_request_pane(pane);
+                    request.set_authorization_kind(kind);
+                    request.set_bearer_token(if index == 0 {
+                        "old-token"
+                    } else {
+                        "shared-token"
+                    });
+                    request.set_basic_username(if index == 0 {
+                        "old-user"
+                    } else {
+                        "shared-user"
+                    });
+                    request.set_basic_password(if index == 0 {
+                        "old-password"
+                    } else {
+                        "shared-password"
+                    });
+                    request.set_timeout_ms(if index == 0 { 2500 } else { 5000 });
+                    request.set_max_redirect_hops(if index == 0 { 3 } else { 7 });
+                }
+                model.select_tab(0);
+                model
+            });
+            let observed = model.clone();
+            let (_, visual) = cx.add_window_view(move |window, cx| {
+                let app = cx.new(|cx| PostmanApp::with_view_model(observed, window, cx));
+                gpui_kit::component::Root::new(app, window, cx)
+            });
+            click(visual, "nav-http");
+            for &(selector, value) in fields {
+                click(visual, selector);
+                visual.simulate_keystrokes("ctrl-a");
+                visual.simulate_input(value);
+                assert_eq!(
+                    model.read_with(visual, |model, _| field_value(model, selector)),
+                    value
+                );
+            }
+            // The next tab starts with precisely the values just typed in the first tab.
+            // Both directions must reset the reused input histories despite equal text.
+            for tab in ["request-tab-1", "request-tab-0"] {
+                click(visual, tab);
+                for &(selector, value) in fields {
+                    click(visual, selector);
+                    visual.simulate_keystrokes("ctrl-z");
+                    assert_eq!(
+                        model.read_with(visual, |model, _| field_value(model, selector)),
+                        value,
+                        "{selector} inherited another tab's editing history"
+                    );
+                }
+            }
+        }
     }
 }

@@ -89,6 +89,7 @@ impl ResponseState {
 pub struct RequestViewModel {
     tab_id: RequestTabId,
     draft: RequestDraft,
+    draft_revision: u64,
     pre_request_script: String,
     tests_script: String,
     request_pane: RequestPane,
@@ -108,6 +109,7 @@ impl RequestViewModel {
         Self {
             tab_id,
             draft: RequestDraft::new(),
+            draft_revision: 0,
             pre_request_script: String::new(),
             tests_script: String::new(),
             request_pane: RequestPane::Params,
@@ -125,6 +127,11 @@ impl RequestViewModel {
 
     pub fn request_draft(&self) -> &RequestDraft {
         &self.draft
+    }
+
+    /// Invalidates asynchronous editor results after an edit or same-tab request replacement.
+    pub(crate) fn draft_revision(&self) -> u64 {
+        self.draft_revision
     }
 
     /// The one normalized result shared by request previews and Send.
@@ -312,6 +319,7 @@ impl RequestViewModel {
 
     fn edit_draft(&mut self, edit: impl FnOnce(&mut RequestDraft) -> bool) {
         if edit(&mut self.draft) {
+            self.draft_revision = self.draft_revision.wrapping_add(1);
             self.dirty = true;
         }
     }
@@ -335,6 +343,26 @@ impl RequestViewModel {
 
     pub fn set_body_kind(&mut self, body_kind: BodyKind) {
         self.edit_draft(|draft| draft.set_body_kind(body_kind));
+    }
+
+    pub fn body_validation_error(&self) -> Option<String> {
+        self.draft.body_validation_error()
+    }
+
+    pub fn raw_body_format(&self) -> crate::models::request_draft::RawBodyFormat {
+        self.draft.raw_body_format()
+    }
+
+    pub fn set_raw_body_format(&mut self, format: crate::models::request_draft::RawBodyFormat) {
+        self.edit_draft(|draft| draft.set_raw_body_format(format));
+    }
+
+    pub fn binary_size(&self) -> Option<u64> {
+        self.draft.binary_size()
+    }
+
+    pub fn set_binary_file(&mut self, path: std::path::PathBuf, size: Option<u64>) {
+        self.edit_draft(|draft| draft.set_binary_file(path, size));
     }
 
     pub fn set_url_encoded_rows(&mut self, rows: Vec<KeyValueRow>) {
@@ -411,6 +439,7 @@ impl RequestViewModel {
             | RequestPane::Options => false,
         };
         if changed {
+            self.draft_revision = self.draft_revision.wrapping_add(1);
             self.dirty = true;
         }
     }
@@ -426,7 +455,16 @@ impl RequestViewModel {
             | RequestPane::Options => false,
         };
         if changed {
+            self.draft_revision = self.draft_revision.wrapping_add(1);
             self.dirty = true;
+        }
+    }
+
+    pub fn set_row_description(&mut self, pane: RequestPane, index: Option<usize>, value: String) {
+        if matches!(pane, RequestPane::Params | RequestPane::Headers) {
+            self.edit_draft(|draft| {
+                draft.set_row_description(pane == RequestPane::Headers, index, value)
+            });
         }
     }
 
@@ -512,6 +550,7 @@ impl RequestViewModel {
     pub fn new_request(&mut self) {
         self.reset_send_lifecycle();
         self.draft = RequestDraft::new();
+        self.draft_revision = self.draft_revision.wrapping_add(1);
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
         self.redirect_chain.clear();
@@ -522,6 +561,7 @@ impl RequestViewModel {
     pub fn load_request(&mut self, request: &Request) {
         self.reset_send_lifecycle();
         self.draft = RequestDraft::from_request(request);
+        self.draft_revision = self.draft_revision.wrapping_add(1);
         self.pre_request_script.clear();
         self.tests_script.clear();
         self.request_pane = if request.body.is_empty() {
@@ -1233,7 +1273,10 @@ impl Default for RequestViewModel {
 mod tests {
     use super::*;
     use crate::{
-        models::{MultipartEditorPart, MultipartValue, RequestOptions, DEFAULT_MAX_REDIRECT_HOPS},
+        models::{
+            request_draft::RawBodyFormat, MultipartEditorPart, MultipartValue, RequestOptions,
+            DEFAULT_MAX_REDIRECT_HOPS,
+        },
         persistence::VersionedHistorySnapshot,
     };
 
@@ -1626,8 +1669,13 @@ mod tests {
             .iter()
             .any(|row| { row.key == "Content-Type" && row.value == "application/json" }));
 
-        vm.set_body("name=Ada&active=true");
         vm.set_body_kind(BodyKind::UrlEncoded);
+        vm.set_body("name=Ada&active=true");
+
+        assert_eq!(
+            vm.build_request().body,
+            RequestBody::UrlEncoded("name=Ada&active=true".into())
+        );
 
         assert_eq!(
             vm.headers()
@@ -1724,16 +1772,20 @@ mod tests {
     }
 
     #[test]
-    fn switching_to_raw_removes_only_an_automatic_content_type() {
+    fn switching_to_raw_updates_the_automatic_content_type_and_keeps_accept() {
         let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::POST);
 
         vm.set_body_kind(BodyKind::Raw);
 
-        assert!(!vm
-            .headers()
-            .iter()
-            .any(|row| row.key.eq_ignore_ascii_case("content-type")));
+        let content_types: Vec<_> = vm
+            .effective_headers()
+            .into_iter()
+            .filter(|header| header.name.eq_ignore_ascii_case("content-type"))
+            .collect();
+        assert_eq!(content_types.len(), 1);
+        assert_eq!(content_types[0].value, "text/plain");
+        assert_eq!(content_types[0].source, EffectiveHeaderSource::Generated);
         assert!(vm
             .headers()
             .iter()
@@ -1741,7 +1793,7 @@ mod tests {
     }
 
     #[test]
-    fn put_raw_builds_an_exact_typed_body_without_generated_headers() {
+    fn put_raw_builds_an_exact_typed_body_with_generated_text_content_type() {
         let mut vm = RequestViewModel::new();
         vm.set_method(HttpMethod::PUT);
         vm.set_url("https://httpbingo.org/anything/raw");
@@ -1753,7 +1805,14 @@ mod tests {
             vm.request_body(),
             RequestBody::Raw("plain text body".to_string())
         );
-        assert!(vm.effective_headers().is_empty());
+        assert_eq!(
+            vm.effective_headers(),
+            vec![EffectiveHeader {
+                name: "Content-Type".into(),
+                value: "text/plain".into(),
+                source: EffectiveHeaderSource::Generated,
+            }]
+        );
 
         let request = vm.build_request();
         assert_eq!(request.method, HttpMethod::PUT);
@@ -1762,7 +1821,10 @@ mod tests {
             request.body,
             RequestBody::Raw("plain text body".to_string())
         );
-        assert!(request.headers.is_empty());
+        assert_eq!(
+            request.headers,
+            vec![("Content-Type".into(), "text/plain".into())]
+        );
     }
 
     #[test]
@@ -1796,6 +1858,8 @@ mod tests {
 
         vm.remove_header(content_type_index);
         vm.set_body_kind(BodyKind::UrlEncoded);
+        vm.set_body_kind(BodyKind::Raw);
+        vm.set_raw_body_format(RawBodyFormat::Xml);
         let (request, _) = vm.begin_send(SendId(1));
 
         assert!(!vm
@@ -2024,10 +2088,158 @@ mod tests {
     }
 
     #[test]
+    fn tabs_keep_all_body_mode_drafts_formats_and_clear_operations_isolated() {
+        let mut workspace = WorkspaceViewModel::new();
+        let mut expected_tabs = Vec::new();
+        for index in 0..2 {
+            if index > 0 {
+                workspace.new_request();
+            }
+            let format = if index == 0 {
+                RawBodyFormat::Xml
+            } else {
+                RawBodyFormat::JavaScript
+            };
+            let size = 100 + index as u64;
+            let drafts = vec![
+                (BodyKind::None, RequestBodyDraft::None),
+                (
+                    BodyKind::Json,
+                    RequestBodyDraft::Json(format!(r#"{{"tab":{index}}}"#)),
+                ),
+                (
+                    BodyKind::Raw,
+                    RequestBodyDraft::Raw(format!("raw tab {index}\0\r\n")),
+                ),
+                (
+                    BodyKind::UrlEncoded,
+                    RequestBodyDraft::UrlEncoded(vec![
+                        KeyValueRow::enabled("tag", format!("first-{index}")),
+                        KeyValueRow {
+                            enabled: false,
+                            ..KeyValueRow::enabled("tag", format!("disabled-{index}"))
+                        },
+                        KeyValueRow::enabled("tag", format!("second-{index}")),
+                    ]),
+                ),
+                (
+                    BodyKind::Multipart,
+                    RequestBodyDraft::Multipart(vec![
+                        MultipartDraftPart::text("part", format!("text-{index}"), true),
+                        MultipartDraftPart::file(
+                            "part",
+                            format!("upload-{index}.bin"),
+                            Some(format!("renamed-{index}.bin")),
+                            Some("application/octet-stream".into()),
+                            true,
+                        ),
+                        MultipartDraftPart::file(
+                            "part",
+                            format!("disabled-{index}.bin"),
+                            None,
+                            None,
+                            false,
+                        ),
+                    ]),
+                ),
+                (
+                    BodyKind::Binary,
+                    RequestBodyDraft::Binary(format!("binary-{index}.bin").into()),
+                ),
+            ];
+            let request = workspace.active_request_mut().unwrap();
+            request.set_method(HttpMethod::PUT);
+            request.set_raw_body_format(format);
+            for (kind, body) in &drafts {
+                request.set_body_kind(*kind);
+                match body {
+                    RequestBodyDraft::None => {}
+                    RequestBodyDraft::Json(text) | RequestBodyDraft::Raw(text) => {
+                        request.set_body(text)
+                    }
+                    RequestBodyDraft::UrlEncoded(rows) => {
+                        request.set_url_encoded_rows(rows.clone())
+                    }
+                    RequestBodyDraft::Multipart(parts) => {
+                        request.set_multipart_draft_parts(parts.clone())
+                    }
+                    RequestBodyDraft::Binary(path) => {
+                        request.set_binary_file(path.clone(), Some(size))
+                    }
+                }
+            }
+            expected_tabs.push((drafts, format, size));
+        }
+
+        // Clear an inactive mode after returning to the first tab; the second tab keeps its Raw.
+        assert!(workspace.select_tab(0));
+        let first = workspace.active_request_mut().unwrap();
+        first.set_body_kind(BodyKind::Raw);
+        first.clear_body();
+        expected_tabs[0].0[2].1 = RequestBodyDraft::Raw(String::new());
+
+        for index in [1, 0, 1, 0] {
+            assert!(workspace.select_tab(index));
+            let (drafts, format, size) = &expected_tabs[index];
+            let request = workspace.active_request_mut().unwrap();
+            for (kind, expected) in drafts {
+                request.set_body_kind(*kind);
+                assert_eq!(request.body_draft(), expected, "tab {index}, {kind:?}");
+            }
+            assert_eq!(request.raw_body_format(), *format);
+            assert_eq!(request.binary_size(), Some(*size));
+            let RequestBodyDraft::Binary(path) = &drafts[5].1 else {
+                unreachable!()
+            };
+            assert_eq!(
+                request.build_request().body,
+                RequestBody::File(path.clone())
+            );
+        }
+    }
+
+    #[test]
+    fn binary_history_replay_keeps_the_sent_file_body_through_persistence() {
+        let path = std::path::PathBuf::from("tests/fixtures/httpbingo-upload.txt");
+        let mut workspace = WorkspaceViewModel::new();
+        let request = workspace.active_request_mut().unwrap();
+        request.set_method(HttpMethod::PUT);
+        request.set_url("https://example.test/binary");
+        request.set_binary_file(path.clone(), None);
+
+        let pending = workspace.begin_send().unwrap();
+        let sent = pending.request().clone();
+        assert_eq!(sent.body, RequestBody::File(path.clone()));
+        let request = workspace.active_request_mut().unwrap();
+        request.set_body_kind(BodyKind::Raw);
+        request.set_body("edits after Send must not replace the saved file");
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(HttpResponse::success("ok".into()))
+        ));
+
+        let entry = workspace.history()[0].clone();
+        assert_eq!(entry.request.body, RequestBody::File(path.clone()));
+        workspace.new_request();
+        assert!(workspace.load_history_entry(&entry));
+        let replay = workspace.active_request_mut().unwrap();
+        assert_eq!(replay.body_kind(), BodyKind::Binary);
+        assert_eq!(replay.body_draft(), &RequestBodyDraft::Binary(path));
+        assert!(replay.body().is_empty());
+        assert_eq!(replay.build_request(), sent);
+        replay.set_body_kind(BodyKind::Raw);
+        assert_eq!(replay.body_draft(), &RequestBodyDraft::Raw(String::new()));
+        replay.set_body_kind(BodyKind::Binary);
+        assert_eq!(workspace.begin_send().unwrap().request(), &sent);
+    }
+
+    #[test]
     fn tabs_preserve_complete_url_encoded_body_drafts() {
         let rows = vec![
             KeyValueRow::enabled("tag", "rust"),
             KeyValueRow {
+                description: String::new(),
                 enabled: false,
                 key: "ignored".to_string(),
                 value: "draft-only".to_string(),

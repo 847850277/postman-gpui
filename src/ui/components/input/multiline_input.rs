@@ -1,7 +1,7 @@
 use super::body_input::{
-    Backspace, Copy, Cut, Delete, Down, End, Enter, Escape, Home, Left, Paste, Redo, Right,
-    SelectAll, SelectDown, SelectLeft, SelectRight, SelectUp, SelectWordLeft, SelectWordRight,
-    ShiftTab, Tab, Undo, Up, WordLeft, WordRight,
+    Backspace, Copy, Cut, Delete, Down, End, Enter, Home, Left, Paste, Redo, Right, SelectAll,
+    SelectDown, SelectLeft, SelectRight, SelectUp, SelectWordLeft, SelectWordRight, ShiftTab, Tab,
+    Undo, Up, WordLeft, WordRight,
 };
 #[cfg(test)]
 use crate::ui::text_layout::LineRange;
@@ -43,7 +43,6 @@ pub(crate) struct MultilineInputState {
     scroll_handle: ScrollHandle,
     preferred_column: Option<PreferredColumn>,
     is_selecting: bool,
-    context_menu_position: Option<Point<Pixels>>,
     scroll_to_caret_requested: bool,
 }
 
@@ -56,7 +55,6 @@ impl MultilineInputState {
             scroll_handle: ScrollHandle::new(),
             preferred_column: None,
             is_selecting: false,
-            context_menu_position: None,
             scroll_to_caret_requested: false,
         }
     }
@@ -73,16 +71,9 @@ impl MultilineInputState {
         &self.scroll_handle
     }
 
-    pub(crate) fn context_menu_position(&self) -> Option<Point<Pixels>> {
-        self.context_menu_position
-    }
-
-    pub(crate) fn dismiss_context_menu(&mut self) -> bool {
-        self.context_menu_position.take().is_some()
-    }
-
-    /// Programmatic user mutation used by the Body compatibility surface. The previous selection
+    /// Programmatic user mutation for editor tests. The previous selection
     /// is retained where possible, while the complete replacement remains one Undo transaction.
+    #[cfg(test)]
     pub(crate) fn set_text(&mut self, text: impl Into<String>) -> bool {
         let text = text.into();
         if self.editor.text() == text {
@@ -122,6 +113,7 @@ impl MultilineInputState {
         self.editor.text() != before
     }
 
+    #[cfg(test)]
     pub(crate) fn clear(&mut self) -> bool {
         if self.editor.text().is_empty() {
             return false;
@@ -556,17 +548,6 @@ pub(crate) fn focus_previous<H: MultilineInputHost>(
     window.focus_prev(cx);
 }
 
-pub(crate) fn dismiss<H: MultilineInputHost>(
-    host: &mut H,
-    _: &Escape,
-    _: &mut Window,
-    cx: &mut Context<H>,
-) {
-    if host.multiline_input_mut().dismiss_context_menu() {
-        cx.notify();
-    }
-}
-
 pub(crate) fn on_mouse_down<H: MultilineInputHost>(
     host: &mut H,
     event: &MouseDownEvent,
@@ -583,7 +564,6 @@ pub(crate) fn on_mouse_down<H: MultilineInputHost>(
         .offset_from_utf8(offset)
         .expect("layout hit tests must resolve to UTF-8 boundaries");
     let input = host.multiline_input_mut();
-    input.context_menu_position = None;
     input.is_selecting = event.click_count < 2;
     input.reset_preferred_column();
     let result = if event.click_count >= 2 {
@@ -640,39 +620,18 @@ pub(crate) fn on_mouse_move<H: MultilineInputHost>(
     }
 }
 
-pub(crate) fn open_context_menu<H: MultilineInputHost>(
+/// Run in capture before Kit snapshots the focus to restore on menu dismissal.
+/// A context click ends a drag but must not change the current text selection.
+pub(crate) fn prepare_context_menu<H: MultilineInputHost>(
     host: &mut H,
     event: &MouseDownEvent,
     window: &mut Window,
     cx: &mut Context<H>,
 ) {
-    cx.stop_propagation();
-    let focus_handle = host.multiline_focus_handle().clone();
-    let input = host.multiline_input_mut();
-    input.is_selecting = false;
-    input.context_menu_position = Some(event.position);
-    focus_handle.focus(window, cx);
-    cx.notify();
-}
-
-pub(crate) fn handle_context_menu_action<H: MultilineInputHost>(
-    host: &mut H,
-    action: crate::ui::components::common::edit_context_menu::EditContextAction,
-    window: &mut Window,
-    cx: &mut Context<H>,
-) {
-    use crate::ui::components::common::edit_context_menu::EditContextAction;
-    match action {
-        EditContextAction::Undo => undo(host, &Undo, window, cx),
-        EditContextAction::Redo => redo(host, &Redo, window, cx),
-        EditContextAction::Cut => cut(host, &Cut, window, cx),
-        EditContextAction::Copy => copy(host, &Copy, window, cx),
-        EditContextAction::Paste => paste(host, &Paste, window, cx),
-        EditContextAction::SelectAll => select_all(host, &SelectAll, window, cx),
-        EditContextAction::Dismiss => {}
+    if event.button == gpui::MouseButton::Right {
+        host.multiline_input_mut().is_selecting = false;
+        host.multiline_focus_handle().focus(window, cx);
     }
-    host.multiline_input_mut().context_menu_position = None;
-    cx.notify();
 }
 
 pub(crate) fn text_for_range<H: MultilineInputHost>(

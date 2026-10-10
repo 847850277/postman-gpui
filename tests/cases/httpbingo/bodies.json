@@ -56,7 +56,7 @@
           { "key": "active", "value": "true" },
           { "key": "tag", "value": "rust" },
           { "key": "ignored", "value": "not-sent", "enabled": false },
-          { "key": "", "value": "draft-only" },
+          { "key": "", "value": "draft-only", "enabled": false },
           { "key": "tag", "value": "gpui" }
         ]
       },
@@ -130,7 +130,7 @@
       }
     },
     {
-      "name": "HTTPBingo receives a raw PUT body without generated content type",
+      "name": "HTTPBingo receives a raw PUT body with automatic text content type",
       "draft": {
         "method": "PUT",
         "path": "/anything/raw",
@@ -141,7 +141,7 @@
         "request": {
           "method": "PUT",
           "path": "/anything/raw",
-          "headers": [],
+          "headers": [["Content-Type", "text/plain"]],
           "body": "plain text body"
         },
         "response": {
@@ -149,7 +149,8 @@
           "status": 200,
           "body_json_contains": {
             "method": "PUT",
-            "data": "data:application/octet-stream;base64,cGxhaW4gdGV4dCBib2R5"
+            "headers": { "Content-Type": ["text/plain"] },
+            "data": "plain text body"
           }
         },
         "history_len": 1

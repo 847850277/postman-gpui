@@ -1,12 +1,30 @@
+use crate::app::RequestTabId;
+use crate::ui::{
+    components::kit_controls,
+    theme::{metrics as m, ERROR_SOFT, SIDEBAR},
+};
 use gpui::{
-    actions, div, point, prelude::FluentBuilder, px, App, Bounds, ClipboardItem, Context,
+    actions, div, point, prelude::FluentBuilder, px, rems, App, Bounds, ClipboardItem, Context,
     CursorStyle, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable, FontWeight,
     GlobalElementId, InteractiveElement, IntoElement, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, ParentElement, Pixels, Point, Render,
     Role, SharedString, StatefulInteractiveElement, Style, Styled, Subscription, TextAlign,
     TextRun, Window,
 };
-use std::{collections::BTreeMap, time::Duration};
+use gpui_kit::base::ElementExt;
+use gpui_kit::{
+    assets::IconName,
+    base::Tab,
+    component::{
+        menu::ContextMenuExt,
+        scroll::{ScrollableElement, ScrollbarAxis},
+        Icon,
+    },
+};
+use std::{
+    collections::{BTreeMap, HashMap},
+    time::Duration,
+};
 
 mod headers;
 
@@ -15,11 +33,9 @@ use headers::render_response_headers;
 use crate::{
     app::{ActivateControl, CookieJarEntry, ResponseState, WorkspaceViewModel},
     models::{HistoricalResponseBody, RedirectHop},
-    ui::components::common::edit_context_menu::{
-        edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
-    },
+    ui::components::common::edit_context_menu::edit_popup_menu,
     ui::text_editor::{ReadOnlyTextSelection, TextOffset},
-    ui::text_layout::{line_ranges, MultilineTextLayout},
+    ui::text_layout::{line_ranges, LineRange, MultilineTextLayout},
     ui::theme::{
         ACCENT, ACCENT_SOFT, CODE_BG, CODE_TEXT, ERROR, FONT_HEADING, FONT_MONO, FONT_UI, INFO,
         INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -134,12 +150,21 @@ struct ResponseCookieEvidence {
 #[derive(Clone, Debug)]
 pub(super) enum ResponseViewerEvent {
     OpenCookieJar,
+    ToggleLayout,
+    PanelSizes,
 }
 
 /// Response surface owned by the request workspace.
 pub struct ResponseViewer {
     view_model: Entity<WorkspaceViewModel>,
     pane: ResponsePane,
+    pretty: bool,
+    stacked: bool,
+    width: Pixels,
+    active_tab: Option<RequestTabId>,
+    retained: HashMap<RequestTabId, ResponsePresentation>,
+    body_scroll: gpui::ScrollHandle,
+    header_scroll: gpui::ScrollHandle,
     focus_handle: FocusHandle,
     body_tab_focus_handle: FocusHandle,
     headers_tab_focus_handle: FocusHandle,
@@ -150,8 +175,15 @@ pub struct ResponseViewer {
     copy_generation: u64,
     selection: ReadOnlyTextSelection,
     text_layout: Option<MultilineTextLayout>,
-    context_menu_position: Option<Point<Pixels>>,
     _view_model_subscription: Subscription,
+}
+
+struct ResponsePresentation {
+    pane: ResponsePane,
+    pretty: bool,
+    selection: ReadOnlyTextSelection,
+    body_scroll: gpui::ScrollHandle,
+    header_scroll: gpui::ScrollHandle,
 }
 
 impl EventEmitter<ResponseViewerEvent> for ResponseViewer {}
@@ -172,6 +204,13 @@ impl ResponseViewer {
         Self {
             view_model,
             pane: ResponsePane::Body,
+            pretty: true,
+            stacked: false,
+            width: px(600.),
+            active_tab: None,
+            retained: HashMap::new(),
+            body_scroll: gpui::ScrollHandle::new(),
+            header_scroll: gpui::ScrollHandle::new(),
             focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             body_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             headers_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
@@ -182,8 +221,60 @@ impl ResponseViewer {
             copy_generation: 0,
             selection: ReadOnlyTextSelection::new(),
             text_layout: None,
-            context_menu_position: None,
             _view_model_subscription: view_model_subscription,
+        }
+    }
+
+    pub(super) fn set_stacked(&mut self, stacked: bool, cx: &mut Context<Self>) {
+        if self.stacked != stacked {
+            self.stacked = stacked;
+            cx.notify();
+        }
+    }
+
+    fn retain_active_presentation(&mut self, cx: &App) {
+        let model = self.view_model.read(cx);
+        let active = model.active_tab_id();
+        if active == self.active_tab {
+            return;
+        }
+        if let Some(previous) = self.active_tab {
+            self.retained.insert(
+                previous,
+                ResponsePresentation {
+                    pane: self.pane,
+                    pretty: self.pretty,
+                    selection: std::mem::take(&mut self.selection),
+                    body_scroll: std::mem::take(&mut self.body_scroll),
+                    header_scroll: std::mem::take(&mut self.header_scroll),
+                },
+            );
+        }
+        self.retained
+            .retain(|id, _| model.tabs().iter().any(|tab| tab.tab_id() == *id));
+        if let Some(saved) = active.and_then(|id| self.retained.remove(&id)) {
+            self.pane = saved.pane;
+            self.pretty = saved.pretty;
+            self.selection = saved.selection;
+            self.body_scroll = saved.body_scroll;
+            self.header_scroll = saved.header_scroll;
+        } else {
+            self.pane = ResponsePane::Body;
+            self.pretty = true;
+            self.selection = ReadOnlyTextSelection::new();
+            self.body_scroll = gpui::ScrollHandle::new();
+            self.header_scroll = gpui::ScrollHandle::new();
+        }
+        self.active_tab = active;
+        self.text_layout = None;
+    }
+
+    fn set_pretty(&mut self, pretty: bool, cx: &mut Context<Self>) {
+        if self.pretty != pretty {
+            self.pretty = pretty;
+            self.selection.reset_selection();
+            self.body_scroll.set_offset(point(px(0.), px(0.)));
+            cx.notify();
         }
     }
 
@@ -233,17 +324,6 @@ impl ResponseViewer {
         self.copy_raw_response_body(cx);
     }
 
-    fn click_copy_response_body(
-        &mut self,
-        _: &MouseUpEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        cx.stop_propagation();
-        self.copy_focus_handle.focus(window, cx);
-        self.copy_raw_response_body(cx);
-    }
-
     fn pane_tab(
         &self,
         pane: ResponsePane,
@@ -269,24 +349,22 @@ impl ResponseViewer {
         let focus_handle = self.pane_focus_handle(pane).clone();
         let click_focus_handle = focus_handle.clone();
         let focused = focus_handle.is_focused(window);
-        div()
-            .id(selector)
+        Tab::new(selector)
+            .selected(active)
             .debug_selector(move || selector.into())
             .track_focus(&focus_handle)
             .key_context("ResponsePaneTab")
-            .role(Role::Tab)
-            .aria_label(format!("{label} response pane"))
-            .aria_selected(active)
-            .h_full()
+            .accessibility_label(format!("{label} response pane"))
+            .h(m::PANE_TAB)
             .flex()
             .items_center()
-            .px_2()
+            .px_0()
             .cursor_pointer()
             .when(active, |d| {
                 d.border_b_2()
                     .border_color(ACCENT.resolve(cx))
                     .text_color(TEXT.resolve(cx))
-                    .font_weight(FontWeight::SEMIBOLD)
+                    .font_weight(FontWeight::MEDIUM)
             })
             .when(!active, |d| {
                 d.text_color(MUTED.resolve(cx))
@@ -297,7 +375,7 @@ impl ResponseViewer {
                     .border_1()
                     .border_color(ACCENT.resolve(cx))
             })
-            .text_size(px(12.0))
+            .text_size(rems(11. / 16.))
             .font_family(FONT_UI)
             .on_action(cx.listener(Self::activate_response_pane_tab))
             .on_action(cx.listener(Self::focus_next_response_pane_tab))
@@ -309,13 +387,10 @@ impl ResponseViewer {
                     .debug_selector(move || state_selector.into())
                     .child(label),
             )
-            .on_mouse_up(
-                MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    click_focus_handle.focus(window, cx);
-                    this.select_pane(pane, cx);
-                }),
-            )
+            .on_click(cx.listener(move |this, _, window, cx| {
+                click_focus_handle.focus(window, cx);
+                this.select_pane(pane, cx);
+            }))
     }
 
     fn pane_focus_handle(&self, pane: ResponsePane) -> &FocusHandle {
@@ -330,7 +405,6 @@ impl ResponseViewer {
         self.pane = pane;
         self.selection.reset_selection();
         self.text_layout = None;
-        self.context_menu_position = None;
         cx.notify();
     }
 
@@ -452,14 +526,13 @@ impl ResponseViewer {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let menu_was_open = self.context_menu_position.take().is_some();
         self.focus_handle.focus(window, cx);
         let offset = self.offset_for_mouse_position(event.position);
         let changed = self
             .selection
             .pointer_down(offset, event.modifiers.shift, event.click_count)
             .unwrap_or(false);
-        if changed || menu_was_open {
+        if changed {
             cx.notify();
         }
     }
@@ -487,17 +560,18 @@ impl ResponseViewer {
         }
     }
 
-    fn open_context_menu(
+    // Kit captures previous focus in its bubble handler. Focus this read-only
+    // editor first, without moving the selection, so Escape returns here too.
+    fn prepare_context_menu(
         &mut self,
         event: &MouseDownEvent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        cx.stop_propagation();
-        self.selection.pointer_up();
-        self.context_menu_position = Some(event.position);
-        self.focus_handle.focus(window, cx);
-        cx.notify();
+        if event.button == MouseButton::Right {
+            self.selection.pointer_up();
+            self.focus_handle.focus(window, cx);
+        }
     }
 
     fn dismiss_context_menu(
@@ -506,33 +580,11 @@ impl ResponseViewer {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let changed = if self.context_menu_position.take().is_some() {
-            true
-        } else {
-            self.selection.clear_selection()
-        };
-        if changed {
+        // When a popup is open Kit consumes Escape; this is the editor's
+        // existing Escape-to-clear-selection behavior after focus returns.
+        if self.selection.clear_selection() {
             cx.notify();
         }
-    }
-
-    fn handle_context_menu_action(
-        &mut self,
-        action: EditContextAction,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match action {
-            EditContextAction::Copy => self.copy(&Copy, window, cx),
-            EditContextAction::SelectAll => self.select_all(&SelectAll, window, cx),
-            EditContextAction::Undo
-            | EditContextAction::Redo
-            | EditContextAction::Cut
-            | EditContextAction::Paste
-            | EditContextAction::Dismiss => {}
-        }
-        self.context_menu_position = None;
-        cx.notify();
     }
 
     fn offset_for_mouse_position(&self, position: Point<Pixels>) -> TextOffset {
@@ -552,7 +604,7 @@ impl ResponseViewer {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        div()
+        let content = div()
             .id("response-content")
             .debug_selector(|| "response-content".into())
             .cursor(CursorStyle::IBeam)
@@ -565,7 +617,6 @@ impl ResponseViewer {
                 CODE_BG.resolve(cx)
             })
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
-            .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
@@ -576,14 +627,49 @@ impl ResponseViewer {
             .w_full()
             .h_full()
             .min_h_0()
-            .p_3()
-            .bg(CODE_BG.resolve(cx))
+            .min_w_0()
+            .bg(SIDEBAR.resolve(cx))
             .text_color(CODE_TEXT.resolve(cx))
             .font_family(FONT_MONO)
-            .text_size(px(13.0))
+            .text_size(m::CODE)
+            .line_height(gpui::relative(m::CODE_LINE_HEIGHT))
+            .flex()
+            .flex_col()
+            .items_start()
             .overflow_scroll()
-            .child(ResponseTextElement {
-                viewer: cx.entity().clone(),
+            .track_scroll(&self.body_scroll)
+            .child(
+                div()
+                    .debug_selector(|| "response-document".into())
+                    .flex_none()
+                    .pt(rems(19. / 16.))
+                    .pb_6()
+                    .min_w_full()
+                    .child(ResponseTextElement {
+                        viewer: cx.entity().clone(),
+                    }),
+            );
+        let menu_focus = self.focus_handle.clone();
+        // The scrollbar overlays the viewport, not its scrolling children. Putting
+        // it inside `content` moves the track with the document and creates overflow.
+        div()
+            .id("response-content-viewport")
+            .relative()
+            .size_full()
+            .min_w_0()
+            .min_h_0()
+            .child(content)
+            .scrollbar(&self.body_scroll, ScrollbarAxis::Both)
+            .capture_any_mouse_down(cx.listener(Self::prepare_context_menu))
+            .context_menu(move |menu, _, _| {
+                edit_popup_menu(
+                    menu,
+                    menu_focus.clone(),
+                    vec![
+                        ("Copy", Box::new(Copy)),
+                        ("Select All", Box::new(SelectAll)),
+                    ],
+                )
             })
     }
 
@@ -867,6 +953,7 @@ struct ResponseTextPrepaintState {
     layout: MultilineTextLayout,
     selections: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
+    line_numbers: bool,
 }
 
 impl IntoElement for ResponseTextElement {
@@ -878,7 +965,7 @@ impl IntoElement for ResponseTextElement {
 }
 
 impl Element for ResponseTextElement {
-    type RequestLayoutState = ();
+    type RequestLayoutState = (Vec<gpui::ShapedLine>, Vec<LineRange>, Pixels, bool);
     type PrepaintState = ResponseTextPrepaintState;
 
     fn id(&self) -> Option<ElementId> {
@@ -897,14 +984,47 @@ impl Element for ResponseTextElement {
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = Style::default();
-        style.size.width = gpui::relative(1.).into();
-
+        let text_style = window.text_style();
+        let font_size = text_style.font_size.to_pixels(window.rem_size());
         let viewer = self.viewer.read(cx);
-        let line_count = line_ranges(viewer.selection.text()).len();
+        let ranges = line_ranges(viewer.selection.text());
+        let lines: Vec<_> = ranges
+            .iter()
+            .map(|range| {
+                let text: SharedString = viewer.selection.text()[range.start..range.end]
+                    .to_string()
+                    .into();
+                let run = TextRun {
+                    len: text.len(),
+                    font: text_style.font(),
+                    color: text_style.color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                window
+                    .text_system()
+                    .shape_line(text, font_size, &[run], None)
+            })
+            .collect();
+        let line_numbers = viewer.pretty && viewer.view_model.read(cx).active_request().is_some_and(|request| {
+            matches!(request.response(), ResponseState::Success { body, .. } if !body.is_empty()) || matches!(request.response(), ResponseState::Historical { response, .. } if response.body.preview().is_some_and(|body| !body.is_empty()))
+        });
+        let gutter = rems(if line_numbers { 48. } else { 22. } / 16.).to_pixels(window.rem_size());
+        let width = lines
+            .iter()
+            .map(|line| line.width)
+            .fold(px(0.), |a, b| a.max(b));
+        style.size.width = (width + gutter + rems(20. / 16.).to_pixels(window.rem_size())).into();
+        style.min_size.width = gpui::relative(1.).into();
+        let line_count = ranges.len();
         let line_height = window.line_height();
         style.size.height = (line_height * line_count as f32).into();
 
-        (window.request_layout(style, [], cx), ())
+        (
+            window.request_layout(style, [], cx),
+            (lines, ranges, gutter, line_numbers),
+        )
     }
 
     fn prepaint(
@@ -912,7 +1032,7 @@ impl Element for ResponseTextElement {
         _id: Option<&GlobalElementId>,
         _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
-        _request_layout: &mut Self::RequestLayoutState,
+        request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
@@ -924,42 +1044,33 @@ impl Element for ResponseTextElement {
             )
         };
 
-        let style = window.text_style();
-        let font_size = style.font_size.to_pixels(window.rem_size());
         let line_height = window.line_height();
-        let ranges = line_ranges(&content);
-        let lines = ranges
-            .iter()
-            .map(|range| {
-                let display: SharedString = content[range.start..range.end].to_string().into();
-                let run = TextRun {
-                    len: display.len(),
-                    font: style.font(),
-                    color: style.color,
-                    background_color: None,
-                    underline: None,
-                    strikethrough: None,
-                };
-                window
-                    .text_system()
-                    .shape_line(display, font_size, &[run], None)
-            })
-            .collect();
-        let layout = MultilineTextLayout::new(lines, ranges, bounds, line_height);
+        let (lines, ranges, gutter, line_numbers) = request_layout;
+        let mut text_bounds = bounds;
+        text_bounds.origin.x += *gutter;
+        text_bounds.size.width -= *gutter;
+        let layout = MultilineTextLayout::new(
+            std::mem::take(lines),
+            std::mem::take(ranges),
+            text_bounds,
+            line_height,
+        );
         let selections = layout.selection_quads(
             &content,
             selected_range,
             crate::ui::theme::ACCENT_SOFT.resolve(cx),
         );
-        let cursor = (selected_range.is_empty() && !content.is_empty())
-            .then(|| {
-                layout.cursor_quad(
-                    &content,
-                    selected_range.start().utf8(),
-                    INFO.resolve(cx).into(),
-                )
-            })
-            .flatten();
+        let cursor = (self.viewer.read(cx).focus_handle.is_focused(window)
+            && selected_range.is_empty()
+            && !content.is_empty())
+        .then(|| {
+            layout.cursor_quad(
+                &content,
+                selected_range.start().utf8(),
+                INFO.resolve(cx).into(),
+            )
+        })
+        .flatten();
 
         self.viewer.update(cx, |viewer, _cx| {
             viewer.text_layout = Some(layout.clone());
@@ -969,6 +1080,7 @@ impl Element for ResponseTextElement {
             layout,
             selections,
             cursor,
+            line_numbers: *line_numbers,
         }
     }
 
@@ -991,6 +1103,38 @@ impl Element for ResponseTextElement {
                 prepaint.layout.bounds.origin.x,
                 prepaint.layout.bounds.origin.y + prepaint.layout.line_height * line_idx as f32,
             );
+            if prepaint.line_numbers {
+                let number: SharedString = (line_idx + 1).to_string().into();
+                let style = window.text_style();
+                let run = TextRun {
+                    len: number.len(),
+                    font: style.font(),
+                    color: MUTED.resolve(cx).into(),
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                let number = window.text_system().shape_line(
+                    number,
+                    rems(10. / 16.).to_pixels(window.rem_size()),
+                    &[run],
+                    None,
+                );
+                let number_origin = point(
+                    origin.x - rems(17. / 16.).to_pixels(window.rem_size()) - number.width,
+                    origin.y,
+                );
+                number
+                    .paint(
+                        number_origin,
+                        prepaint.layout.line_height,
+                        TextAlign::Left,
+                        None,
+                        window,
+                        cx,
+                    )
+                    .ok();
+            }
             shaped_line
                 .paint(
                     origin,
@@ -1011,7 +1155,8 @@ impl Element for ResponseTextElement {
 
 impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (state, redirect_chain, is_httpbingo, response_cookies, jar_count) = {
+        self.retain_active_presentation(cx);
+        let (state, redirect_chain, response_cookies, jar_count) = {
             let view_model = self.view_model.read(cx);
             let active = view_model.active_request();
             (
@@ -1021,7 +1166,6 @@ impl Render for ResponseViewer {
                 active
                     .map(|request| request.redirect_chain().to_vec())
                     .unwrap_or_default(),
-                active.is_some_and(|request| request.effective_url().contains("httpbingo.org")),
                 response_cookie_evidence(view_model),
                 view_model.cookie_count(),
             )
@@ -1031,14 +1175,18 @@ impl Render for ResponseViewer {
             self.pane = ResponsePane::Body;
             self.selection.reset_selection();
             self.text_layout = None;
-            self.context_menu_position = None;
         }
-        let projection = response_text_projection(&state, self.pane).unwrap_or_default();
+        let projection = if self.pane == ResponsePane::Body && !self.pretty {
+            self.raw_response_body(cx)
+                .or_else(|| response_text_projection(&state, self.pane))
+        } else {
+            response_text_projection(&state, self.pane)
+        }
+        .unwrap_or_default();
         if self.selection.project_text(projection) {
             self.text_layout = None;
         }
         let pane = self.pane;
-        let context_menu_position = self.context_menu_position;
         let response_header_count = match &state {
             ResponseState::Success { headers, .. } => headers.len(),
             ResponseState::Historical { response, .. } => response.headers.len(),
@@ -1078,7 +1226,6 @@ impl Render for ResponseViewer {
             ResponseState::Historical { response, .. } if response.body.is_truncated()
         );
         let copied_feedback = has_copyable_body && self.copied_feedback;
-        let copy_is_focused = self.copy_focus_handle.is_focused(window);
         let completed_status = match &state {
             ResponseState::Success { status, .. } => Some(*status),
             ResponseState::Historical { response, .. } => Some(response.status),
@@ -1090,10 +1237,6 @@ impl Render for ResponseViewer {
             ResponseState::Error { message } if message.starts_with("Request timed out after")
         );
         let is_cancelled = matches!(&state, ResponseState::Cancelled);
-        let redirect_response_count = redirect_chain
-            .iter()
-            .filter(|hop| (300..400).contains(&hop.status))
-            .count();
         let has_redirect_chain = !redirect_chain.is_empty();
         let redirect_chain_is_partial = matches!(&state, ResponseState::Error { .. });
 
@@ -1137,248 +1280,263 @@ impl Render for ResponseViewer {
             ResponseState::NotSent => ("Not sent".to_string(), String::new(), String::new(), MUTED),
         };
 
+        let media_type = match &state {
+            ResponseState::Success { headers, .. } => headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+                .map(|(_, v)| v.clone()),
+            ResponseState::Historical { response, .. } => response.media_type.clone(),
+            _ => None,
+        };
+        let empty_body = matches!(&state, ResponseState::Success { body, .. } if body.is_empty());
+        let body_format = if media_type.as_deref().is_some_and(|m| m.contains("json")) {
+            "JSON"
+        } else {
+            "Text"
+        };
         div()
             .flex()
             .flex_col()
             .size_full()
+            .min_w_0()
             .min_h_0()
-            .bg(PANEL.resolve(cx))
-            .border_1()
-            .border_color(LINE.resolve(cx))
-            .rounded(px(14.0))
-            .when(context_menu_position.is_none(), |root| {
-                root.overflow_hidden()
+            .bg(SIDEBAR.resolve(cx))
+            .on_prepaint({
+                let this = cx.weak_entity();
+                let width = self.width;
+                move |bounds, window, cx| {
+                    if bounds.size.width != width {
+                        window.defer(cx, move |_, cx| {
+                            let _ = this.update(cx, |this, cx| {
+                                this.width = bounds.size.width;
+                                cx.notify();
+                            });
+                        });
+                    }
+                }
             })
+            .overflow_hidden()
             .child(
                 div()
+                    .debug_selector(|| "response-heading".into())
+                    .h(rems(50. / 16.))
+                    .flex_none()
+                    .px(rems(22. / 16.))
                     .flex()
                     .items_center()
-                    .justify_between()
-                    .h_12()
-                    .px_4()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
+                    .gap_2()
+                    .min_w_0()
                     .child(
                         div()
-                            .flex()
-                            .items_center()
-                            .h_full()
-                            .gap_3()
-                            .child(
-                                div()
-                                    .child("Response")
-                                    .text_size(px(16.0))
-                                    .font_family(FONT_HEADING)
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_color(TEXT.resolve(cx)),
-                            )
-                            .when(is_historical, |row| {
-                                row.child(
-                                    div()
-                                        .debug_selector(|| "response-historical-badge".into())
-                                        .px_2()
-                                        .py_1()
-                                        .rounded(px(6.0))
-                                        .bg(INFO_SOFT.resolve(cx))
-                                        .font_family(FONT_UI)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_size(px(10.0))
-                                        .text_color(INFO.resolve(cx))
-                                        .child("Historical"),
-                                )
-                            })
-                            .when(has_redirect_chain, |row| {
-                                row.child(
-                                    div()
-                                        .debug_selector(|| "response-redirect-count".into())
-                                        .px_2()
-                                        .py_1()
-                                        .rounded(px(6.0))
-                                        .bg(INFO_SOFT.resolve(cx))
-                                        .font_family(FONT_MONO)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_size(px(10.0))
-                                        .text_color(INFO.resolve(cx))
-                                        .child(format!("Redirects ({redirect_response_count})")),
-                                )
-                            })
-                            .when(has_completed_response, |row| {
-                                row.child(
-                                    div()
-                                        .flex()
-                                        .h_full()
-                                        .child(body_tab)
-                                        .child(headers_tab)
-                                        .when(
-                                            matches!(&state, ResponseState::Success { .. }),
-                                            |tabs| tabs.child(cookies_tab),
-                                        ),
-                                )
-                            }),
+                            .font_family(FONT_UI)
+                            .text_size(m::LABEL)
+                            .font_weight(m::MEDIUM)
+                            .text_color(TEXT.resolve(cx))
+                            .child("Response"),
                     )
                     .child(
                         div()
-                            .flex()
-                            .items_center()
-                            .gap_3()
-                            .font_family(FONT_UI)
-                            .text_size(px(13.0))
-                            .when(has_copyable_body, |row| {
-                                row.child(
-                                    div()
-                                        .id("response-copy-button")
-                                        .debug_selector(|| "response-copy-button".into())
-                                        .track_focus(&self.copy_focus_handle)
-                                        .key_context("ResponseCopyButton")
-                                        .role(Role::Button)
-                                        .aria_label("Copy full response body")
-                                        .h(px(30.0))
-                                        .min_w(px(72.0))
-                                        .px_2()
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .gap_1()
-                                        .rounded(px(7.0))
-                                        .border_1()
-                                        .border_color(LINE.resolve(cx))
-                                        .bg(PANEL.resolve(cx))
-                                        .text_color(SUBTEXT.resolve(cx))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .cursor_pointer()
-                                        .when(!copied_feedback, |button| {
-                                            button.hover(|style| {
-                                                style
-                                                    .bg(INFO_SOFT.resolve(cx))
-                                                    .border_color(INFO.resolve(cx))
-                                                    .text_color(INFO.resolve(cx))
-                                            })
-                                        })
-                                        .when(copied_feedback, |button| {
-                                            button
-                                                .bg(OK_SOFT.resolve(cx))
-                                                .border_color(OK.resolve(cx))
-                                                .text_color(OK.resolve(cx))
-                                        })
-                                        .when(copy_is_focused, |button| {
-                                            button.border_color(INFO.resolve(cx))
-                                        })
-                                        .on_action(cx.listener(Self::copy_response_body))
-                                        .on_mouse_up(
-                                            MouseButton::Left,
-                                            cx.listener(Self::click_copy_response_body),
-                                        )
-                                        .child(if copied_feedback { "✓" } else { "⧉" })
-                                        .child(
-                                            div()
-                                                .when(copied_feedback, |label| {
-                                                    label.debug_selector(|| {
-                                                        "response-copy-feedback".into()
-                                                    })
-                                                })
-                                                .child(if copied_feedback {
-                                                    "Copied"
-                                                } else {
-                                                    "Copy"
-                                                }),
-                                        ),
-                                )
+                            .debug_selector(|| "response-status".into())
+                            .flex_none()
+                            .px_2()
+                            .py_1()
+                            .rounded_sm()
+                            .font_family(FONT_MONO)
+                            .text_size(m::CAPTION)
+                            .text_color(status_color.resolve(cx))
+                            .when(has_completed_response, |d| {
+                                d.bg(if completed_status.is_some_and(|n| n >= 400) {
+                                    ERROR_SOFT
+                                } else {
+                                    OK_SOFT
+                                }
+                                .resolve(cx))
                             })
                             .child(
                                 div()
-                                    .debug_selector(|| "response-status".into())
-                                    .text_color(status_color.resolve(cx))
-                                    .font_weight(FontWeight::BOLD)
-                                    .child(
-                                        div()
-                                            .when_some(completed_status, |label, status| {
-                                                label.debug_selector(move || {
-                                                    format!("response-status-{status}")
-                                                })
-                                            })
-                                            .when(is_transport_failure, |label| {
-                                                label.debug_selector(|| {
-                                                    "response-transport-error".into()
-                                                })
-                                            })
-                                            .when(is_timeout, |label| {
-                                                label.debug_selector(|| {
-                                                    "response-timeout-error".into()
-                                                })
-                                            })
-                                            .when(is_cancelled, |label| {
-                                                label.debug_selector(|| "response-cancelled".into())
-                                            })
-                                            .child(status),
-                                    ),
-                            )
-                            .when(!elapsed.is_empty(), |row| {
-                                row.child(
-                                    div()
-                                        .text_color(SUBTEXT.resolve(cx))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child(elapsed),
-                                )
-                            })
-                            .when(!size.is_empty(), |row| {
-                                row.child(
-                                    div()
-                                        .text_color(SUBTEXT.resolve(cx))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child(size),
-                                )
-                            }),
+                                    .when_some(completed_status, |d, status| {
+                                        d.debug_selector(move || {
+                                            format!("response-status-{status}")
+                                        })
+                                    })
+                                    .when(is_transport_failure, |d| {
+                                        d.debug_selector(|| "response-transport-error".into())
+                                    })
+                                    .when(is_timeout, |d| {
+                                        d.debug_selector(|| "response-timeout-error".into())
+                                    })
+                                    .when(is_cancelled, |d| {
+                                        d.debug_selector(|| "response-cancelled".into())
+                                    })
+                                    .child(status),
+                            ),
+                    )
+                    .when(!elapsed.is_empty(), |d| {
+                        d.child(
+                            div()
+                                .debug_selector(|| "response-elapsed".into())
+                                .font_family(FONT_MONO)
+                                .text_size(m::CAPTION)
+                                .text_color(MUTED.resolve(cx))
+                                .child(elapsed),
+                        )
+                    })
+                    .when(!size.is_empty() && self.width > px(410.), |d| {
+                        d.child(
+                            div()
+                                .debug_selector(|| "response-size".into())
+                                .font_family(FONT_MONO)
+                                .text_size(m::CAPTION)
+                                .text_color(MUTED.resolve(cx))
+                                .child(size),
+                        )
+                    })
+                    .child(div().flex_1())
+                    .child(
+                        kit_controls::icon_button(
+                            "response-panel-sizes",
+                            IconName::Settings2,
+                            "Panel sizes…",
+                        )
+                        .size_7()
+                        .debug_selector(|| "response-panel-sizes".into())
+                        .on_click(
+                            cx.listener(|_, _, _, cx| cx.emit(ResponseViewerEvent::PanelSizes)),
+                        ),
+                    )
+                    .child(
+                        kit_controls::icon_button(
+                            "response-layout-toggle",
+                            if self.stacked {
+                                IconName::Columns2
+                            } else {
+                                IconName::Rows2
+                            },
+                            if self.stacked {
+                                "Use automatic response layout"
+                            } else {
+                                "Stack request and response"
+                            },
+                        )
+                        .size_7()
+                        .debug_selector(|| "response-layout-toggle".into())
+                        .on_click(
+                            cx.listener(|_, _, _, cx| cx.emit(ResponseViewerEvent::ToggleLayout)),
+                        ),
                     ),
             )
             .when(has_completed_response, |root| {
                 root.child(
                     div()
-                        .debug_selector(|| "response-echo-bar".into())
-                        .h(px(36.0))
+                        .id("response-tabs")
+                        .debug_selector(|| "response-tabs".into())
+                        .min_h(m::PANE_TAB)
                         .flex_none()
+                        .px(rems(22. / 16.))
                         .flex()
+                        .flex_wrap()
                         .items_center()
-                        .justify_between()
-                        .px_4()
-                        .bg(PANEL_ALT.resolve(cx))
+                        .gap(rems(18. / 16.))
                         .border_b_1()
                         .border_color(LINE.resolve(cx))
-                        .font_family(FONT_UI)
-                        .text_size(px(11.0))
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap_2()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(OK.resolve(cx))
-                                .child("●")
-                                .child(if pane == ResponsePane::Cookies {
-                                    "Response cookie evidence"
-                                } else if is_historical {
-                                    "Persisted historical response"
-                                } else if is_httpbingo {
-                                    "HTTPBingo echo"
-                                } else {
-                                    "Response payload"
-                                }),
-                        )
-                        .when(is_historical, |bar| {
-                            bar.child(
+                        .child(body_tab)
+                        .child(headers_tab)
+                        .when(matches!(&state, ResponseState::Success { .. }), |d| {
+                            d.child(cookies_tab)
+                        })
+                        .when(pane == ResponsePane::Body && has_copyable_body, |d| {
+                            d.child(
                                 div()
-                                    .debug_selector(|| "response-historical-storage".into())
-                                    .text_color(SUBTEXT.resolve(cx))
-                                    .child(if historical_truncated {
-                                        "Stored preview · truncated at 256 KiB"
-                                    } else {
-                                        "Stored sanitized response"
-                                    }),
+                                    .flex()
+                                    .border_1()
+                                    .border_color(LINE.resolve(cx))
+                                    .rounded(m::RADIUS)
+                                    .p_0p5()
+                                    .children(
+                                        [
+                                            (true, "Pretty", "response-pretty"),
+                                            (false, "Raw", "response-raw"),
+                                        ]
+                                        .into_iter()
+                                        .map(
+                                            |(pretty, label, id)| {
+                                                kit_controls::editor_button(id, label, cx)
+                                                    .debug_selector(move || id.into())
+                                                    .h(rems(24. / 16.))
+                                                    .px(rems(7. / 16.))
+                                                    .font_weight(FontWeight::NORMAL)
+                                                    .text_size(rems(10. / 16.))
+                                                    .when(self.pretty == pretty, |b| {
+                                                        b.bg(PANEL.resolve(cx))
+                                                            .text_color(TEXT.resolve(cx))
+                                                    })
+                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                        this.set_pretty(pretty, cx)
+                                                    }))
+                                            },
+                                        ),
+                                    ),
                             )
                         })
-                        .when(is_httpbingo && !is_historical, |bar| {
-                            bar.child(div().text_color(SUBTEXT.resolve(cx)).child("stable subset"))
+                        .child(div().flex_1())
+                        .when(pane == ResponsePane::Body && has_copyable_body, |d| {
+                            d.child(
+                                div()
+                                    .text_size(m::CAPTION)
+                                    .text_color(MUTED.resolve(cx))
+                                    .child(body_format),
+                            )
+                        })
+                        .when(has_copyable_body, |d| {
+                            d.child(
+                                kit_controls::editor_button("response-copy-button", "", cx)
+                                    .debug_selector(|| "response-copy-button".into())
+                                    .accessibility_label("Copy full response body")
+                                    .track_focus(&self.copy_focus_handle)
+                                    .key_context("ResponseCopyButton")
+                                    .on_action(cx.listener(Self::copy_response_body))
+                                    .size(m::ICON_BUTTON)
+                                    .px_0()
+                                    .child(
+                                        Icon::new(if copied_feedback {
+                                            IconName::Check
+                                        } else {
+                                            IconName::Copy
+                                        })
+                                        .size(m::SMALL_ICON),
+                                    )
+                                    .when(copied_feedback, |b| {
+                                        b.child(
+                                            div()
+                                                .debug_selector(|| "response-copy-feedback".into()),
+                                        )
+                                    })
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.copy_raw_response_body(cx)
+                                    })),
+                            )
                         }),
+                )
+            })
+            .when(is_historical, |root| {
+                root.child(
+                    div()
+                        .debug_selector(|| "response-historical-badge".into())
+                        .flex_none()
+                        .px_4()
+                        .py_1()
+                        .font_family(FONT_UI)
+                        .text_size(m::CAPTION)
+                        .text_color(SUBTEXT.resolve(cx))
+                        .child(
+                            div()
+                                .debug_selector(|| "response-historical-storage".into())
+                                .child(if historical_truncated {
+                                    "Historical · stored sanitized preview · truncated at 256 KiB"
+                                } else {
+                                    "Historical · stored sanitized response"
+                                }),
+                        ),
                 )
             })
             .when(has_redirect_chain, |root| {
@@ -1395,24 +1553,24 @@ impl Render for ResponseViewer {
                     .min_h_0()
                     .flex()
                     .flex_col()
-                    .items_start()
-                    .justify_start()
+                    .items_center()
+                    .justify_center()
                     .gap_2()
                     .p_5()
-                    .bg(PANEL_ALT.resolve(cx))
+                    .bg(SIDEBAR.resolve(cx))
                     .child(
                         div()
-                            .font_family(FONT_HEADING)
-                            .text_size(px(20.0))
-                            .font_weight(FontWeight::BOLD)
+                            .font_family(FONT_UI)
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::MEDIUM)
                             .text_color(TEXT.resolve(cx))
                             .child("Send a request to view response"),
                     )
                     .child(
                         div()
                             .font_family(FONT_UI)
-                            .text_size(px(13.0))
-                            .font_weight(FontWeight::MEDIUM)
+                            .text_size(px(11.0))
+                            .font_weight(FontWeight::NORMAL)
                             .text_color(SUBTEXT.resolve(cx))
                             .child("Status, headers, and payload will appear here."),
                     ),
@@ -1440,11 +1598,25 @@ impl Render for ResponseViewer {
                     ResponsePane::Body => div()
                         .flex_1()
                         .min_h_0()
-                        .child(self.render_selectable_content(window, cx)),
+                        .min_w_0()
+                        .when(empty_body, |d| {
+                            d.child(
+                                div()
+                                    .debug_selector(|| "response-content".into())
+                                    .child(div().debug_selector(|| "response-empty-body".into()))
+                                    .p_4()
+                                    .text_size(m::BODY)
+                                    .text_color(MUTED.resolve(cx))
+                                    .child("Empty response body"),
+                            )
+                        })
+                        .when(!empty_body, |d| {
+                            d.child(self.render_selectable_content(window, cx))
+                        }),
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
-                        .child(render_response_headers(&headers, cx)),
+                        .child(render_response_headers(&headers, &self.header_scroll, cx)),
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
@@ -1491,10 +1663,9 @@ impl Render for ResponseViewer {
                             .min_h_0()
                             .child(self.render_selectable_content(window, cx)),
                     },
-                    ResponsePane::Headers => div()
-                        .flex_1()
-                        .min_h_0()
-                        .child(render_response_headers(&response.headers, cx)),
+                    ResponsePane::Headers => div().flex_1().min_h_0().child(
+                        render_response_headers(&response.headers, &self.header_scroll, cx),
+                    ),
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
@@ -1513,16 +1684,25 @@ impl Render for ResponseViewer {
                     .min_h_0()
                     .child(self.render_selectable_content(window, cx)),
             })
-            .when_some(context_menu_position, |root, position| {
-                root.child(edit_context_menu(
-                    position,
-                    "response-edit-menu",
-                    READ_ONLY_ACTIONS,
-                    Self::handle_context_menu_action,
-                    window,
-                    cx,
-                ))
-            })
+            .child(
+                div()
+                    .debug_selector(|| "response-footer".into())
+                    .h(rems(28. / 16.))
+                    .flex_none()
+                    .px(rems(22. / 16.))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .border_t_1()
+                    .border_color(LINE.resolve(cx))
+                    .font_family(FONT_MONO)
+                    .text_size(m::CAPTION)
+                    .text_color(MUTED.resolve(cx))
+                    .child(div().min_w_0().overflow_hidden().text_ellipsis().child(
+                        media_type.map_or_else(|| "UTF-8".into(), |t| format!("UTF-8 · {t}")),
+                    ))
+                    .child("Read only"),
+            )
     }
 }
 
@@ -1562,11 +1742,15 @@ fn render_redirect_chain(chain: &[RedirectHop], partial: bool, cx: &gpui::App) -
                             .child("incomplete"),
                     )
                 })
-                .child(if partial {
-                    format!("Partial redirect chain · {redirect_count} observed")
-                } else {
-                    format!("Redirect chain · {redirect_count} observed")
-                }),
+                .child(
+                    div()
+                        .debug_selector(|| "response-redirect-count".into())
+                        .child(if partial {
+                            format!("Partial redirect chain · {redirect_count} observed")
+                        } else {
+                            format!("Redirect chain · {redirect_count} observed")
+                        }),
+                ),
         )
         .children(chain.iter().enumerate().map(|(index, hop)| {
             let row_selector = format!("redirect-hop-{index}");
@@ -1752,8 +1936,11 @@ mod tests {
             assert!(workspace.complete_send(pending, Ok(HttpResponse::success(body))));
             workspace
         });
-        let (viewer, visual) =
-            cx.add_window_view(move |_, cx| ResponseViewer::new(workspace.clone(), cx));
+        cx.update(crate::ui::kit::init);
+        let viewer = cx.new(|cx| ResponseViewer::new(workspace, cx));
+        let content = viewer.clone();
+        let (_, visual) = cx
+            .add_window_view(move |window, cx| gpui_kit::component::Root::new(content, window, cx));
         visual.run_until_parked();
 
         let word_utf8 = expected_body.find("emoji").unwrap() + 2;
@@ -1904,8 +2091,11 @@ mod tests {
             assert!(workspace.complete_send(pending, Ok(HttpResponse::success(body))));
             workspace
         });
-        let (viewer, visual) =
-            cx.add_window_view(move |_, cx| ResponseViewer::new(workspace.clone(), cx));
+        cx.update(crate::ui::kit::init);
+        let viewer = cx.new(|cx| ResponseViewer::new(workspace, cx));
+        let content = viewer.clone();
+        let (_, visual) = cx
+            .add_window_view(move |window, cx| gpui_kit::component::Root::new(content, window, cx));
         visual.run_until_parked();
 
         let (start, below_document) = viewer.read_with(visual, |viewer, _| {

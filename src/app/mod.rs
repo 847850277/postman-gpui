@@ -1,4 +1,5 @@
 pub mod appearance;
+pub mod http_layout;
 // src/app/mod.rs
 mod history_storage;
 mod keyboard;

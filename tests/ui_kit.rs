@@ -197,6 +197,9 @@ fn product_icons_are_embedded_alongside_kits_default_icons() {
         gpui_kit::assets::IconName::Lock,
         gpui_kit::assets::IconName::Moon,
         gpui_kit::assets::IconName::Loader,
+        gpui_kit::assets::IconName::Trash,
+        gpui_kit::assets::IconName::Code,
+        gpui_kit::assets::IconName::Upload,
     ] {
         let bytes = postman_gpui::assets::KitAssets
             .load(&icon.path())

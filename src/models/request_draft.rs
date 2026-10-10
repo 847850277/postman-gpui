@@ -35,6 +35,28 @@ pub enum BodyKind {
     Raw,
     UrlEncoded,
     Multipart,
+    Binary,
+}
+
+/// The media type of the independent Raw editor draft.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RawBodyFormat {
+    #[default]
+    Text,
+    Xml,
+    Html,
+    JavaScript,
+}
+
+impl RawBodyFormat {
+    pub fn content_type(self) -> &'static str {
+        match self {
+            Self::Text => "text/plain",
+            Self::Xml => "application/xml",
+            Self::Html => "text/html",
+            Self::JavaScript => "application/javascript",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,6 +87,8 @@ pub struct KeyValueRow {
     pub enabled: bool,
     pub key: String,
     pub value: String,
+    /// Optional editor note. Never participates in the outgoing request.
+    pub description: String,
 }
 
 impl KeyValueRow {
@@ -73,6 +97,7 @@ impl KeyValueRow {
             enabled: true,
             key: key.into(),
             value: value.into(),
+            description: String::new(),
         }
     }
 }
@@ -138,6 +163,7 @@ pub enum RequestBodyDraft {
     Raw(String),
     UrlEncoded(Vec<KeyValueRow>),
     Multipart(Vec<MultipartDraftPart>),
+    Binary(PathBuf),
 }
 
 impl RequestBodyDraft {
@@ -148,6 +174,7 @@ impl RequestBodyDraft {
             Self::Raw(_) => BodyKind::Raw,
             Self::UrlEncoded(_) => BodyKind::UrlEncoded,
             Self::Multipart(_) => BodyKind::Multipart,
+            Self::Binary(_) => BodyKind::Binary,
         }
     }
 
@@ -158,6 +185,7 @@ impl RequestBodyDraft {
             BodyKind::Raw => Self::Raw(String::new()),
             BodyKind::UrlEncoded => Self::UrlEncoded(blank_url_encoded_rows()),
             BodyKind::Multipart => Self::Multipart(blank_multipart_parts()),
+            BodyKind::Binary => Self::Binary(PathBuf::new()),
         }
     }
 
@@ -188,7 +216,7 @@ impl RequestBodyDraft {
                     })
                     .collect(),
             )),
-            RequestBody::File(path) => Self::Raw(format!("@{}", path.display())),
+            RequestBody::File(path) => Self::Binary(path.clone()),
         }
     }
 
@@ -197,6 +225,7 @@ impl RequestBodyDraft {
             Self::None => RequestBody::None,
             Self::Json(value) => RequestBody::Json(value.clone()),
             Self::Raw(value) => RequestBody::Raw(value.clone()),
+            Self::Binary(path) => RequestBody::File(path.clone()),
             Self::UrlEncoded(rows) => RequestBody::UrlEncoded(serialize_url_encoded_rows(rows)),
             Self::Multipart(parts) => RequestBody::Multipart(
                 parts
@@ -249,7 +278,9 @@ impl RequestBodyDraft {
                     })
                     .collect(),
             )),
-            Self::None | Self::Json(_) | Self::Raw(_) | Self::UrlEncoded(_) => None,
+            Self::None | Self::Json(_) | Self::Raw(_) | Self::UrlEncoded(_) | Self::Binary(_) => {
+                None
+            }
         }
     }
 
@@ -283,51 +314,7 @@ impl RequestBodyDraft {
         match self {
             Self::Json(value) | Self::Raw(value) => value.clone(),
             Self::UrlEncoded(rows) => serialize_url_encoded_rows(rows),
-            Self::None | Self::Multipart(_) => String::new(),
-        }
-    }
-
-    fn converted_to(&self, kind: BodyKind) -> Self {
-        if self.kind() == kind {
-            return self.clone();
-        }
-
-        match kind {
-            BodyKind::None => Self::None,
-            BodyKind::Json => Self::Json(self.editor_text()),
-            BodyKind::Raw => Self::Raw(self.editor_text()),
-            BodyKind::UrlEncoded => match self {
-                Self::Multipart(parts) => Self::UrlEncoded(nonempty_url_encoded_rows(
-                    parts
-                        .iter()
-                        .map(|part| KeyValueRow {
-                            enabled: part.enabled,
-                            key: part.name.clone(),
-                            value: match &part.value {
-                                MultipartDraftValue::Text(value) => value.clone(),
-                                MultipartDraftValue::File { path, .. } => {
-                                    path.display().to_string()
-                                }
-                            },
-                        })
-                        .collect(),
-                )),
-                _ => Self::UrlEncoded(parse_url_encoded_rows(&self.editor_text())),
-            },
-            BodyKind::Multipart => match self {
-                Self::UrlEncoded(rows) => Self::Multipart(nonempty_multipart_parts(
-                    rows.iter()
-                        .map(|row| {
-                            MultipartDraftPart::text(
-                                row.key.clone(),
-                                row.value.clone(),
-                                row.enabled,
-                            )
-                        })
-                        .collect(),
-                )),
-                _ => Self::Multipart(parse_multipart_text_parts(&self.editor_text())),
-            },
+            Self::None | Self::Multipart(_) | Self::Binary(_) => String::new(),
         }
     }
 }
@@ -336,6 +323,7 @@ impl RequestBodyDraft {
 struct KeyValueDraft {
     key: String,
     value: String,
+    description: String,
 }
 
 /// Immutable normalized output shared by request previews and Send.
@@ -421,6 +409,9 @@ pub struct RequestDraft {
     headers: Vec<KeyValueRow>,
     header_draft: KeyValueDraft,
     body: RequestBodyDraft,
+    inactive_bodies: Vec<RequestBodyDraft>,
+    raw_format: RawBodyFormat,
+    binary_size: Option<u64>,
     content_type_source: ManagedHeaderSource,
     accept_source: ManagedHeaderSource,
     authorization_kind: AuthorizationKind,
@@ -447,6 +438,28 @@ impl RequestDraft {
             accept_source: ManagedHeaderSource::User,
             ..Self::default()
         };
+
+        if matches!(draft.body, RequestBodyDraft::Raw(_)) {
+            if let Some((_, value)) = request
+                .headers
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            {
+                draft.raw_format = match value
+                    .split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_ascii_lowercase()
+                    .as_str()
+                {
+                    "application/xml" | "text/xml" => RawBodyFormat::Xml,
+                    "text/html" => RawBodyFormat::Html,
+                    "application/javascript" | "text/javascript" => RawBodyFormat::JavaScript,
+                    _ => RawBodyFormat::Text,
+                };
+            }
+        }
 
         let authorization = request
             .headers
@@ -543,7 +556,7 @@ impl RequestDraft {
                     .iter()
                     .any(|header| header.name.eq_ignore_ascii_case("content-type"))
             {
-                if let Some(value) = content_type_for(self.body_kind()) {
+                if let Some(value) = self.automatic_content_type() {
                     effective_headers.push(EffectiveHeader {
                         name: "Content-Type".to_string(),
                         value: value.to_string(),
@@ -707,7 +720,14 @@ impl RequestDraft {
         }
         self.method = method;
         if method == HttpMethod::POST && matches!(self.body, RequestBodyDraft::None) {
-            self.body = RequestBodyDraft::Json(default_json_body());
+            let has_json_draft = self
+                .inactive_bodies
+                .iter()
+                .any(|body| body.kind() == BodyKind::Json);
+            self.set_body_kind(BodyKind::Json);
+            if !has_json_draft {
+                self.body = RequestBodyDraft::Json(default_json_body());
+            }
         }
         self.sync_automatic_content_type();
         self.sync_automatic_accept();
@@ -719,7 +739,19 @@ impl RequestDraft {
         if self.url == url {
             return false;
         }
-        self.params = parse_query_params(&url);
+        let mut previous = self.effective_params();
+        self.params = parse_query_params(&url)
+            .into_iter()
+            .map(|mut row| {
+                if let Some(index) = previous
+                    .iter()
+                    .position(|old| old.enabled && old.key == row.key)
+                {
+                    row.description = previous.remove(index).description;
+                }
+                row
+            })
+            .collect();
         self.param_draft = KeyValueDraft::default();
         self.url = url;
         true
@@ -727,7 +759,9 @@ impl RequestDraft {
 
     pub fn set_body(&mut self, body: impl Into<String>) -> bool {
         let body = body.into();
+        let kind_changed = self.body_kind() == BodyKind::None && self.set_body_kind(BodyKind::Raw);
         let next = match &self.body {
+            RequestBodyDraft::Binary(_) => return false,
             RequestBodyDraft::None => RequestBodyDraft::Raw(body),
             RequestBodyDraft::Json(_) => RequestBodyDraft::Json(body),
             RequestBodyDraft::Raw(_) => RequestBodyDraft::Raw(body),
@@ -738,15 +772,15 @@ impl RequestDraft {
                 RequestBodyDraft::Multipart(parse_multipart_text_parts(&body))
             }
         };
-        if self.body == next {
-            false
-        } else {
-            self.body = next;
-            true
-        }
+        let changed = self.body != next;
+        self.body = next;
+        self.sync_automatic_content_type() || kind_changed || changed
     }
 
     pub fn clear_body(&mut self) -> bool {
+        if self.body_kind() == BodyKind::Binary {
+            self.binary_size = None;
+        }
         let next = RequestBodyDraft::empty_for(self.body_kind());
         let mut changed = false;
         if self.body != next {
@@ -759,15 +793,103 @@ impl RequestDraft {
     pub fn set_body_kind(&mut self, body_kind: BodyKind) -> bool {
         let mut changed = false;
         if self.body_kind() != body_kind {
-            self.body = self.body.converted_to(body_kind);
+            let next = self
+                .inactive_bodies
+                .iter()
+                .position(|draft| draft.kind() == body_kind)
+                .map(|index| self.inactive_bodies.remove(index))
+                .unwrap_or_else(|| RequestBodyDraft::empty_for(body_kind));
+            let previous = std::mem::replace(&mut self.body, next);
+            self.inactive_bodies
+                .retain(|draft| draft.kind() != previous.kind());
+            self.inactive_bodies.push(previous);
             changed = true;
         }
         self.sync_automatic_content_type() || changed
     }
 
+    /// Checks the selected editor draft before Send, without reading files or changing drafts.
+    pub fn body_validation_error(&self) -> Option<String> {
+        if !self.method.allows_body() {
+            return None;
+        }
+        match &self.body {
+            RequestBodyDraft::Json(body) => serde_json::from_str::<serde_json::Value>(body)
+                .err()
+                .map(|error| format!("Invalid JSON: {error}")),
+            RequestBodyDraft::Binary(path) if path.as_os_str().is_empty() => {
+                Some("Choose a file for the binary body.".into())
+            }
+            RequestBodyDraft::UrlEncoded(rows) => rows
+                .iter()
+                .enumerate()
+                .find(|(_, row)| row.enabled && row.key.trim().is_empty() && !row.value.is_empty())
+                .map(|(index, _)| format!("Enter a key for field {}.", index + 1)),
+            RequestBodyDraft::Multipart(parts) => {
+                parts.iter().enumerate().find_map(|(index, part)| {
+                    if !part.enabled {
+                        return None;
+                    }
+                    let has_value = match &part.value {
+                        MultipartDraftValue::Text(value) => !value.is_empty(),
+                        MultipartDraftValue::File { .. } => true,
+                    };
+                    if has_value && part.name.trim().is_empty() {
+                        return Some(format!("Enter a key for field {}.", index + 1));
+                    }
+                    if let MultipartDraftValue::File { path, .. } = &part.value {
+                        if path.as_os_str().is_empty() {
+                            return Some(format!("Choose a file for field {}.", index + 1));
+                        }
+                    }
+                    None
+                })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn raw_body_format(&self) -> RawBodyFormat {
+        self.raw_format
+    }
+
+    pub fn set_raw_body_format(&mut self, format: RawBodyFormat) -> bool {
+        let changed = self.raw_format != format;
+        self.raw_format = format;
+        self.sync_automatic_content_type() || changed
+    }
+
+    pub fn binary_size(&self) -> Option<u64> {
+        self.binary_size
+    }
+
+    pub fn set_binary_file(&mut self, path: PathBuf, size: Option<u64>) -> bool {
+        let kind_changed = self.set_body_kind(BodyKind::Binary);
+        let next = RequestBodyDraft::Binary(path);
+        let changed = kind_changed || self.body != next || self.binary_size != size;
+        self.body = next;
+        self.binary_size = size;
+        self.sync_automatic_content_type() || changed
+    }
+
+    fn automatic_content_type(&self) -> Option<&'static str> {
+        match &self.body {
+            RequestBodyDraft::None | RequestBodyDraft::Multipart(_) => None,
+            RequestBodyDraft::Json(_) => Some("application/json"),
+            RequestBodyDraft::Raw(_) => Some(self.raw_format.content_type()),
+            RequestBodyDraft::UrlEncoded(_) => Some("application/x-www-form-urlencoded"),
+            RequestBodyDraft::Binary(path) => Some(
+                mime_guess::from_path(path)
+                    .first_raw()
+                    .unwrap_or("application/octet-stream"),
+            ),
+        }
+    }
+
     pub fn set_url_encoded_rows(&mut self, rows: Vec<KeyValueRow>) -> bool {
+        let kind_changed = self.set_body_kind(BodyKind::UrlEncoded);
         let body = RequestBodyDraft::UrlEncoded(nonempty_url_encoded_rows(rows));
-        let mut changed = false;
+        let mut changed = kind_changed;
         if self.body != body {
             self.body = body;
             changed = true;
@@ -776,8 +898,9 @@ impl RequestDraft {
     }
 
     pub fn set_multipart_draft_parts(&mut self, parts: Vec<MultipartDraftPart>) -> bool {
+        let kind_changed = self.set_body_kind(BodyKind::Multipart);
         let body = RequestBodyDraft::Multipart(nonempty_multipart_parts(parts));
-        let mut changed = false;
+        let mut changed = kind_changed;
         if self.body != body {
             self.body = body;
             changed = true;
@@ -910,10 +1033,65 @@ impl RequestDraft {
         }
     }
 
+    /// Notes belong to the draft, independent of enabled flags and transport normalization.
+    pub fn row_description(&self, headers: bool, index: Option<usize>) -> &str {
+        match index {
+            Some(index) => (if headers { &self.headers } else { &self.params })
+                .get(index)
+                .map_or("", |row| row.description.as_str()),
+            None => {
+                &(if headers {
+                    &self.header_draft
+                } else {
+                    &self.param_draft
+                })
+                .description
+            }
+        }
+    }
+
+    pub fn set_row_description(
+        &mut self,
+        headers: bool,
+        index: Option<usize>,
+        value: String,
+    ) -> bool {
+        let description = match index {
+            Some(index) => {
+                let Some(row) = (if headers {
+                    &mut self.headers
+                } else {
+                    &mut self.params
+                })
+                .get_mut(index) else {
+                    return false;
+                };
+                &mut row.description
+            }
+            None => {
+                &mut (if headers {
+                    &mut self.header_draft
+                } else {
+                    &mut self.param_draft
+                })
+                .description
+            }
+        };
+        if *description == value {
+            return false;
+        }
+        *description = value;
+        true
+    }
+
     pub fn append_param_row(&mut self) -> bool {
         let draft = std::mem::take(&mut self.param_draft);
-        self.params
-            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.params.push(KeyValueRow {
+            enabled: true,
+            key: draft.key,
+            value: draft.value,
+            description: draft.description,
+        });
         self.sync_url_from_params();
         true
     }
@@ -926,8 +1104,12 @@ impl RequestDraft {
         if draft.key.eq_ignore_ascii_case("accept") {
             self.accept_source = ManagedHeaderSource::User;
         }
-        self.headers
-            .push(KeyValueRow::enabled(draft.key, draft.value));
+        self.headers.push(KeyValueRow {
+            enabled: true,
+            key: draft.key,
+            value: draft.value,
+            description: draft.description,
+        });
         true
     }
 
@@ -1127,7 +1309,7 @@ impl RequestDraft {
         }
 
         let desired = if self.method.allows_body() {
-            content_type_for(self.body_kind())
+            self.automatic_content_type()
         } else {
             None
         };
@@ -1213,10 +1395,12 @@ impl RequestDraft {
     fn effective_params(&self) -> Vec<KeyValueRow> {
         let mut params = self.params.clone();
         if !self.param_draft.key.trim().is_empty() {
-            params.push(KeyValueRow::enabled(
-                self.param_draft.key.clone(),
-                self.param_draft.value.clone(),
-            ));
+            params.push(KeyValueRow {
+                enabled: true,
+                key: self.param_draft.key.clone(),
+                value: self.param_draft.value.clone(),
+                description: self.param_draft.description.clone(),
+            });
         }
         params
     }
@@ -1236,6 +1420,9 @@ impl Default for RequestDraft {
             headers: Vec::new(),
             header_draft: KeyValueDraft::default(),
             body: RequestBodyDraft::None,
+            inactive_bodies: Vec::new(),
+            raw_format: RawBodyFormat::default(),
+            binary_size: None,
             content_type_source: ManagedHeaderSource::Unset,
             accept_source: ManagedHeaderSource::Unset,
             authorization_kind: AuthorizationKind::Bearer,
@@ -1336,14 +1523,6 @@ fn decode_basic_credentials(value: &str) -> Option<(String, String)> {
     Some((username.to_string(), password.to_string()))
 }
 
-fn content_type_for(body_kind: BodyKind) -> Option<&'static str> {
-    match body_kind {
-        BodyKind::None | BodyKind::Raw | BodyKind::Multipart => None,
-        BodyKind::Json => Some("application/json"),
-        BodyKind::UrlEncoded => Some("application/x-www-form-urlencoded"),
-    }
-}
-
 fn blank_url_encoded_rows() -> Vec<KeyValueRow> {
     vec![KeyValueRow::enabled("", "")]
 }
@@ -1425,6 +1604,27 @@ mod tests {
             .filter(|(actual, _)| actual.eq_ignore_ascii_case(name))
             .map(|(_, value)| value.as_str())
             .collect()
+    }
+
+    #[test]
+    fn descriptions_are_draft_only_and_follow_duplicate_query_occurrences() {
+        let mut draft = super::RequestDraft::new();
+        draft.set_url("https://example.test/users?tag=first&tag=second");
+        let before = draft.construct().request().clone();
+        draft.set_row_description(false, Some(0), "First tag".into());
+        draft.set_row_description(false, Some(1), "Second tag".into());
+        assert_eq!(draft.construct().request(), &before);
+        draft.set_url("https://example.test/other?tag=changed&tag=second#anchor");
+        assert_eq!(draft.params()[0].description, "First tag");
+        assert_eq!(draft.params()[1].description, "Second tag");
+        draft.remove_param(0);
+        assert_eq!(draft.params()[0].description, "Second tag");
+        draft.set_param_draft_key("page");
+        draft.set_param_draft_value("1");
+        draft.set_row_description(false, None, "Page number".into());
+        draft.append_param_row();
+        assert_eq!(draft.params()[1].description, "Page number");
+        assert_eq!(draft.row_description(false, None), "");
     }
 
     #[test]
@@ -1544,7 +1744,7 @@ mod tests {
                 name: "raw",
                 kind: BodyKind::Raw,
                 expected_body: RequestBody::Raw("raw\0bytes\nkept".to_string()),
-                expected_content_type: Vec::new(),
+                expected_content_type: vec!["text/plain"],
             },
             Case {
                 name: "url-encoded",
@@ -1570,6 +1770,12 @@ mod tests {
                 ]),
                 expected_content_type: Vec::new(),
             },
+            Case {
+                name: "binary",
+                kind: BodyKind::Binary,
+                expected_body: RequestBody::File(PathBuf::from("/tmp/body.bin")),
+                expected_content_type: vec!["application/octet-stream"],
+            },
         ];
 
         for case in cases {
@@ -1589,6 +1795,7 @@ mod tests {
                     draft.set_url_encoded_rows(vec![
                         KeyValueRow::enabled("name", "Ada Lovelace"),
                         KeyValueRow {
+                            description: String::new(),
                             enabled: false,
                             key: "disabled".to_string(),
                             value: "omitted".to_string(),
@@ -1609,6 +1816,9 @@ mod tests {
                         ),
                         MultipartDraftPart::file("incomplete", "", None, None, true),
                     ]);
+                }
+                BodyKind::Binary => {
+                    draft.set_binary_file(PathBuf::from("/tmp/body.bin"), Some(4));
                 }
             }
 
@@ -1633,6 +1843,559 @@ mod tests {
                 "{}",
                 case.name
             );
+        }
+    }
+
+    fn independent_body_drafts() -> Vec<(BodyKind, RequestBodyDraft)> {
+        vec![
+            (BodyKind::None, RequestBodyDraft::None),
+            (
+                BodyKind::Json,
+                RequestBodyDraft::Json("{\n  \"json\": true\n}".into()),
+            ),
+            (
+                BodyKind::Raw,
+                RequestBodyDraft::Raw("<raw>中文\0\r\n</raw>".into()),
+            ),
+            (
+                BodyKind::UrlEncoded,
+                RequestBodyDraft::UrlEncoded(vec![
+                    KeyValueRow::enabled("tag", "first"),
+                    KeyValueRow {
+                        enabled: false,
+                        key: "tag".into(),
+                        value: "disabled duplicate".into(),
+                        description: "Keep this editor note".into(),
+                    },
+                    KeyValueRow::enabled("", "unfinished"),
+                    KeyValueRow::enabled("tag", "second"),
+                ]),
+            ),
+            (
+                BodyKind::Multipart,
+                RequestBodyDraft::Multipart(vec![
+                    MultipartDraftPart::text("part", "first", true),
+                    MultipartDraftPart::file(
+                        "part",
+                        "fixtures/upload.bin",
+                        Some("renamed.bin".into()),
+                        Some("application/octet-stream".into()),
+                        true,
+                    ),
+                    MultipartDraftPart::file("part", "missing.bin", None, None, false),
+                    MultipartDraftPart::text("part", "disabled duplicate", false),
+                    MultipartDraftPart::text("", "unfinished", true),
+                    MultipartDraftPart::file("pending", "", None, None, true),
+                ]),
+            ),
+            (
+                BodyKind::Binary,
+                RequestBodyDraft::Binary(PathBuf::from("fixtures/中文 payload.bin")),
+            ),
+        ]
+    }
+
+    fn select_body_draft(draft: &mut RequestDraft, kind: BodyKind, body: &RequestBodyDraft) {
+        draft.set_body_kind(kind);
+        match body {
+            RequestBodyDraft::None => {}
+            RequestBodyDraft::Json(text) | RequestBodyDraft::Raw(text) => {
+                draft.set_body(text);
+            }
+            RequestBodyDraft::UrlEncoded(rows) => {
+                draft.set_url_encoded_rows(rows.clone());
+            }
+            RequestBodyDraft::Multipart(parts) => {
+                draft.set_multipart_draft_parts(parts.clone());
+            }
+            RequestBodyDraft::Binary(path) => {
+                draft.set_binary_file(path.clone(), Some(257));
+            }
+        }
+    }
+
+    #[test]
+    fn switching_body_modes_preserves_each_complete_independent_draft() {
+        let mut draft = RequestDraft::new();
+        draft.set_method(HttpMethod::PUT);
+        draft.set_raw_body_format(RawBodyFormat::Xml);
+        let cases = independent_body_drafts();
+        let mut constructions = Vec::new();
+        for (kind, body) in &cases {
+            select_body_draft(&mut draft, *kind, body);
+            constructions.push(draft.construct().request().clone());
+        }
+
+        // Repeat visits in both directions to catch stale or overwritten cached drafts.
+        for index in (0..cases.len()).rev().chain(0..cases.len()) {
+            let (kind, body) = &cases[index];
+            draft.set_body_kind(*kind);
+            assert_eq!(draft.body_draft(), body, "{kind:?}");
+            assert_eq!(
+                draft.construct().request(),
+                &constructions[index],
+                "{kind:?}"
+            );
+            assert!(
+                !draft.set_body_kind(*kind),
+                "reselecting {kind:?} is a no-op"
+            );
+        }
+        assert_eq!(draft.raw_body_format(), RawBodyFormat::Xml);
+        assert_eq!(draft.binary_size(), Some(257));
+
+        draft.set_body_kind(BodyKind::Raw);
+        draft.set_body("edited after restoration");
+        draft.set_body_kind(BodyKind::Json);
+        assert_eq!(draft.body_draft(), &cases[1].1);
+        draft.set_body_kind(BodyKind::Raw);
+        assert_eq!(draft.body_text(), "edited after restoration");
+        assert_eq!(
+            draft.construct().request().body,
+            RequestBody::Raw("edited after restoration".into())
+        );
+    }
+
+    #[test]
+    fn selecting_a_new_body_mode_starts_empty_without_converting_the_previous_draft() {
+        let mut draft = RequestDraft::new();
+        draft.set_method(HttpMethod::PUT);
+        let cases = independent_body_drafts();
+        let empty_drafts = [
+            RequestBodyDraft::None,
+            RequestBodyDraft::Json(String::new()),
+            RequestBodyDraft::Raw(String::new()),
+            RequestBodyDraft::UrlEncoded(vec![KeyValueRow::enabled("", "")]),
+            RequestBodyDraft::Multipart(vec![MultipartDraftPart::text("", "", true)]),
+            RequestBodyDraft::Binary(PathBuf::new()),
+        ];
+        for ((kind, populated), empty) in cases.iter().zip(empty_drafts) {
+            draft.set_body_kind(*kind);
+            assert_eq!(draft.body_draft(), &empty, "{kind:?}");
+            select_body_draft(&mut draft, *kind, populated);
+        }
+    }
+
+    #[test]
+    fn post_from_none_keeps_the_initial_json_default_without_losing_other_modes() {
+        for raw_text in [None, Some("keep the earlier Raw draft")] {
+            let mut draft = RequestDraft::new();
+            if let Some(text) = raw_text {
+                draft.set_body_kind(BodyKind::Raw);
+                draft.set_body(text);
+                draft.set_body_kind(BodyKind::None);
+            }
+
+            draft.set_method(HttpMethod::POST);
+            assert_eq!(draft.body_kind(), BodyKind::Json);
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&draft.body_text()).unwrap(),
+                serde_json::json!({
+                    "message": "Hello, World!",
+                    "data": { "key": "value" }
+                })
+            );
+            assert_eq!(
+                header_values(&draft.construct(), "content-type"),
+                vec!["application/json"]
+            );
+
+            if let Some(text) = raw_text {
+                draft.set_body_kind(BodyKind::Raw);
+                assert_eq!(draft.body_text(), text);
+            }
+        }
+    }
+
+    #[test]
+    fn post_from_none_restores_cached_json_even_when_it_was_intentionally_cleared() {
+        for json_text in ["{\n  \"keep\": \"my JSON draft\"\n}", ""] {
+            let mut draft = RequestDraft::new();
+            draft.set_method(HttpMethod::POST);
+            if json_text.is_empty() {
+                draft.clear_body();
+            } else {
+                draft.set_body(json_text);
+            }
+            draft.set_body_kind(BodyKind::Raw);
+            draft.set_body("independent Raw draft");
+            draft.set_body_kind(BodyKind::None);
+
+            for previous_method in [HttpMethod::GET, HttpMethod::PUT] {
+                draft.set_method(previous_method);
+                draft.set_method(HttpMethod::POST);
+                assert_eq!(
+                    draft.body_draft(),
+                    &RequestBodyDraft::Json(json_text.into()),
+                    "returning from {previous_method:?} must restore the cached JSON"
+                );
+                assert_eq!(
+                    draft.construct().request().body,
+                    RequestBody::Json(json_text.into())
+                );
+                assert_eq!(
+                    header_values(&draft.construct(), "content-type"),
+                    vec!["application/json"]
+                );
+                draft.set_body_kind(BodyKind::Raw);
+                assert_eq!(draft.body_text(), "independent Raw draft");
+                draft.set_body_kind(BodyKind::None);
+                assert_eq!(draft.construct().request().body, RequestBody::None);
+            }
+        }
+    }
+
+    #[test]
+    fn typed_body_setters_preserve_previous_modes_without_an_explicit_kind_change() {
+        let mut draft = RequestDraft::new();
+        draft.set_method(HttpMethod::PUT);
+        draft.set_body_kind(BodyKind::Json);
+        draft.set_body(r#"{"keep":"json"}"#);
+        let rows = vec![KeyValueRow::enabled("keep", "form")];
+        draft.set_url_encoded_rows(rows.clone());
+        let parts = vec![MultipartDraftPart::file(
+            "keep",
+            "upload.bin",
+            None,
+            None,
+            true,
+        )];
+        draft.set_multipart_draft_parts(parts.clone());
+        let path = PathBuf::from("binary.bin");
+        draft.set_binary_file(path.clone(), Some(42));
+        draft.set_body_kind(BodyKind::None);
+        draft.set_body("new Raw from None");
+        assert_eq!(draft.body_kind(), BodyKind::Raw);
+        assert_eq!(
+            header_values(&draft.construct(), "content-type"),
+            vec!["text/plain"]
+        );
+        assert_eq!(
+            draft
+                .headers()
+                .iter()
+                .filter(|row| row.key.eq_ignore_ascii_case("content-type"))
+                .count(),
+            1
+        );
+
+        for (kind, expected) in [
+            (
+                BodyKind::Json,
+                RequestBodyDraft::Json(r#"{"keep":"json"}"#.into()),
+            ),
+            (BodyKind::UrlEncoded, RequestBodyDraft::UrlEncoded(rows)),
+            (BodyKind::Multipart, RequestBodyDraft::Multipart(parts)),
+            (BodyKind::Binary, RequestBodyDraft::Binary(path)),
+            (BodyKind::None, RequestBodyDraft::None),
+            (
+                BodyKind::Raw,
+                RequestBodyDraft::Raw("new Raw from None".into()),
+            ),
+        ] {
+            draft.set_body_kind(kind);
+            assert_eq!(draft.body_draft(), &expected, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn clearing_one_body_mode_preserves_every_other_cached_draft() {
+        let cases = independent_body_drafts();
+        let mut populated = RequestDraft::new();
+        populated.set_method(HttpMethod::PUT);
+        populated.set_raw_body_format(RawBodyFormat::Html);
+        for (kind, body) in &cases {
+            select_body_draft(&mut populated, *kind, body);
+        }
+        for (cleared_kind, _) in &cases {
+            let mut draft = populated.clone();
+            draft.set_body_kind(*cleared_kind);
+            draft.clear_body();
+            let cleared = draft.body_draft().clone();
+            let mut empty = RequestDraft::new();
+            empty.set_body_kind(*cleared_kind);
+            assert_eq!(&cleared, empty.body_draft(), "{cleared_kind:?}");
+            assert!(!draft.clear_body(), "clearing twice is a no-op");
+
+            for (kind, original) in &cases {
+                draft.set_body_kind(*kind);
+                let expected = if kind == cleared_kind {
+                    &cleared
+                } else {
+                    original
+                };
+                assert_eq!(
+                    draft.body_draft(),
+                    expected,
+                    "cleared {cleared_kind:?}, visited {kind:?}"
+                );
+            }
+            assert_eq!(draft.raw_body_format(), RawBodyFormat::Html);
+            assert_eq!(
+                draft.binary_size(),
+                if *cleared_kind == BodyKind::Binary {
+                    None
+                } else {
+                    Some(257)
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn raw_formats_change_only_the_generated_content_type_and_preserve_exact_text() {
+        let mut draft = RequestDraft::new();
+        draft.set_method(HttpMethod::PUT);
+        draft.set_body_kind(BodyKind::Raw);
+        let text = "not parsed or reformatted\0\r\n中文";
+        draft.set_body(text);
+
+        for (format, content_type) in [
+            (RawBodyFormat::Text, "text/plain"),
+            (RawBodyFormat::Xml, "application/xml"),
+            (RawBodyFormat::Html, "text/html"),
+            (RawBodyFormat::JavaScript, "application/javascript"),
+            (RawBodyFormat::Text, "text/plain"),
+        ] {
+            draft.set_raw_body_format(format);
+            let construction = draft.construct();
+            assert_eq!(construction.request().body, RequestBody::Raw(text.into()));
+            assert_eq!(
+                header_values(&construction, "content-type"),
+                vec![content_type]
+            );
+            assert_eq!(
+                construction.effective_headers(),
+                &[EffectiveHeader {
+                    name: "Content-Type".into(),
+                    value: content_type.into(),
+                    source: EffectiveHeaderSource::Generated,
+                }]
+            );
+
+            draft.set_body_kind(BodyKind::Json);
+            assert_eq!(
+                header_values(&draft.construct(), "content-type"),
+                vec!["application/json"]
+            );
+            draft.set_body_kind(BodyKind::None);
+            assert!(header_values(&draft.construct(), "content-type").is_empty());
+            draft.set_body_kind(BodyKind::Raw);
+            assert_eq!(draft.raw_body_format(), format);
+            assert_eq!(draft.construct(), construction);
+
+            draft.set_method(HttpMethod::GET);
+            assert_eq!(draft.construct().request().body, RequestBody::None);
+            assert!(header_values(&draft.construct(), "content-type").is_empty());
+            draft.set_method(HttpMethod::PUT);
+            assert_eq!(draft.construct(), construction);
+        }
+    }
+
+    #[test]
+    fn every_raw_format_preserves_a_manual_content_type_override() {
+        let mut draft = RequestDraft::new();
+        draft.set_method(HttpMethod::PUT);
+        draft.set_body_kind(BodyKind::Raw);
+        draft.upsert_header("cOnTeNt-TyPe", "application/x-custom; charset=utf-8");
+        for format in [
+            RawBodyFormat::Text,
+            RawBodyFormat::Xml,
+            RawBodyFormat::Html,
+            RawBodyFormat::JavaScript,
+        ] {
+            draft.set_raw_body_format(format);
+            let construction = draft.construct();
+            assert_eq!(
+                header_values(&construction, "content-type"),
+                vec!["application/x-custom; charset=utf-8"]
+            );
+            assert_eq!(
+                construction.effective_headers()[0].source,
+                EffectiveHeaderSource::User
+            );
+        }
+    }
+
+    #[test]
+    fn raw_reconstruction_infers_format_without_rewriting_the_saved_request() {
+        for (content_type, format) in [
+            (None, RawBodyFormat::Text),
+            (Some("text/plain; charset=utf-8"), RawBodyFormat::Text),
+            (Some(" APPLICATION/XML ; charset=UTF-8"), RawBodyFormat::Xml),
+            (Some("text/xml"), RawBodyFormat::Xml),
+            (Some("text/html; charset=utf-8"), RawBodyFormat::Html),
+            (Some("application/javascript"), RawBodyFormat::JavaScript),
+            (
+                Some("text/javascript; charset=utf-8"),
+                RawBodyFormat::JavaScript,
+            ),
+            (Some("application/x-custom"), RawBodyFormat::Text),
+        ] {
+            let mut request = Request::new(HttpMethod::PUT, "https://example.test/raw");
+            request.body = RequestBody::Raw("saved\0\r\ntext".into());
+            if let Some(value) = content_type {
+                request.headers.push(("cOnTeNt-TyPe".into(), value.into()));
+            }
+            let mut draft = RequestDraft::from_request(&request);
+            assert_eq!(draft.body_kind(), BodyKind::Raw);
+            assert_eq!(draft.raw_body_format(), format, "{content_type:?}");
+            assert_eq!(draft.construct().request(), &request);
+            draft.set_raw_body_format(RawBodyFormat::Html);
+            assert_eq!(
+                draft.construct().request(),
+                &request,
+                "loaded header policy is explicit"
+            );
+        }
+    }
+
+    #[test]
+    fn binary_reconstruction_keeps_a_file_body_and_never_injects_path_text() {
+        for content_type in [None, Some("application/x-upload")] {
+            let path = PathBuf::from("fixtures/中文 payload.bin");
+            let mut request = Request::new(HttpMethod::PUT, "https://example.test/binary");
+            request.body = RequestBody::File(path.clone());
+            if let Some(value) = content_type {
+                request.headers.push(("Content-Type".into(), value.into()));
+            }
+            let mut draft = RequestDraft::from_request(&request);
+            assert_eq!(draft.body_kind(), BodyKind::Binary);
+            assert_eq!(draft.body_draft(), &RequestBodyDraft::Binary(path));
+            assert!(draft.body_text().is_empty());
+            assert!(!draft.set_body("must not overwrite a file with text"));
+            assert_eq!(draft.construct().request(), &request);
+            draft.set_body_kind(BodyKind::Raw);
+            assert_eq!(draft.body_draft(), &RequestBodyDraft::Raw(String::new()));
+            draft.set_body_kind(BodyKind::Binary);
+            assert_eq!(draft.construct().request(), &request);
+        }
+    }
+
+    #[test]
+    fn body_validation_reports_only_meaningful_enabled_errors_without_mutating_drafts() {
+        let cases = [
+            (BodyKind::None, RequestBodyDraft::None, None),
+            (
+                BodyKind::Json,
+                RequestBodyDraft::Json(String::new()),
+                Some("Invalid JSON:"),
+            ),
+            (
+                BodyKind::Json,
+                RequestBodyDraft::Json("{unfinished".into()),
+                Some("Invalid JSON:"),
+            ),
+            (
+                BodyKind::Json,
+                RequestBodyDraft::Json("[true, null, 42]".into()),
+                None,
+            ),
+            (
+                BodyKind::Raw,
+                RequestBodyDraft::Raw("{unfinished".into()),
+                None,
+            ),
+            (
+                BodyKind::Binary,
+                RequestBodyDraft::Binary(PathBuf::new()),
+                Some("Choose a file for the binary body."),
+            ),
+            // Validation does not read the selected file; the transport owns filesystem errors.
+            (
+                BodyKind::Binary,
+                RequestBodyDraft::Binary(PathBuf::from("missing-upload.bin")),
+                None,
+            ),
+            (
+                BodyKind::UrlEncoded,
+                RequestBodyDraft::UrlEncoded(vec![
+                    KeyValueRow::enabled("", ""),
+                    KeyValueRow::enabled("  ", "needs a key"),
+                ]),
+                Some("Enter a key for field 2"),
+            ),
+            (
+                BodyKind::UrlEncoded,
+                RequestBodyDraft::UrlEncoded(vec![
+                    KeyValueRow {
+                        enabled: false,
+                        ..KeyValueRow::enabled("", "disabled")
+                    },
+                    KeyValueRow::enabled("", ""),
+                    KeyValueRow::enabled("tag", ""),
+                    KeyValueRow::enabled("tag", "duplicate"),
+                ]),
+                None,
+            ),
+            (
+                BodyKind::Multipart,
+                RequestBodyDraft::Multipart(vec![
+                    MultipartDraftPart::text("", "", true),
+                    MultipartDraftPart::text("  ", "needs a key", true),
+                ]),
+                Some("Enter a key for field 2"),
+            ),
+            (
+                BodyKind::Multipart,
+                RequestBodyDraft::Multipart(vec![MultipartDraftPart::file(
+                    "",
+                    "selected.bin",
+                    None,
+                    None,
+                    true,
+                )]),
+                Some("Enter a key for field 1"),
+            ),
+            (
+                BodyKind::Multipart,
+                RequestBodyDraft::Multipart(vec![
+                    MultipartDraftPart::text("note", "", true),
+                    MultipartDraftPart::file("upload", "", None, None, true),
+                ]),
+                Some("Choose a file for field 2"),
+            ),
+            (
+                BodyKind::Multipart,
+                RequestBodyDraft::Multipart(vec![
+                    MultipartDraftPart::text("", "disabled", false),
+                    MultipartDraftPart::file("", "", None, None, false),
+                    MultipartDraftPart::text("", "", true),
+                    MultipartDraftPart::text("part", "", true),
+                    MultipartDraftPart::file("part", "missing-upload.bin", None, None, true),
+                ]),
+                None,
+            ),
+        ];
+
+        for (kind, body, expected_error) in cases {
+            let mut draft = RequestDraft::new();
+            draft.set_method(HttpMethod::PUT);
+            draft.set_body_kind(BodyKind::Raw);
+            draft.set_body("other mode stays cached");
+            select_body_draft(&mut draft, kind, &body);
+            let before = draft.clone();
+            let actual = draft.body_validation_error();
+            match expected_error {
+                Some(prefix) => assert!(
+                    actual
+                        .as_deref()
+                        .is_some_and(|message| message.starts_with(prefix)),
+                    "{body:?}: {actual:?}"
+                ),
+                None => assert_eq!(actual, None, "{body:?}"),
+            }
+            assert_eq!(draft, before, "validation must be a pure read");
+
+            draft.set_method(HttpMethod::GET);
+            assert_eq!(
+                draft.body_validation_error(),
+                None,
+                "GET does not send {kind:?}"
+            );
+            assert_eq!(draft.body_draft(), &body);
+            draft.set_method(HttpMethod::PUT);
+            assert_eq!(draft.body_validation_error(), actual);
         }
     }
 

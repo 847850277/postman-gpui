@@ -1,3 +1,5 @@
+use gpui_kit::base::ElementExt;
+mod editor;
 mod raw;
 
 use super::super::layout::RequestPanelLayout;
@@ -5,15 +7,12 @@ use super::super::layout::RequestPanelLayout;
 use crate::{
     app::{
         BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
-        MultipartDraftValue, RequestBodyDraft, RequestPane, RequestTabId, RequestViewModel,
-        ResponseState, WorkspaceViewModel,
+        MultipartDraftValue, RequestBodyDraft, RequestTabId, RequestViewModel, ResponseState,
+        WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
-        components::{
-            common::scrollbar::{scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry},
-            input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
-        },
+        components::input::body_input::{BodyInput, BodyInputEvent, BodyType, FormDataEntry},
         theme::{
             ACCENT, ACCENT_INK, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK,
             OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
@@ -21,22 +20,21 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    div, prelude::FluentBuilder, px, AppContext, Context, Entity, FontWeight, InteractiveElement,
+    IntoElement, ParentElement, Render, ScrollHandle, StatefulInteractiveElement, Styled,
+    Subscription, Window,
 };
 use raw::render_raw_request_semantics;
 
-actions!(body_kind, [NextBodyKind, PreviousBodyKind]);
-
-fn setup_body_kind_key_bindings() -> Vec<KeyBinding> {
-    vec![
-        KeyBinding::new("right", NextBodyKind, Some("BodyKind")),
-        KeyBinding::new("down", NextBodyKind, Some("BodyKind")),
-        KeyBinding::new("left", PreviousBodyKind, Some("BodyKind")),
-        KeyBinding::new("up", PreviousBodyKind, Some("BodyKind")),
-    ]
-}
+use crate::ui::components::kit_controls::MethodState;
+use gpui_kit::component::{
+    button::{Button, ButtonVariants},
+    menu::DropdownMenu,
+    scroll::{Scrollbar, ScrollbarMode},
+    searchable_list::SearchableVec,
+    select::{Select, SelectEvent, SelectState},
+    IndexPath,
+};
 
 /// BodyPane owns BodyInput's text/form editing state. Complete body drafts remain authoritative in
 /// the shared WorkspaceViewModel and are projected only on request or pane changes.
@@ -47,9 +45,16 @@ pub(in crate::app::postman_app::request_workspace) struct BodyPane {
     projected_tab_id: Option<RequestTabId>,
     effective_headers_scroll: ScrollHandle,
     raw_semantics_scroll: ScrollHandle,
-    kind_focus_handles: Vec<FocusHandle>,
-    sample_focus_handle: FocusHandle,
-    clear_focus_handle: FocusHandle,
+    effective_headers_have_overflow: bool,
+    raw_semantics_have_overflow: bool,
+    kind_selector: Entity<MethodState>,
+    raw_selector: Entity<MethodState>,
+    editor_scroll: ScrollHandle,
+    editor_error: Option<String>,
+    projected_kind: Option<BodyKind>,
+    projected_input_kind: Option<BodyKind>,
+    projected_raw_format: Option<crate::models::request_draft::RawBodyFormat>,
+    show_details: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -57,15 +62,56 @@ impl BodyPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
         panel_layout: Entity<RequestPanelLayout>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        cx.bind_keys(setup_body_kind_key_bindings());
-        let body_input = cx.new(|cx| {
-            BodyInput::new(cx)
-                .with_placeholder("Enter request body (JSON, form data, etc.)")
-                .with_type_tabs(false)
+        let kind_selector = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(BODY_LABELS.to_vec()),
+                Some(IndexPath::new(0)),
+                window,
+                cx,
+            )
         });
-        let subscriptions = vec![cx.subscribe(&body_input, Self::on_body_event)];
+        let raw_selector = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(editor::RAW_LABELS.to_vec()),
+                Some(IndexPath::new(0)),
+                window,
+                cx,
+            )
+        });
+        let body_input = cx.new(|cx| BodyInput::new(window, cx));
+        let subscriptions = vec![
+            cx.subscribe(
+                &raw_selector,
+                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, cx| {
+                    if let SelectEvent::Confirm(Some(label)) = event {
+                        if let Some(index) =
+                            editor::RAW_LABELS.iter().position(|item| item == label)
+                        {
+                            this.update_active_request(cx, |request| {
+                                request.set_raw_body_format(editor::RAW_FORMATS[index])
+                            });
+                        }
+                    }
+                },
+            ),
+            cx.subscribe(&body_input, Self::on_body_event),
+            cx.subscribe_in(
+                &kind_selector,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, window, cx| {
+                    if let SelectEvent::Confirm(Some(label)) = event {
+                        if let Some(index) =
+                            BODY_LABELS.iter().position(|candidate| candidate == label)
+                        {
+                            this.set_body_kind(BODY_KINDS[index], window, cx);
+                        }
+                    }
+                },
+            ),
+        ];
         let mut pane = Self {
             view_model,
             panel_layout,
@@ -73,14 +119,19 @@ impl BodyPane {
             projected_tab_id: None,
             effective_headers_scroll: ScrollHandle::new(),
             raw_semantics_scroll: ScrollHandle::new(),
-            kind_focus_handles: (0..5)
-                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
-                .collect(),
-            sample_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            clear_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            effective_headers_have_overflow: false,
+            raw_semantics_have_overflow: false,
+            kind_selector,
+            raw_selector,
+            editor_scroll: ScrollHandle::new(),
+            editor_error: None,
+            projected_kind: None,
+            projected_input_kind: None,
+            projected_raw_format: None,
+            show_details: false,
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -104,6 +155,7 @@ impl BodyPane {
         event: &BodyInputEvent,
         cx: &mut Context<Self>,
     ) {
+        self.editor_error = None;
         match event {
             BodyInputEvent::ValueChanged(value) => {
                 self.update_active_request(cx, |request| request.set_body(value));
@@ -115,6 +167,7 @@ impl BodyPane {
                         entries
                             .into_iter()
                             .map(|entry| KeyValueRow {
+                                description: String::new(),
                                 enabled: entry.enabled,
                                 key: entry.key,
                                 value: entry.value,
@@ -142,26 +195,21 @@ impl BodyPane {
                             .collect();
                         request.set_multipart_draft_parts(parts);
                     }
-                    BodyKind::None | BodyKind::Json | BodyKind::Raw => {}
+                    BodyKind::None | BodyKind::Json | BodyKind::Raw | BodyKind::Binary => {}
                 });
             }
         }
     }
 
-    fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
-        self.update_active_request(cx, |request| {
-            let current = request.body_kind();
-            let current_is_form = matches!(current, BodyKind::UrlEncoded | BodyKind::Multipart);
-            let next_is_form = matches!(kind, BodyKind::UrlEncoded | BodyKind::Multipart);
-            if current != kind && current_is_form != next_is_form {
-                request.clear_body();
-            }
-            request.set_body_kind(kind);
-        });
-        self.project_active_request(cx);
+    fn set_body_kind(&mut self, kind: BodyKind, window: &mut Window, cx: &mut Context<Self>) {
+        self.show_details = false;
+        self.editor_error = None;
+        self.editor_scroll.set_offset(gpui::point(px(0.), px(0.)));
+        self.update_active_request(cx, |request| request.set_body_kind(kind));
+        self.project_active_request(window, cx);
     }
 
-    fn use_sample_json(&mut self, cx: &mut Context<Self>) {
+    fn use_sample_json(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.update_active_request(cx, |request| {
             request.set_body_kind(BodyKind::Json);
             request.set_body(
@@ -172,12 +220,13 @@ impl BodyPane {
 }"#,
             );
         });
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
-    fn clear_body(&mut self, cx: &mut Context<Self>) {
+    fn clear_body(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.editor_error = None;
         self.update_active_request(cx, RequestViewModel::clear_body);
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
     pub(in crate::app::postman_app::request_workspace) fn input_entity(&self) -> Entity<BodyInput> {
@@ -186,6 +235,7 @@ impl BodyPane {
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (tab_id, body_draft, body_kind) = {
@@ -202,19 +252,25 @@ impl BodyPane {
             )
         };
         let tab_changed = self.projected_tab_id != tab_id;
+        if tab_changed {
+            self.editor_error = None;
+            self.show_details = false;
+        }
+        let projection_changed = tab_changed || self.projected_input_kind != Some(body_kind);
+        self.projected_input_kind = Some(body_kind);
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
-            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
+            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, window, cx);
             match body_draft {
-                RequestBodyDraft::None => {
-                    if tab_changed {
-                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                RequestBodyDraft::None | RequestBodyDraft::Binary(_) => {
+                    if projection_changed {
+                        input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
                     input.project_content("", cx);
                 }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
-                    if tab_changed {
-                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                    if projection_changed {
+                        input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
                     input.project_content(body, cx)
                 }
@@ -223,10 +279,10 @@ impl BodyPane {
                         .into_iter()
                         .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
                         .collect();
-                    if tab_changed {
-                        input.project_form_data_entries_with_rebind(entries, cx);
+                    if projection_changed {
+                        input.project_form_data_entries_with_rebind(entries, window, cx);
                     } else {
-                        input.project_form_data_entries(entries, cx);
+                        input.project_form_data_entries(entries, window, cx);
                     }
                 }
                 RequestBodyDraft::Multipart(parts) => {
@@ -249,10 +305,10 @@ impl BodyPane {
                             ),
                         })
                         .collect();
-                    if tab_changed {
-                        input.project_form_data_entries_with_rebind(entries, cx);
+                    if projection_changed {
+                        input.project_form_data_entries_with_rebind(entries, window, cx);
                     } else {
-                        input.project_form_data_entries(entries, cx);
+                        input.project_form_data_entries(entries, window, cx);
                     }
                 }
             }
@@ -262,6 +318,9 @@ impl BodyPane {
     }
 
     fn render_body_editor(&self, window: &Window, cx: &mut Context<Self>) -> gpui::AnyElement {
+        if !self.show_details {
+            return self.render_prototype_editor(cx);
+        }
         let (
             kind,
             body,
@@ -302,16 +361,9 @@ impl BodyPane {
                 multipart_error,
             )
         };
-        let is_json = kind == BodyKind::Json;
-        let is_raw = kind == BodyKind::Raw;
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let is_multipart = kind == BodyKind::Multipart;
-        let form_row_count = self.body_input.read(cx).form_data_entry_count(cx);
-        let panel_height = self.panel_layout.read(cx).resolved_height(
-            RequestPane::Body,
-            form_row_count,
-            window.viewport_size().height.as_f32(),
-        );
+        let panel_height = self.panel_layout.read(cx).height();
 
         div()
             .flex_1()
@@ -319,144 +371,37 @@ impl BodyPane {
             .flex()
             .flex_col()
             .bg(PANEL.resolve(cx))
-            .child(
-                div()
-                    .debug_selector(|| "body-kind-selector".into())
-                    .h(px(44.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .px_3()
-                    .bg(PANEL.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .child(
+            .when(self.show_details, |pane| {
+                pane.debug_selector(|| "body-details".into())
+            })
+            .child(self.render_body_toolbar(kind, cx))
+            .when(is_multipart && !self.show_details, |pane| {
+                pane.when_some(multipart_error.clone(), |pane, error| {
+                    pane.child(
                         div()
-                            .mr_1()
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("Body type"),
+                            .debug_selector(|| "body-multipart-file-error".into())
+                            .flex_none()
+                            .px_7()
+                            .pb_2()
+                            .text_size(crate::ui::theme::metrics::LABEL)
+                            .text_color(crate::ui::theme::ERROR.resolve(cx))
+                            .child(error),
                     )
-                    .child(self.body_kind_option("none", BodyKind::None, kind, window, cx))
-                    .child(self.body_kind_option(
-                        "form-data",
-                        BodyKind::Multipart,
-                        kind,
-                        window,
-                        cx,
-                    ))
-                    .child(self.body_kind_option(
-                        "x-www-form-urlencoded",
-                        BodyKind::UrlEncoded,
-                        kind,
-                        window,
-                        cx,
-                    ))
-                    .child(self.body_kind_option("raw", BodyKind::Raw, kind, window, cx))
-                    .child(self.body_kind_option("JSON", BodyKind::Json, kind, window, cx))
-                    .when(is_json, |row| {
-                        row.child(
-                            div()
-                                .debug_selector(|| "body-live-saved".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(OK_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(OK.resolve(cx))
-                                .child("Edited"),
-                        )
-                    })
-                    .when(is_raw, |row| {
-                        row.child(
-                            div()
-                                .debug_selector(|| "body-raw-live-saved".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(OK_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(OK.resolve(cx))
-                                .child("Edited"),
-                        )
-                    })
-                    .when(is_url_encoded, |row| {
-                        row.child(
-                            div()
-                                .debug_selector(|| "body-url-encoded-live-saved".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(OK_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(OK.resolve(cx))
-                                .child("Edited"),
-                        )
-                        .child(
-                            div()
-                                .debug_selector(|| "body-url-encoded-row-count".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(PANEL_ALT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(SUBTEXT.resolve(cx))
-                                .child(format!("{form_row_count} rows")),
-                        )
-                    })
-                    .when(is_multipart, |row| {
-                        row.child(
-                            div()
-                                .debug_selector(|| "body-multipart-live-saved".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(OK_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(OK.resolve(cx))
-                                .child("Edited"),
-                        )
-                        .child(
-                            div()
-                                .debug_selector(|| "body-multipart-row-count".into())
-                                .h(px(24.0))
-                                .px_2()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(PANEL_ALT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(SUBTEXT.resolve(cx))
-                                .child(format!("{form_row_count} rows")),
-                        )
-                    }),
-            )
-            .child(if is_url_encoded {
+                })
+            })
+            .child(if (is_url_encoded || is_multipart) && !self.show_details {
+                div()
+                    .debug_selector(|| "body-input".into())
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .px_7()
+                    .pb_2()
+                    .flex()
+                    .flex_col()
+                    .child(self.body_input.clone())
+                    .into_any_element()
+            } else if is_url_encoded {
                 self.render_url_encoded_body(body, effective_headers, cx)
             } else if is_multipart {
                 self.render_multipart_body(request_body, multipart_omitted, multipart_error, cx)
@@ -482,13 +427,11 @@ impl BodyPane {
         _window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        use crate::ui::{components::kit_controls, theme::metrics as m};
         let (method, effective_url, effective_headers) = request_projection;
         let is_json = kind == BodyKind::Json;
         let is_raw = kind == BodyKind::Raw;
-        let side_height = (panel_height - 128.).max(0.);
         let side_panel = if is_json {
-            Some(self.render_effective_headers(effective_headers, side_height, cx))
+            Some(self.render_effective_headers(effective_headers, cx))
         } else if is_raw {
             Some(render_raw_request_semantics(
                 &body,
@@ -496,99 +439,152 @@ impl BodyPane {
                 &effective_url,
                 effective_headers,
                 &self.raw_semantics_scroll,
-                side_height,
+                self.raw_semantics_have_overflow,
                 cx,
             ))
         } else {
             None
         };
+        // At the minimum stacked height, one surface must own the available viewport.
+        if self.show_details && panel_height < 330. {
+            if let Some(side) = side_panel {
+                return div()
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .flex()
+                    .px_7()
+                    .pb_2()
+                    .child(side)
+                    .into_any_element();
+            }
+        }
         div()
             .flex_1()
             .min_h_0()
+            .min_w_0()
             .flex()
-            .gap_4()
+            .flex_col()
             .px_7()
-            .pb_3()
+            .pb_2()
+            .gap_2()
             .child(
                 div()
                     .debug_selector(|| "body-editor-shell".into())
                     .flex_1()
-                    .min_w_0()
                     .min_h_0()
+                    .min_w_0()
                     .flex()
                     .flex_col()
-                    .child(
-                        div()
-                            .h_10()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                div()
-                                    .debug_selector(|| "body-editor-title".into())
-                                    .text_size(m::LABEL)
-                                    .text_color(TEXT.resolve(cx))
-                                    .child(if is_json {
-                                        "JSON"
-                                    } else if is_raw {
-                                        "Raw body"
-                                    } else {
-                                        "Request body"
-                                    }),
-                            )
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .text_size(m::CAPTION)
-                                    .text_color(MUTED.resolve(cx))
-                                    .child(format!("{} chars", body.chars().count()))
-                                    .when(!is_raw, |a| {
-                                        a.child(
-                                            kit_controls::editor_button(
-                                                "body-sample-json",
-                                                "Sample JSON",
-                                                cx,
-                                            )
-                                            .debug_selector(|| "body-sample-json".into())
-                                            .track_focus(&self.sample_focus_handle)
-                                            .on_click(
-                                                cx.listener(|this, _, _, cx| {
-                                                    this.use_sample_json(cx)
-                                                }),
-                                            ),
-                                        )
-                                    })
-                                    .child(
-                                        kit_controls::editor_button(
-                                            "body-clear-button",
-                                            "Clear",
-                                            cx,
-                                        )
-                                        .debug_selector(|| "body-clear-button".into())
-                                        .track_focus(&self.clear_focus_handle)
-                                        .on_click(
-                                            cx.listener(|this, _, _, cx| this.clear_body(cx)),
-                                        ),
-                                    ),
-                            ),
-                    )
                     .child(
                         div()
                             .debug_selector(|| "body-input".into())
                             .flex_1()
                             .min_h_0()
-                            .border_1()
-                            .border_color(LINE.resolve(cx))
-                            .rounded(m::RADIUS)
-                            .overflow_hidden()
+                            .min_w_0()
+                            .flex()
+                            .flex_col()
                             .child(self.body_input.clone()),
                     ),
             )
-            .when_some(side_panel, |p, side| p.child(side))
+            .when(self.show_details, |pane| {
+                pane.when_some(side_panel, |pane, side| {
+                    pane.child(div().flex_1().min_h_0().min_w_0().flex().child(side))
+                })
+            })
             .into_any_element()
+    }
+
+    fn render_body_toolbar(&self, kind: BodyKind, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::ui::{components::kit_controls, theme::metrics as m};
+        let selector = BODY_SELECTORS[body_kind_index(kind)];
+        div()
+            .debug_selector(|| "body-kind-selector".into())
+            .h(gpui::rems(55. / 16.))
+            .flex_none()
+            .px_7()
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(
+                div()
+                    .flex_none()
+                    .text_size(gpui::rems(11. / 16.))
+                    .text_color(TEXT.resolve(cx))
+                    .child("Request body"),
+            )
+            .child(
+                div()
+                    .debug_selector(move || selector.into())
+                    .flex_none()
+                    .child(
+                        Select::new(&self.kind_selector)
+                            .id("body-kind-select")
+                            .accessibility_label("Request body format")
+                            .h(gpui::rems(28. / 16.))
+                            .w(gpui::rems(match kind {
+                                BodyKind::Multipart => 6.5,
+                                BodyKind::UrlEncoded => 8.,
+                                _ => 5.5,
+                            }))
+                            .menu_width(gpui::rems(12.))
+                            .text_size(gpui::rems(11. / 16.))
+                            .bg(PANEL_ALT.resolve(cx))
+                            .rounded(m::RADIUS),
+                    ),
+            )
+            .child(div().flex_1())
+            .child(
+                kit_controls::editor_button(
+                    "body-details-toggle",
+                    if self.show_details {
+                        "Editor"
+                    } else {
+                        "Details"
+                    },
+                    cx,
+                )
+                .debug_selector(|| "body-details-toggle".into())
+                .accessibility_label("Toggle effective request details")
+                .disabled(kind == BodyKind::None)
+                .px_1()
+                .text_size(m::CAPTION)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.show_details = !this.show_details;
+                    cx.notify();
+                })),
+            )
+            .child(
+                Button::new("body-actions")
+                    .ghost()
+                    .label("⋯")
+                    .debug_selector(|| "body-actions".into())
+                    .accessibility_label("Body actions")
+                    .w_6()
+                    .p_0()
+                    .dropdown_menu({
+                        let owner = cx.entity().downgrade();
+                        move |menu, _, _| {
+                            let sample = owner.clone();
+                            let clear = owner.clone();
+                            menu.item(
+                                gpui_kit::component::menu::PopupMenuItem::new("Sample JSON")
+                                    .on_click(move |_, window, cx| {
+                                        let _ = sample.update(cx, |this, cx| {
+                                            this.use_sample_json(window, cx)
+                                        });
+                                    }),
+                            )
+                            .item(
+                                gpui_kit::component::menu::PopupMenuItem::new("Clear body")
+                                    .on_click(move |_, window, cx| {
+                                        let _ = clear
+                                            .update(cx, |this, cx| this.clear_body(window, cx));
+                                    }),
+                            )
+                        }
+                    }),
+            )
     }
 
     fn render_url_encoded_body(
@@ -873,18 +869,12 @@ impl BodyPane {
     fn render_effective_headers(
         &self,
         headers: Vec<EffectiveHeader>,
-        viewport_height: f32,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let count = headers.len();
-        let scrollbar = effective_headers_scrollbar_geometry(
-            count,
-            viewport_height,
-            &self.effective_headers_scroll,
-        );
         div()
             .debug_selector(|| "body-effective-headers".into())
-            .w(px(360.0))
+            .w_full()
             .flex_none()
             .min_h_0()
             .flex()
@@ -959,7 +949,7 @@ impl BodyPane {
                             .gap_2()
                             .px_2()
                             .pb_2()
-                            .when(scrollbar.is_some(), |list| list.pr(px(20.0)))
+                            .when(self.effective_headers_have_overflow, |list| list.pr_5())
                             .when(count == 0, |list| {
                                 list.child(
                                     div()
@@ -979,13 +969,39 @@ impl BodyPane {
                                     .map(|item| render_effective_header(item, cx)),
                             ),
                     )
-                    .when_some(scrollbar, |viewport, scrollbar| {
-                        viewport.child(vertical_scrollbar(
-                            "body-effective-headers-scrollbar",
-                            "body-effective-headers-scrollbar-thumb",
-                            scrollbar,
-                            cx,
-                        ))
+                    .on_prepaint({
+                        let this = cx.weak_entity();
+                        let scroll = self.effective_headers_scroll.clone();
+                        let previous = self.effective_headers_have_overflow;
+                        move |_, window, cx| {
+                            let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                            if has_overflow != previous {
+                                window.defer(cx, move |_, cx| {
+                                    let _ = this.update(cx, |this, cx| {
+                                        if this.effective_headers_have_overflow != has_overflow {
+                                            this.effective_headers_have_overflow = has_overflow;
+                                            cx.notify();
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    })
+                    .when(self.effective_headers_have_overflow, |viewport| {
+                        viewport.child(
+                            div()
+                                .debug_selector(|| "body-effective-headers-scrollbar".into())
+                                .absolute()
+                                .top_0()
+                                .right_0()
+                                .bottom_0()
+                                .w(Scrollbar::width())
+                                .child(
+                                    Scrollbar::vertical(&self.effective_headers_scroll)
+                                        .id("body-effective-headers-scrollbar-control")
+                                        .mode(ScrollbarMode::Always),
+                                ),
+                        )
                     }),
             )
             .child(
@@ -1004,124 +1020,57 @@ impl BodyPane {
             )
             .into_any_element()
     }
-
-    fn body_kind_option(
-        &self,
-        label: &'static str,
-        option: BodyKind,
-        selected: BodyKind,
-        _window: &Window,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let active = option == selected;
-        let index = body_kind_index(option);
-        let focus_handle = self.kind_focus_handles[index].clone();
-        let debug_selector = match option {
-            BodyKind::None => "body-kind-none",
-            BodyKind::Multipart => "body-kind-form-data",
-            BodyKind::UrlEncoded => "body-kind-url-encoded",
-            BodyKind::Raw => "body-kind-raw",
-            BodyKind::Json => "body-kind-json",
-        };
-        let on_select =
-            cx.listener(move |this, _: &gpui::ClickEvent, _, cx| this.set_body_kind(option, cx));
-        gpui_kit::base::Radio::new(debug_selector)
-            .debug_selector(move || debug_selector.into())
-            .checked(active)
-            .accessibility_label(label)
-            .set_position(index + 1, BODY_KINDS.len())
-            .track_focus(&focus_handle)
-            .key_context("BodyKind")
-            .h(gpui::rems(2.))
-            .px_2()
-            .flex()
-            .items_center()
-            .gap_2()
-            .rounded(crate::ui::theme::metrics::RADIUS)
-            .border_1()
-            .border_color((if active { ACCENT } else { LINE }).resolve(cx))
-            .bg((if active { ACCENT_SOFT } else { PANEL }).resolve(cx))
-            .text_size(crate::ui::theme::metrics::LABEL)
-            .text_color((if active { ACCENT } else { SUBTEXT }).resolve(cx))
-            .focus_visible(|s| s.border_color(ACCENT.resolve(cx)))
-            .child(label)
-            .on_change(move |_, event, window, cx| on_select(event, window, cx))
-            .on_action(cx.listener(move |this, _: &NextBodyKind, window, cx| {
-                this.select_relative_body_kind(option, 1, window, cx)
-            }))
-            .on_action(cx.listener(move |this, _: &PreviousBodyKind, window, cx| {
-                this.select_relative_body_kind(option, -1, window, cx)
-            }))
-    }
-
-    fn select_relative_body_kind(
-        &mut self,
-        kind: BodyKind,
-        delta: isize,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let next = (body_kind_index(kind) as isize + delta).rem_euclid(5) as usize;
-        let kind = BODY_KINDS[next];
-        self.kind_focus_handles[next].focus(window, cx);
-        self.set_body_kind(kind, cx);
-    }
 }
 
 impl Render for BodyPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let kind = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map_or(BodyKind::None, |r| r.body_kind());
+        let label = BODY_LABELS[body_kind_index(kind)];
+        if self.projected_kind != Some(kind) {
+            self.projected_kind = Some(kind);
+            self.kind_selector
+                .update(cx, |state, cx| state.set_selected_value(&label, window, cx));
+        }
+        let raw_format = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(|request| request.raw_body_format())
+            .unwrap_or_default();
+        let raw_label = editor::RAW_LABELS[editor::RAW_FORMATS
+            .iter()
+            .position(|format| *format == raw_format)
+            .unwrap_or(0)];
+        if self.projected_raw_format != Some(raw_format) {
+            self.projected_raw_format = Some(raw_format);
+            self.raw_selector.update(cx, |state, cx| {
+                state.set_selected_value(&raw_label, window, cx)
+            });
+        }
         self.render_body_editor(window, cx)
     }
 }
 
-const EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS: usize = 3;
-const EFFECTIVE_HEADER_ROW_HEIGHT: f32 = 48.0;
-const EFFECTIVE_HEADER_ROW_GAP: f32 = 8.0;
-const EFFECTIVE_HEADER_LIST_BOTTOM_PADDING: f32 = 8.0;
-
-fn effective_headers_scrollbar_geometry(
-    header_count: usize,
-    viewport_height: f32,
-    scroll_handle: &ScrollHandle,
-) -> Option<ScrollbarGeometry> {
-    if header_count == 0 {
-        return None;
-    }
-
-    let content_height = EFFECTIVE_HEADER_ROW_HEIGHT * header_count as f32
-        + EFFECTIVE_HEADER_ROW_GAP * header_count.saturating_sub(1) as f32
-        + EFFECTIVE_HEADER_LIST_BOTTOM_PADDING;
-    let max_offset_y = scroll_handle.max_offset().y.as_f32();
-    let overflows = max_offset_y > 0.0
-        || (viewport_height > 0.0 && content_height > viewport_height)
-        || (viewport_height <= 0.0 && header_count > EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS);
-    if !overflows {
-        return None;
-    }
-
-    let visible_fraction = if viewport_height > 0.0 {
-        let measured_content_height = if max_offset_y > 0.0 {
-            viewport_height + max_offset_y
-        } else {
-            content_height
-        };
-        viewport_height / measured_content_height.max(viewport_height)
-    } else {
-        EFFECTIVE_HEADER_FALLBACK_VISIBLE_ROWS as f32 / header_count as f32
-    };
-    Some(scrollbar_geometry(
-        visible_fraction,
-        scroll_handle.offset().y.as_f32(),
-        max_offset_y,
-    ))
-}
-
-const BODY_KINDS: [BodyKind; 5] = [
+const BODY_LABELS: [&str; 6] = ["None", "Form-data", "URL encoded", "Raw", "JSON", "Binary"];
+const BODY_SELECTORS: [&str; 6] = [
+    "body-kind-none",
+    "body-kind-form-data",
+    "body-kind-url-encoded",
+    "body-kind-raw",
+    "body-kind-json",
+    "body-kind-binary",
+];
+const BODY_KINDS: [BodyKind; 6] = [
     BodyKind::None,
     BodyKind::Multipart,
     BodyKind::UrlEncoded,
     BodyKind::Raw,
     BodyKind::Json,
+    BodyKind::Binary,
 ];
 
 fn body_kind_index(kind: BodyKind) -> usize {
@@ -1135,7 +1084,7 @@ fn body_type_from_kind(kind: BodyKind) -> BodyType {
     match kind {
         BodyKind::Json => BodyType::Json,
         BodyKind::UrlEncoded | BodyKind::Multipart => BodyType::FormData,
-        BodyKind::None | BodyKind::Raw => BodyType::Raw,
+        BodyKind::None | BodyKind::Raw | BodyKind::Binary => BodyType::Raw,
     }
 }
 
