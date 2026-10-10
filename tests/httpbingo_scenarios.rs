@@ -3898,18 +3898,29 @@ fn apply_precreated_header_rows(
             }
         }
     }
-    if expected_visible_rows > 4 {
-        for selector in [
-            "headers-scrollbar",
-            "headers-scrollbar-thumb",
-            "add-row-button",
-        ] {
-            if cx.debug_bounds(selector).is_none() {
-                return Err(format!(
-                    "overflowing Header rows do not render `{selector}`"
-                ));
-            }
+    let viewport = cx
+        .debug_bounds("headers-rows-scroll")
+        .ok_or("Header rows viewport is not rendered")?;
+    let row_height = cx
+        .debug_bounds("header-row-0")
+        .ok_or("first Header row is not rendered")?
+        .size
+        .height;
+    // The editor now sizes rows to the available pane height; four rows is no longer
+    // a fixed overflow threshold. Assert the rendered layout, including partial rows.
+    let overflowing = row_height * expected_visible_rows as f32 > viewport.size.height;
+    for selector in ["headers-scrollbar", "headers-scrollbar-thumb"] {
+        if cx.debug_bounds(selector).is_some() != overflowing {
+            return Err(format!(
+                "Header scrollbar `{selector}` does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
+            ));
         }
+    }
+    let add_button = cx
+        .debug_bounds("add-row-button")
+        .ok_or("Add Header button is not rendered")?;
+    if add_button.top() < viewport.bottom() {
+        return Err("Add Header button overlaps the row viewport".to_string());
     }
 
     scroll_up(cx, "headers-rows-scroll", 1000.0)?;

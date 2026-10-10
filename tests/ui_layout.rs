@@ -1193,6 +1193,70 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
 }
 
 #[gpui::test]
+fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut TestAppContext) {
+    for (pane, first, last, scroll, track, thumb, short_height) in [
+        (
+            "request-pane-headers",
+            "header-row-0",
+            "header-row-5",
+            "headers-rows-scroll",
+            "headers-scrollbar",
+            "headers-scrollbar-thumb",
+            900.,
+        ),
+        (
+            "request-pane-params",
+            "param-row-0",
+            "param-row-5",
+            "params-rows-scroll",
+            "params-scrollbar",
+            "params-scrollbar-thumb",
+            970.,
+        ),
+    ] {
+        let workspace = cx.new(|_| WorkspaceViewModel::new());
+        let (_, cx) = cx.add_window_view(move |window, cx| {
+            ui::shell(window, cx, |window, cx| {
+                PostmanApp::with_view_model(workspace, window, cx)
+            })
+        });
+        let handle = cx.update(|window, _| window.window_handle());
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        ui::open_http(cx);
+        click(cx, pane).unwrap();
+        for _ in 0..5 {
+            click(cx, "add-row-button").unwrap();
+        }
+        let row_height = cx.debug_bounds(first).unwrap().size.height;
+        let content_height = row_height * 6.;
+        assert!(cx.debug_bounds(scroll).unwrap().size.height >= content_height);
+        assert!(cx.debug_bounds(track).is_none());
+
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(short_height)));
+        let viewport = cx.debug_bounds(scroll).unwrap();
+        assert!(viewport.size.height < content_height);
+        assert!(
+            viewport.size.height > content_height - row_height,
+            "last row should be partially visible"
+        );
+        assert!(
+            cx.debug_bounds(track).is_some(),
+            "{pane}: a partially clipped row needs a scrollbar"
+        );
+        let start_thumb = cx.debug_bounds(thumb).unwrap();
+        scroll_down(cx, scroll, 1000.).unwrap();
+        let end_thumb = cx.debug_bounds(thumb).unwrap();
+        assert!(end_thumb.top() > start_thumb.top());
+        assert!(cx.debug_bounds(last).unwrap().bottom() <= viewport.bottom() + px(0.5));
+        assert!(cx.debug_bounds("add-row-button").unwrap().top() >= viewport.bottom());
+
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        assert!(cx.debug_bounds(track).is_none());
+        assert!(cx.debug_bounds(first).unwrap().top() >= cx.debug_bounds(scroll).unwrap().top());
+    }
+}
+
+#[gpui::test]
 fn kit_request_editor_fits_minimum_window_in_both_themes_and_scales(cx: &mut TestAppContext) {
     use gpui::{size, SharedString};
     use gpui_kit::{component::ThemeMode, test::TestWindowExt};

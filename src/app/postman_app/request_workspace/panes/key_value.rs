@@ -736,7 +736,8 @@ impl KeyValueRowsPane {
         let table_available =
             (panel_height - 2. - 43. - section_height - 40. - 12. - preview_height).max(34.);
         let table_height = (34. + (rows.len() + 1) as f32 * 40.).min(table_available);
-        let capacity = ((table_height - 34.) / 40.).ceil().max(1.) as usize;
+        // Keep the fractional row: rounding up hides the bar when the last row is clipped.
+        let capacity = ((table_height - 34.) / 40.).max(0.);
         let scrollbar = row_scrollbar_geometry(
             rows.len() + 1,
             capacity,

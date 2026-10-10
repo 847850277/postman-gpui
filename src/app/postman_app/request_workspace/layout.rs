@@ -101,16 +101,16 @@ pub(super) fn adaptive_request_panel_height(
 
 pub(super) fn row_scrollbar_geometry(
     visible_rows: usize,
-    visible_capacity: usize,
+    visible_capacity: f32,
     offset_y: f32,
     max_offset_y: f32,
 ) -> Option<RowScrollbarGeometry> {
-    if visible_rows <= visible_capacity || visible_capacity == 0 {
+    if visible_rows as f32 <= visible_capacity || visible_capacity <= 0.0 {
         return None;
     }
 
     Some(scrollbar_geometry(
-        visible_capacity as f32 / visible_rows as f32,
+        visible_capacity / visible_rows as f32,
         offset_y,
         max_offset_y,
     ))
@@ -163,9 +163,9 @@ mod tests {
             544.0
         );
 
-        assert_eq!(row_scrollbar_geometry(6, 6, 0.0, 0.0), None);
+        assert_eq!(row_scrollbar_geometry(6, 6.0, 0.0, 0.0), None);
         assert_eq!(
-            row_scrollbar_geometry(12, 6, -100.0, 200.0),
+            row_scrollbar_geometry(12, 6.0, -100.0, 200.0),
             Some(RowScrollbarGeometry {
                 thumb_top: 0.25,
                 thumb_height: 0.5,
