@@ -17,9 +17,13 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
+    let handle = cx.update(|window, _| window.window_handle());
+    cx.simulate_window_resize(handle, gpui::size(px(1480.), px(980.)));
 
     let top_header = cx
         .debug_bounds("top-header")
@@ -53,13 +57,16 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     assert_eq!(top_header.size.height, px(52.0));
     assert_eq!(left_rail.size.width, px(72.0));
     assert_eq!(history.size.width, px(260.0));
-    assert_eq!(request_tabs.size.height, px(54.0));
-    assert_eq!(request_head.size.height, px(46.0));
+    assert_eq!(request_tabs.size.height, px(39.0));
+    assert!(
+        (request_head.size.height.as_f32() - 172.625).abs() <= 0.5,
+        "{request_head:?}"
+    );
     assert_eq!(request_panel.size.height, px(360.0));
     assert_eq!(new_tab.size.width, px(32.0));
     assert_eq!(new_tab.size.height, px(32.0));
-    assert_eq!(send.size.width, px(110.0));
-    assert_eq!(send.size.height, px(46.0));
+    assert_eq!(send.size.width, px(128.0));
+    assert_eq!(send.size.height, px(48.0));
 }
 
 #[gpui::test]
@@ -67,7 +74,9 @@ fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -130,7 +139,9 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -213,37 +224,34 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn method_menu_opens_directly_below_its_button(cx: &mut TestAppContext) {
+fn kit_method_select_matches_composer_geometry_and_escape_restores_focus(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
-    let button = cx
-        .debug_bounds("method-dropdown-button")
-        .expect("method dropdown button should render");
-    cx.simulate_click(button.center(), Modifiers::none());
-
-    let menu = cx
-        .debug_bounds("method-dropdown-menu")
-        .expect("method dropdown menu should open");
-
-    assert_eq!(menu.origin.x, button.origin.x);
-    let first_option = cx
-        .debug_bounds("method-option-get")
-        .expect("first method option should render");
-    let last_option = cx
-        .debug_bounds("method-option-options")
-        .expect("last method option should render");
-
-    assert_eq!(button.size.width, px(120.0));
-    assert_eq!(button.size.height, px(46.0));
-    assert_eq!(menu.origin.y, button.bottom() + px(6.0));
-    assert_eq!(menu.size.width, button.size.width);
-    assert_eq!(first_option.size.height, px(36.0));
-    assert_eq!(last_option.size.height, px(36.0));
+    use gpui_kit::test::TestWindowExt;
+    let button = cx.update(|window, cx| {
+        window.render_frame(cx);
+        window.find("method-select").bounds()
+    });
+    cx.update(|window, cx| window.click("method-select", cx));
+    cx.update(|window, cx| {
+        window.render_frame(cx);
+        assert_eq!(button.size.width, px(110.));
+        assert_eq!(button.size.height, px(46.));
+        assert_eq!(window.find("method-select").expanded(), Some(true));
+        window.press("down", cx);
+        window.press("escape", cx);
+        window.render_frame(cx);
+        assert_eq!(window.find("method-select").expanded(), Some(false));
+        assert_eq!(window.find("method-select").value(), Some("GET"));
+        assert_eq!(window.find("method-select").focused(), Some(true));
+    });
 }
 
 #[gpui::test]
@@ -266,8 +274,8 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -336,7 +344,9 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -346,18 +356,16 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
     let preview = cx
         .debug_bounds("effective-url-preview")
         .expect("effective URL preview should render");
-    let ready = cx
-        .debug_bounds("params-ready-indicator")
-        .expect("ready indicator should render");
-
-    assert!(cx.debug_bounds("url-query-count").is_some());
     assert!(cx.debug_bounds("params-enabled-count").is_some());
-    assert!(cx.debug_bounds("param-row-toggle-0").is_some());
-    assert!(cx.debug_bounds("param-row-toggle-1").is_some());
-    assert!(cx.debug_bounds("param-row-toggle-2").is_some());
+    for selector in [
+        "param-row-toggle-0",
+        "param-row-toggle-1",
+        "param-row-toggle-2",
+    ] {
+        assert!(cx.debug_bounds(selector).is_some());
+    }
     assert!(preview.origin.y >= panel.origin.y);
-    assert!(preview.bottom() <= ready.origin.y);
-    assert!(ready.bottom() <= panel.bottom());
+    assert!(preview.bottom() <= panel.bottom());
 }
 
 #[gpui::test]
@@ -380,41 +388,23 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
         .expect("request panel should render");
-    let summary = cx
-        .debug_bounds("authorization-summary")
-        .expect("Authorization summary should render");
-    let kind = cx
-        .debug_bounds("authorization-kind-selector")
-        .expect("Authorization type selector should render");
-    let input = cx
-        .debug_bounds("authorization-input")
-        .expect("Bearer input should render");
-    let normalized = cx
-        .debug_bounds("authorization-normalized-token")
-        .expect("normalized token should render");
-    let outgoing = cx
-        .debug_bounds("authorization-header-preview")
-        .expect("outgoing header should render");
-    let ready = cx
-        .debug_bounds("authorization-ready-indicator")
-        .expect("Authorization ready state should render");
-
-    assert_eq!(panel.size.height, px(360.0));
-    assert!(summary.origin.y >= panel.origin.y);
-    assert!(summary.bottom() <= kind.origin.y);
+    let kind = cx.debug_bounds("authorization-kind-selector").unwrap();
+    let status = cx.debug_bounds("authorization-status").unwrap();
+    assert!(kind.origin.y >= panel.origin.y);
+    let input = cx.debug_bounds("authorization-input").unwrap();
     assert!(kind.bottom() <= input.origin.y);
-    assert!(normalized.origin.x < outgoing.origin.x);
-    assert!(input.size.width > px(0.0));
-    assert!(outgoing.size.width > px(0.0));
-    assert!(outgoing.bottom() <= ready.origin.y);
-    assert!(ready.bottom() <= panel.bottom());
+    assert!(input.size.width > px(0.));
+    assert!(input.bottom() <= status.origin.y);
+    assert!(status.bottom() <= panel.bottom());
 }
 
 #[gpui::test]
@@ -445,50 +435,33 @@ fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut T
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
     let panel = cx
         .debug_bounds("request-panel")
         .expect("request panel should render");
-    let summary = cx
-        .debug_bounds("authorization-summary")
-        .expect("Authorization summary should render");
-    let kind = cx
-        .debug_bounds("authorization-kind-selector")
-        .expect("Authorization type selector should render");
-    let username = cx
-        .debug_bounds("basic-auth-username-field")
-        .expect("Basic username should render");
-    let password = cx
-        .debug_bounds("basic-auth-password-field")
-        .expect("masked Basic password should render");
-    let outgoing = cx
-        .debug_bounds("basic-auth-header-preview")
-        .expect("Basic outgoing header should render");
-    let projection = cx
-        .debug_bounds("basic-auth-projection-note")
-        .expect("Basic ViewModel projection note should render");
-    let ready = cx
-        .debug_bounds("authorization-ready-indicator")
-        .expect("Authorization ready state should render");
-
-    assert_eq!(panel.size.height, px(360.0));
-    assert!(summary.origin.y >= panel.origin.y);
-    assert!(summary.bottom() <= kind.origin.y);
+    let kind = cx.debug_bounds("authorization-kind-selector").unwrap();
+    let status = cx.debug_bounds("authorization-status").unwrap();
+    assert!(kind.origin.y >= panel.origin.y);
+    let username = cx.debug_bounds("basic-auth-username-input").unwrap();
+    let password = cx.debug_bounds("basic-auth-password-input").unwrap();
     assert!(kind.bottom() <= username.origin.y);
     assert_eq!(username.origin.y, password.origin.y);
-    assert!(username.origin.x < password.origin.x);
-    assert!(username.size.width > px(0.0));
-    assert!(password.size.width > px(0.0));
-    assert!(username.bottom() <= outgoing.origin.y);
-    assert!(outgoing.bottom() <= projection.origin.y);
+    assert!(username.right() <= password.origin.x);
+    assert!(username.size.width > px(0.));
+    assert!(password.size.width > px(0.));
+    assert!(password.bottom() <= status.origin.y);
     assert!(
-        projection.bottom() <= ready.origin.y,
-        "Basic projection {projection:?} overlaps ready state {ready:?}"
+        cx.debug_bounds("basic-auth-password-masked")
+            .unwrap()
+            .bottom()
+            <= panel.bottom()
     );
-    assert!(ready.bottom() <= panel.bottom());
+    assert!(status.bottom() <= panel.bottom());
 }
 
 #[gpui::test]
@@ -525,7 +498,9 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -538,9 +513,6 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     let editor = cx
         .debug_bounds("body-editor-shell")
         .expect("JSON editor shell should render");
-    let source = cx
-        .debug_bounds("body-source-of-truth")
-        .expect("single-source projection should render");
     let headers = cx
         .debug_bounds("body-effective-headers")
         .expect("effective headers should render");
@@ -563,8 +535,7 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     assert!(kinds.origin.y >= panel.origin.y);
     assert!(editor.origin.y >= kinds.bottom());
     assert!(editor.origin.x < headers.origin.x);
-    assert!(editor.bottom() <= source.origin.y);
-    assert!(source.bottom() <= panel.bottom());
+    assert!(editor.bottom() <= panel.bottom());
     assert!(headers.bottom() <= panel.bottom());
     assert!(cx
         .debug_bounds("body-effective-headers-scrollbar")
@@ -593,7 +564,9 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
     cx.run_until_parked();
@@ -658,7 +631,9 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -671,9 +646,6 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
     let editor = cx
         .debug_bounds("body-editor-shell")
         .expect("Raw editor shell should render");
-    let source = cx
-        .debug_bounds("body-source-of-truth")
-        .expect("single-source projection should render");
     let semantics = cx
         .debug_bounds("body-raw-effective-request")
         .expect("Raw request semantics should render");
@@ -711,8 +683,7 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
     assert_eq!(kinds.size.height, px(44.0));
     assert!(editor.origin.y >= kinds.bottom());
     assert!(editor.origin.x < semantics.origin.x);
-    assert!(editor.bottom() <= source.origin.y);
-    assert!(source.bottom() <= panel.bottom());
+    assert!(editor.bottom() <= panel.bottom());
     assert!(content_type.origin.y >= semantics.origin.y);
     assert!(content_type.bottom() <= exact_body.origin.y);
     assert!(exact_body.bottom() <= ready.origin.y);
@@ -738,7 +709,9 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -830,7 +803,9 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -918,7 +893,9 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -1017,7 +994,9 @@ fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mu
             workspace
         });
         let (_app, cx) = cx.add_window_view(move |window, cx| {
-            ui::shell(window, cx, |cx| PostmanApp::with_view_model(workspace, cx))
+            ui::shell(window, cx, |window, cx| {
+                PostmanApp::with_view_model(workspace, window, cx)
+            })
         });
         ui::open_http(cx);
         let initial = cx.debug_bounds("request-panel").unwrap().size.height;
@@ -1054,7 +1033,9 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -1084,7 +1065,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
     assert!(grown_panel.size.height > initial_panel.size.height);
     assert_eq!(
         grown_rows.size.height - initial_rows.size.height,
-        grown_panel.size.height - initial_panel.size.height
+        px(120.0) // Three additional prototype rows at 40px each.
     );
 
     workspace.update(cx, |workspace, cx| {
@@ -1140,7 +1121,9 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
     });
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -1170,7 +1153,7 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
     assert!(grown_panel.size.height > initial_panel.size.height);
     assert_eq!(
         grown_rows.size.height - initial_rows.size.height,
-        grown_panel.size.height - initial_panel.size.height
+        px(120.0) // Three additional prototype rows at 40px each.
     );
 
     workspace.update(cx, |workspace, cx| {
@@ -1207,4 +1190,142 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
     assert!(thumb.bottom() <= scrollbar.bottom());
     assert!(thumb.size.height < scrollbar.size.height);
     assert!(add_action.origin.y >= rows_viewport.bottom());
+}
+
+#[gpui::test]
+fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut TestAppContext) {
+    for (pane, first, last, scroll, track, thumb, short_height) in [
+        (
+            "request-pane-headers",
+            "header-row-0",
+            "header-row-5",
+            "headers-rows-scroll",
+            "headers-scrollbar",
+            "headers-scrollbar-thumb",
+            900.,
+        ),
+        (
+            "request-pane-params",
+            "param-row-0",
+            "param-row-5",
+            "params-rows-scroll",
+            "params-scrollbar",
+            "params-scrollbar-thumb",
+            970.,
+        ),
+    ] {
+        let workspace = cx.new(|_| WorkspaceViewModel::new());
+        let (_, cx) = cx.add_window_view(move |window, cx| {
+            ui::shell(window, cx, |window, cx| {
+                PostmanApp::with_view_model(workspace, window, cx)
+            })
+        });
+        let handle = cx.update(|window, _| window.window_handle());
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        ui::open_http(cx);
+        click(cx, pane).unwrap();
+        for _ in 0..5 {
+            click(cx, "add-row-button").unwrap();
+        }
+        let row_height = cx.debug_bounds(first).unwrap().size.height;
+        let content_height = row_height * 6.;
+        assert!(cx.debug_bounds(scroll).unwrap().size.height >= content_height);
+        assert!(cx.debug_bounds(track).is_none());
+
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(short_height)));
+        let viewport = cx.debug_bounds(scroll).unwrap();
+        assert!(viewport.size.height < content_height);
+        assert!(
+            viewport.size.height > content_height - row_height,
+            "last row should be partially visible"
+        );
+        assert!(
+            cx.debug_bounds(track).is_some(),
+            "{pane}: a partially clipped row needs a scrollbar"
+        );
+        let start_thumb = cx.debug_bounds(thumb).unwrap();
+        scroll_down(cx, scroll, 1000.).unwrap();
+        let end_thumb = cx.debug_bounds(thumb).unwrap();
+        assert!(end_thumb.top() > start_thumb.top());
+        assert!(cx.debug_bounds(last).unwrap().bottom() <= viewport.bottom() + px(0.5));
+        assert!(cx.debug_bounds("add-row-button").unwrap().top() >= viewport.bottom());
+
+        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        assert!(cx.debug_bounds(track).is_none());
+        assert!(cx.debug_bounds(first).unwrap().top() >= cx.debug_bounds(scroll).unwrap().top());
+    }
+}
+
+#[gpui::test]
+fn kit_request_editor_fits_minimum_window_in_both_themes_and_scales(cx: &mut TestAppContext) {
+    use gpui::{size, SharedString};
+    use gpui_kit::{component::ThemeMode, test::TestWindowExt};
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let observed = model.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    click(cx, "home-open-http").unwrap();
+    for _ in 0..17 {
+        click(cx, "new-tab-button").unwrap();
+    }
+    for scale in [1., 2.] {
+        for mode in [ThemeMode::Light, ThemeMode::Dark] {
+            for (width, height) in [(1440., 960.), (1920., 1080.), (1024., 768.), (960., 640.)] {
+                let handle = cx.update(|window, cx| {
+                    postman_gpui::ui::theme::apply(mode, cx);
+                    window.window_handle()
+                });
+                cx.simulate_window_scale_factor_change(handle, scale);
+                cx.simulate_window_resize(handle, size(px(width), px(height)));
+                for pane in [
+                    "request-pane-params",
+                    "request-pane-headers",
+                    "request-pane-body",
+                    "request-pane-authorization",
+                ] {
+                    click(cx, pane).unwrap();
+                    if pane == "request-pane-body" {
+                        click(cx, "body-kind-json").unwrap();
+                    }
+                    let footer = cx.debug_bounds("status-bar").unwrap();
+                    let panel = cx.debug_bounds("request-panel").unwrap();
+                    let response = cx.debug_bounds("response-container").unwrap();
+                    let tabs = cx.debug_bounds("request-tabs-bar").unwrap();
+                    assert!(tabs.size.height > px(38.), "many requests should wrap");
+                    assert!(panel.top() >= tabs.bottom());
+                    assert!(
+                        response.bottom() <= footer.top() + px(0.5),
+                        "{width}x{height} {pane}: {response:?} exceeds {footer:?}"
+                    );
+                    assert!(
+                        response.size.height >= px(100.),
+                        "{width}x{height} {pane}: response height {:?}",
+                        response.size.height
+                    );
+                    let send = cx.debug_bounds("send-button").unwrap();
+                    let url = cx.debug_bounds("url-input").unwrap();
+                    assert!(url.right() < send.left());
+                    assert_eq!(send.size.height, px(48.));
+                    assert!(send.right() < px(width));
+                }
+                // End/Home reveal the selected stable tab even when the strip scrolls.
+                click(cx, "request-tab-17").unwrap();
+                ui::press(cx, "home");
+                assert_eq!(model.read_with(cx, |m, _| m.active_tab_index()), Some(0));
+                ui::press(cx, "end");
+                assert_eq!(model.read_with(cx, |m, _| m.active_tab_index()), Some(17));
+                cx.update(|window, cx| {
+                    window.render_frame(cx);
+                    assert_eq!(window.find(("request-tab", 18u64)).selected(), Some(true));
+                    assert_eq!(
+                        window.find(SharedString::from("method-select")).value(),
+                        Some("GET")
+                    );
+                });
+            }
+        }
+    }
 }

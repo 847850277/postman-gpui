@@ -12,9 +12,8 @@ use crate::{
         components::input::{
             body_input::setup_body_input_key_bindings,
             header_input::setup_header_input_key_bindings,
-            method_selector::{MethodSelector, MethodSelectorEvent},
-            url_input::{setup_url_input_key_bindings, UrlInput, UrlInputEvent},
         },
+        components::kit_controls::MethodState,
         theme::{LINE, PANEL},
     },
 };
@@ -36,8 +35,9 @@ pub(super) enum RequestComposerEvent {
 pub(super) struct RequestComposer {
     pub(super) view_model: Entity<WorkspaceViewModel>,
     panel_layout: Entity<RequestPanelLayout>,
-    pub(super) method_selector: Entity<MethodSelector>,
-    pub(super) url_input: Entity<UrlInput>,
+    pub(super) method_selector: Entity<MethodState>,
+    pub(super) url_input: Entity<InputState>,
+    projected_url_tab: Option<crate::app::RequestTabId>,
     params_pane: Entity<KeyValueRowsPane>,
     headers_pane: Entity<KeyValueRowsPane>,
     authorization_pane: Entity<AuthorizationPane>,
@@ -50,21 +50,37 @@ pub(super) struct RequestComposer {
     _subscriptions: Vec<Subscription>,
 }
 
+use gpui_kit::component::{
+    input::{InputEvent, InputState},
+    searchable_list::SearchableVec,
+    select::{SelectEvent, SelectState},
+    IndexPath,
+};
+
 impl EventEmitter<RequestComposerEvent> for RequestComposer {}
 
 impl RequestComposer {
     pub(super) fn new(
         view_model: Entity<WorkspaceViewModel>,
         panel_layout: Entity<RequestPanelLayout>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        cx.bind_keys(setup_url_input_key_bindings());
         cx.bind_keys(setup_header_input_key_bindings());
         cx.bind_keys(setup_body_input_key_bindings());
         cx.bind_keys(setup_request_pane_key_bindings());
 
-        let method_selector = cx.new(MethodSelector::new);
-        let url_input = cx.new(|cx| UrlInput::new(cx).with_placeholder("Enter request URL"));
+        let method_selector = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(vec![
+                    "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
+                ]),
+                Some(IndexPath::new(0)),
+                window,
+                cx,
+            )
+        });
+        let url_input = cx.new(|cx| InputState::new(window, cx).placeholder("Enter request URL"));
         let params_pane = cx.new(|cx| {
             KeyValueRowsPane::new(
                 view_model.clone(),
@@ -91,9 +107,9 @@ impl RequestComposer {
 
         let subscriptions = vec![
             cx.subscribe(&method_selector, Self::on_method_changed),
-            cx.subscribe(&url_input, Self::on_url_event),
-            cx.subscribe(&params_pane, Self::on_key_value_pane_event),
-            cx.subscribe(&headers_pane, Self::on_key_value_pane_event),
+            cx.subscribe_in(&url_input, window, Self::on_url_event),
+            cx.subscribe_in(&params_pane, window, Self::on_key_value_pane_event),
+            cx.subscribe_in(&headers_pane, window, Self::on_key_value_pane_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
             cx.observe(&panel_layout, |_, _, cx| cx.notify()),
         ];
@@ -103,6 +119,7 @@ impl RequestComposer {
             panel_layout,
             method_selector,
             url_input,
+            projected_url_tab: None,
             params_pane,
             headers_pane,
             authorization_pane,
@@ -116,7 +133,7 @@ impl RequestComposer {
             send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
-        composer.project_active_request(cx);
+        composer.project_active_request(window, cx);
         composer
     }
 
@@ -144,24 +161,28 @@ impl RequestComposer {
 
     fn on_method_changed(
         &mut self,
-        _selector: Entity<MethodSelector>,
-        event: &MethodSelectorEvent,
+        _selector: Entity<MethodState>,
+        event: &SelectEvent<SearchableVec<&'static str>>,
         cx: &mut Context<Self>,
     ) {
-        let MethodSelectorEvent::MethodChanged(method) = event;
-        self.update_active_request(cx, |request| request.set_method(*method));
+        let SelectEvent::Confirm(Some(method)) = event else {
+            return;
+        };
+        self.update_active_request(cx, |request| request.set_method((*method).into()));
         self.project_selected_pane(cx);
     }
 
     fn on_url_event(
         &mut self,
-        _input: Entity<UrlInput>,
-        event: &UrlInputEvent,
+        _input: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            UrlInputEvent::UrlChanged(url) => {
-                self.update_active_request(cx, |request| request.set_url(url));
+            InputEvent::Change => {
+                let url = self.url_input.read(cx).value().to_string();
+                self.update_active_request(cx, |request| request.set_url(&url));
                 if self
                     .view_model
                     .read(cx)
@@ -172,22 +193,24 @@ impl RequestComposer {
                         .update(cx, KeyValueRowsPane::project_active_request);
                 }
             }
-            UrlInputEvent::SubmitRequested => self.click_send(cx),
+            InputEvent::PressEnter { shift: false, .. } => self.click_send(cx),
+            _ => {}
         }
     }
 
     fn on_key_value_pane_event(
         &mut self,
-        _pane: Entity<KeyValueRowsPane>,
+        _pane: &Entity<KeyValueRowsPane>,
         event: &KeyValueRowsPaneEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            KeyValueRowsPaneEvent::EffectiveUrlChanged => self.project_url(cx),
+            KeyValueRowsPaneEvent::EffectiveUrlChanged => self.project_url(window, cx),
         }
     }
 
-    fn project_method(&self, cx: &mut Context<Self>) {
+    fn project_method(&self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(method) = self
             .view_model
             .read(cx)
@@ -196,19 +219,35 @@ impl RequestComposer {
         else {
             return;
         };
-        self.method_selector
-            .update(cx, |selector, cx| selector.project_method(method, cx));
+        self.method_selector.update(cx, |selector, cx| {
+            selector.set_selected_index(
+                Some(IndexPath::new(
+                    ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+                        .iter()
+                        .position(|m| *m == method.to_string())
+                        .unwrap(),
+                )),
+                window,
+                cx,
+            )
+        });
     }
 
-    fn project_url(&self, cx: &mut Context<Self>) {
+    fn project_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let url = self
             .view_model
             .read(cx)
             .active_request()
             .map(|request| request.url().to_string())
             .unwrap_or_default();
-        self.url_input
-            .update(cx, |input, cx| input.project_url(url, cx));
+        let tab = self.view_model.read(cx).active_tab_id();
+        let tab_changed = self.projected_url_tab != tab;
+        self.projected_url_tab = tab;
+        self.url_input.update(cx, |input, cx| {
+            if tab_changed || input.value().as_ref() != url {
+                input.set_value(url, window, cx);
+            }
+        });
     }
 
     fn project_selected_pane(&self, cx: &mut Context<Self>) {
@@ -245,9 +284,9 @@ impl RequestComposer {
 
     /// Full projection happens only when the active request changes. Ordinary edits notify the
     /// pane that owns the control; inactive panes are projected lazily when selected.
-    pub(super) fn project_active_request(&mut self, cx: &mut Context<Self>) {
-        self.project_method(cx);
-        self.project_url(cx);
+    pub(super) fn project_active_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.project_method(window, cx);
+        self.project_url(window, cx);
         self.params_pane
             .update(cx, KeyValueRowsPane::project_active_request);
         self.headers_pane
@@ -289,15 +328,6 @@ impl RequestComposer {
     fn cancel_send(&mut self, send_id: SendId, cx: &mut Context<Self>) {
         self.update_view_model(cx, |view_model| view_model.cancel_send(send_id));
         cx.emit(RequestComposerEvent::Abort(send_id));
-    }
-
-    pub(super) fn on_send_clicked(
-        &mut self,
-        _event: &gpui::MouseUpEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.click_send(cx);
     }
 
     pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
@@ -366,7 +396,7 @@ impl RequestComposer {
             .bg(PANEL.resolve(cx))
             .border_1()
             .border_color(LINE.resolve(cx))
-            .rounded(px(14.0))
+            .rounded(px(0.0))
             .overflow_hidden()
             .child(self.render_request_menu(window, cx))
             .child(editor)
@@ -395,6 +425,61 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
     use mockito::Matcher;
 
+    // Exercise the IME protocol on the actual URL input and its ViewModel subscription.
+    // Platform candidate windows still require native input-method checks.
+    #[gpui::test]
+    fn url_composes_and_commits_chinese_after_an_astral_character(cx: &mut TestAppContext) {
+        use gpui::{ElementInputHandler, InputHandler, WindowOptions};
+        use gpui_kit::test::TestWindowExt;
+
+        cx.update(crate::ui::kit::init);
+        let model = cx.new(|_| WorkspaceViewModel::new());
+        let observed = model.clone();
+        let (handle, app) = cx
+            .update(|cx| {
+                gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+                    cx.new(|cx| PostmanApp::with_view_model(observed, window, cx))
+                })
+            })
+            .unwrap();
+        cx.update_window(handle, |_, window, cx| {
+            window.click("home-open-http", cx);
+            window.click("request-url-input", cx);
+            window.input("A🦀", cx);
+            let workspace = app.read(cx).request_workspace.clone();
+            let composer = workspace.read(cx).composer.clone();
+            let mut handler = ElementInputHandler::new(
+                window.find("request-url-input").bounds(),
+                composer.read(cx).url_input.clone(),
+            );
+            handler.replace_and_mark_text_in_range(None, "ni", Some(2..2), window, cx);
+            assert_eq!(handler.marked_text_range(window, cx), Some(3..5));
+            handler.replace_and_mark_text_in_range(None, "你好", Some(2..2), window, cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀你好"));
+            handler.replace_text_in_range(None, "你好", window, cx);
+            assert_eq!(handler.marked_text_range(window, cx), None);
+            window.render_frame(cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀你好"));
+        })
+        .unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
+            "A🦀你好"
+        );
+        cx.update_window(handle, |_, window, cx| {
+            window.press("secondary-z", cx);
+            assert_eq!(window.find("request-url-input").value(), Some("A🦀"));
+        })
+        .unwrap();
+        cx.run_until_parked();
+        assert_eq!(
+            model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
+            "A🦀"
+        );
+    }
+
     #[gpui::test]
     fn send_command_is_built_only_from_the_view_model(cx: &mut TestAppContext) {
         let mut server = mockito::Server::new();
@@ -422,11 +507,14 @@ mod tests {
         });
         let observed = workspace.clone();
         cx.update(crate::ui::kit::init);
-        let app = cx.new(|cx| PostmanApp::with_view_model(observed, cx));
-        let retained = app.clone();
+        let retained = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let retained_app = retained.clone();
         let (_, cx) = cx.add_window_view(move |window, cx| {
-            gpui_kit::component::Root::new(retained, window, cx)
+            let app = cx.new(|cx| PostmanApp::with_view_model(observed, window, cx));
+            *retained_app.borrow_mut() = Some(app.clone());
+            gpui_kit::component::Root::new(app, window, cx)
         });
+        let app = retained.borrow().clone().unwrap();
         cx.update(|window, cx| {
             use gpui_kit::test::TestWindowExt;
             window.click("nav-http", cx);
@@ -434,16 +522,18 @@ mod tests {
         let request_workspace = app.read_with(cx, |app, _| app.request_workspace.clone());
         let composer = request_workspace.read_with(cx, |workspace, _| workspace.composer.clone());
 
-        composer.update(cx, |composer, cx| {
-            composer.method_selector.update(cx, |selector, cx| {
-                selector.project_method(HttpMethod::GET, cx)
-            });
-            composer.url_input.update(cx, |input, cx| {
-                input.project_url("http://127.0.0.1:1/stale-control", cx)
-            });
-            let body_input = composer.body_pane.read(cx).input_entity();
-            body_input.update(cx, |input, cx| input.project_content("stale-body", cx));
-            composer.click_send(cx);
+        cx.update(|window, cx| {
+            composer.update(cx, |composer, cx| {
+                composer.method_selector.update(cx, |selector, cx| {
+                    selector.set_selected_value(&"GET", window, cx)
+                });
+                composer.url_input.update(cx, |input, cx| {
+                    input.set_value("http://127.0.0.1:1/stale-control", window, cx)
+                });
+                let body_input = composer.body_pane.read(cx).input_entity();
+                body_input.update(cx, |input, cx| input.project_content("stale-body", cx));
+                composer.click_send(cx);
+            })
         });
         cx.run_until_parked();
 

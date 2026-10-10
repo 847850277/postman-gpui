@@ -55,7 +55,9 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 

@@ -3,10 +3,10 @@ use super::single_line_input::{
 };
 use crate::ui::{
     components::common::edit_context_menu::{edit_context_menu, EDITABLE_ACTIONS},
-    theme::{FONT_MONO, INFO, LINE, PANEL, TEXT},
+    theme::{FONT_MONO, PANEL, TEXT},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, App, Bounds, Context, CursorStyle, EntityInputHandler,
+    div, prelude::FluentBuilder, App, Bounds, Context, CursorStyle, EntityInputHandler,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Pixels, Point, Render, Styled, UTF16Selection, Window,
 };
@@ -260,14 +260,14 @@ impl Render for TableCellInput {
             .bg(PANEL.resolve(cx))
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                INFO.resolve(cx)
+                crate::ui::theme::ACCENT.resolve(cx)
             } else {
-                LINE.resolve(cx)
+                gpui::rgba(0)
             })
-            .rounded_lg()
+            .rounded_none()
             .text_color(TEXT.resolve(cx))
             .font_family(FONT_MONO)
-            .text_size(px(12.0))
+            .text_size(crate::ui::theme::metrics::CODE)
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             // Reuse the established single-line bindings; Tab is intercepted by the host hooks

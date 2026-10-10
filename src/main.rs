@@ -5,7 +5,7 @@ use gpui::{
     WindowBounds, WindowOptions,
 };
 use postman_gpui::{
-    app::{kit_smoke::KitSmokeView, PostmanApp},
+    app::PostmanApp,
     assets::fonts::{
         load_embedded_fonts, runtime_asset_application, schedule_runtime_asset_exit,
         verify_embedded_fonts,
@@ -23,8 +23,6 @@ fn quit(_: &Quit, cx: &mut App) {
 fn main() {
     let verify_runtime_assets = std::env::args_os()
         .any(|argument| argument == std::ffi::OsStr::new("--verify-runtime-assets"));
-    let kit_smoke =
-        std::env::args_os().any(|argument| argument == std::ffi::OsStr::new("--kit-smoke"));
 
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -81,43 +79,21 @@ fn main() {
             MenuItem::action("Quit Postman GPUI", Quit),
         ])]);
 
-        let bounds = Bounds::centered(
-            None,
-            if kit_smoke {
-                size(px(1440.), px(960.))
-            } else {
-                size(px(1480.), px(980.))
-            },
-            cx,
-        );
+        let bounds = Bounds::centered(None, size(px(1480.), px(980.)), cx);
         let option = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {
                 title: Some("Postman GPUI".into()),
-                ..if kit_smoke {
-                    TitlebarOptions::default()
-                } else {
-                    gpui_kit::component::TitleBar::title_bar_options()
-                }
+                ..gpui_kit::component::TitleBar::title_bar_options()
             }),
             app_id: Some("postman-gpui".into()),
             window_min_size: Some(size(px(960.), px(640.))),
-            ..if kit_smoke {
-                WindowOptions::default()
-            } else {
-                gpui_kit::component::TitleBar::window_options()
-            }
+            ..gpui_kit::component::TitleBar::window_options()
         };
 
-        if kit_smoke {
-            gpui_kit::open_window(option, cx, |window, cx| {
-                window.resize(size(px(1440.), px(960.)));
-                cx.new(|cx| KitSmokeView::new(window, cx))
-            })
-            .expect("failed to open Kit compatibility window");
-        } else {
-            gpui_kit::open_window(option, cx, |_window, cx| cx.new(PostmanApp::new))
-                .expect("failed to open window");
-        }
+        gpui_kit::open_window(option, cx, |window, cx| {
+            cx.new(|cx| PostmanApp::new(window, cx))
+        })
+        .expect("failed to open window");
     });
 }

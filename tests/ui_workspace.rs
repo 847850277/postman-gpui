@@ -17,7 +17,9 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -105,7 +107,9 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -158,21 +162,22 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     });
 
     // Mouse and keyboard both enter the same stable-tab-id activation command. Mouse focuses
-    // Tab A, Tab+Enter activates B, and Shift-Tab+Space activates A again.
+    // Tab A, Tab traverses the accessible close control, then Enter activates B.
+    // The reverse traversal and Space activate A again.
     click(cx, "request-tab-0").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         0
     );
-    assert!(cx.debug_bounds("params-ready-indicator").is_some());
-    cx.simulate_keystrokes("tab");
+    assert!(cx.debug_bounds("effective-url-preview").is_some());
+    cx.simulate_keystrokes("tab tab");
     cx.simulate_keystrokes("enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
     assert!(cx.debug_bounds("body-input").is_some());
-    cx.simulate_keystrokes("shift-tab");
+    cx.simulate_keystrokes("shift-tab shift-tab");
     cx.simulate_keystrokes("space");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
@@ -271,7 +276,9 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -496,7 +503,9 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -563,7 +572,9 @@ fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) 
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -617,7 +628,9 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -695,7 +708,9 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -804,7 +819,9 @@ fn left_rail_new_request_is_a_real_command(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -835,7 +852,9 @@ fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -871,20 +890,15 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
     type_into(cx, "url-input", &format!("{}/secured", server.url())).unwrap();
     click(cx, "request-pane-authorization").unwrap();
-    for selector in [
-        "authorization-summary",
-        "authorization-kind-selector",
-        "authorization-input",
-        "authorization-normalized-token",
-        "authorization-header-preview",
-        "authorization-ready-indicator",
-    ] {
+    for selector in ["authorization-kind-selector", "authorization-input"] {
         assert!(
             cx.debug_bounds(selector).is_some(),
             "Bearer design contract element `{selector}` should be rendered"
@@ -959,7 +973,9 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 
@@ -967,19 +983,11 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
     click(cx, "request-pane-authorization").unwrap();
     click(cx, "auth-kind-basic").unwrap();
     for selector in [
-        "authorization-summary",
         "authorization-kind-selector",
         "basic-auth-credentials",
-        "basic-auth-username-field",
         "basic-auth-username-input",
-        "basic-auth-username-saved",
-        "basic-auth-password-field",
         "basic-auth-password-input",
         "basic-auth-password-masked",
-        "basic-auth-password-saved",
-        "basic-auth-header-preview",
-        "basic-auth-projection-note",
-        "authorization-ready-indicator",
     ] {
         assert!(
             cx.debug_bounds(selector).is_some(),
@@ -1084,7 +1092,9 @@ fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     ui::open_http(cx);
 

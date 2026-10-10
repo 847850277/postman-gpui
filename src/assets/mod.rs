@@ -3,7 +3,10 @@ pub mod fonts;
 // Keep Kit's default icon set and embed the additional product icons.
 gpui_kit::assets::icon_assets!(
     RequestIcons,
-    [Lock, House, Terminal, Workflow, Cookie, Keyboard, RotateCcw, Plus, Search, ArrowRight]
+    [
+        Lock, House, Terminal, Workflow, Cookie, Keyboard, RotateCcw, Plus, Search, ArrowRight, X,
+        Send
+    ]
 );
 pub struct KitAssets;
 impl gpui::AssetSource for KitAssets {

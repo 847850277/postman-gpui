@@ -66,20 +66,26 @@ pub(super) struct RequestWorkspace {
     response_resize_origin: Option<ResponseResizeOrigin>,
     tab_focus_handles: HashMap<RequestTabId, FocusHandle>,
     tab_close_focus_handles: HashMap<RequestTabId, FocusHandle>,
-    new_tab_focus_handle: FocusHandle,
+    tab_bar_width: Pixels,
+    tab_scroll: gpui::ScrollHandle,
+    tab_reveal_key: Option<(RequestTabId, usize, usize)>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl EventEmitter<RequestWorkspaceEvent> for RequestWorkspace {}
 
 impl RequestWorkspace {
-    pub(super) fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+    pub(super) fn new(
+        view_model: Entity<WorkspaceViewModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         cx.bind_keys(setup_response_viewer_key_bindings());
         cx.bind_keys(setup_request_tab_key_bindings());
 
         let panel_layout = cx.new(|_| RequestPanelLayout::default());
         let composer =
-            cx.new(|cx| RequestComposer::new(view_model.clone(), panel_layout.clone(), cx));
+            cx.new(|cx| RequestComposer::new(view_model.clone(), panel_layout.clone(), window, cx));
         let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
         let subscriptions = vec![
             cx.subscribe(&composer, Self::on_composer_event),
@@ -96,7 +102,9 @@ impl RequestWorkspace {
             response_resize_origin: None,
             tab_focus_handles: HashMap::new(),
             tab_close_focus_handles: HashMap::new(),
-            new_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            tab_bar_width: px(0.),
+            tab_scroll: gpui::ScrollHandle::new(),
+            tab_reveal_key: None,
             _subscriptions: subscriptions,
         }
     }
@@ -145,28 +153,42 @@ impl RequestWorkspace {
         cx.emit(RequestWorkspaceEvent::Abort(send_id));
     }
 
-    fn project_active_request(&self, cx: &mut Context<Self>) {
-        self.composer
-            .update(cx, RequestComposer::project_active_request);
+    fn project_active_request(&self, window: &mut Window, cx: &mut Context<Self>) {
+        self.composer.update(cx, |composer, cx| {
+            composer.project_active_request(window, cx)
+        });
     }
 
-    pub(super) fn new_request(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn new_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.update_view_model(cx, WorkspaceViewModel::new_request);
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
-    pub(super) fn activate_request_tab(&mut self, tab_id: RequestTabId, cx: &mut Context<Self>) {
+    pub(super) fn activate_request_tab(
+        &mut self,
+        tab_id: RequestTabId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.update_view_model(cx, |view_model| view_model.select_tab_by_id(tab_id)) {
-            self.project_active_request(cx);
+            self.project_active_request(window, cx);
+        }
+        if let Some(index) = self.view_model.read(cx).active_tab_index() {
+            self.tab_scroll.scroll_to_item(index);
         }
     }
 
-    pub(super) fn close_request_tab(&mut self, tab_id: RequestTabId, cx: &mut Context<Self>) {
+    pub(super) fn close_request_tab(
+        &mut self,
+        tab_id: RequestTabId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(send_id) = self.view_model.read(cx).send_id_for_tab_id(tab_id) {
             self.cancel_send(send_id, cx);
         }
         if self.update_view_model(cx, |view_model| view_model.close_tab_by_id(tab_id)) {
-            self.project_active_request(cx);
+            self.project_active_request(window, cx);
         }
     }
 
@@ -194,7 +216,7 @@ impl RequestWorkspace {
         let Some(active_tab_id) = self.view_model.read(cx).active_tab_id() else {
             return;
         };
-        self.close_request_tab(active_tab_id, cx);
+        self.close_request_tab(active_tab_id, window, cx);
         self.focus_active_request_tab(window, cx);
     }
 
@@ -216,16 +238,21 @@ impl RequestWorkspace {
             let next = (active_index as isize + delta).rem_euclid(count as isize) as usize;
             view_model.tabs()[next].tab_id()
         };
-        self.activate_request_tab(tab_id, cx);
+        self.activate_request_tab(tab_id, window, cx);
         self.focus_active_request_tab(window, cx);
     }
 
-    pub(super) fn load_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {
+    pub(super) fn load_history_entry(
+        &mut self,
+        entry: &HistoryEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(send_id) = self.view_model.read(cx).active_send_id() {
             self.cancel_send(send_id, cx);
         }
         if self.update_view_model(cx, |view_model| view_model.load_history_entry(entry)) {
-            self.project_active_request(cx);
+            self.project_active_request(window, cx);
         }
     }
 

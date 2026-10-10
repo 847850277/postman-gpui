@@ -18,7 +18,9 @@ fn home_cards_and_navigation_support_native_keyboard_and_shared_theme(cx: &mut T
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
     let (_, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     assert!(cx.debug_bounds("home-screen").is_some());
     assert!(cx.debug_bounds("home-empty-requests").is_some());
@@ -71,7 +73,9 @@ fn hidden_http_does_not_accept_input_or_commands_and_recent_rows_reuse_tabs(
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
     let (_, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     click(cx, "home-open-http").unwrap();
     replace_text(cx, "url-input", "https://example.test/first").unwrap();
@@ -157,7 +161,9 @@ fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestApp
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
     let (_, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(observed, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
     });
     click(cx, "nav-http").unwrap();
     replace_text(cx, "url-input", &url).unwrap();
@@ -193,7 +199,9 @@ fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestApp
 fn shell_geometry_in_both_themes_at_reference_and_minimum_sizes(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| PostmanApp::with_view_model(model, cx))
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(model, window, cx)
+        })
     });
     for scale in [1., 2.] {
         for mode in [ThemeMode::Light, ThemeMode::Dark] {

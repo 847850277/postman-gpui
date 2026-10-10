@@ -56,8 +56,8 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -133,8 +133,8 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -211,8 +211,8 @@ fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -285,8 +285,8 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
     let observed = workspace.clone();
     let app_database_path = database_path.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -352,8 +352,8 @@ fn corrupt_database_shows_unavailable_state_without_an_in_memory_fallback(cx: &m
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, database_path, window, cx)
         })
     });
     ui::open_http(cx);

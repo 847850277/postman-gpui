@@ -47,8 +47,8 @@ fn launch_app<'a>(
     let observed = workspace.clone();
     let app_database_path = database_path.to_path_buf();
     let (app, cx) = cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_database_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_database_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -310,7 +310,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     assert!(cx.debug_bounds("headers-enabled-count").is_some());
     click(cx, "request-pane-authorization").unwrap();
     assert!(cx.debug_bounds("authorization-input").is_some());
-    assert!(cx.debug_bounds("authorization-ready-indicator").is_some());
+    assert!(cx.debug_bounds("authorization-status").is_some());
     click(cx, "request-pane-body").unwrap();
 
     // The search editor precedes History rows in the focus order. Tab focuses the first row;

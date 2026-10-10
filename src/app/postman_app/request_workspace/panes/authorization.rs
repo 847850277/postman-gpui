@@ -1,17 +1,14 @@
 use crate::{
-    app::{ActivateControl, AuthorizationKind, RequestViewModel, WorkspaceViewModel},
+    app::{AuthorizationKind, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
-        theme::{
-            ACCENT, ACCENT_DARK, ACCENT_SOFT, CODE_PANEL, FONT_MONO, FONT_UI, INFO, INFO_SOFT,
-            LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
-        },
+        theme::{ACCENT, ACCENT_DARK, ACCENT_SOFT, LINE, MUTED, PANEL, PANEL_ALT, TEXT},
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    actions, div, prelude::FluentBuilder, AppContext, Context, Entity, FocusHandle,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement,
+    Styled, Subscription, Window,
 };
 
 actions!(
@@ -45,8 +42,11 @@ impl AuthorizationPane {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys(setup_authorization_kind_key_bindings());
-        let authorization_input =
-            cx.new(|cx| HeaderInput::new(cx).with_placeholder("Token or Bearer token"));
+        let authorization_input = cx.new(|cx| {
+            HeaderInput::new(cx)
+                .with_placeholder("Token or Bearer token")
+                .with_embedded_chrome(true)
+        });
         let basic_username_input = cx.new(|cx| {
             HeaderInput::new(cx)
                 .with_placeholder("Username")
@@ -159,418 +159,74 @@ impl AuthorizationPane {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        let (
-            authorization_kind,
-            normalized_token,
-            header_preview,
-            basic_username_saved,
-            basic_password_saved,
-            auth_ready,
-        ) = {
-            let view_model = self.view_model.read(cx);
-            let active = view_model.active_request();
-            let authorization_kind = active.map_or(AuthorizationKind::Bearer, |request| {
-                request.authorization_kind()
-            });
-            let normalized_token = active
-                .map(RequestViewModel::normalized_bearer_token)
-                .unwrap_or_default();
-            let header_preview = active.and_then(RequestViewModel::authorization_header_preview);
-            let basic_username_saved =
-                active.is_some_and(|request| !request.basic_username().is_empty());
-            let basic_password_saved =
-                active.is_some_and(|request| !request.basic_password().is_empty());
-            let auth_ready = match authorization_kind {
-                AuthorizationKind::Bearer => !normalized_token.is_empty(),
-                AuthorizationKind::Basic => basic_username_saved && basic_password_saved,
-            };
-            (
-                authorization_kind,
-                normalized_token,
-                header_preview,
-                basic_username_saved,
-                basic_password_saved,
-                auth_ready,
-            )
+        use crate::ui::theme::metrics as m;
+        let model = self.view_model.read(cx);
+        let Some(request) = model.active_request() else {
+            return div().into_any_element();
         };
-        let editor = match authorization_kind {
-            AuthorizationKind::Bearer => div()
-                .flex_1()
-                .min_h_0()
-                .flex()
-                .flex_col()
-                .gap_2()
-                .p_3()
-                .child(
-                    div()
-                        .h(px(48.0))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .px_3()
-                        .rounded_lg()
-                        .border_1()
-                        .border_color(LINE.resolve(cx))
-                        .bg(PANEL_ALT.resolve(cx))
-                        .child(
-                            div()
-                                .w(px(120.0))
-                                .flex_none()
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::BOLD)
-                                .text_size(px(12.0))
-                                .text_color(INFO.resolve(cx))
-                                .child("Bearer token"),
-                        )
-                        .child(
-                            div()
-                                .debug_selector(|| "authorization-input".into())
-                                .h(px(34.0))
-                                .min_w_0()
-                                .flex_1()
-                                .child(self.authorization_input.clone()),
-                        )
-                        .child(
-                            div()
-                                .h(px(24.0))
-                                .px_2()
-                                .flex_none()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg(OK_SOFT.resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color(OK.resolve(cx))
-                                .child("LIVE · SAVED"),
-                        ),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_h_0()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .px_3()
-                        .rounded_lg()
-                        .border_1()
-                        .border_color(LINE.resolve(cx))
-                        .bg(INFO_SOFT.resolve(cx))
-                        .child(
-                            div()
-                                .w(px(190.0))
-                                .min_w_0()
-                                .flex_none()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .font_family(FONT_UI)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_size(px(9.0))
-                                        .text_color(INFO.resolve(cx))
-                                        .child("NORMALIZED TOKEN"),
-                                )
-                                .child(
-                                    div()
-                                        .debug_selector(|| "authorization-normalized-token".into())
-                                        .overflow_hidden()
-                                        .font_family(FONT_MONO)
-                                        .text_size(px(11.0))
-                                        .text_color((if auth_ready { TEXT } else { MUTED }).resolve(cx))
-                                        .child(if normalized_token.is_empty() {
-                                            "—".to_string()
-                                        } else {
-                                            normalized_token
-                                        }),
-                                )
-                                .child(
-                                    div()
-                                        .font_family(FONT_UI)
-                                        .text_size(px(9.0))
-                                        .text_color(SUBTEXT.resolve(cx))
-                                        .child("Optional Bearer prefix removed once"),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .flex_none()
-                                .font_family(FONT_UI)
-                                .text_size(px(16.0))
-                                .text_color(INFO.resolve(cx))
-                                .child("→"),
-                        )
-                        .child(
-                            div()
-                                .min_w_0()
-                                .flex_1()
-                                .flex()
-                                .flex_col()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .font_family(FONT_UI)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_size(px(9.0))
-                                        .text_color(INFO.resolve(cx))
-                                        .child("OUTGOING HEADER"),
-                                )
-                                .child(
-                                    div()
-                                        .debug_selector(|| "authorization-header-preview".into())
-                                        .overflow_hidden()
-                                        .font_family(FONT_MONO)
-                                        .text_size(px(11.0))
-                                        .text_color((if auth_ready { TEXT } else { MUTED }).resolve(cx))
-                                        .child(header_preview.unwrap_or_else(|| {
-                                            "Authorization header will appear here".to_string()
-                                        })),
-                                )
-                                .child(
-                                    div()
-                                        .font_family(FONT_UI)
-                                        .text_size(px(9.0))
-                                        .text_color(SUBTEXT.resolve(cx))
-                                        .child("One canonical header · no duplicated prefix"),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .h(px(24.0))
-                                .px_2()
-                                .flex_none()
-                                .flex()
-                                .items_center()
-                                .rounded_lg()
-                                .bg((if auth_ready { OK_SOFT } else { PANEL }).resolve(cx))
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(9.0))
-                                .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
-                                .child(if auth_ready { "1 PREFIX" } else { "WAITING" }),
-                        ),
-                )
-                .into_any_element(),
-            AuthorizationKind::Basic => div()
-                .debug_selector(|| "basic-auth-credentials".into())
-                .flex_1()
-                .min_h_0()
-                .flex()
-                .flex_col()
-                .gap_2()
-                .px_3()
-                .child(
-                    div()
-                        .h(px(20.0))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .font_family(FONT_UI)
-                        .child(
-                            div()
-                                .font_weight(FontWeight::BOLD)
-                                .text_size(px(12.0))
-                                .text_color(TEXT.resolve(cx))
-                                .child("Basic Auth credentials"),
-                        )
-                        .child(
-                            div()
-                                .debug_selector(|| "basic-auth-password-masked".into())
-                                .text_size(px(10.0))
-                                .text_color(SUBTEXT.resolve(cx))
-                                .child("Password remains masked in the View"),
-                        ),
-                )
-                .child(
-                    div()
-                        .h(px(72.0))
-                        .flex_none()
-                        .flex()
-                        .gap_3()
-                        .child(Self::render_basic_auth_field(
-                            "Username",
-                            "basic-auth-username-field",
-                            "basic-auth-username-input",
-                            "basic-auth-username-saved",
-                            self.basic_username_input.clone(),
-                            basic_username_saved, cx))
-                        .child(Self::render_basic_auth_field(
-                            "Password",
-                            "basic-auth-password-field",
-                            "basic-auth-password-input",
-                            "basic-auth-password-saved",
-                            self.basic_password_input.clone(),
-                            basic_password_saved, cx)),
-                )
-                .child(
-                    div()
-                        .debug_selector(|| "basic-auth-header-preview".into())
-                        .h(px(58.0))
-                        .flex_none()
-                        .flex()
-                        .flex_col()
-                        .justify_center()
-                        .gap_1()
-                        .px_3()
-                        .rounded_lg()
-                        .border_1()
-                        .border_color(INFO.resolve(cx))
-                        .bg(INFO_SOFT.resolve(cx))
-                        .child(
-                            div()
-                                .font_family(FONT_UI)
-                                .font_weight(FontWeight::BOLD)
-                                .text_size(px(9.0))
-                                .text_color(INFO.resolve(cx))
-                                .child("OUTGOING HEADER · ONE CANONICAL VALUE"),
-                        )
-                        .child(
-                            div()
-                                .min_w_0()
-                                .overflow_hidden()
-                                .font_family(FONT_MONO)
-                                .text_size(px(11.0))
-                                .text_color((if header_preview.is_some() {
-                                    TEXT
-                                } else {
-                                    MUTED
-                                }).resolve(cx))
-                                .child(header_preview.unwrap_or_else(|| {
-                                    "Authorization header will appear here".to_string()
-                                })),
-                        ),
-                )
-                .child(
-                    div()
-                        .debug_selector(|| "basic-auth-projection-note".into())
-                        .h(px(20.0))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .font_family(FONT_UI)
-                        .text_size(px(10.0))
-                        .text_color(SUBTEXT.resolve(cx))
-                        .child(div().text_color(OK.resolve(cx)).child("●"))
-                        .child(
-                            "View fields → RequestViewModel → Basic encoder; no blur, Enter, or Tab required.",
-                        ),
-                )
-                .into_any_element(),
-        };
-        let (mode_label, ready_message) = match authorization_kind {
-            AuthorizationKind::Bearer => (
-                "Bearer Token",
-                if auth_ready {
-                    "Ready to send — the active token is already in the ViewModel"
-                } else {
-                    "Enter a token — input is saved to the ViewModel as you type"
-                },
-            ),
-            AuthorizationKind::Basic => (
-                "Basic Auth",
-                if auth_ready {
-                    "Ready to send — the active password is already in the ViewModel"
-                } else {
-                    "Enter username and password — each input is saved as you type"
-                },
-            ),
-        };
-
-        div()
-            .flex_1()
-            .min_h_0()
+        let kind = request.authorization_kind();
+        let ready = request.authorization_header_preview().is_some();
+        let basic = kind == AuthorizationKind::Basic;
+        let mut fields = div()
+            .debug_selector(|| "authorization-fields".into())
             .flex()
             .flex_col()
-            .bg(PANEL.resolve(cx))
-            .child(
+            .gap_4();
+        if basic {
+            fields = fields.child(
                 div()
-                    .debug_selector(|| "authorization-summary".into())
-                    .h(px(42.0))
-                    .flex_none()
+                    .debug_selector(|| "basic-auth-credentials".into())
                     .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .px_3()
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .font_family(FONT_UI)
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_size(px(12.0))
-                                    .text_color(TEXT.resolve(cx))
-                                    .child("Authorization"),
-                            )
-                            .child(
-                                div()
-                                    .overflow_hidden()
-                                    .text_size(px(11.0))
-                                    .text_color(SUBTEXT.resolve(cx))
-                                    .child("Managed header · saved as you type"),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .debug_selector(|| "authorization-status".into())
-                            .h(px(24.0))
-                            .px_2()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .rounded_lg()
-                            .bg((if auth_ready { OK_SOFT } else { PANEL_ALT }).resolve(cx))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(px(10.0))
-                            .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
-                            .child(if auth_ready { "●" } else { "○" })
-                            .child(format!(
-                                "{} · {}",
-                                mode_label,
-                                if auth_ready { "ready" } else { "empty" }
-                            )),
-                    ),
-            )
+                    .gap_4()
+                    .child(Self::render_auth_field(
+                        "Username",
+                        "basic-auth-username-input",
+                        self.basic_username_input.clone(),
+                        cx,
+                    ))
+                    .child(Self::render_auth_field(
+                        "Password",
+                        "basic-auth-password-input",
+                        self.basic_password_input.clone(),
+                        cx,
+                    )),
+            );
+        } else {
+            fields = fields.child(Self::render_auth_field(
+                "Token",
+                "authorization-input",
+                self.authorization_input.clone(),
+                cx,
+            ));
+        }
+        div()
+            .id("authorization-scroll")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .px_7()
+            .py_4()
+            .flex()
+            .flex_col()
+            .gap_4()
             .child(
                 div()
                     .debug_selector(|| "authorization-kind-selector".into())
-                    .h(px(44.0))
-                    .flex_none()
                     .flex()
                     .items_center()
-                    .gap_2()
-                    .px_3()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
+                    .gap_4()
+                    .text_size(m::LABEL)
                     .child(
                         div()
-                            .mr_2()
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::BOLD)
-                            .text_size(px(10.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("AUTH TYPE"),
+                            .w(gpui::rems(7.))
+                            .text_color(MUTED.resolve(cx))
+                            .child("Auth type"),
                     )
                     .child(self.render_authorization_kind_button(
                         AuthorizationKind::Bearer,
                         "Bearer Token",
                         "auth-kind-bearer",
-                        authorization_kind == AuthorizationKind::Bearer,
+                        !basic,
                         window,
                         cx,
                     ))
@@ -578,43 +234,73 @@ impl AuthorizationPane {
                         AuthorizationKind::Basic,
                         "Basic Auth",
                         "auth-kind-basic",
-                        authorization_kind == AuthorizationKind::Basic,
+                        basic,
                         window,
                         cx,
                     )),
             )
-            .child(editor)
+            .child(fields)
             .child(
                 div()
-                    .debug_selector(|| "authorization-ready-indicator".into())
-                    .h(px(34.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .border_t_1()
-                    .border_color(LINE.resolve(cx))
-                    .font_family(FONT_UI)
-                    .text_size(px(10.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(
-                        div()
-                            .text_color((if auth_ready { OK } else { MUTED }).resolve(cx))
-                            .child(if auth_ready { "✓" } else { "○" }),
-                    )
-                    .child(ready_message),
+                    .debug_selector(|| "authorization-status".into())
+                    .text_size(m::LABEL)
+                    .text_color(MUTED.resolve(cx))
+                    .child(if ready {
+                        "Authorization is added to this request automatically."
+                    } else {
+                        "Enter credentials to add an Authorization header."
+                    }),
             )
+            .when(basic, |pane| {
+                pane.child(
+                    div()
+                        .debug_selector(|| "basic-auth-password-masked".into())
+                        .text_size(m::CAPTION)
+                        .text_color(MUTED.resolve(cx))
+                        .child("Password is hidden."),
+                )
+            })
             .into_any_element()
     }
 
+    fn render_auth_field(
+        label: &'static str,
+        selector: &'static str,
+        input: Entity<HeaderInput>,
+        cx: &gpui::App,
+    ) -> impl IntoElement {
+        use crate::ui::theme::metrics as m;
+        div()
+            .flex_1()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .child(
+                div()
+                    .text_size(m::LABEL)
+                    .text_color(TEXT.resolve(cx))
+                    .child(label),
+            )
+            .child(
+                div()
+                    .debug_selector(move || selector.into())
+                    .h(m::TABLE_ROW)
+                    .px_3()
+                    .border_1()
+                    .border_color(LINE.resolve(cx))
+                    .rounded(m::RADIUS)
+                    .bg(PANEL_ALT.resolve(cx))
+                    .child(input),
+            )
+    }
     fn render_authorization_kind_button(
         &self,
         kind: AuthorizationKind,
         label: &'static str,
         selector: &'static str,
         selected: bool,
-        window: &Window,
+        _window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let index = match kind {
@@ -622,41 +308,29 @@ impl AuthorizationPane {
             AuthorizationKind::Basic => 1,
         };
         let focus_handle = self.kind_focus_handles[index].clone();
-        let mouse_focus_handle = focus_handle.clone();
-        let focused = focus_handle.is_focused(window);
-        div()
-            .id(selector)
+        let on_select = cx.listener(move |this, _: &gpui::ClickEvent, _, cx| {
+            this.set_authorization_kind(kind, cx)
+        });
+        gpui_kit::base::Radio::new(selector)
             .debug_selector(move || selector.into())
+            .checked(selected)
+            .accessibility_label(label)
             .track_focus(&focus_handle)
-            .key_context("KeyboardButton AuthorizationKind")
-            .role(Role::RadioButton)
-            .aria_label(label)
-            .aria_selected(selected)
-            .h(px(30.0))
+            .key_context("AuthorizationKind")
+            .h(gpui::rems(2.))
             .px_3()
             .flex()
             .items_center()
-            .rounded_md()
+            .gap_2()
+            .rounded(crate::ui::theme::metrics::RADIUS)
             .border_1()
             .border_color((if selected { ACCENT } else { LINE }).resolve(cx))
-            .bg((if selected { ACCENT_SOFT } else { CODE_PANEL }).resolve(cx))
-            .font_family(FONT_UI)
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_size(px(12.0))
+            .bg((if selected { ACCENT_SOFT } else { PANEL }).resolve(cx))
+            .text_size(crate::ui::theme::metrics::LABEL)
             .text_color((if selected { ACCENT_DARK } else { MUTED }).resolve(cx))
-            .cursor_pointer()
-            .hover(|style| {
-                style
-                    .border_color(ACCENT.resolve(cx))
-                    .text_color(ACCENT_DARK.resolve(cx))
-            })
-            .when(focused, |button| {
-                button.border_2().border_color(INFO.resolve(cx))
-            })
+            .focus_visible(|s| s.border_color(ACCENT.resolve(cx)))
             .child(label)
-            .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
-                this.set_authorization_kind(kind, cx)
-            }))
+            .on_change(move |_, event, window, cx| on_select(event, window, cx))
             .on_action(
                 cx.listener(move |this, _: &NextAuthorizationKind, window, cx| {
                     this.select_relative_authorization_kind(kind, 1, window, cx)
@@ -665,13 +339,6 @@ impl AuthorizationPane {
             .on_action(
                 cx.listener(move |this, _: &PreviousAuthorizationKind, window, cx| {
                     this.select_relative_authorization_kind(kind, -1, window, cx)
-                }),
-            )
-            .on_mouse_up(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    mouse_focus_handle.focus(window, cx);
-                    this.set_authorization_kind(kind, cx);
                 }),
             )
     }
@@ -696,71 +363,7 @@ impl AuthorizationPane {
         self.kind_focus_handles[next].focus(window, cx);
         self.set_authorization_kind(kind, cx);
     }
-
-    fn render_basic_auth_field(
-        label: &'static str,
-        field_selector: &'static str,
-        input_selector: &'static str,
-        saved_selector: &'static str,
-        input: Entity<HeaderInput>,
-        saved: bool,
-        cx: &gpui::App,
-    ) -> impl IntoElement {
-        div()
-            .debug_selector(move || field_selector.into())
-            .min_w_0()
-            .flex_1()
-            .flex()
-            .flex_col()
-            .gap_1()
-            .child(
-                div()
-                    .font_family(FONT_UI)
-                    .font_weight(FontWeight::BOLD)
-                    .text_size(px(9.0))
-                    .text_color(SUBTEXT.resolve(cx))
-                    .child(label.to_ascii_uppercase()),
-            )
-            .child(
-                div()
-                    .h(px(48.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .px_3()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(INFO.resolve(cx))
-                    .bg(PANEL.resolve(cx))
-                    .child(
-                        div()
-                            .debug_selector(move || input_selector.into())
-                            .min_w_0()
-                            .h(px(34.0))
-                            .flex_1()
-                            .child(input),
-                    )
-                    .child(
-                        div()
-                            .debug_selector(move || saved_selector.into())
-                            .h(px(24.0))
-                            .px_2()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .rounded_lg()
-                            .bg((if saved { OK_SOFT } else { PANEL_ALT }).resolve(cx))
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(px(9.0))
-                            .text_color((if saved { OK } else { MUTED }).resolve(cx))
-                            .child(if saved { "SAVED" } else { "EMPTY" }),
-                    ),
-            )
-    }
 }
-
 impl Render for AuthorizationPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.render_authorization_editor(window, cx)

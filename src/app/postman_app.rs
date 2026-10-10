@@ -72,17 +72,27 @@ pub struct PostmanApp {
 }
 
 impl PostmanApp {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let view_model = cx.new(|_| WorkspaceViewModel::new());
-        Self::compose(view_model, SqliteHistoryRepository::production(), None, cx)
+        Self::compose(
+            view_model,
+            SqliteHistoryRepository::production(),
+            None,
+            window,
+            cx,
+        )
     }
 
     /// Dependency-injected constructor used by app hosts and black-box UI tests that need to
     /// observe the ViewModel without mutating the View through a second command surface.
-    pub fn with_view_model(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+    pub fn with_view_model(
+        view_model: Entity<WorkspaceViewModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let temporary_database = TemporaryHistoryDatabase::new();
         let repository = SqliteHistoryRepository::new(temporary_database.path());
-        Self::compose(view_model, repository, Some(temporary_database), cx)
+        Self::compose(view_model, repository, Some(temporary_database), window, cx)
     }
 
     /// Construct the application around an explicit file-backed SQLite database. This is useful
@@ -90,15 +100,23 @@ impl PostmanApp {
     pub fn with_view_model_and_history_path(
         view_model: Entity<WorkspaceViewModel>,
         path: impl Into<PathBuf>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        Self::compose(view_model, SqliteHistoryRepository::new(path), None, cx)
+        Self::compose(
+            view_model,
+            SqliteHistoryRepository::new(path),
+            None,
+            window,
+            cx,
+        )
     }
 
     fn compose(
         view_model: Entity<WorkspaceViewModel>,
         repository: Result<SqliteHistoryRepository, crate::persistence::HistoryRepositoryError>,
         temporary_history_database: Option<TemporaryHistoryDatabase>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys(setup_application_key_bindings());
@@ -118,7 +136,7 @@ impl PostmanApp {
                 None
             }
         };
-        let request_workspace = cx.new(|cx| RequestWorkspace::new(view_model.clone(), cx));
+        let request_workspace = cx.new(|cx| RequestWorkspace::new(view_model.clone(), window, cx));
         let runner_history_worker = history_worker.clone();
         let request_runner = cx.new(move |_| RequestRunner::new(runner_history_worker));
         let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), cx));
@@ -132,7 +150,7 @@ impl PostmanApp {
         cx.bind_keys(setup_global_search_key_bindings());
         let subscriptions = vec![
             cx.subscribe(&request_workspace, Self::on_request_workspace_event),
-            cx.subscribe(&history_list, Self::on_history_selected),
+            cx.subscribe_in(&history_list, window, Self::on_history_selected),
             cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
             cx.subscribe(&global_search_input, Self::on_global_search_input_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
@@ -252,14 +270,16 @@ impl PostmanApp {
 
     fn on_history_selected(
         &mut self,
-        _list: Entity<HistoryList>,
+        _list: &Entity<HistoryList>,
         event: &HistoryListEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
             HistoryListEvent::RequestSelected(entry) => {
-                self.request_workspace
-                    .update(cx, |workspace, cx| workspace.load_history_entry(entry, cx));
+                self.request_workspace.update(cx, |workspace, cx| {
+                    workspace.load_history_entry(entry, window, cx)
+                });
             }
             HistoryListEvent::RefreshRequested => self.refresh_history(cx),
             HistoryListEvent::ClearRequested => self.clear_history(cx),
@@ -303,9 +323,9 @@ impl PostmanApp {
         );
     }
 
-    fn new_request(&mut self, cx: &mut Context<Self>) {
+    fn new_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.request_workspace
-            .update(cx, RequestWorkspace::new_request);
+            .update(cx, |workspace, cx| workspace.new_request(window, cx));
     }
 
     fn resize_history_panel(

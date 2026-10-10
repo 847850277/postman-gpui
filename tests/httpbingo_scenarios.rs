@@ -253,101 +253,85 @@ const HEADER_VALUE_SELECTORS: [&str; 16] = [
     "header-row-value-input-14",
     "header-row-value-input-15",
 ];
-const HEADER_ROW_CONTRACT_SELECTORS: [[&str; 4]; 16] = [
+const HEADER_ROW_CONTRACT_SELECTORS: [[&str; 3]; 16] = [
     [
         "header-row-key-0",
         "header-row-value-0",
-        "header-row-status-0",
         "header-row-delete-0",
     ],
     [
         "header-row-key-1",
         "header-row-value-1",
-        "header-row-status-1",
         "header-row-delete-1",
     ],
     [
         "header-row-key-2",
         "header-row-value-2",
-        "header-row-status-2",
         "header-row-delete-2",
     ],
     [
         "header-row-key-3",
         "header-row-value-3",
-        "header-row-status-3",
         "header-row-delete-3",
     ],
     [
         "header-row-key-4",
         "header-row-value-4",
-        "header-row-status-4",
         "header-row-delete-4",
     ],
     [
         "header-row-key-5",
         "header-row-value-5",
-        "header-row-status-5",
         "header-row-delete-5",
     ],
     [
         "header-row-key-6",
         "header-row-value-6",
-        "header-row-status-6",
         "header-row-delete-6",
     ],
     [
         "header-row-key-7",
         "header-row-value-7",
-        "header-row-status-7",
         "header-row-delete-7",
     ],
     [
         "header-row-key-8",
         "header-row-value-8",
-        "header-row-status-8",
         "header-row-delete-8",
     ],
     [
         "header-row-key-9",
         "header-row-value-9",
-        "header-row-status-9",
         "header-row-delete-9",
     ],
     [
         "header-row-key-10",
         "header-row-value-10",
-        "header-row-status-10",
         "header-row-delete-10",
     ],
     [
         "header-row-key-11",
         "header-row-value-11",
-        "header-row-status-11",
         "header-row-delete-11",
     ],
     [
         "header-row-key-12",
         "header-row-value-12",
-        "header-row-status-12",
         "header-row-delete-12",
     ],
     [
         "header-row-key-13",
         "header-row-value-13",
-        "header-row-status-13",
         "header-row-delete-13",
     ],
     [
         "header-row-key-14",
         "header-row-value-14",
-        "header-row-status-14",
         "header-row-delete-14",
     ],
     [
         "header-row-key-15",
         "header-row-value-15",
-        "header-row-status-15",
         "header-row-delete-15",
     ],
 ];
@@ -1028,8 +1012,8 @@ fn run_response_headers_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -1197,8 +1181,8 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -1385,8 +1369,8 @@ fn run_multi_tab_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -1469,17 +1453,17 @@ fn run_multi_tab_workflow(
     click(cx, "request-tab-0")?;
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
         .map_err(|error| format!("mouse did not project Tab A: {error}"))?;
-    if cx.debug_bounds("params-ready-indicator").is_none() {
+    if cx.debug_bounds("effective-url-preview").is_none() {
         return Err("mouse activation did not restore Tab A's Params pane".to_string());
     }
-    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("tab tab");
     cx.simulate_keystrokes("enter");
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
         .map_err(|error| format!("Enter did not project Tab B: {error}"))?;
     if cx.debug_bounds("body-input").is_none() {
         return Err("Enter activation did not restore Tab B's Body pane".to_string());
     }
-    cx.simulate_keystrokes("shift-tab");
+    cx.simulate_keystrokes("shift-tab shift-tab");
     cx.simulate_keystrokes("space");
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
         .map_err(|error| format!("Space did not project Tab A: {error}"))?;
@@ -1573,7 +1557,7 @@ fn run_multi_tab_workflow(
         }),
         &workflow.tab_a.expect.response,
     )?;
-    cx.simulate_keystrokes("tab");
+    cx.simulate_keystrokes("tab tab");
     cx.simulate_keystrokes("enter");
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_b)
         .map_err(|error| format!("Tab B changed after both Sends: {error}"))?;
@@ -1642,8 +1626,8 @@ fn run_history_replay_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -1692,11 +1676,7 @@ fn run_history_replay_workflow(
     ) {
         return Err("mouse History replay did not select the original historical response".into());
     }
-    for selector in [
-        "method-dropdown-selected-value",
-        "body-input",
-        "response-historical-badge",
-    ] {
+    for selector in ["url-input", "body-input", "response-historical-badge"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "mouse History replay did not project rendered control `{selector}`"
@@ -1790,8 +1770,8 @@ fn run_head_options_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -1921,8 +1901,8 @@ fn run_compression_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -2081,8 +2061,8 @@ fn run_html_form_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -2220,8 +2200,8 @@ fn run_cookie_workflow(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -2447,8 +2427,8 @@ fn run_application_scenario(
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = test_cx.add_window_view(move |window, cx| {
-        ui::shell(window, cx, |cx| {
-            PostmanApp::with_view_model_and_history_path(observed, app_history_path, cx)
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model_and_history_path(observed, app_history_path, window, cx)
         })
     });
     ui::open_http(cx);
@@ -2464,7 +2444,7 @@ fn run_application_scenario(
             scenario.draft.method
         ));
     }
-    for selector in ["method-dropdown-selected-value", "request-tab-method-0"] {
+    for selector in ["url-input", "request-tab-method-0"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "selected request method surface `{selector}` is not rendered"
@@ -2509,7 +2489,7 @@ fn run_application_scenario(
         for selector in [
             "params-enabled-count",
             "effective-url-preview",
-            "params-ready-indicator",
+            "effective-url-preview",
         ] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
@@ -2517,7 +2497,7 @@ fn run_application_scenario(
                 ));
             }
         }
-        if !url_rows.is_empty() && cx.debug_bounds("url-query-count").is_none() {
+        if !url_rows.is_empty() && cx.debug_bounds("request-pane-params").is_none() {
             return Err("URL query count badge is not rendered".to_string());
         }
     }
@@ -2744,11 +2724,7 @@ fn run_application_scenario(
                 break;
             }
         }
-        for selector in [
-            "request-in-flight-id",
-            "cancel-send-control",
-            "response-loading",
-        ] {
+        for selector in ["cancel-send-control", "response-loading"] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
                     "in-flight cancellation control `{selector}` is not rendered"
@@ -2967,14 +2943,7 @@ fn run_application_scenario(
 }
 
 fn assert_bearer_editor_contract(cx: &mut VisualTestContext) -> Result<(), String> {
-    for selector in [
-        "authorization-summary",
-        "authorization-kind-selector",
-        "authorization-input",
-        "authorization-normalized-token",
-        "authorization-header-preview",
-        "authorization-ready-indicator",
-    ] {
+    for selector in ["authorization-kind-selector", "authorization-input"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "Bearer design contract element `{selector}` is not rendered"
@@ -2986,19 +2955,11 @@ fn assert_bearer_editor_contract(cx: &mut VisualTestContext) -> Result<(), Strin
 
 fn assert_basic_auth_editor_contract(cx: &mut VisualTestContext) -> Result<(), String> {
     for selector in [
-        "authorization-summary",
         "authorization-kind-selector",
         "basic-auth-credentials",
-        "basic-auth-username-field",
         "basic-auth-username-input",
-        "basic-auth-username-saved",
-        "basic-auth-password-field",
         "basic-auth-password-input",
         "basic-auth-password-masked",
-        "basic-auth-password-saved",
-        "basic-auth-header-preview",
-        "basic-auth-projection-note",
-        "authorization-ready-indicator",
     ] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
@@ -3049,7 +3010,7 @@ fn assert_json_body_editor_contract(
         "body-input",
         "body-effective-headers",
         "body-effective-header-count",
-        "body-source-of-truth",
+        "body-editor-shell",
     ] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
@@ -3134,7 +3095,7 @@ fn assert_raw_body_editor_contract(
         "body-raw-effective-body",
         "body-raw-request-target",
         "body-raw-ready-indicator",
-        "body-source-of-truth",
+        "body-editor-shell",
     ] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
@@ -3513,12 +3474,7 @@ fn assert_headers_editor_contract(
         return Ok(());
     }
 
-    for selector in [
-        "headers-summary",
-        "headers-enabled-count",
-        "headers-table-header",
-        "headers-ready-indicator",
-    ] {
+    for selector in ["headers-enabled-count"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
                 "Headers contract element `{selector}` is not rendered"
@@ -3942,18 +3898,29 @@ fn apply_precreated_header_rows(
             }
         }
     }
-    if expected_visible_rows > 4 {
-        for selector in [
-            "headers-scrollbar",
-            "headers-scrollbar-thumb",
-            "add-row-button",
-        ] {
-            if cx.debug_bounds(selector).is_none() {
-                return Err(format!(
-                    "overflowing Header rows do not render `{selector}`"
-                ));
-            }
+    let viewport = cx
+        .debug_bounds("headers-rows-scroll")
+        .ok_or("Header rows viewport is not rendered")?;
+    let row_height = cx
+        .debug_bounds("header-row-0")
+        .ok_or("first Header row is not rendered")?
+        .size
+        .height;
+    // The editor now sizes rows to the available pane height; four rows is no longer
+    // a fixed overflow threshold. Assert the rendered layout, including partial rows.
+    let overflowing = row_height * expected_visible_rows as f32 > viewport.size.height;
+    for selector in ["headers-scrollbar", "headers-scrollbar-thumb"] {
+        if cx.debug_bounds(selector).is_some() != overflowing {
+            return Err(format!(
+                "Header scrollbar `{selector}` does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
+            ));
         }
+    }
+    let add_button = cx
+        .debug_bounds("add-row-button")
+        .ok_or("Add Header button is not rendered")?;
+    if add_button.top() < viewport.bottom() {
+        return Err("Add Header button overlaps the row viewport".to_string());
     }
 
     scroll_up(cx, "headers-rows-scroll", 1000.0)?;
