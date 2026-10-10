@@ -16,6 +16,7 @@ use gpui_kit::{
     assets::IconName,
     base::Tab,
     component::{
+        menu::ContextMenuExt,
         scroll::{ScrollableElement, ScrollbarAxis},
         Icon,
     },
@@ -32,9 +33,7 @@ use headers::render_response_headers;
 use crate::{
     app::{ActivateControl, CookieJarEntry, ResponseState, WorkspaceViewModel},
     models::{HistoricalResponseBody, RedirectHop},
-    ui::components::common::edit_context_menu::{
-        edit_context_menu, EditContextAction, READ_ONLY_ACTIONS,
-    },
+    ui::components::common::edit_context_menu::edit_popup_menu,
     ui::text_editor::{ReadOnlyTextSelection, TextOffset},
     ui::text_layout::{line_ranges, LineRange, MultilineTextLayout},
     ui::theme::{
@@ -176,7 +175,6 @@ pub struct ResponseViewer {
     copy_generation: u64,
     selection: ReadOnlyTextSelection,
     text_layout: Option<MultilineTextLayout>,
-    context_menu_position: Option<Point<Pixels>>,
     _view_model_subscription: Subscription,
 }
 
@@ -223,7 +221,6 @@ impl ResponseViewer {
             copy_generation: 0,
             selection: ReadOnlyTextSelection::new(),
             text_layout: None,
-            context_menu_position: None,
             _view_model_subscription: view_model_subscription,
         }
     }
@@ -270,7 +267,6 @@ impl ResponseViewer {
         }
         self.active_tab = active;
         self.text_layout = None;
-        self.context_menu_position = None;
     }
 
     fn set_pretty(&mut self, pretty: bool, cx: &mut Context<Self>) {
@@ -409,7 +405,6 @@ impl ResponseViewer {
         self.pane = pane;
         self.selection.reset_selection();
         self.text_layout = None;
-        self.context_menu_position = None;
         cx.notify();
     }
 
@@ -531,14 +526,13 @@ impl ResponseViewer {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let menu_was_open = self.context_menu_position.take().is_some();
         self.focus_handle.focus(window, cx);
         let offset = self.offset_for_mouse_position(event.position);
         let changed = self
             .selection
             .pointer_down(offset, event.modifiers.shift, event.click_count)
             .unwrap_or(false);
-        if changed || menu_was_open {
+        if changed {
             cx.notify();
         }
     }
@@ -566,17 +560,18 @@ impl ResponseViewer {
         }
     }
 
-    fn open_context_menu(
+    // Kit captures previous focus in its bubble handler. Focus this read-only
+    // editor first, without moving the selection, so Escape returns here too.
+    fn prepare_context_menu(
         &mut self,
         event: &MouseDownEvent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        cx.stop_propagation();
-        self.selection.pointer_up();
-        self.context_menu_position = Some(event.position);
-        self.focus_handle.focus(window, cx);
-        cx.notify();
+        if event.button == MouseButton::Right {
+            self.selection.pointer_up();
+            self.focus_handle.focus(window, cx);
+        }
     }
 
     fn dismiss_context_menu(
@@ -585,33 +580,11 @@ impl ResponseViewer {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let changed = if self.context_menu_position.take().is_some() {
-            true
-        } else {
-            self.selection.clear_selection()
-        };
-        if changed {
+        // When a popup is open Kit consumes Escape; this is the editor's
+        // existing Escape-to-clear-selection behavior after focus returns.
+        if self.selection.clear_selection() {
             cx.notify();
         }
-    }
-
-    fn handle_context_menu_action(
-        &mut self,
-        action: EditContextAction,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match action {
-            EditContextAction::Copy => self.copy(&Copy, window, cx),
-            EditContextAction::SelectAll => self.select_all(&SelectAll, window, cx),
-            EditContextAction::Undo
-            | EditContextAction::Redo
-            | EditContextAction::Cut
-            | EditContextAction::Paste
-            | EditContextAction::Dismiss => {}
-        }
-        self.context_menu_position = None;
-        cx.notify();
     }
 
     fn offset_for_mouse_position(&self, position: Point<Pixels>) -> TextOffset {
@@ -644,7 +617,6 @@ impl ResponseViewer {
                 CODE_BG.resolve(cx)
             })
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
-            .on_mouse_down(MouseButton::Right, cx.listener(Self::open_context_menu))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
@@ -677,15 +649,28 @@ impl ResponseViewer {
                         viewer: cx.entity().clone(),
                     }),
             );
+        let menu_focus = self.focus_handle.clone();
         // The scrollbar overlays the viewport, not its scrolling children. Putting
         // it inside `content` moves the track with the document and creates overflow.
         div()
+            .id("response-content-viewport")
             .relative()
             .size_full()
             .min_w_0()
             .min_h_0()
             .child(content)
             .scrollbar(&self.body_scroll, ScrollbarAxis::Both)
+            .capture_any_mouse_down(cx.listener(Self::prepare_context_menu))
+            .context_menu(move |menu, _, _| {
+                edit_popup_menu(
+                    menu,
+                    menu_focus.clone(),
+                    vec![
+                        ("Copy", Box::new(Copy)),
+                        ("Select All", Box::new(SelectAll)),
+                    ],
+                )
+            })
     }
 
     fn render_cookie_content(
@@ -1190,7 +1175,6 @@ impl Render for ResponseViewer {
             self.pane = ResponsePane::Body;
             self.selection.reset_selection();
             self.text_layout = None;
-            self.context_menu_position = None;
         }
         let projection = if self.pane == ResponsePane::Body && !self.pretty {
             self.raw_response_body(cx)
@@ -1203,7 +1187,6 @@ impl Render for ResponseViewer {
             self.text_layout = None;
         }
         let pane = self.pane;
-        let context_menu_position = self.context_menu_position;
         let response_header_count = match &state {
             ResponseState::Success { headers, .. } => headers.len(),
             ResponseState::Historical { response, .. } => response.headers.len(),
@@ -1332,9 +1315,7 @@ impl Render for ResponseViewer {
                     }
                 }
             })
-            .when(context_menu_position.is_none(), |root| {
-                root.overflow_hidden()
-            })
+            .overflow_hidden()
             .child(
                 div()
                     .debug_selector(|| "response-heading".into())
@@ -1722,16 +1703,6 @@ impl Render for ResponseViewer {
                     ))
                     .child("Read only"),
             )
-            .when_some(context_menu_position, |root, position| {
-                root.child(edit_context_menu(
-                    position,
-                    "response-edit-menu",
-                    READ_ONLY_ACTIONS,
-                    Self::handle_context_menu_action,
-                    window,
-                    cx,
-                ))
-            })
     }
 }
 

@@ -69,9 +69,9 @@ impl Focusable for FormBodyInput {
 }
 
 impl FormBodyInput {
-    pub(super) fn new(cx: &mut Context<Self>) -> Self {
+    pub(super) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let entry = FormDataEntry::text("", "", true);
-        let row_editor = Self::new_row_editor(&entry, cx);
+        let row_editor = Self::new_row_editor(&entry, window, cx);
         Self {
             form_data_allows_files: false,
             form_data_scroll: ScrollHandle::new(),
@@ -89,28 +89,35 @@ impl FormBodyInput {
         }
     }
 
-    fn new_row_editor(entry: &FormDataEntry, cx: &mut Context<Self>) -> FormRowEditor {
+    fn new_row_editor(
+        entry: &FormDataEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> FormRowEditor {
         let row_id = TableRowId::next();
         let key_input = cx.new(|cx| {
-            let mut input =
-                TableCellInput::new(TableCellId::new(row_id, TableCellColumn::Key), "Key", cx)
-                    .with_context_menu_id("body-edit-menu");
-            input.project_content(entry.key.clone(), cx);
+            let mut input = TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Key),
+                "Key",
+                window,
+                cx,
+            );
+            input.project_content(entry.key.clone(), window, cx);
             input
         });
         let value_input = cx.new(|cx| {
             let mut input = TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Value),
                 "Value",
+                window,
                 cx,
-            )
-            .with_context_menu_id("body-edit-menu");
-            input.project_content(entry.value.clone(), cx);
+            );
+            input.project_content(entry.value.clone(), window, cx);
             input
         });
         let subscriptions = vec![
-            cx.subscribe(&key_input, Self::on_cell_event),
-            cx.subscribe(&value_input, Self::on_cell_event),
+            cx.subscribe_in(&key_input, window, Self::on_cell_event),
+            cx.subscribe_in(&value_input, window, Self::on_cell_event),
         ];
         FormRowEditor {
             row_id,
@@ -152,9 +159,9 @@ impl FormBodyInput {
             .push(cx.focus_handle().tab_index(0).tab_stop(true));
     }
 
-    fn push_blank_entry(&mut self, cx: &mut Context<Self>) -> TableRowId {
+    fn push_blank_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) -> TableRowId {
         let entry = FormDataEntry::text("", "", true);
-        let editor = Self::new_row_editor(&entry, cx);
+        let editor = Self::new_row_editor(&entry, window, cx);
         let row_id = editor.row_id;
         self.form_data_entries.push(entry);
         self.row_editors.push(editor);
@@ -162,11 +169,11 @@ impl FormBodyInput {
         row_id
     }
 
-    fn rebuild_row_editors(&mut self, cx: &mut Context<Self>) {
+    fn rebuild_row_editors(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let entries = self.form_data_entries.clone();
         self.row_editors = entries
             .iter()
-            .map(|entry| Self::new_row_editor(entry, cx))
+            .map(|entry| Self::new_row_editor(entry, window, cx))
             .collect();
         self.row_toggle_focus_handles = (0..entries.len())
             .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
@@ -187,14 +194,15 @@ impl FormBodyInput {
     fn editor_text_matches(&self, entries: &[FormDataEntry], cx: &App) -> bool {
         self.row_editors.len() == entries.len()
             && self.row_editors.iter().zip(entries).all(|(editor, entry)| {
-                editor.key_input.read(cx).content() == entry.key
-                    && editor.value_input.read(cx).content() == entry.value
+                editor.key_input.read(cx).content(cx) == entry.key
+                    && editor.value_input.read(cx).content(cx) == entry.value
             })
     }
 
     pub(super) fn set_form_data_allows_files(
         &mut self,
         allows_files: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if self.form_data_allows_files == allows_files {
@@ -213,14 +221,14 @@ impl FormBodyInput {
                 }
             }
             for (input, value) in projections {
-                input.update(cx, |input, cx| input.project_content(value, cx));
+                input.update(cx, |input, cx| input.project_content(value, window, cx));
             }
         }
         cx.notify();
     }
 
-    pub(super) fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
-        let row_id = self.push_blank_entry(cx);
+    pub(super) fn add_form_data_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let row_id = self.push_blank_entry(window, cx);
         self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
             row_id,
             TableCellColumn::Key,
@@ -230,7 +238,12 @@ impl FormBodyInput {
         cx.notify();
     }
 
-    pub(super) fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+    pub(super) fn remove_form_data_entry(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if index >= self.form_data_entries.len() {
             return;
         }
@@ -241,7 +254,7 @@ impl FormBodyInput {
         self.row_file_focus_handles.remove(index);
         self.row_delete_focus_handles.remove(index);
         if self.form_data_entries.is_empty() {
-            self.push_blank_entry(cx);
+            self.push_blank_entry(window, cx);
         }
         self.emit_form_data_changed(cx);
         cx.notify();
@@ -255,7 +268,12 @@ impl FormBodyInput {
         }
     }
 
-    fn toggle_form_data_value_kind(&mut self, index: usize, cx: &mut Context<Self>) {
+    fn toggle_form_data_value_kind(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !self.form_data_allows_files || index >= self.form_data_entries.len() {
             return;
         }
@@ -275,7 +293,7 @@ impl FormBodyInput {
         };
         self.row_editors[index]
             .value_input
-            .update(cx, |input, cx| input.project_content(value, cx));
+            .update(cx, |input, cx| input.project_content(value, window, cx));
         self.emit_form_data_changed(cx);
         cx.notify();
     }
@@ -336,13 +354,14 @@ impl FormBodyInput {
     pub(super) fn set_form_data_entries(
         &mut self,
         mut entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if entries.is_empty() {
             entries.push(FormDataEntry::text("", "", true));
         }
         self.form_data_entries = entries;
-        self.rebuild_row_editors(cx);
+        self.rebuild_row_editors(window, cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
@@ -352,15 +371,17 @@ impl FormBodyInput {
     pub(super) fn project_form_data_entries(
         &mut self,
         entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.project_form_data_entries_with_rebind(entries, false, cx);
+        self.project_form_data_entries_with_rebind(entries, false, window, cx);
     }
 
     pub(super) fn project_form_data_entries_with_rebind(
         &mut self,
         mut entries: Vec<FormDataEntry>,
         force_rebind: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if entries.is_empty() {
@@ -369,26 +390,27 @@ impl FormBodyInput {
         let text_matches = self.editor_text_matches(&entries, cx);
         self.form_data_entries = entries;
         if force_rebind || !text_matches {
-            self.rebuild_row_editors(cx);
+            self.rebuild_row_editors(window, cx);
         }
         cx.notify();
     }
 
     #[cfg(test)]
-    pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.form_data_entries == [FormDataEntry::text("", "", true)] {
             return;
         }
         self.form_data_entries = vec![FormDataEntry::text("", "", true)];
-        self.rebuild_row_editors(cx);
+        self.rebuild_row_editors(window, cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
 
     fn on_cell_event(
         &mut self,
-        _input: Entity<TableCellInput>,
+        _input: &Entity<TableCellInput>,
         event: &TableCellInputEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let cell = match event {
@@ -420,7 +442,7 @@ impl FormBodyInput {
             }
             TableCellInputEvent::SubmitRequested { .. } => {}
             TableCellInputEvent::TraversalRequested { direction, .. } => {
-                self.queue_traversal(cell, index, *direction, cx);
+                self.queue_traversal(cell, index, *direction, window, cx);
             }
         }
     }
@@ -430,6 +452,7 @@ impl FormBodyInput {
         cell: TableCellId,
         index: usize,
         direction: TableCellTraversal,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let target = match (cell.column(), direction) {
@@ -447,7 +470,7 @@ impl FormBodyInput {
                 let next_row_id = if index + 1 < self.row_editors.len() {
                     self.row_editors[index + 1].row_id
                 } else {
-                    let row_id = self.push_blank_entry(cx);
+                    let row_id = self.push_blank_entry(window, cx);
                     self.form_data_scroll.scroll_to_bottom();
                     self.emit_form_data_changed(cx);
                     row_id
@@ -509,25 +532,24 @@ impl FormBodyInput {
 #[cfg(test)]
 mod tests {
     use super::FormBodyInput;
-    use crate::ui::components::input::{
-        body_input::FormDataEntry,
-        table_cell_input::{TableCellColumn, TableCellId, TableCellInputEvent},
-    };
-    use gpui::{AppContext, TestAppContext};
+    use crate::ui::components::input::body_input::FormDataEntry;
+    use gpui::{Focusable, TestAppContext};
     use std::path::PathBuf;
 
     #[gpui::test]
     fn row_insertion_removal_and_enabled_state_preserve_order(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(cx, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("duplicate", "first", true),
                     FormDataEntry::text("duplicate", "second", false),
                 ],
+                window,
                 cx,
             );
-            input.add_form_data_entry(cx);
+            input.add_form_data_entry(window, cx);
             input.toggle_form_data_entry(1, cx);
         });
 
@@ -542,10 +564,10 @@ mod tests {
             );
         });
 
-        input.update(cx, |input, cx| {
-            input.remove_form_data_entry(0, cx);
-            input.remove_form_data_entry(1, cx);
-            input.remove_form_data_entry(0, cx);
+        input.update_in(cx, |input, window, cx| {
+            input.remove_form_data_entry(0, window, cx);
+            input.remove_form_data_entry(1, window, cx);
+            input.remove_form_data_entry(0, window, cx);
         });
         assert_eq!(
             input.read_with(cx, |input, _| input.entries().to_vec()),
@@ -555,13 +577,15 @@ mod tests {
 
     #[gpui::test]
     fn duplicate_rows_keep_identity_across_append_and_neighbor_removal(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(cx, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("duplicate", "first", true),
                     FormDataEntry::text("duplicate", "second", false),
                 ],
+                window,
                 cx,
             );
         });
@@ -573,66 +597,103 @@ mod tests {
                 .collect::<Vec<_>>()
         });
 
-        input.update(cx, |input, cx| {
-            input.add_form_data_entry(cx);
+        input.update_in(cx, |input, window, cx| {
+            input.add_form_data_entry(window, cx);
             assert_eq!(input.row_editors[0].row_id, ids[0]);
             assert_eq!(input.row_editors[1].row_id, ids[1]);
-            input.remove_form_data_entry(0, cx);
+            input.remove_form_data_entry(0, window, cx);
             assert_eq!(input.row_editors[0].row_id, ids[1]);
         });
     }
 
     #[gpui::test]
     fn same_tab_projection_retains_cells_but_request_rebind_resets_them(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
         let entries = vec![FormDataEntry::text("same", "value", true)];
-        input.update(cx, |input, cx| {
-            input.project_form_data_entries(entries.clone(), cx);
+        input.update_in(cx, |input, window, cx| {
+            input.project_form_data_entries(entries.clone(), window, cx);
         });
         let original = input.read_with(cx, |input, _| input.row_editors[0].row_id);
 
-        input.update(cx, |input, cx| {
-            input.project_form_data_entries(entries.clone(), cx);
+        input.update_in(cx, |input, window, cx| {
+            input.project_form_data_entries(entries.clone(), window, cx);
             assert_eq!(input.row_editors[0].row_id, original);
-            input.project_form_data_entries_with_rebind(entries, true, cx);
+            input.project_form_data_entries_with_rebind(entries, true, window, cx);
             assert_ne!(input.row_editors[0].row_id, original);
         });
     }
 
     #[gpui::test]
     fn stable_cell_event_updates_the_same_logical_row_after_deletion(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, visual) = cx.add_window_view(FormBodyInput::new);
+        let second = input.update_in(visual, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("first", "one", true),
                     FormDataEntry::text("second", "two", true),
                 ],
+                window,
                 cx,
             );
-            let second = input.row_editors[1].row_id;
-            input.remove_form_data_entry(0, cx);
-            input.on_cell_event(
-                input.row_editors[0].key_input.clone(),
-                &TableCellInputEvent::ValueChanged {
-                    cell: TableCellId::new(second, TableCellColumn::Key),
-                    value: "still-second".to_string(),
-                },
-                cx,
-            );
+            let second = input.row_editors[1].key_input.clone();
+            input.remove_form_data_entry(0, window, cx);
+            second.read(cx).focus_handle(cx).focus(window, cx);
+            second
         });
+        visual.simulate_keystrokes("ctrl-a");
+        visual.simulate_input("still-second");
         assert_eq!(
-            input.read_with(cx, |input, _| input.entries()[0].key.clone()),
+            input.read_with(visual, |input, _| input.entries()[0].key.clone()),
             "still-second"
+        );
+        assert_eq!(
+            input.read_with(visual, |input, _| input.row_editors[0]
+                .key_input
+                .entity_id()),
+            second.entity_id()
         );
     }
 
     #[gpui::test]
+    fn kit_cell_tab_traverses_and_appends_form_rows(cx: &mut TestAppContext) {
+        cx.update(crate::ui::kit::init);
+        let (input, visual) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(visual, |input, window, cx| {
+            input.focus_handle(cx).focus(window, cx)
+        });
+        visual.simulate_input("duplicate");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("first😀");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("duplicate");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("second中");
+        visual.simulate_keystrokes("shift-tab");
+        input.update_in(visual, |input, window, cx| {
+            assert_eq!(
+                input.entries(),
+                &[
+                    FormDataEntry::text("duplicate", "first😀", true),
+                    FormDataEntry::text("duplicate", "second中", true),
+                ]
+            );
+            assert!(input.row_editors[1]
+                .key_input
+                .read(cx)
+                .focus_handle(cx)
+                .is_focused(window));
+        });
+    }
+
+    #[gpui::test]
     fn text_and_file_transitions_retain_typed_metadata_and_enabled_state(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
         let path = PathBuf::from("/tmp/issue-101-upload.txt");
-        input.update(cx, |input, cx| {
-            input.set_form_data_allows_files(true, cx);
+        input.update_in(cx, |input, window, cx| {
+            input.set_form_data_allows_files(true, window, cx);
             input.project_form_data_entries(
                 vec![FormDataEntry::file(
                     "upload",
@@ -641,9 +702,10 @@ mod tests {
                     Some("text/plain".to_string()),
                     false,
                 )],
+                window,
                 cx,
             );
-            input.toggle_form_data_value_kind(0, cx);
+            input.toggle_form_data_value_kind(0, window, cx);
         });
 
         assert_eq!(
@@ -655,7 +717,9 @@ mod tests {
             )]
         );
 
-        input.update(cx, |input, cx| input.toggle_form_data_value_kind(0, cx));
+        input.update_in(cx, |input, window, cx| {
+            input.toggle_form_data_value_kind(0, window, cx)
+        });
         input.read_with(cx, |input, _| {
             let entry = &input.entries()[0];
             assert_eq!(entry.key, "upload");

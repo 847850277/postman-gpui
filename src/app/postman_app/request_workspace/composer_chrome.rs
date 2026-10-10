@@ -92,13 +92,11 @@ impl RequestComposer {
             })
             .on_click(cx.listener(move |this, _, window, cx| {
                 mouse_focus.focus(window, cx);
-                this.set_request_pane(pane, cx);
+                this.set_request_pane(pane, window, cx);
             }))
-            .on_action(
-                cx.listener(move |this, _: &ActivateControl, _, cx| {
-                    this.set_request_pane(pane, cx)
-                }),
-            )
+            .on_action(cx.listener(move |this, _: &ActivateControl, window, cx| {
+                this.set_request_pane(pane, window, cx)
+            }))
             .on_action(cx.listener(move |this, _: &NextRequestPane, window, cx| {
                 this.activate_relative_request_pane(pane, 1, window, cx)
             }))
@@ -120,7 +118,7 @@ impl RequestComposer {
             .rem_euclid(REQUEST_PANES.len() as isize) as usize;
         self.pane_tabs_scroll.scroll_to_item(next);
         self.request_pane_focus_handles[next].focus(window, cx);
-        self.set_request_pane(REQUEST_PANES[next], cx);
+        self.set_request_pane(REQUEST_PANES[next], window, cx);
     }
 
     pub(super) fn render_request_context(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -209,7 +207,7 @@ impl RequestComposer {
                         this.request_pane_focus_handles
                             [request_pane_index(RequestPane::Authorization)]
                         .focus(window, cx);
-                        this.set_request_pane(RequestPane::Authorization, cx);
+                        this.set_request_pane(RequestPane::Authorization, window, cx);
                     })),
             )
     }
@@ -345,7 +343,9 @@ impl RequestComposer {
                             .when(sending, |b| {
                                 b.child(div().debug_selector(|| "cancel-send-control".into()))
                             })
-                            .on_click(cx.listener(|this, _, _, cx| this.click_send(cx))),
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.click_send(window, cx)),
+                            ),
                     ),
             )
     }

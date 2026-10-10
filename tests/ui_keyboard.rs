@@ -389,3 +389,52 @@ fn identical_urls_in_different_tabs_do_not_share_undo_history(cx: &mut TestAppCo
         assert_eq!(m.tabs()[1].url(), url);
     });
 }
+
+#[gpui::test]
+fn send_shortcuts_work_from_kit_fields_without_submitting_table_rows(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    for (index, (pane, field)) in [
+        ("request-pane-params", "param-row-key-input-0"),
+        ("request-pane-headers", "header-row-key-input-0"),
+        ("request-pane-authorization", "authorization-input"),
+        ("request-pane-options", "request-timeout-input"),
+        ("request-pane-body", "body-form-key-0"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        click(cx, pane).unwrap();
+        if pane == "request-pane-body" {
+            ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
+        }
+        for keys in ["cmd-enter", "ctrl-enter"] {
+            let path = format!("/field-{index}-{keys}");
+            let request = server
+                .mock("GET", path.as_str())
+                .expect(1)
+                .with_status(200)
+                .with_body("sent once")
+                .create();
+            ui::replace_text(cx, "url-input", &format!("{}{path}", server.url())).unwrap();
+            click(cx, field).unwrap();
+            ui::press(cx, keys);
+            cx.run_until_parked();
+            request.assert();
+        }
+    }
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
+        else {
+            panic!("form mode must remain selected");
+        };
+        assert_eq!(rows.len(), 1, "Send must not append a form row");
+    });
+}

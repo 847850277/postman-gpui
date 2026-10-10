@@ -192,9 +192,9 @@ impl RequestWorkspace {
             .focus(window, cx);
     }
 
-    pub(super) fn send_or_cancel(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn send_or_cancel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.composer
-            .update(cx, |composer, cx| composer.send_or_cancel(cx));
+            .update(cx, |composer, cx| composer.send_or_cancel(window, cx));
     }
 
     pub(super) fn focus_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {

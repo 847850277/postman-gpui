@@ -252,7 +252,7 @@ impl FormBodyInput {
                     })
                     .on_click(cx.listener(move |this, _, window, cx| {
                         if let Some(index) = this.entry_index(row_id) {
-                            this.remove_form_data_entry(index, cx);
+                            this.remove_form_data_entry(index, window, cx);
                             this.focus_after_row_removal(index, window, cx);
                         }
                     })),
@@ -284,9 +284,9 @@ impl FormBodyInput {
                     .flex_none()
                     .border_1()
                     .border_color(cx.theme().input)
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                    .on_click(cx.listener(move |this, _, window, cx| {
                         if let Some(index) = this.entry_index(row_id) {
-                            this.toggle_form_data_value_kind(index, cx);
+                            this.toggle_form_data_value_kind(index, window, cx);
                         }
                     })),
                 )
@@ -468,7 +468,9 @@ impl Render for FormBodyInput {
                         .gap_1()
                         .child(Icon::new(IconName::Plus).size(metrics::SMALL_ICON))
                         .child("Add field")
-                        .on_click(cx.listener(|this, _, _, cx| this.add_form_data_entry(cx))),
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.add_form_data_entry(window, cx)),
+                        ),
                 ),
             )
     }

@@ -3,7 +3,8 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext};
+use gpui::{AppContext, ClipboardItem, TestAppContext, VisualTestContext};
+use gpui_kit::test::TestWindowExt;
 use postman_gpui::app::{
     BodyKind, MultipartDraftValue, PostmanApp, RequestBodyDraft, WorkspaceViewModel,
 };
@@ -13,6 +14,29 @@ fn clipboard_text(cx: &TestAppContext) -> String {
     cx.read_from_clipboard()
         .and_then(|item| item.text())
         .unwrap_or_default()
+}
+
+/// Use the real Kit menu's focus and keyboard path, then verify it dismissed.
+fn choose_body_menu_action(cx: &mut VisualTestContext, index: usize, label: &str) {
+    let editor_focus = cx.update(|window, app| window.focused(app).unwrap());
+    right_click(cx, "body-input").unwrap();
+    cx.update(|window, app| {
+        window.render_frame(app);
+        let menu = window.find("popup-menu");
+        assert!(menu.visible());
+        assert_eq!(menu.focused(), Some(true));
+        assert_eq!(window.within("popup-menu").find(index).label(), Some(label));
+    });
+    // A new popup has no selected item. Let deferred dismissal finish before
+    // rendering again so the closing overlay cannot steal restored editor focus.
+    for _ in 0..=index {
+        cx.simulate_keystrokes("down");
+    }
+    cx.simulate_keystrokes("enter");
+    assert!(!ui::kit_control_exists(cx, "popup-menu"));
+    cx.update(|window, app| {
+        assert_eq!(window.focused(app).as_ref(), Some(&editor_focus));
+    });
 }
 
 #[gpui::test]
@@ -36,12 +60,27 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
     cx.simulate_keystrokes("home right shift-right cmd-c");
     assert_eq!(clipboard_text(cx), "😀");
 
-    right_click(cx, "body-input").unwrap();
-    assert!(cx.debug_bounds("body-edit-menu").is_some());
-    click(cx, "body-edit-menu-copy").unwrap();
+    let editor_focus = cx.update(|window, app| window.focused(app).unwrap());
+    cx.write_to_clipboard(ClipboardItem::new_string("copy sentinel".into()));
+    choose_body_menu_action(cx, 3, "Copy");
     assert_eq!(clipboard_text(cx), "😀");
 
-    click(cx, "body-input").unwrap();
+    // Right-click from a different focused control must preserve the selection;
+    // Escape returns keyboard input to this editor, without another left click.
+    click(cx, "url-input").unwrap();
+    right_click(cx, "body-input").unwrap();
+    cx.update(|window, _| {
+        assert_eq!(window.find("popup-menu").focused(), Some(true));
+    });
+    cx.simulate_keystrokes("escape");
+    assert!(!ui::kit_control_exists(cx, "popup-menu"));
+    cx.update(|window, app| {
+        assert_eq!(window.focused(app).as_ref(), Some(&editor_focus));
+    });
+    cx.write_to_clipboard(ClipboardItem::new_string("escape sentinel".into()));
+    cx.simulate_keystrokes("cmd-c");
+    assert_eq!(clipboard_text(cx), "😀");
+
     cx.simulate_keystrokes("end shift-left cmd-c");
     assert_eq!(clipboard_text(cx), "e\u{301}");
     assert_eq!(
@@ -82,8 +121,7 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
         body
     );
 
-    right_click(cx, "body-input").unwrap();
-    click(cx, "body-edit-menu-undo").unwrap();
+    choose_body_menu_action(cx, 0, "Undo");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -92,8 +130,7 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
             .to_string()),
         ""
     );
-    right_click(cx, "body-input").unwrap();
-    click(cx, "body-edit-menu-redo").unwrap();
+    choose_body_menu_action(cx, 1, "Redo");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -103,10 +140,8 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
         body
     );
 
-    right_click(cx, "body-input").unwrap();
-    click(cx, "body-edit-menu-select-all").unwrap();
-    right_click(cx, "body-input").unwrap();
-    click(cx, "body-edit-menu-copy").unwrap();
+    choose_body_menu_action(cx, 5, "Select All");
+    choose_body_menu_action(cx, 3, "Copy");
     assert_eq!(clipboard_text(cx), body);
 
     ui::choose_body_kind(cx, "body-kind-raw").unwrap();

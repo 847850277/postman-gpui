@@ -81,7 +81,7 @@ impl BodyPane {
                 cx,
             )
         });
-        let body_input = cx.new(BodyInput::new);
+        let body_input = cx.new(|cx| BodyInput::new(window, cx));
         let subscriptions = vec![
             cx.subscribe(
                 &raw_selector,
@@ -98,14 +98,15 @@ impl BodyPane {
                 },
             ),
             cx.subscribe(&body_input, Self::on_body_event),
-            cx.subscribe(
+            cx.subscribe_in(
                 &kind_selector,
-                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, cx| {
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, window, cx| {
                     if let SelectEvent::Confirm(Some(label)) = event {
                         if let Some(index) =
                             BODY_LABELS.iter().position(|candidate| candidate == label)
                         {
-                            this.set_body_kind(BODY_KINDS[index], cx);
+                            this.set_body_kind(BODY_KINDS[index], window, cx);
                         }
                     }
                 },
@@ -130,7 +131,7 @@ impl BodyPane {
             show_details: false,
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -200,15 +201,15 @@ impl BodyPane {
         }
     }
 
-    fn set_body_kind(&mut self, kind: BodyKind, cx: &mut Context<Self>) {
+    fn set_body_kind(&mut self, kind: BodyKind, window: &mut Window, cx: &mut Context<Self>) {
         self.show_details = false;
         self.editor_error = None;
         self.editor_scroll.set_offset(gpui::point(px(0.), px(0.)));
         self.update_active_request(cx, |request| request.set_body_kind(kind));
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
-    fn use_sample_json(&mut self, cx: &mut Context<Self>) {
+    fn use_sample_json(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.update_active_request(cx, |request| {
             request.set_body_kind(BodyKind::Json);
             request.set_body(
@@ -219,13 +220,13 @@ impl BodyPane {
 }"#,
             );
         });
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
-    fn clear_body(&mut self, cx: &mut Context<Self>) {
+    fn clear_body(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.editor_error = None;
         self.update_active_request(cx, RequestViewModel::clear_body);
-        self.project_active_request(cx);
+        self.project_active_request(window, cx);
     }
 
     pub(in crate::app::postman_app::request_workspace) fn input_entity(&self) -> Entity<BodyInput> {
@@ -234,6 +235,7 @@ impl BodyPane {
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (tab_id, body_draft, body_kind) = {
@@ -258,17 +260,17 @@ impl BodyPane {
         self.projected_input_kind = Some(body_kind);
         self.body_input.update(cx, |input, cx| {
             input.set_type_silent(body_type_from_kind(body_kind), cx);
-            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, cx);
+            input.set_form_data_allows_files(body_kind == BodyKind::Multipart, window, cx);
             match body_draft {
                 RequestBodyDraft::None | RequestBodyDraft::Binary(_) => {
                     if projection_changed {
-                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                        input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
                     input.project_content("", cx);
                 }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
                     if projection_changed {
-                        input.project_form_data_entries_with_rebind(Vec::new(), cx);
+                        input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
                     input.project_content(body, cx)
                 }
@@ -278,9 +280,9 @@ impl BodyPane {
                         .map(|row| FormDataEntry::text(row.key, row.value, row.enabled))
                         .collect();
                     if projection_changed {
-                        input.project_form_data_entries_with_rebind(entries, cx);
+                        input.project_form_data_entries_with_rebind(entries, window, cx);
                     } else {
-                        input.project_form_data_entries(entries, cx);
+                        input.project_form_data_entries(entries, window, cx);
                     }
                 }
                 RequestBodyDraft::Multipart(parts) => {
@@ -304,9 +306,9 @@ impl BodyPane {
                         })
                         .collect();
                     if projection_changed {
-                        input.project_form_data_entries_with_rebind(entries, cx);
+                        input.project_form_data_entries_with_rebind(entries, window, cx);
                     } else {
-                        input.project_form_data_entries(entries, cx);
+                        input.project_form_data_entries(entries, window, cx);
                     }
                 }
             }
@@ -567,15 +569,17 @@ impl BodyPane {
                             let clear = owner.clone();
                             menu.item(
                                 gpui_kit::component::menu::PopupMenuItem::new("Sample JSON")
-                                    .on_click(move |_, _, cx| {
-                                        let _ =
-                                            sample.update(cx, |this, cx| this.use_sample_json(cx));
+                                    .on_click(move |_, window, cx| {
+                                        let _ = sample.update(cx, |this, cx| {
+                                            this.use_sample_json(window, cx)
+                                        });
                                     }),
                             )
                             .item(
                                 gpui_kit::component::menu::PopupMenuItem::new("Clear body")
-                                    .on_click(move |_, _, cx| {
-                                        let _ = clear.update(cx, |this, cx| this.clear_body(cx));
+                                    .on_click(move |_, window, cx| {
+                                        let _ = clear
+                                            .update(cx, |this, cx| this.clear_body(window, cx));
                                     }),
                             )
                         }

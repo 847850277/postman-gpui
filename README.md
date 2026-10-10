@@ -91,7 +91,10 @@ outside the Body editor. Body offers None, JSON, Raw, URL encoded, Form-data and
 retaining each type's draft when switching. Its actions menu contains Request details,
 Sample JSON and Clear body. Auth places its scheme selector beside the credential fields,
 with both bearer tokens and passwords masked. Request tables, body editors and response
-panels use Kit scrollbars for wheel, thumb-drag and track-click scrolling.
+panels use Kit scrollbars for wheel, thumb-drag and track-click scrolling. Search, auth,
+Options, descriptions and table cells use retained Kit inputs for selection, IME, undo
+and native editing menus. Body and response text keep their specialized rendering,
+with Kit context menus for editing and copying.
 
 Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout --test ui_request_panels` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through

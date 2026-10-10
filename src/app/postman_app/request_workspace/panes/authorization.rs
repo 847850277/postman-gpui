@@ -44,22 +44,13 @@ impl AuthorizationPane {
             )
         });
         let authorization_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Enter your access token")
-                .with_masked(true)
+            HeaderInput::new_masked("Enter your access token", window, cx)
                 .with_embedded_chrome(true)
         });
-        let basic_username_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Username")
-                .with_embedded_chrome(true)
-        });
-        let basic_password_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Password")
-                .with_masked(true)
-                .with_embedded_chrome(true)
-        });
+        let basic_username_input =
+            cx.new(|cx| HeaderInput::new("Username", window, cx).with_embedded_chrome(true));
+        let basic_password_input =
+            cx.new(|cx| HeaderInput::new_masked("Password", window, cx).with_embedded_chrome(true));
         let subscriptions = vec![
             cx.subscribe(
                 &kind_selector,
@@ -89,7 +80,7 @@ impl AuthorizationPane {
             projected_basic: None,
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -146,6 +137,7 @@ impl AuthorizationPane {
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (bearer_token, basic_username, basic_password) = {
@@ -161,12 +153,15 @@ impl AuthorizationPane {
                 },
             )
         };
-        self.authorization_input
-            .update(cx, |input, cx| input.project_content(bearer_token, cx));
-        self.basic_username_input
-            .update(cx, |input, cx| input.project_content(basic_username, cx));
-        self.basic_password_input
-            .update(cx, |input, cx| input.project_content(basic_password, cx));
+        self.authorization_input.update(cx, |input, cx| {
+            input.project_content(bearer_token, window, cx)
+        });
+        self.basic_username_input.update(cx, |input, cx| {
+            input.project_content(basic_username, window, cx)
+        });
+        self.basic_password_input.update(cx, |input, cx| {
+            input.project_content(basic_password, window, cx)
+        });
         cx.notify();
     }
 

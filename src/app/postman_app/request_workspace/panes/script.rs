@@ -28,9 +28,10 @@ impl ScriptPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
         kind: ScriptPaneKind,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let input = cx.new(BodyInput::new);
+        let input = cx.new(|cx| BodyInput::new(window, cx));
         let subscriptions = vec![cx.subscribe(&input, Self::on_input_event)];
         let mut pane = Self {
             view_model,

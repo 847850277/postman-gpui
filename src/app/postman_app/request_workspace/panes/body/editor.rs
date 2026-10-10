@@ -31,6 +31,7 @@ const TYPES: [(BodyKind, &str, &str); 6] = [
 impl BodyPane {
     pub(in crate::app::postman_app::request_workspace) fn validate_before_send(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
         self.editor_error = self
@@ -41,7 +42,7 @@ impl BodyPane {
         if self.editor_error.is_some() {
             self.show_details = false;
             self.update_active_request(cx, |request| request.set_request_pane(RequestPane::Body));
-            self.project_active_request(cx);
+            self.project_active_request(window, cx);
             cx.notify();
             return false;
         }
@@ -63,7 +64,7 @@ impl BodyPane {
                         serde_json::to_string_pretty(&value).expect("JSON value serializes"),
                     )
                 });
-                self.project_active_request(cx);
+                self.project_active_request(window, cx);
             }
             Err(error) => self.editor_error = Some(format!("Invalid JSON: {error}")),
         }
@@ -184,15 +185,16 @@ impl BodyPane {
                     let details = owner.clone();
                     menu.item(
                         gpui_kit::component::menu::PopupMenuItem::new("Sample JSON").on_click(
-                            move |_, _, cx| {
-                                let _ = sample.update(cx, |this, cx| this.use_sample_json(cx));
+                            move |_, window, cx| {
+                                let _ =
+                                    sample.update(cx, |this, cx| this.use_sample_json(window, cx));
                             },
                         ),
                     )
                     .item(
                         gpui_kit::component::menu::PopupMenuItem::new("Clear body").on_click(
-                            move |_, _, cx| {
-                                let _ = clear.update(cx, |this, cx| this.clear_body(cx));
+                            move |_, window, cx| {
+                                let _ = clear.update(cx, |this, cx| this.clear_body(window, cx));
                             },
                         ),
                     )
@@ -261,7 +263,7 @@ impl BodyPane {
                             .h(px(30.)).px(px(10.)).text_size(m::LABEL).font_weight(FontWeight::NORMAL).rounded(m::RADIUS).border_1()
                             .border_color(if kind == item { LINE.resolve(cx) } else { gpui::rgba(0) })
                             .bg(if kind == item { PANEL_ALT.resolve(cx) } else { PANEL.resolve(cx) })
-                            .on_click(cx.listener(move |this, _, _, cx| this.set_body_kind(item, cx)))
+                            .on_click(cx.listener(move |this, _, window, cx| this.set_body_kind(item, window, cx)))
                     })))
                     .child(div().debug_selector(|| "body-content-type".into()).flex_none().flex().flex_wrap().items_center().gap_2().text_size(m::CAPTION).text_color(SUBTEXT.resolve(cx))
                         .child("Content-Type").child(div().font_family(FONT_MONO).child(content_type))

@@ -90,6 +90,7 @@ impl RequestComposer {
                 view_model.clone(),
                 panel_layout.clone(),
                 KeyValueRowsKind::Params,
+                window,
                 cx,
             )
         });
@@ -98,6 +99,7 @@ impl RequestComposer {
                 view_model.clone(),
                 panel_layout.clone(),
                 KeyValueRowsKind::Headers,
+                window,
                 cx,
             )
         });
@@ -105,14 +107,14 @@ impl RequestComposer {
             cx.new(|cx| AuthorizationPane::new(view_model.clone(), window, cx));
         let body_pane =
             cx.new(|cx| BodyPane::new(view_model.clone(), panel_layout.clone(), window, cx));
-        let script_pane =
-            cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, cx));
+        let script_pane = cx
+            .new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::PreRequest, window, cx));
         let tests_pane =
-            cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::Tests, cx));
-        let options_pane = cx.new(|cx| OptionsPane::new(view_model.clone(), cx));
+            cx.new(|cx| ScriptPane::new(view_model.clone(), ScriptPaneKind::Tests, window, cx));
+        let options_pane = cx.new(|cx| OptionsPane::new(view_model.clone(), window, cx));
 
         let subscriptions = vec![
-            cx.subscribe(&method_selector, Self::on_method_changed),
+            cx.subscribe_in(&method_selector, window, Self::on_method_changed),
             cx.subscribe_in(&url_input, window, Self::on_url_event),
             cx.subscribe_in(&params_pane, window, Self::on_key_value_pane_event),
             cx.subscribe_in(&headers_pane, window, Self::on_key_value_pane_event),
@@ -169,22 +171,23 @@ impl RequestComposer {
 
     fn on_method_changed(
         &mut self,
-        _selector: Entity<MethodState>,
+        _selector: &Entity<MethodState>,
         event: &SelectEvent<SearchableVec<&'static str>>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let SelectEvent::Confirm(Some(method)) = event else {
             return;
         };
         self.update_active_request(cx, |request| request.set_method((*method).into()));
-        self.project_selected_pane(cx);
+        self.project_selected_pane(window, cx);
     }
 
     fn on_url_event(
         &mut self,
         _input: &Entity<InputState>,
         event: &InputEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -198,10 +201,10 @@ impl RequestComposer {
                     .is_some_and(|request| request.request_pane() == RequestPane::Params)
                 {
                     self.params_pane
-                        .update(cx, KeyValueRowsPane::project_active_request);
+                        .update(cx, |pane, cx| pane.project_active_request(window, cx));
                 }
             }
-            InputEvent::PressEnter { shift: false, .. } => self.click_send(cx),
+            InputEvent::PressEnter { shift: false, .. } => self.click_send(window, cx),
             _ => {}
         }
     }
@@ -258,7 +261,7 @@ impl RequestComposer {
         });
     }
 
-    fn project_selected_pane(&self, cx: &mut Context<Self>) {
+    fn project_selected_pane(&self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(request_pane) = self
             .view_model
             .read(cx)
@@ -270,14 +273,16 @@ impl RequestComposer {
         match request_pane {
             RequestPane::Params => self
                 .params_pane
-                .update(cx, KeyValueRowsPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Headers => self
                 .headers_pane
-                .update(cx, KeyValueRowsPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Authorization => self
                 .authorization_pane
-                .update(cx, AuthorizationPane::project_active_request),
-            RequestPane::Body => self.body_pane.update(cx, BodyPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
+            RequestPane::Body => self
+                .body_pane
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Scripts => self
                 .script_pane
                 .update(cx, ScriptPane::project_active_request),
@@ -286,7 +291,7 @@ impl RequestComposer {
                 .update(cx, ScriptPane::project_active_request),
             RequestPane::Options => self
                 .options_pane
-                .update(cx, OptionsPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
         }
     }
 
@@ -296,22 +301,23 @@ impl RequestComposer {
         self.project_method(window, cx);
         self.project_url(window, cx);
         self.params_pane
-            .update(cx, KeyValueRowsPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.headers_pane
-            .update(cx, KeyValueRowsPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.authorization_pane
-            .update(cx, AuthorizationPane::project_active_request);
-        self.body_pane.update(cx, BodyPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
+        self.body_pane
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.script_pane
             .update(cx, ScriptPane::project_active_request);
         self.tests_pane
             .update(cx, ScriptPane::project_active_request);
         self.options_pane
-            .update(cx, OptionsPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         cx.notify();
     }
 
-    pub(super) fn click_send(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn click_send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(send_id) = self.view_model.read(cx).active_send_id() {
             self.cancel_send(send_id, cx);
             return;
@@ -319,7 +325,7 @@ impl RequestComposer {
 
         if !self
             .body_pane
-            .update(cx, |pane, cx| pane.validate_before_send(cx))
+            .update(cx, |pane, cx| pane.validate_before_send(window, cx))
         {
             return;
         }
@@ -328,12 +334,12 @@ impl RequestComposer {
             return;
         };
         self.authorization_pane
-            .update(cx, AuthorizationPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         cx.emit(RequestComposerEvent::Execute(pending));
     }
 
-    pub(super) fn send_or_cancel(&mut self, cx: &mut Context<Self>) {
-        self.click_send(cx);
+    pub(super) fn send_or_cancel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.click_send(window, cx);
     }
 
     pub(super) fn focus_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -345,9 +351,14 @@ impl RequestComposer {
         cx.emit(RequestComposerEvent::Abort(send_id));
     }
 
-    pub(super) fn set_request_pane(&mut self, pane: RequestPane, cx: &mut Context<Self>) {
+    pub(super) fn set_request_pane(
+        &mut self,
+        pane: RequestPane,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.update_active_request(cx, |request| request.set_request_pane(pane));
-        self.project_selected_pane(cx);
+        self.project_selected_pane(window, cx);
     }
 
     fn request_pane_and_visible_rows(&self, cx: &App) -> Option<(RequestPane, usize)> {
@@ -561,7 +572,7 @@ mod tests {
                 });
                 let body_input = composer.body_pane.read(cx).input_entity();
                 body_input.update(cx, |input, cx| input.project_content("stale-body", cx));
-                composer.click_send(cx);
+                composer.click_send(window, cx);
             })
         });
         cx.run_until_parked();

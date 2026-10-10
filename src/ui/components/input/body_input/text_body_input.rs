@@ -1,6 +1,6 @@
 use crate::ui::{
     components::{
-        common::edit_context_menu::{edit_context_menu, EDITABLE_ACTIONS},
+        common::edit_context_menu::edit_popup_menu,
         input::multiline_input::{
             self as multiline, MultilineInputHost, MultilineInputState, MultilineTextElement,
         },
@@ -15,7 +15,10 @@ use gpui::{
 };
 use gpui_kit::{
     base::ElementExt,
-    component::scroll::{Scrollbar, ScrollbarMode},
+    component::{
+        menu::ContextMenuExt,
+        scroll::{Scrollbar, ScrollbarMode},
+    },
 };
 use std::ops::Range;
 
@@ -174,9 +177,10 @@ impl EntityInputHandler for TextBodyInput {
 
 impl Render for TextBodyInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let context_menu_position = self.input.context_menu_position();
         let scroll_handle = self.input.scroll_handle().clone();
-        let editor = div()
+        let menu_focus = self.focus_handle.clone();
+        div()
+            .id("body-text-editor")
             .flex_1()
             .min_h_0()
             .flex()
@@ -235,14 +239,9 @@ impl Render for TextBodyInput {
                     .on_action(cx.listener(multiline::enter::<Self>))
                     .on_action(cx.listener(multiline::focus_next::<Self>))
                     .on_action(cx.listener(multiline::focus_previous::<Self>))
-                    .on_action(cx.listener(multiline::dismiss::<Self>))
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(multiline::on_mouse_down::<Self>),
-                    )
-                    .on_mouse_down(
-                        MouseButton::Right,
-                        cx.listener(multiline::open_context_menu::<Self>),
                     )
                     .on_mouse_up(
                         MouseButton::Left,
@@ -289,17 +288,23 @@ impl Render for TextBodyInput {
                                 .mode(ScrollbarMode::Always),
                         ),
                 )
-            });
-        editor.when_some(context_menu_position, |root, position| {
-            root.child(edit_context_menu(
-                position,
-                "body-edit-menu",
-                EDITABLE_ACTIONS,
-                multiline::handle_context_menu_action::<Self>,
-                window,
-                cx,
-            ))
-        })
+            })
+            .capture_any_mouse_down(cx.listener(multiline::prepare_context_menu::<Self>))
+            .context_menu(move |menu, _, _| {
+                use super::{Copy, Cut, Paste, Redo, SelectAll, Undo};
+                edit_popup_menu(
+                    menu,
+                    menu_focus.clone(),
+                    vec![
+                        ("Undo", Box::new(Undo)),
+                        ("Redo", Box::new(Redo)),
+                        ("Cut", Box::new(Cut)),
+                        ("Copy", Box::new(Copy)),
+                        ("Paste", Box::new(Paste)),
+                        ("Select All", Box::new(SelectAll)),
+                    ],
+                )
+            })
     }
 }
 
