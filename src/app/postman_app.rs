@@ -11,9 +11,9 @@ use crate::{
     ui::theme::{BG, FONT_UI, LINE, PANEL, TEXT},
 };
 use gpui::{
-    deferred, div, prelude::FluentBuilder, px, rgb, AppContext, Bounds, Context, DragMoveEvent,
-    Entity, FocusHandle, InteractiveElement, IntoElement, MouseButton, MouseUpEvent, ParentElement,
-    Pixels, Render, StatefulInteractiveElement, Styled, Subscription, WeakFocusHandle, Window,
+    deferred, div, prelude::FluentBuilder, px, AppContext, Bounds, Context, DragMoveEvent, Entity,
+    FocusHandle, InteractiveElement, IntoElement, MouseButton, MouseUpEvent, ParentElement, Pixels,
+    Render, StatefulInteractiveElement, Styled, Subscription, WeakFocusHandle, Window,
 };
 use std::{fs, path::PathBuf, sync::Arc};
 use uuid::Uuid;
@@ -368,8 +368,8 @@ impl Render for PostmanApp {
             .min_w_0()
             .flex()
             .flex_col()
-            .bg(rgb(BG))
-            .text_color(rgb(TEXT))
+            .bg(BG.resolve(cx))
+            .text_color(TEXT.resolve(cx))
             .font_family(FONT_UI)
             .track_focus(&self.app_focus_handle)
             .key_context("PostmanApp")
@@ -447,8 +447,8 @@ impl Render for PostmanApp {
                         .h(px(360.0))
                         .rounded(px(14.0))
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(PANEL))
+                        .border_color(LINE.resolve(cx))
+                        .bg(PANEL.resolve(cx))
                         .overflow_hidden()
                         .child(self.cookie_pane.clone()),
                 )

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, px, rgb, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Role,
+    div, px, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Role,
     StatefulInteractiveElement, Styled, Window,
 };
 
@@ -187,8 +187,8 @@ impl PostmanApp {
                     .gap_4()
                     .rounded(px(14.0))
                     .border_1()
-                    .border_color(rgb(ACCENT))
-                    .bg(rgb(PANEL))
+                    .border_color(ACCENT.resolve(cx))
+                    .bg(PANEL.resolve(cx))
                     .on_mouse_up(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .on_action(cx.listener(Self::dismiss_overlay))
                     .on_action(cx.listener(
@@ -206,7 +206,7 @@ impl PostmanApp {
                                     .font_family(FONT_HEADING)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(20.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Keyboard shortcuts"),
                             )
                             .child(
@@ -217,8 +217,8 @@ impl PostmanApp {
                                     .items_center()
                                     .justify_center()
                                     .rounded_lg()
-                                    .bg(rgb(ACCENT_SOFT))
-                                    .text_color(rgb(ACCENT))
+                                    .bg(ACCENT_SOFT.resolve(cx))
+                                    .text_color(ACCENT.resolve(cx))
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .cursor_pointer()
@@ -235,7 +235,7 @@ impl PostmanApp {
                         div()
                             .font_family(FONT_UI)
                             .text_size(px(12.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child(
                                 "Text fields keep standard selection, clipboard, Undo/Redo, and word-navigation shortcuts.",
                             ),
@@ -247,21 +247,21 @@ impl PostmanApp {
                             .items_center()
                             .px_3()
                             .rounded_lg()
-                            .bg(rgb(PANEL_ALT))
+                            .bg(PANEL_ALT.resolve(cx))
                             .child(
                                 div()
                                     .flex_1()
                                     .font_family(FONT_UI)
                                     .text_size(px(12.0))
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(command),
                             )
                             .child(
                                 div()
                                     .font_family(FONT_MONO)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(MUTED))
+                                    .text_color(MUTED.resolve(cx))
                                     .child(shortcut),
                             )
                     }))

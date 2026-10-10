@@ -9,7 +9,7 @@ use crate::ui::{
     theme::{CODE_BG, CODE_TEXT, FONT_MONO, INFO, LINE},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, App, Bounds, Context, CursorStyle, EntityInputHandler,
+    div, prelude::FluentBuilder, px, App, Bounds, Context, CursorStyle, EntityInputHandler,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Pixels, Point, Render, StatefulInteractiveElement, Styled, UTF16Selection,
     Window,
@@ -223,17 +223,17 @@ impl Render for TextBodyInput {
                     .px_3()
                     .py_2()
                     .when(scrollbar.is_some(), |editor| editor.pr(px(20.0)))
-                    .bg(rgb(CODE_BG))
+                    .bg(CODE_BG.resolve(cx))
                     .border_1()
                     .border_color(if self.focus_handle.is_focused(window) {
-                        rgb(INFO)
+                        INFO.resolve(cx)
                     } else {
-                        rgb(LINE)
+                        LINE.resolve(cx)
                     })
                     .rounded_lg()
                     .font_family(FONT_MONO)
                     .text_size(px(13.0))
-                    .text_color(rgb(CODE_TEXT))
+                    .text_color(CODE_TEXT.resolve(cx))
                     .cursor(CursorStyle::IBeam)
                     .track_focus(&self.focus_handle(cx))
                     .key_context("BodyInput")
@@ -290,6 +290,7 @@ impl Render for TextBodyInput {
                     "body-text-scrollbar",
                     "body-text-scrollbar-thumb",
                     scrollbar,
+                    cx,
                 ))
             });
         editor.when_some(context_menu_position, |root, position| {

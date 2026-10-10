@@ -15,7 +15,7 @@ use crate::ui::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, rgb, App, AppContext, Context, CursorStyle, Entity,
+    div, prelude::FluentBuilder, px, relative, App, AppContext, Context, CursorStyle, Entity,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
     Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
@@ -588,9 +588,9 @@ impl Render for FormBodyInput {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "body-form-table-header".into())
@@ -600,16 +600,16 @@ impl Render for FormBodyInput {
                     .gap_2()
                     .items_center()
                     .px_3()
-                    .bg(rgb(PANEL_ALT))
+                    .bg(PANEL_ALT.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .w(px(18.0))
                             .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("✓"),
                     )
                     .child(
@@ -618,7 +618,7 @@ impl Render for FormBodyInput {
                             .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("KEY"),
                     )
                     .when(form_data_allows_files, |header| {
@@ -628,7 +628,7 @@ impl Render for FormBodyInput {
                                 .font_family(FONT_UI)
                                 .font_weight(gpui::FontWeight::BOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child("TYPE"),
                         )
                     })
@@ -638,7 +638,7 @@ impl Render for FormBodyInput {
                             .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("VALUE"),
                     )
                     .child(
@@ -647,7 +647,7 @@ impl Render for FormBodyInput {
                             .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .text_align(gpui::TextAlign::Center)
                             .child("STATE"),
                     )
@@ -657,7 +657,7 @@ impl Render for FormBodyInput {
                             .font_family(FONT_UI)
                             .font_weight(gpui::FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .text_align(gpui::TextAlign::Center)
                             .child("ACTION"),
                     ),
@@ -733,11 +733,11 @@ impl Render for FormBodyInput {
                                             .flex()
                                             .gap_2()
                                             .items_center()
-                                            .bg(rgb(if entry_enabled {
+                                            .bg((if entry_enabled {
                                                 PANEL
                                             } else {
                                                 PANEL_ALT
-                                            }))
+                                            }).resolve(cx))
                                             .child(
                                                 div()
                                                     .id(("body-form-toggle", index))
@@ -762,18 +762,18 @@ impl Render for FormBodyInput {
                                                     .items_center()
                                                     .justify_center()
                                                     .border_1()
-                                                    .border_color(rgb(if entry_enabled {
+                                                    .border_color((if entry_enabled {
                                                         INFO
                                                     } else {
                                                         LINE
-                                                    }))
+                                                    }).resolve(cx))
                                                     .rounded_sm()
-                                                    .bg(rgb(if entry_enabled {
+                                                    .bg((if entry_enabled {
                                                         INFO
                                                     } else {
                                                         PANEL
-                                                    }))
-                                                    .text_color(rgb(PANEL))
+                                                    }).resolve(cx))
+                                                    .text_color(PANEL.resolve(cx))
                                                     .font_family(FONT_UI)
                                                     .font_weight(gpui::FontWeight::BOLD)
                                                     .text_size(px(10.0))
@@ -781,7 +781,7 @@ impl Render for FormBodyInput {
                                                     .when(toggle_focused, |control| {
                                                         control
                                                             .border_2()
-                                                            .border_color(rgb(ACCENT_SOFT))
+                                                            .border_color(ACCENT_SOFT.resolve(cx))
                                                     })
                                                     .child(if entry_enabled { "✓" } else { "" })
                                                     .on_action(cx.listener(
@@ -843,32 +843,32 @@ impl Render for FormBodyInput {
                                                         .flex()
                                                         .items_center()
                                                         .justify_center()
-                                                        .bg(rgb(if !entry_enabled {
+                                                        .bg((if !entry_enabled {
                                                             PANEL_ALT
                                                         } else if entry_is_file {
-                                                            0x00df_eafe
+                                                            crate::ui::theme::INFO_SOFT
                                                         } else {
-                                                            0x00f8_f9fa
-                                                        }))
+                                                            PANEL_ALT
+                                                        }).resolve(cx))
                                                         .border_1()
-                                                        .border_color(rgb(LINE))
+                                                        .border_color(LINE.resolve(cx))
                                                         .rounded_md()
                                                         .text_size(px(12.0))
                                                         .font_weight(
                                                             gpui::FontWeight::SEMIBOLD,
                                                         )
-                                                        .text_color(rgb(if !entry_enabled {
+                                                        .text_color((if !entry_enabled {
                                                             MUTED
                                                         } else if entry_is_file {
-                                                            0x001d_4ed8
+                                                            crate::ui::theme::INFO
                                                         } else {
-                                                            0x0047_5569
-                                                        }))
+                                                            SUBTEXT
+                                                        }).resolve(cx))
                                                         .cursor_pointer()
                                                         .when(type_focused, |control| {
                                                             control
                                                                 .border_2()
-                                                                .border_color(rgb(INFO))
+                                                                .border_color(INFO.resolve(cx))
                                                         })
                                                         .child(if entry_is_file {
                                                             "File"
@@ -928,24 +928,24 @@ impl Render for FormBodyInput {
                                                             ))
                                                             .px_2()
                                                             .border_1()
-                                                            .border_color(rgb(LINE))
+                                                            .border_color(LINE.resolve(cx))
                                                             .rounded_md()
                                                             .cursor(CursorStyle::PointingHand)
                                                             .when(file_focused, |control| {
                                                                 control
                                                                     .border_2()
-                                                                    .border_color(rgb(INFO))
+                                                                    .border_color(INFO.resolve(cx))
                                                             })
                                                             .flex()
                                                             .flex_col()
                                                             .justify_center()
-                                                            .text_color(rgb(if !entry_enabled {
+                                                            .text_color((if !entry_enabled {
                                                                 SUBTEXT
                                                             } else if entry_file_name.is_none() {
-                                                                0x006c_757d
+                                                                MUTED
                                                             } else {
-                                                                0x0021_2529
-                                                            }))
+                                                                crate::ui::theme::TEXT
+                                                            }).resolve(cx))
                                                             .child(
                                                                 div()
                                                                     .debug_selector(move || {
@@ -976,7 +976,7 @@ impl Render for FormBodyInput {
                                                                             )
                                                                             .font_family(FONT_UI)
                                                                             .text_size(px(8.0))
-                                                                            .text_color(rgb(SUBTEXT))
+                                                                            .text_color(SUBTEXT.resolve(cx))
                                                                             .child(content_type),
                                                                     )
                                                                 },
@@ -1031,21 +1031,21 @@ impl Render for FormBodyInput {
                                                             .px_2()
                                                             .py_1()
                                                             .rounded_lg()
-                                                            .bg(rgb(if entry_enabled {
+                                                            .bg((if entry_enabled {
                                                                 OK_SOFT
                                                             } else {
                                                                 PANEL_ALT
-                                                            }))
+                                                            }).resolve(cx))
                                                             .font_family(FONT_UI)
                                                             .font_weight(
                                                                 gpui::FontWeight::BOLD,
                                                             )
                                                             .text_size(px(7.0))
-                                                            .text_color(rgb(if entry_enabled {
+                                                            .text_color((if entry_enabled {
                                                                 OK
                                                             } else {
                                                                 MUTED
-                                                            }))
+                                                            }).resolve(cx))
                                                             .child(if entry_enabled {
                                                                 "READY"
                                                             } else {
@@ -1072,23 +1072,23 @@ impl Render for FormBodyInput {
                                                     .flex()
                                                     .items_center()
                                                     .justify_center()
-                                                    .bg(rgb(if entry_enabled {
+                                                    .bg((if entry_enabled {
                                                         PANEL
                                                     } else {
                                                         PANEL_ALT
-                                                    }))
-                                                    .text_color(rgb(SUBTEXT))
+                                                    }).resolve(cx))
+                                                    .text_color(SUBTEXT.resolve(cx))
                                                     .border_1()
-                                                    .border_color(rgb(LINE))
+                                                    .border_color(LINE.resolve(cx))
                                                     .rounded_md()
                                                     .cursor_pointer()
                                                     .hover(|style| {
-                                                        style.bg(rgb(ACCENT_SOFT))
+                                                        style.bg(ACCENT_SOFT.resolve(cx))
                                                     })
                                                     .when(delete_focused, |control| {
                                                         control
                                                             .border_2()
-                                                            .border_color(rgb(INFO))
+                                                            .border_color(INFO.resolve(cx))
                                                     })
                                                     .child("×")
                                                     .text_size(px(15.0))
@@ -1134,9 +1134,9 @@ impl Render for FormBodyInput {
                                 .bottom(px(8.0))
                                 .w(px(8.0))
                                 .rounded_full()
-                                .bg(rgb(PANEL_ALT))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .border_1()
-                                .border_color(rgb(LINE))
+                                .border_color(LINE.resolve(cx))
                                 .child(
                                     div()
                                         .debug_selector(|| {
@@ -1147,7 +1147,7 @@ impl Render for FormBodyInput {
                                         .w_full()
                                         .h(relative(scrollbar.thumb_height))
                                         .rounded_full()
-                                        .bg(rgb(INFO)),
+                                        .bg(INFO.resolve(cx)),
                                 ),
                         )
                     }),
@@ -1168,21 +1168,21 @@ impl Render for FormBodyInput {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .bg(rgb(INFO_SOFT))
-                    .text_color(rgb(INFO))
+                    .bg(INFO_SOFT.resolve(cx))
+                    .text_color(INFO.resolve(cx))
                     .border_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .rounded_md()
                     .cursor_pointer()
-                    .hover(|style| style.bg(rgb(PANEL_ALT)))
+                    .hover(|style| style.bg(PANEL_ALT.resolve(cx)))
                     .when(self.add_row_focus_handle.is_focused(window), |button| {
-                        button.border_2().border_color(rgb(INFO))
+                        button.border_2().border_color(INFO.resolve(cx))
                     })
                     .child("+ Add form field")
                     .child(
                         div()
                             .debug_selector(|| "body-form-add-row-hint".into())
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("one click = one row · no limit"),
                     )
                     .font_family(FONT_UI)

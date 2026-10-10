@@ -11,7 +11,7 @@ use crate::ui::{
     theme::{FONT_MONO, INFO, LINE, PANEL, TEXT},
 };
 use gpui::{
-    div, prelude::*, px, rgb, App, Bounds, Context, CursorStyle, EntityInputHandler, EventEmitter,
+    div, prelude::*, px, App, Bounds, Context, CursorStyle, EntityInputHandler, EventEmitter,
     FocusHandle, Focusable, IntoElement, KeyBinding, MouseButton, Pixels, Point, Render, Styled,
     UTF16Selection, Window,
 };
@@ -210,18 +210,18 @@ impl Render for HeaderInput {
             .when(!self.embedded, |field| {
                 field
                     .px_3()
-                    .bg(rgb(PANEL))
+                    .bg(PANEL.resolve(cx))
                     .border_1()
                     .border_color(if self.focus_handle.is_focused(window) {
-                        rgb(INFO)
+                        INFO.resolve(cx)
                     } else {
-                        rgb(LINE)
+                        LINE.resolve(cx)
                     })
                     .rounded_lg()
             })
             .font_family(self.font_family)
             .text_size(px(12.0))
-            .text_color(rgb(TEXT))
+            .text_color(TEXT.resolve(cx))
             .cursor(CursorStyle::IBeam)
             .track_focus(&self.focus_handle(cx))
             .key_context("HeaderInput")

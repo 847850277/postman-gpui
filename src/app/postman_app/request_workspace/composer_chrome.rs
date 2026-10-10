@@ -7,8 +7,8 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, Context, FontWeight, InteractiveElement,
-    IntoElement, KeyBinding, ParentElement, Role, StatefulInteractiveElement, Styled, Window,
+    actions, div, prelude::FluentBuilder, px, Context, FontWeight, InteractiveElement, IntoElement,
+    KeyBinding, ParentElement, Role, StatefulInteractiveElement, Styled, Window,
 };
 
 actions!(request_pane_tabs, [NextRequestPane, PreviousRequestPane]);
@@ -61,12 +61,12 @@ impl RequestComposer {
             } else {
                 FontWeight::SEMIBOLD
             })
-            .text_color(rgb(if active { TEXT } else { MUTED }))
-            .hover(|style| style.text_color(rgb(TEXT)))
+            .text_color((if active { TEXT } else { MUTED }).resolve(cx))
+            .hover(|style| style.text_color(TEXT.resolve(cx)))
             .when(focused, |tab| {
-                tab.bg(rgb(ACCENT_SOFT))
+                tab.bg(ACCENT_SOFT.resolve(cx))
                     .border_1()
-                    .border_color(rgb(ACCENT))
+                    .border_color(ACCENT.resolve(cx))
             })
             .child(label)
             .on_action(
@@ -146,11 +146,11 @@ impl RequestComposer {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(INFO_SOFT))
+                                .bg(INFO_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(11.0))
-                                .text_color(rgb(INFO))
+                                .text_color(INFO.resolve(cx))
                                 .child(format!("{url_query_count} in URL")),
                         )
                     }),
@@ -165,11 +165,11 @@ impl RequestComposer {
                         .flex()
                         .items_center()
                         .rounded_lg()
-                        .bg(rgb(INFO_SOFT))
+                        .bg(INFO_SOFT.resolve(cx))
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::BOLD)
                         .text_size(px(10.0))
-                        .text_color(rgb(INFO))
+                        .text_color(INFO.resolve(cx))
                         .child(format!("{request_id} · in_flight={in_flight_count}")),
                 )
             })
@@ -192,21 +192,21 @@ impl RequestComposer {
                     .items_center()
                     .justify_center()
                     .rounded_lg()
-                    .bg(rgb(if is_sending { ERROR } else { ACCENT_VIVID }))
-                    .text_color(rgb(if is_sending { PANEL } else { ACCENT_INK }))
+                    .bg((if is_sending { ERROR } else { ACCENT_VIVID }).resolve(cx))
+                    .text_color((if is_sending { PANEL } else { ACCENT_INK }).resolve(cx))
                     .font_family(FONT_HEADING)
                     .text_size(px(15.0))
                     .font_weight(FontWeight::BOLD)
                     .cursor_pointer()
-                    .hover(move |style| {
+                    .hover(|style| {
                         if is_sending {
-                            style.bg(rgb(0x00a8_2f2f))
+                            style.bg(crate::ui::theme::ERROR.resolve(cx))
                         } else {
-                            style.bg(rgb(ACCENT)).text_color(rgb(PANEL))
+                            style.bg(ACCENT.resolve(cx)).text_color(PANEL.resolve(cx))
                         }
                     })
                     .when(self.send_focus_handle.is_focused(window), |button| {
-                        button.border_2().border_color(rgb(INFO))
+                        button.border_2().border_color(INFO.resolve(cx))
                     })
                     .child(
                         div()
@@ -256,9 +256,9 @@ impl RequestComposer {
             .items_center()
             .gap_2()
             .px_3()
-            .bg(rgb(PANEL_ALT))
+            .bg(PANEL_ALT.resolve(cx))
             .border_b_1()
-            .border_color(rgb(LINE))
+            .border_color(LINE.resolve(cx))
             .child(self.request_tab(RequestPane::Params, "Params", window, cx))
             .child(self.request_tab(
                 RequestPane::Authorization,

@@ -6,7 +6,7 @@ use crate::ui::{
     theme::{FONT_MONO, INFO, LINE, PANEL, TEXT},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, App, Bounds, Context, CursorStyle, EntityInputHandler,
+    div, prelude::FluentBuilder, px, App, Bounds, Context, CursorStyle, EntityInputHandler,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Pixels, Point, Render, Styled, UTF16Selection, Window,
 };
@@ -257,15 +257,15 @@ impl Render for TableCellInput {
             .flex()
             .items_center()
             .px_3()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .border_1()
             .border_color(if self.focus_handle.is_focused(window) {
-                rgb(INFO)
+                INFO.resolve(cx)
             } else {
-                rgb(LINE)
+                LINE.resolve(cx)
             })
             .rounded_lg()
-            .text_color(rgb(TEXT))
+            .text_color(TEXT.resolve(cx))
             .font_family(FONT_MONO)
             .text_size(px(12.0))
             .cursor(CursorStyle::IBeam)

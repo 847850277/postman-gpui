@@ -14,7 +14,7 @@ use crate::ui::{
     theme::INFO,
 };
 use gpui::{
-    hsla, point, px, relative, rgb, App, Bounds, ClipboardItem, Context, Element, ElementId,
+    hsla, point, px, relative, App, Bounds, ClipboardItem, Context, Element, ElementId,
     ElementInputHandler, Entity, EntityInputHandler, FocusHandle, GlobalElementId, IntoElement,
     LayoutId, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ScrollHandle,
     SharedString, Style, TextAlign, TextRun, UTF16Selection, Window,
@@ -951,12 +951,12 @@ impl<H: MultilineInputHost> Element for MultilineTextElement<H> {
         let layout = MultilineTextLayout::new(lines, ranges, bounds, line_height);
         let cursor_quad = selection
             .is_empty()
-            .then(|| layout.cursor_quad(text, cursor, rgb(INFO).into()))
+            .then(|| layout.cursor_quad(text, cursor, INFO.resolve(cx).into()))
             .flatten();
         let selection_quads = if selection.is_empty() || content_empty {
             Vec::new()
         } else {
-            layout.selection_quads(text, selection)
+            layout.selection_quads(text, selection, crate::ui::theme::ACCENT_SOFT.resolve(cx))
         };
 
         PrepaintState {

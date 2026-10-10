@@ -1,5 +1,5 @@
 use crate::ui::theme::{INFO, LINE, PANEL_ALT};
-use gpui::{div, px, relative, rgb, InteractiveElement, IntoElement, ParentElement, Styled};
+use gpui::{div, px, relative, InteractiveElement, IntoElement, ParentElement, Styled};
 
 /// Normalized geometry shared by bounded workspace scrollbars.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,6 +32,7 @@ pub fn vertical_scrollbar(
     track_selector: &'static str,
     thumb_selector: &'static str,
     geometry: ScrollbarGeometry,
+    cx: &gpui::App,
 ) -> gpui::AnyElement {
     div()
         .debug_selector(move || track_selector.into())
@@ -41,9 +42,9 @@ pub fn vertical_scrollbar(
         .bottom(px(8.0))
         .w(px(8.0))
         .rounded_full()
-        .bg(rgb(PANEL_ALT))
+        .bg(PANEL_ALT.resolve(cx))
         .border_1()
-        .border_color(rgb(LINE))
+        .border_color(LINE.resolve(cx))
         .child(
             div()
                 .debug_selector(move || thumb_selector.into())
@@ -52,7 +53,7 @@ pub fn vertical_scrollbar(
                 .w_full()
                 .h(relative(geometry.thumb_height))
                 .rounded_full()
-                .bg(rgb(INFO)),
+                .bg(INFO.resolve(cx)),
         )
         .into_any_element()
 }

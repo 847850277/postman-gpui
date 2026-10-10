@@ -62,7 +62,16 @@ Linux needs the GPUI development libraries listed in the
 [installation guide](docs/installation.md#linux).
 
 For the GPUI Kit migration, `cargo run --locked -- --kit-smoke` opens the native
-component validation window.
+component validation window (requests 1440 × 960; actual viewport and scale are
+shown in its footer). It exercises shared themed Kit controls,
+input groups, editable rows, and dialog/keyboard behavior. The appearance button
+switches light/dark mode; the choice is restored on restart. Missing or invalid
+preferences use light mode. Preference write failures remain visible in the UI.
+
+Run `cargo test --locked --test ui_kit` for native interaction and 960 × 640
+geometry checks. `tests/ui_visual_compare.py` compares captured HTML/native
+control regions with separate color and text-antialiasing tolerances; its module
+docstring describes the comparison manifest. Screenshots belong in PR evidence.
 
 To create native packages locally, install the pinned packager and run the release helper:
 

@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, Context, Entity, EventEmitter, FocusHandle, FontWeight,
+    div, prelude::FluentBuilder, px, Context, Entity, EventEmitter, FocusHandle, FontWeight,
     InteractiveElement, IntoElement, ParentElement, Render, Role, StatefulInteractiveElement,
     Styled, Subscription, Window,
 };
@@ -99,7 +99,7 @@ impl Render for CookiePane {
             .flex_col()
             .gap_3()
             .p_3()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .h(px(48.0))
@@ -110,8 +110,8 @@ impl Render for CookiePane {
                     .px_3()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(LINE))
-                    .bg(rgb(PANEL_ALT))
+                    .border_color(LINE.resolve(cx))
+                    .bg(PANEL_ALT.resolve(cx))
                     .child(
                         div()
                             .min_w_0()
@@ -124,7 +124,7 @@ impl Render for CookiePane {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Application Cookie Jar · workspace tool"),
                             )
                             .child(
@@ -132,7 +132,7 @@ impl Render for CookiePane {
                                     .debug_selector(|| "cookie-jar-scope".into())
                                     .font_family(FONT_UI)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child(
                                         "Opened from the header · values protected · shared by requests",
                                     ),
@@ -147,11 +147,11 @@ impl Render for CookiePane {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(INFO_SOFT))
+                            .bg(INFO_SOFT.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child(format!("{count} stored")),
                     )
                     .child(
@@ -169,15 +169,15 @@ impl Render for CookiePane {
                             .items_center()
                             .justify_center()
                             .rounded_lg()
-                            .bg(rgb(ACCENT_SOFT))
+                            .bg(ACCENT_SOFT.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(10.0))
-                            .text_color(rgb(ACCENT))
+                            .text_color(ACCENT.resolve(cx))
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(0x00ff_e4d5)))
+                            .hover(|style| style.bg(crate::ui::theme::ACCENT_SOFT.resolve(cx)))
                             .when(self.clear_focus_handle.is_focused(window), |button| {
-                                button.border_1().border_color(rgb(ACCENT))
+                                button.border_1().border_color(ACCENT.resolve(cx))
                             })
                             .child("Clear all cookies")
                             .on_action(cx.listener(Self::clear_with_keyboard))
@@ -197,15 +197,15 @@ impl Render for CookiePane {
                             .items_center()
                             .justify_center()
                             .rounded_lg()
-                            .bg(rgb(PANEL))
+                            .bg(PANEL.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(16.0))
-                            .text_color(rgb(MUTED))
+                            .text_color(MUTED.resolve(cx))
                             .cursor_pointer()
-                            .hover(|style| style.bg(rgb(ACCENT_SOFT)).text_color(rgb(ACCENT)))
+                            .hover(|style| style.bg(ACCENT_SOFT.resolve(cx)).text_color(ACCENT.resolve(cx)))
                             .when(self.close_focus_handle.is_focused(window), |button| {
-                                button.border_1().border_color(rgb(ACCENT))
+                                button.border_1().border_color(ACCENT.resolve(cx))
                             })
                             .child("×")
                             .on_action(cx.listener(Self::close_with_keyboard))
@@ -222,11 +222,11 @@ impl Render for CookiePane {
                         .flex()
                         .items_center()
                         .rounded_lg()
-                        .bg(rgb(OK_SOFT))
+                        .bg(OK_SOFT.resolve(cx))
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_size(px(10.0))
-                        .text_color(rgb(OK))
+                        .text_color(OK.resolve(cx))
                         .child(if cleared == 1 {
                             "✓ Cleared 1 cookie".to_string()
                         } else {
@@ -255,15 +255,15 @@ impl Render for CookiePane {
                                 .gap_2()
                                 .rounded_lg()
                                 .border_1()
-                                .border_color(rgb(LINE))
-                                .bg(rgb(PANEL_ALT))
+                                .border_color(LINE.resolve(cx))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(12.0))
-                                .text_color(rgb(MUTED))
+                                .text_color(MUTED.resolve(cx))
                                 .child("Cookie jar is empty")
                                 .child(
-                                    div().text_size(px(9.0)).text_color(rgb(SUBTEXT)).child(
+                                    div().text_size(px(9.0)).text_color(SUBTEXT.resolve(cx)).child(
                                         "The next request sends no automatic Cookie header.",
                                     ),
                                 ),
@@ -280,8 +280,8 @@ impl Render for CookiePane {
                             .px_3()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(LINE))
-                            .bg(rgb(INFO_SOFT))
+                            .border_color(LINE.resolve(cx))
+                            .bg(INFO_SOFT.resolve(cx))
                             .child(
                                 div()
                                     .debug_selector(move || format!("cookie-name-{index}"))
@@ -290,7 +290,7 @@ impl Render for CookiePane {
                                     .font_family(FONT_MONO)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(11.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(cookie.name),
                             )
                             .child(
@@ -300,7 +300,7 @@ impl Render for CookiePane {
                                     .flex_1()
                                     .font_family(FONT_MONO)
                                     .text_size(px(10.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child(cookie.origin),
                             )
                             .child(
@@ -314,11 +314,11 @@ impl Render for CookiePane {
                                     .flex()
                                     .items_center()
                                     .rounded_lg()
-                                    .bg(rgb(PANEL))
+                                    .bg(PANEL.resolve(cx))
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(MUTED))
+                                    .text_color(MUTED.resolve(cx))
                                     .child("VALUE PROTECTED"),
                             )
                     })),

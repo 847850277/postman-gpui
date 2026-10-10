@@ -9,8 +9,8 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, rgb, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, ScrollHandle, StatefulInteractiveElement, Styled,
+    div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
+    ScrollHandle, StatefulInteractiveElement, Styled,
 };
 
 const RAW_SEMANTICS_ROW_COUNT: usize = 3;
@@ -33,6 +33,7 @@ pub(super) fn render_raw_request_semantics(
     effective_headers: Vec<EffectiveHeader>,
     scroll_handle: &ScrollHandle,
     viewport_height: f32,
+    cx: &gpui::App,
 ) -> gpui::AnyElement {
     let generated_count = effective_headers
         .iter()
@@ -64,8 +65,8 @@ pub(super) fn render_raw_request_semantics(
         .overflow_hidden()
         .rounded_lg()
         .border_1()
-        .border_color(rgb(LINE))
-        .bg(rgb(INFO_SOFT))
+        .border_color(LINE.resolve(cx))
+        .bg(INFO_SOFT.resolve(cx))
         .child(
             div()
                 .h(px(46.0))
@@ -75,7 +76,7 @@ pub(super) fn render_raw_request_semantics(
                 .justify_between()
                 .px_3()
                 .border_b_1()
-                .border_color(rgb(LINE))
+                .border_color(LINE.resolve(cx))
                 .child(
                     div()
                         .flex()
@@ -86,14 +87,14 @@ pub(super) fn render_raw_request_semantics(
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::BOLD)
                                 .text_size(px(12.0))
-                                .text_color(rgb(TEXT))
+                                .text_color(TEXT.resolve(cx))
                                 .child("Effective raw request"),
                         )
                         .child(
                             div()
                                 .font_family(FONT_UI)
                                 .text_size(px(9.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child("Raw never synthesizes a Content-Type header."),
                         ),
                 )
@@ -105,11 +106,11 @@ pub(super) fn render_raw_request_semantics(
                         .flex()
                         .items_center()
                         .rounded_lg()
-                        .bg(rgb(PANEL))
+                        .bg(PANEL.resolve(cx))
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::BOLD)
                         .text_size(px(9.0))
-                        .text_color(rgb(INFO))
+                        .text_color(INFO.resolve(cx))
                         .child(format!("{generated_count} GENERATED")),
                 ),
         )
@@ -131,33 +132,42 @@ pub(super) fn render_raw_request_semantics(
                         .overflow_y_scroll()
                         .track_scroll(scroll_handle)
                         .children([
-                            render_raw_semantics_row(RawSemanticsRow {
-                                selector: "body-raw-content-type-state",
-                                value_selector: "body-raw-content-type-value",
-                                mark: content_type_mark,
-                                key: "Content-Type",
-                                value: content_type_value,
-                                state: content_type_state,
-                                success: !has_content_type,
-                            }),
-                            render_raw_semantics_row(RawSemanticsRow {
-                                selector: "body-raw-exact-bytes",
-                                value_selector: "body-raw-effective-body",
-                                mark: "✓",
-                                key: "Body bytes",
-                                value: body_preview,
-                                state: "EXACT",
-                                success: true,
-                            }),
-                            render_raw_semantics_row(RawSemanticsRow {
-                                selector: "body-raw-ready-indicator",
-                                value_selector: "body-raw-request-target",
-                                mark: "✓",
-                                key: "Effective request",
-                                value: raw_request_target(method, effective_url),
-                                state: "READY",
-                                success: true,
-                            }),
+                            render_raw_semantics_row(
+                                RawSemanticsRow {
+                                    selector: "body-raw-content-type-state",
+                                    value_selector: "body-raw-content-type-value",
+                                    mark: content_type_mark,
+                                    key: "Content-Type",
+                                    value: content_type_value,
+                                    state: content_type_state,
+                                    success: !has_content_type,
+                                },
+                                cx,
+                            ),
+                            render_raw_semantics_row(
+                                RawSemanticsRow {
+                                    selector: "body-raw-exact-bytes",
+                                    value_selector: "body-raw-effective-body",
+                                    mark: "✓",
+                                    key: "Body bytes",
+                                    value: body_preview,
+                                    state: "EXACT",
+                                    success: true,
+                                },
+                                cx,
+                            ),
+                            render_raw_semantics_row(
+                                RawSemanticsRow {
+                                    selector: "body-raw-ready-indicator",
+                                    value_selector: "body-raw-request-target",
+                                    mark: "✓",
+                                    key: "Effective request",
+                                    value: raw_request_target(method, effective_url),
+                                    state: "READY",
+                                    success: true,
+                                },
+                                cx,
+                            ),
                         ]),
                 )
                 .when_some(scrollbar, |viewport, scrollbar| {
@@ -165,6 +175,7 @@ pub(super) fn render_raw_request_semantics(
                         "body-raw-scrollbar",
                         "body-raw-scrollbar-thumb",
                         scrollbar,
+                        cx,
                     ))
                 }),
         )
@@ -180,7 +191,7 @@ pub(super) fn render_raw_request_semantics(
                 .px_3()
                 .font_family(FONT_UI)
                 .text_size(px(8.0))
-                .text_color(rgb(SUBTEXT))
+                .text_color(SUBTEXT.resolve(cx))
                 .child(if has_content_type {
                     "Manual Content-Type preserved · exact body bytes remain unchanged."
                 } else {
@@ -190,7 +201,7 @@ pub(super) fn render_raw_request_semantics(
                     div()
                         .flex_none()
                         .font_family(FONT_MONO)
-                        .text_color(rgb(TEXT))
+                        .text_color(TEXT.resolve(cx))
                         .child(format!("{byte_count} UTF-8 bytes")),
                 ),
         )
@@ -219,7 +230,7 @@ fn raw_semantics_scrollbar_geometry(
     ))
 }
 
-fn render_raw_semantics_row(row: RawSemanticsRow) -> gpui::AnyElement {
+fn render_raw_semantics_row(row: RawSemanticsRow, cx: &gpui::App) -> gpui::AnyElement {
     let RawSemanticsRow {
         selector,
         value_selector,
@@ -239,8 +250,8 @@ fn render_raw_semantics_row(row: RawSemanticsRow) -> gpui::AnyElement {
         .gap_3()
         .px_3()
         .border_b_1()
-        .border_color(rgb(LINE))
-        .child(raw_semantics_mark(mark, success))
+        .border_color(LINE.resolve(cx))
+        .child(raw_semantics_mark(mark, success, cx))
         .child(
             div()
                 .min_w_0()
@@ -253,7 +264,7 @@ fn render_raw_semantics_row(row: RawSemanticsRow) -> gpui::AnyElement {
                         .font_family(FONT_UI)
                         .font_weight(FontWeight::BOLD)
                         .text_size(px(10.0))
-                        .text_color(rgb(TEXT))
+                        .text_color(TEXT.resolve(cx))
                         .child(key),
                 )
                 .child(
@@ -263,11 +274,11 @@ fn render_raw_semantics_row(row: RawSemanticsRow) -> gpui::AnyElement {
                         .overflow_hidden()
                         .font_family(FONT_MONO)
                         .text_size(px(9.0))
-                        .text_color(rgb(SUBTEXT))
+                        .text_color(SUBTEXT.resolve(cx))
                         .child(value),
                 ),
         )
-        .child(raw_semantics_state(state, success))
+        .child(raw_semantics_state(state, success, cx))
         .into_any_element()
 }
 
@@ -290,7 +301,7 @@ fn raw_request_target(method: HttpMethod, effective_url: &str) -> String {
     format!("{method} {target}")
 }
 
-fn raw_semantics_mark(label: &'static str, success: bool) -> gpui::AnyElement {
+fn raw_semantics_mark(label: &'static str, success: bool, cx: &gpui::App) -> gpui::AnyElement {
     div()
         .size(px(26.0))
         .flex_none()
@@ -298,16 +309,16 @@ fn raw_semantics_mark(label: &'static str, success: bool) -> gpui::AnyElement {
         .items_center()
         .justify_center()
         .rounded_lg()
-        .bg(rgb(if success { OK_SOFT } else { PANEL }))
+        .bg((if success { OK_SOFT } else { PANEL }).resolve(cx))
         .font_family(FONT_UI)
         .font_weight(FontWeight::BOLD)
         .text_size(px(11.0))
-        .text_color(rgb(if success { OK } else { INFO }))
+        .text_color((if success { OK } else { INFO }).resolve(cx))
         .child(label)
         .into_any_element()
 }
 
-fn raw_semantics_state(label: &'static str, success: bool) -> gpui::AnyElement {
+fn raw_semantics_state(label: &'static str, success: bool, cx: &gpui::App) -> gpui::AnyElement {
     div()
         .h(px(22.0))
         .px_2()
@@ -315,11 +326,11 @@ fn raw_semantics_state(label: &'static str, success: bool) -> gpui::AnyElement {
         .flex()
         .items_center()
         .rounded_lg()
-        .bg(rgb(if success { OK_SOFT } else { PANEL }))
+        .bg((if success { OK_SOFT } else { PANEL }).resolve(cx))
         .font_family(FONT_UI)
         .font_weight(FontWeight::BOLD)
         .text_size(px(8.0))
-        .text_color(rgb(if success { OK } else { INFO }))
+        .text_color((if success { OK } else { INFO }).resolve(cx))
         .child(label)
         .into_any_element()
 }

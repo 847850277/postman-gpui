@@ -17,7 +17,7 @@ use crate::{
     ui::theme::{BG, LINE},
 };
 use gpui::{
-    deferred, div, px, rgb, AppContext, Context, DragMoveEvent, Entity, EventEmitter, FocusHandle,
+    deferred, div, px, AppContext, Context, DragMoveEvent, Entity, EventEmitter, FocusHandle,
     InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement,
     Pixels, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
@@ -301,7 +301,13 @@ impl RequestWorkspace {
             .flex()
             .items_center()
             .justify_center()
-            .child(div().w(px(48.0)).h(px(3.0)).rounded_full().bg(rgb(LINE)))
+            .child(
+                div()
+                    .w(px(48.0))
+                    .h(px(3.0))
+                    .rounded_full()
+                    .bg(LINE.resolve(cx)),
+            )
             .child(deferred(
                 div()
                     .id("response-resize-handle")
@@ -328,7 +334,7 @@ impl Render for RequestWorkspace {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(BG))
+            .bg(BG.resolve(cx))
             .child(self.render_request_tabs_bar(window, cx))
             .child(
                 div()

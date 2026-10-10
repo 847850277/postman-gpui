@@ -1,3 +1,4 @@
+pub mod appearance;
 // src/app/mod.rs
 mod history_storage;
 mod keyboard;

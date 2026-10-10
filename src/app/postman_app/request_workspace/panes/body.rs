@@ -21,9 +21,9 @@ use crate::{
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, rgb, AppContext, Context, Entity, FocusHandle,
-    FontWeight, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role,
-    ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
+    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Role, ScrollHandle,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use raw::render_raw_request_semantics;
 
@@ -318,7 +318,7 @@ impl BodyPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "body-kind-selector".into())
@@ -328,16 +328,16 @@ impl BodyPane {
                     .items_center()
                     .gap_3()
                     .px_3()
-                    .bg(rgb(PANEL))
+                    .bg(PANEL.resolve(cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .mr_1()
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("BODY TYPE"),
                     )
                     .child(self.body_kind_option("none", BodyKind::None, kind, window, cx))
@@ -366,11 +366,11 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(OK_SOFT))
+                                .bg(OK_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("LIVE · SAVED"),
                         )
                     })
@@ -383,11 +383,11 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(OK_SOFT))
+                                .bg(OK_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("LIVE · SAVED"),
                         )
                     })
@@ -400,11 +400,11 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(OK_SOFT))
+                                .bg(OK_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("LIVE · SAVED"),
                         )
                         .child(
@@ -415,11 +415,11 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(PANEL_ALT))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child(format!("{form_row_count} rows")),
                         )
                     })
@@ -432,11 +432,11 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(OK_SOFT))
+                                .bg(OK_SOFT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(OK))
+                                .text_color(OK.resolve(cx))
                                 .child("LIVE · SAVED"),
                         )
                         .child(
@@ -447,19 +447,19 @@ impl BodyPane {
                                 .flex()
                                 .items_center()
                                 .rounded_lg()
-                                .bg(rgb(PANEL_ALT))
+                                .bg(PANEL_ALT.resolve(cx))
                                 .font_family(FONT_UI)
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_size(px(9.0))
-                                .text_color(rgb(SUBTEXT))
+                                .text_color(SUBTEXT.resolve(cx))
                                 .child(format!("{form_row_count} rows")),
                         )
                     }),
             )
             .child(if is_url_encoded {
-                self.render_url_encoded_body(body, effective_headers)
+                self.render_url_encoded_body(body, effective_headers, cx)
             } else if is_multipart {
-                self.render_multipart_body(request_body, multipart_omitted, multipart_error)
+                self.render_multipart_body(request_body, multipart_omitted, multipart_error, cx)
             } else {
                 self.render_text_body(
                     body,
@@ -498,6 +498,7 @@ impl BodyPane {
                 effective_headers,
                 &self.raw_semantics_scroll,
                 side_list_viewport_height,
+                cx,
             ))
         } else {
             None
@@ -509,7 +510,7 @@ impl BodyPane {
             .flex()
             .gap_3()
             .p_3()
-            .bg(rgb(PANEL_ALT))
+            .bg(PANEL_ALT.resolve(cx))
             .child(
                 div()
                     .flex_1()
@@ -528,8 +529,8 @@ impl BodyPane {
                             .overflow_hidden()
                             .rounded_lg()
                             .border_1()
-                            .border_color(rgb(if is_json || is_raw { INFO } else { LINE }))
-                            .bg(rgb(PANEL))
+                            .border_color((if is_json || is_raw { INFO } else { LINE }).resolve(cx))
+                            .bg(PANEL.resolve(cx))
                             .child(
                                 div()
                                     .h(px(32.0))
@@ -539,14 +540,14 @@ impl BodyPane {
                                     .justify_between()
                                     .px_3()
                                     .border_b_1()
-                                    .border_color(rgb(LINE))
+                                    .border_color(LINE.resolve(cx))
                                     .font_family(FONT_UI)
                                     .child(
                                         div()
                                             .debug_selector(|| "body-editor-title".into())
                                             .font_weight(FontWeight::BOLD)
                                             .text_size(px(9.0))
-                                            .text_color(rgb(INFO))
+                                            .text_color(INFO.resolve(cx))
                                             .child(if is_json {
                                                 "JSON · ACTIVE INPUT"
                                             } else if is_raw {
@@ -561,7 +562,7 @@ impl BodyPane {
                                             .items_center()
                                             .gap_2()
                                             .text_size(px(9.0))
-                                            .text_color(rgb(MUTED))
+                                            .text_color(MUTED.resolve(cx))
                                             .child(format!("{body_len} chars"))
                                             .when(!is_raw, |actions| {
                                                 actions.child(
@@ -577,8 +578,8 @@ impl BodyPane {
                                                         .px_2()
                                                         .py_1()
                                                         .rounded_md()
-                                                        .bg(rgb(INFO_SOFT))
-                                                        .text_color(rgb(INFO))
+                                                        .bg(INFO_SOFT.resolve(cx))
+                                                        .text_color(INFO.resolve(cx))
                                                         .cursor_pointer()
                                                         .when(
                                                             self.sample_focus_handle
@@ -586,7 +587,7 @@ impl BodyPane {
                                                             |button| {
                                                                 button
                                                                     .border_1()
-                                                                    .border_color(rgb(ACCENT))
+                                                                    .border_color(ACCENT.resolve(cx))
                                                             },
                                                         )
                                                         .child("Sample JSON")
@@ -619,15 +620,15 @@ impl BodyPane {
                                                     .px_2()
                                                     .py_1()
                                                     .rounded_md()
-                                                    .bg(rgb(PANEL_ALT))
-                                                    .text_color(rgb(SUBTEXT))
+                                                    .bg(PANEL_ALT.resolve(cx))
+                                                    .text_color(SUBTEXT.resolve(cx))
                                                     .cursor_pointer()
                                                     .when(
                                                         self.clear_focus_handle.is_focused(window),
                                                         |button| {
                                                             button
                                                                 .border_1()
-                                                                .border_color(rgb(ACCENT))
+                                                                .border_color(ACCENT.resolve(cx))
                                                         },
                                                     )
                                                     .child("Clear")
@@ -665,20 +666,20 @@ impl BodyPane {
                             .gap_1()
                             .px_3()
                             .rounded_lg()
-                            .bg(rgb(OK_SOFT))
+                            .bg(OK_SOFT.resolve(cx))
                             .font_family(FONT_UI)
                             .child(
                                 div()
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(OK))
+                                    .text_color(OK.resolve(cx))
                                     .child("SINGLE SOURCE OF TRUTH"),
                             )
                             .child(
                                 div()
                                     .font_family(FONT_MONO)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(if is_raw {
                                         "RequestBody::Raw(active text) · Send performs no submit-time backfill"
                                     } else {
@@ -697,6 +698,7 @@ impl BodyPane {
         &self,
         body: String,
         effective_headers: Vec<EffectiveHeader>,
+        cx: &gpui::App,
     ) -> gpui::AnyElement {
         let field_count = form_urlencoded::parse(body.as_bytes()).count();
         let request_headers = effective_headers
@@ -713,7 +715,7 @@ impl BodyPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "body-input".into())
@@ -730,9 +732,9 @@ impl BodyPane {
                     .items_center()
                     .gap_3()
                     .px_3()
-                    .bg(rgb(INFO_SOFT))
+                    .bg(INFO_SOFT.resolve(cx))
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .min_w_0()
@@ -748,7 +750,7 @@ impl BodyPane {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(INFO))
+                                    .text_color(INFO.resolve(cx))
                                     .child("↗ EFFECTIVE REQUEST BODY")
                                     .child(
                                         div()
@@ -758,8 +760,8 @@ impl BodyPane {
                                             .px_2()
                                             .py_1()
                                             .rounded_lg()
-                                            .bg(rgb(PANEL))
-                                            .text_color(rgb(SUBTEXT))
+                                            .bg(PANEL.resolve(cx))
+                                            .text_color(SUBTEXT.resolve(cx))
                                             .child(format!("{field_count} fields")),
                                     ),
                             )
@@ -770,7 +772,7 @@ impl BodyPane {
                                     .overflow_hidden()
                                     .font_family(FONT_MONO)
                                     .text_size(px(10.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(if body.is_empty() {
                                         "(empty body)".to_string()
                                     } else {
@@ -788,7 +790,7 @@ impl BodyPane {
                             .children(
                                 request_headers
                                     .into_iter()
-                                    .map(render_url_encoded_header_chip),
+                                    .map(|item| render_url_encoded_header_chip(item, cx)),
                             ),
                     ),
             )
@@ -802,10 +804,10 @@ impl BodyPane {
                     .gap_2()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(9.0))
-                    .text_color(rgb(OK))
+                    .text_color(OK.resolve(cx))
                     .child("✓")
                     .child(
                         "Ready to send — active values are already saved in the ViewModel draft",
@@ -819,6 +821,7 @@ impl BodyPane {
         request_body: RequestBody,
         omitted_count: usize,
         file_error: Option<String>,
+        cx: &gpui::App,
     ) -> gpui::AnyElement {
         let parts = match request_body {
             RequestBody::Multipart(parts) => parts,
@@ -834,7 +837,7 @@ impl BodyPane {
             .min_h_0()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(PANEL.resolve(cx))
             .child(
                 div()
                     .debug_selector(|| "body-input".into())
@@ -852,12 +855,12 @@ impl BodyPane {
                         .items_center()
                         .gap_2()
                         .px_3()
-                        .bg(rgb(ACCENT_SOFT))
+                        .bg(ACCENT_SOFT.resolve(cx))
                         .border_t_1()
-                        .border_color(rgb(ACCENT))
+                        .border_color(ACCENT.resolve(cx))
                         .font_family(FONT_UI)
                         .text_size(px(9.0))
-                        .text_color(rgb(ACCENT_INK))
+                        .text_color(ACCENT_INK.resolve(cx))
                         .child("!")
                         .child(
                             div()
@@ -877,9 +880,9 @@ impl BodyPane {
                     .items_center()
                     .gap_3()
                     .px_3()
-                    .bg(rgb(INFO_SOFT))
+                    .bg(INFO_SOFT.resolve(cx))
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .child(
                         div()
                             .min_w_0()
@@ -895,7 +898,7 @@ impl BodyPane {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(INFO))
+                                    .text_color(INFO.resolve(cx))
                                     .child("↗ EFFECTIVE MULTIPART PARTS")
                                     .child(
                                         div()
@@ -903,8 +906,8 @@ impl BodyPane {
                                             .px_2()
                                             .py_1()
                                             .rounded_lg()
-                                            .bg(rgb(PANEL))
-                                            .text_color(rgb(SUBTEXT))
+                                            .bg(PANEL.resolve(cx))
+                                            .text_color(SUBTEXT.resolve(cx))
                                             .child(format!("{part_count} parts")),
                                     )
                                     .child(
@@ -915,12 +918,11 @@ impl BodyPane {
                                             .px_2()
                                             .py_1()
                                             .rounded_lg()
-                                            .bg(rgb(PANEL))
-                                            .text_color(rgb(if omitted_count > 0 {
-                                                ACCENT
-                                            } else {
-                                                SUBTEXT
-                                            }))
+                                            .bg(PANEL.resolve(cx))
+                                            .text_color(
+                                                (if omitted_count > 0 { ACCENT } else { SUBTEXT })
+                                                    .resolve(cx),
+                                            )
                                             .child(format!("{omitted_count} disabled omitted")),
                                     ),
                             )
@@ -931,7 +933,7 @@ impl BodyPane {
                                     .overflow_hidden()
                                     .font_family(FONT_MONO)
                                     .text_size(px(10.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child(parts_preview),
                             ),
                     )
@@ -942,10 +944,10 @@ impl BodyPane {
                             .px_2()
                             .py_1()
                             .rounded_lg()
-                            .bg(rgb(PANEL))
+                            .bg(PANEL.resolve(cx))
                             .font_family(FONT_MONO)
                             .text_size(px(9.0))
-                            .text_color(rgb(SUBTEXT))
+                            .text_color(SUBTEXT.resolve(cx))
                             .child("multipart/form-data; boundary=<generated>"),
                     ),
             )
@@ -959,10 +961,10 @@ impl BodyPane {
                     .gap_2()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(9.0))
-                    .text_color(rgb(if has_file_error { ACCENT } else { OK }))
+                    .text_color((if has_file_error { ACCENT } else { OK }).resolve(cx))
                     .child(if has_file_error { "!" } else { "✓" })
                     .child(if has_file_error {
                         "Selected file needs correction — no successful History entry was added"
@@ -995,8 +997,8 @@ impl BodyPane {
             .overflow_hidden()
             .rounded_lg()
             .border_1()
-            .border_color(rgb(LINE))
-            .bg(rgb(INFO_SOFT))
+            .border_color(LINE.resolve(cx))
+            .bg(INFO_SOFT.resolve(cx))
             .child(
                 div()
                     .h(px(46.0))
@@ -1015,14 +1017,14 @@ impl BodyPane {
                                     .font_family(FONT_UI)
                                     .font_weight(FontWeight::BOLD)
                                     .text_size(px(12.0))
-                                    .text_color(rgb(TEXT))
+                                    .text_color(TEXT.resolve(cx))
                                     .child("Effective request headers"),
                             )
                             .child(
                                 div()
                                     .font_family(FONT_UI)
                                     .text_size(px(9.0))
-                                    .text_color(rgb(SUBTEXT))
+                                    .text_color(SUBTEXT.resolve(cx))
                                     .child("Generated defaults and user rows merge once."),
                             ),
                     )
@@ -1034,11 +1036,11 @@ impl BodyPane {
                             .flex()
                             .items_center()
                             .rounded_lg()
-                            .bg(rgb(PANEL))
+                            .bg(PANEL.resolve(cx))
                             .font_family(FONT_UI)
                             .font_weight(FontWeight::BOLD)
                             .text_size(px(9.0))
-                            .text_color(rgb(INFO))
+                            .text_color(INFO.resolve(cx))
                             .child(format!("{count} SENT")),
                     ),
             )
@@ -1072,17 +1074,22 @@ impl BodyPane {
                                         .justify_center()
                                         .font_family(FONT_UI)
                                         .text_size(px(10.0))
-                                        .text_color(rgb(MUTED))
+                                        .text_color(MUTED.resolve(cx))
                                         .child("No enabled request headers"),
                                 )
                             })
-                            .children(headers.into_iter().map(render_effective_header)),
+                            .children(
+                                headers
+                                    .into_iter()
+                                    .map(|item| render_effective_header(item, cx)),
+                            ),
                     )
                     .when_some(scrollbar, |viewport, scrollbar| {
                         viewport.child(vertical_scrollbar(
                             "body-effective-headers-scrollbar",
                             "body-effective-headers-scrollbar-thumb",
                             scrollbar,
+                            cx,
                         ))
                     }),
             )
@@ -1094,10 +1101,10 @@ impl BodyPane {
                     .items_center()
                     .px_3()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(LINE.resolve(cx))
                     .font_family(FONT_UI)
                     .text_size(px(8.0))
-                    .text_color(rgb(SUBTEXT))
+                    .text_color(SUBTEXT.resolve(cx))
                     .child("This projection is read from the same typed Request used by Send."),
             )
             .into_any_element()
@@ -1138,8 +1145,8 @@ impl BodyPane {
             .gap_1()
             .rounded_lg()
             .border_1()
-            .border_color(rgb(if active { ACCENT } else { LINE }))
-            .bg(rgb(if active { ACCENT_SOFT } else { PANEL }))
+            .border_color((if active { ACCENT } else { LINE }).resolve(cx))
+            .bg((if active { ACCENT_SOFT } else { PANEL }).resolve(cx))
             .font_family(FONT_UI)
             .text_size(px(12.0))
             .font_weight(if active {
@@ -1147,11 +1154,13 @@ impl BodyPane {
             } else {
                 FontWeight::NORMAL
             })
-            .text_color(rgb(if active { ACCENT_INK } else { SUBTEXT }))
-            .when(focused, |option| option.border_2().border_color(rgb(INFO)))
+            .text_color((if active { ACCENT_INK } else { SUBTEXT }).resolve(cx))
+            .when(focused, |option| {
+                option.border_2().border_color(INFO.resolve(cx))
+            })
             .child(
                 div()
-                    .text_color(rgb(if active { ACCENT_VIVID } else { MUTED }))
+                    .text_color((if active { ACCENT_VIVID } else { MUTED }).resolve(cx))
                     .child(if active { "●" } else { "○" }),
             )
             .child(label);
@@ -1287,7 +1296,7 @@ fn multipart_parts_preview(parts: &[MultipartPart]) -> String {
         .join("  ·  ")
 }
 
-fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
+fn render_effective_header(header: EffectiveHeader, cx: &gpui::App) -> gpui::AnyElement {
     let selector = body_effective_header_selector(&header.name);
     let generated = header.source == EffectiveHeaderSource::Generated;
     div()
@@ -1300,8 +1309,8 @@ fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
         .px_2()
         .rounded_lg()
         .border_1()
-        .border_color(rgb(LINE))
-        .bg(rgb(PANEL))
+        .border_color(LINE.resolve(cx))
+        .bg(PANEL.resolve(cx))
         .child(
             div()
                 .size(px(20.0))
@@ -1310,11 +1319,11 @@ fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
                 .items_center()
                 .justify_center()
                 .rounded_md()
-                .bg(rgb(OK_SOFT))
+                .bg(OK_SOFT.resolve(cx))
                 .font_family(FONT_UI)
                 .font_weight(FontWeight::BOLD)
                 .text_size(px(10.0))
-                .text_color(rgb(OK))
+                .text_color(OK.resolve(cx))
                 .child("✓"),
         )
         .child(
@@ -1330,14 +1339,14 @@ fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
                     div()
                         .flex_none()
                         .font_weight(FontWeight::BOLD)
-                        .text_color(rgb(TEXT))
+                        .text_color(TEXT.resolve(cx))
                         .child(header.name),
                 )
                 .child(
                     div()
                         .min_w_0()
                         .overflow_hidden()
-                        .text_color(rgb(SUBTEXT))
+                        .text_color(SUBTEXT.resolve(cx))
                         .child(header.value),
                 ),
         )
@@ -1349,17 +1358,17 @@ fn render_effective_header(header: EffectiveHeader) -> gpui::AnyElement {
                 .flex()
                 .items_center()
                 .rounded_lg()
-                .bg(rgb(if generated { INFO_SOFT } else { ACCENT_SOFT }))
+                .bg((if generated { INFO_SOFT } else { ACCENT_SOFT }).resolve(cx))
                 .font_family(FONT_UI)
                 .font_weight(FontWeight::BOLD)
                 .text_size(px(8.0))
-                .text_color(rgb(if generated { INFO } else { ACCENT_INK }))
+                .text_color((if generated { INFO } else { ACCENT_INK }).resolve(cx))
                 .child(if generated { "GENERATED" } else { "USER ROW" }),
         )
         .into_any_element()
 }
 
-fn render_url_encoded_header_chip(header: EffectiveHeader) -> gpui::AnyElement {
+fn render_url_encoded_header_chip(header: EffectiveHeader, cx: &gpui::App) -> gpui::AnyElement {
     let selector = body_effective_header_selector(&header.name);
     let generated = header.source == EffectiveHeaderSource::Generated;
     div()
@@ -1372,16 +1381,16 @@ fn render_url_encoded_header_chip(header: EffectiveHeader) -> gpui::AnyElement {
         .px_2()
         .rounded_lg()
         .border_1()
-        .border_color(rgb(LINE))
-        .bg(rgb(PANEL))
+        .border_color(LINE.resolve(cx))
+        .bg(PANEL.resolve(cx))
         .font_family(FONT_UI)
         .text_size(px(8.0))
-        .text_color(rgb(SUBTEXT))
+        .text_color(SUBTEXT.resolve(cx))
         .child(
             div()
                 .font_family(FONT_MONO)
                 .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(TEXT))
+                .text_color(TEXT.resolve(cx))
                 .child(format!("{}: {}", header.name, header.value)),
         )
         .child(
@@ -1389,8 +1398,8 @@ fn render_url_encoded_header_chip(header: EffectiveHeader) -> gpui::AnyElement {
                 .px_1()
                 .py_1()
                 .rounded_md()
-                .bg(rgb(if generated { INFO_SOFT } else { ACCENT_SOFT }))
-                .text_color(rgb(if generated { INFO } else { ACCENT_INK }))
+                .bg((if generated { INFO_SOFT } else { ACCENT_SOFT }).resolve(cx))
+                .text_color((if generated { INFO } else { ACCENT_INK }).resolve(cx))
                 .child(if generated { "GENERATED" } else { "USER" }),
         )
         .into_any_element()
