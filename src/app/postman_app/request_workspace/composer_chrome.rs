@@ -8,9 +8,12 @@ use crate::{
 };
 use gpui::{
     actions, div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement,
-    KeyBinding, ParentElement, Styled, Window,
+    KeyBinding, ParentElement, StatefulInteractiveElement, Styled, Window,
 };
-use gpui_kit::{base::Tab, component::input::Input};
+use gpui_kit::{
+    base::Tab,
+    component::{input::Input, scroll::ScrollableElement},
+};
 
 actions!(request_pane_tabs, [NextRequestPane, PreviousRequestPane]);
 pub(super) fn setup_request_pane_key_bindings() -> Vec<KeyBinding> {
@@ -100,6 +103,7 @@ impl RequestComposer {
     ) {
         let next = (request_pane_index(pane) as isize + delta)
             .rem_euclid(REQUEST_PANES.len() as isize) as usize;
+        self.pane_tabs_scroll.scroll_to_item(next);
         self.request_pane_focus_handles[next].focus(window, cx);
         self.set_request_pane(REQUEST_PANES[next], cx);
     }
@@ -118,6 +122,7 @@ impl RequestComposer {
         let compact = window.viewport_size().height < gpui::px(700.);
         div()
             .debug_selector(|| "request-head".into())
+            .min_w_0()
             .flex_none()
             .flex()
             .flex_col()
@@ -249,11 +254,16 @@ impl RequestComposer {
         let params = request.map_or(0, |r| r.enabled_param_count());
         let headers = request.map_or(0, |r| r.headers().iter().filter(|h| h.enabled).count());
         div()
+            .id("request-pane-tabs")
+            .min_w_0()
+            .overflow_x_scroll()
+            .track_scroll(&self.pane_tabs_scroll)
+            .horizontal_scrollbar(&self.pane_tabs_scroll)
             .h(m::PANE_TAB)
             .flex_none()
             .flex()
             .items_center()
-            .gap(rems(23. / 16.))
+            .gap_3()
             .px_7()
             .border_b_1()
             .border_color(LINE.resolve(cx))

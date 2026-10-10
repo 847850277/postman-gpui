@@ -1,6 +1,6 @@
 use super::{
     composer_chrome::setup_request_pane_key_bindings,
-    layout::{RequestPanelLayout, REQUEST_COMPOSER_GAP},
+    layout::RequestPanelLayout,
     panes::{
         AuthorizationPane, BodyPane, KeyValueRowsKind, KeyValueRowsPane, KeyValueRowsPaneEvent,
         OptionsPane, ScriptPane, ScriptPaneKind,
@@ -14,13 +14,14 @@ use crate::{
             header_input::setup_header_input_key_bindings,
         },
         components::kit_controls::MethodState,
-        theme::{LINE, PANEL},
+        theme::PANEL,
     },
 };
 use gpui::{
-    div, px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
+use gpui_kit::base::ElementExt;
 
 #[derive(Clone, Debug)]
 pub(super) enum RequestComposerEvent {
@@ -46,6 +47,7 @@ pub(super) struct RequestComposer {
     tests_pane: Entity<ScriptPane>,
     options_pane: Entity<OptionsPane>,
     pub(super) request_pane_focus_handles: Vec<FocusHandle>,
+    pub(super) pane_tabs_scroll: gpui::ScrollHandle,
     pub(super) send_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -130,6 +132,7 @@ impl RequestComposer {
             request_pane_focus_handles: (0..7)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
+            pane_tabs_scroll: gpui::ScrollHandle::new(),
             send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
@@ -360,22 +363,11 @@ impl RequestComposer {
         Some((request_pane, visible_rows))
     }
 
-    pub(super) fn request_panel_height(&self, window: &Window, cx: &App) -> Option<f32> {
-        let (request_pane, visible_rows) = self.request_pane_and_visible_rows(cx)?;
-        Some(self.panel_layout.read(cx).resolved_height(
-            request_pane,
-            visible_rows,
-            window.viewport_size().height.as_f32(),
-        ))
-    }
-
     fn render_request_panel(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let Some((request_pane, _)) = self.request_pane_and_visible_rows(cx) else {
             return div().into_any_element();
         };
-        let panel_height = self
-            .request_panel_height(window, cx)
-            .expect("the active request pane was resolved above");
+
         let editor = match request_pane {
             RequestPane::Params => self.params_pane.clone().into_any_element(),
             RequestPane::Authorization => self.authorization_pane.clone().into_any_element(),
@@ -388,16 +380,29 @@ impl RequestComposer {
 
         div()
             .debug_selector(|| "request-panel".into())
-            .h(px(panel_height))
-            .flex_none()
+            .size_full()
+            .min_h_0()
             .flex()
             .flex_col()
             .min_w_0()
             .bg(PANEL.resolve(cx))
-            .border_1()
-            .border_color(LINE.resolve(cx))
-            .rounded(px(0.0))
             .overflow_hidden()
+            .on_prepaint({
+                let layout = self.panel_layout.clone();
+                move |bounds, window, cx| {
+                    let height = bounds.size.height.as_f32();
+                    if (layout.read(cx).height() - height).abs() >= 0.5 {
+                        let layout = layout.clone();
+                        window.defer(cx, move |_, cx| {
+                            layout.update(cx, |layout, cx| {
+                                if layout.set_height(height) {
+                                    cx.notify();
+                                }
+                            })
+                        });
+                    }
+                }
+            })
             .child(self.render_request_menu(window, cx))
             .child(editor)
             .into_any_element()
@@ -406,13 +411,7 @@ impl RequestComposer {
 
 impl Render for RequestComposer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .gap(px(REQUEST_COMPOSER_GAP))
-            .child(self.render_request_head(window, cx))
-            .child(self.render_request_panel(window, cx))
+        self.render_request_panel(window, cx)
     }
 }
 

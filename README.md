@@ -72,9 +72,19 @@ and restores that choice on restart. Home cards stack at compact window widths;
 the native minimum remains 960 × 640.
 
 GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
-Use Home → HTTP to review the request editor as each part is replaced.
+Use Home → HTTP to compose requests and inspect the real response. Body offers
+Pretty/Raw display and text selection; the copy action preserves the received raw body.
+Headers retain duplicate entries, and Cookies/redirects remain inspectable.
 
-Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout` for navigation, in-flight
+The request/response split uses columns at an available editor width of 900 logical
+pixels and stacks below it (including space taken by History). The response toolbar
+can keep a stacked layout explicitly or return to automatic layout. Drag the divider,
+double-click to reset to 46%, or focus it and use arrows (2%), Shift+arrows (10%),
+Home/End, and Escape to cancel a drag. Enter opens the same **Panel sizes** dialog
+as the toolbar button. Each arrangement's ratio and the explicit layout preference
+are saved locally; an invalid/unavailable preference file falls back to a usable session.
+
+Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through
 1920 × 1080 in both themes. `tests/ui_visual_compare.py` compares captured HTML/native
 control regions with separate color and text-antialiasing tolerances; its module

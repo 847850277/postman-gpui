@@ -154,12 +154,13 @@ fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut T
         assert!(rows[1].value.is_empty());
     });
 
-    for _ in 0..6 {
+    // Fill beyond the actual resizable viewport, including tall column layouts.
+    for _ in 0..26 {
         click(cx, "body-form-add-row").unwrap();
     }
     assert!(cx.debug_bounds("body-form-scrollbar").is_some());
     scroll_down(cx, "body-form-scroll", 1_000.0).unwrap();
-    assert!(cx.debug_bounds("body-form-row-7").is_some());
+    assert!(cx.debug_bounds("body-form-row-27").is_some());
 }
 
 #[gpui::test]

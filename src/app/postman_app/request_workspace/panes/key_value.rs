@@ -1042,21 +1042,7 @@ impl Render for KeyValueRowsPane {
             self.sync_row_editors(&rows, false, cx);
         }
         self.apply_pending_focus(window, cx);
-        let pane = self.kind.request_pane();
-        let visible_rows = {
-            let view_model = self.view_model.read(cx);
-            view_model
-                .active_request()
-                .map_or(0, |request| match self.kind {
-                    KeyValueRowsKind::Params => request.visible_param_row_count(),
-                    KeyValueRowsKind::Headers => request.visible_header_row_count(),
-                })
-        };
-        let panel_height = self.panel_layout.read(cx).resolved_height(
-            pane,
-            visible_rows,
-            window.viewport_size().height.as_f32(),
-        );
+        let panel_height = self.panel_layout.read(cx).height();
         self.render_rows_editor(panel_height, cx)
     }
 }

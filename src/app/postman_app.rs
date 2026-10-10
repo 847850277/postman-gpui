@@ -462,6 +462,7 @@ impl PostmanApp {
         div()
             .flex_1()
             .min_h_0()
+            .min_w_0()
             .flex()
             .on_drag_move::<HistoryPanelResize>(cx.listener(Self::resize_history_panel))
             .when(self.history_panel_open, |row| {

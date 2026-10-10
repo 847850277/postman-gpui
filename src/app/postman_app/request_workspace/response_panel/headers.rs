@@ -6,9 +6,11 @@ use gpui::{
     div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
     Role, StatefulInteractiveElement, Styled,
 };
+use gpui_kit::component::scroll::{ScrollableElement, ScrollbarAxis};
 
 pub(super) fn render_response_headers(
     headers: &[(String, String)],
+    scroll: &gpui::ScrollHandle,
     cx: &gpui::App,
 ) -> impl IntoElement {
     let header_count = headers.len();
@@ -19,7 +21,8 @@ pub(super) fn render_response_headers(
         .debug_selector(|| "response-content".into())
         .role(Role::TabPanel)
         .aria_label("Response headers")
-        .flex_1()
+        .size_full()
+        .min_w_0()
         .min_h_0()
         .flex()
         .flex_col()
@@ -119,6 +122,8 @@ pub(super) fn render_response_headers(
                             .flex_1()
                             .min_h_0()
                             .overflow_scroll()
+                            .track_scroll(scroll)
+                            .scrollbar(scroll, ScrollbarAxis::Both)
                             .children(rows.into_iter().enumerate().map(
                                 |(index, (name, value))| {
                                     div()

@@ -5,8 +5,8 @@ use super::super::layout::RequestPanelLayout;
 use crate::{
     app::{
         BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow, MultipartDraftPart,
-        MultipartDraftValue, RequestBodyDraft, RequestPane, RequestTabId, RequestViewModel,
-        ResponseState, WorkspaceViewModel,
+        MultipartDraftValue, RequestBodyDraft, RequestTabId, RequestViewModel, ResponseState,
+        WorkspaceViewModel,
     },
     models::{HttpMethod, MultipartPart, MultipartValue, RequestBody},
     ui::{
@@ -307,11 +307,7 @@ impl BodyPane {
         let is_url_encoded = kind == BodyKind::UrlEncoded;
         let is_multipart = kind == BodyKind::Multipart;
         let form_row_count = self.body_input.read(cx).form_data_entry_count(cx);
-        let panel_height = self.panel_layout.read(cx).resolved_height(
-            RequestPane::Body,
-            form_row_count,
-            window.viewport_size().height.as_f32(),
-        );
+        let panel_height = self.panel_layout.read(cx).height();
 
         div()
             .flex_1()

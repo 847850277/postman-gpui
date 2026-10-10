@@ -50,7 +50,6 @@ const HISTORY_REPLAY_SCENARIO: &str =
     "HTTPBingo receives the complete request replayed from History";
 const MULTI_TAB_A_SCENARIO: &str = "HTTPBingo isolates the GET request in Tab A";
 const MULTI_TAB_B_SCENARIO: &str = "HTTPBingo isolates the POST JSON request in Tab B";
-const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 
 /// One file-backed SQLite database per real-application lifecycle.
 ///
@@ -2304,6 +2303,7 @@ fn run_cookie_workflow(
         );
     }
 
+    click(cx, "response-pane-cookies")?;
     if cx.debug_bounds("response-cookies-empty").is_none() {
         return Err("the later /cookies response must expose Cookies (0)".to_string());
     }
@@ -3192,7 +3192,7 @@ fn assert_url_encoded_body_editor_contract(
             }
         }
     }
-    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
+    if form_rows_overflow(cx, row_count)? {
         for selector in ["body-form-scrollbar", "body-form-scrollbar-thumb"] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!(
@@ -4075,6 +4075,24 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
     Ok(())
 }
 
+// A resizable panel has no fixed six-row capacity. Assert scrollbar presence
+// against the rendered viewport while preserving all form/transport assertions.
+fn form_rows_overflow(cx: &mut VisualTestContext, row_count: usize) -> Result<bool, String> {
+    if row_count == 0 {
+        return Ok(false);
+    }
+    let viewport = cx
+        .debug_bounds("body-form-scroll")
+        .ok_or("missing form viewport")?;
+    let first = cx
+        .debug_bounds(BODY_FORM_ROW_SELECTORS[0])
+        .ok_or("missing first form row")?;
+    let last = cx
+        .debug_bounds(BODY_FORM_ROW_SELECTORS[row_count - 1])
+        .ok_or("missing last form row")?;
+    Ok(last.bottom() - first.top() + gpui::px(16.) > viewport.size.height)
+}
+
 fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), String> {
     let rows: Vec<_> = form_urlencoded::parse(encoded.as_bytes()).collect();
     for (index, (key, value)) in rows.iter().enumerate() {
@@ -4154,7 +4172,7 @@ fn type_form_body_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<
         }
     }
 
-    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
+    if form_rows_overflow(cx, row_count)? {
         for selector in [
             "body-form-scrollbar",
             "body-form-scrollbar-thumb",

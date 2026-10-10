@@ -19,12 +19,12 @@ use gpui::{
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
     Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
 };
+use gpui_kit::base::ElementExt;
 use std::path::PathBuf;
 
 const FORM_DATA_ROW_HEIGHT: f32 = 38.0;
 const FORM_DATA_ROW_GAP: f32 = 8.0;
 const FORM_DATA_ROWS_PADDING: f32 = 16.0;
-const FORM_DATA_MAX_VISIBLE_ROWS: usize = 6;
 
 #[derive(Clone, Debug)]
 pub(super) enum FormBodyInputEvent {
@@ -59,6 +59,7 @@ enum PendingFormFocus {
 pub(super) struct FormBodyInput {
     form_data_allows_files: bool,
     form_data_scroll: ScrollHandle,
+    viewport_height: gpui::Pixels,
     form_data_entries: Vec<FormDataEntry>,
     row_editors: Vec<FormRowEditor>,
     row_toggle_focus_handles: Vec<FocusHandle>,
@@ -87,6 +88,7 @@ impl FormBodyInput {
         Self {
             form_data_allows_files: false,
             form_data_scroll: ScrollHandle::new(),
+            viewport_height: px(0.),
             form_data_entries: vec![entry],
             row_editors: vec![row_editor],
             row_toggle_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
@@ -543,21 +545,17 @@ impl FormBodyInput {
 
 fn form_data_scrollbar_geometry(
     row_count: usize,
+    viewport_height: f32,
     offset_y: f32,
     max_offset_y: f32,
 ) -> Option<ScrollbarGeometry> {
-    if row_count <= FORM_DATA_MAX_VISIBLE_ROWS {
-        return None;
-    }
-
     let content_height = FORM_DATA_ROWS_PADDING
         + FORM_DATA_ROW_HEIGHT * row_count as f32
         + FORM_DATA_ROW_GAP * row_count.saturating_sub(1) as f32;
-    let visible_fraction = if max_offset_y > 0.0 && content_height > 0.0 {
-        (content_height - max_offset_y) / content_height
-    } else {
-        FORM_DATA_MAX_VISIBLE_ROWS as f32 / row_count as f32
-    };
+    if content_height <= viewport_height || viewport_height <= 0. {
+        return None;
+    }
+    let visible_fraction = viewport_height / content_height;
 
     Some(scrollbar_geometry(visible_fraction, offset_y, max_offset_y))
 }
@@ -578,6 +576,7 @@ impl Render for FormBodyInput {
         let row_delete_focus_handles = self.row_delete_focus_handles.clone();
         let form_data_scrollbar = form_data_scrollbar_geometry(
             form_data_entries.len(),
+            self.form_data_scroll.bounds().size.height.as_f32(),
             self.form_data_scroll.offset().y.as_f32(),
             self.form_data_scroll.max_offset().y.as_f32(),
         );
@@ -681,6 +680,18 @@ impl Render for FormBodyInput {
                             .when(form_data_scrollbar.is_some(), |rows| rows.pr(px(20.0)))
                             .overflow_y_scroll()
                             .track_scroll(&self.form_data_scroll)
+                            .on_prepaint({
+                                let this = cx.weak_entity();
+                                let scroll = self.form_data_scroll.clone();
+                                let previous = self.viewport_height;
+                                move |_,window,cx| {
+                                    let extent = scroll.bounds().size.height;
+                                    if extent != previous { window.defer(cx,move |_,cx| { let _ = this.update(cx,|this,cx| {
+                                        this.viewport_height = extent;
+                                        cx.notify();
+                                    }); }); }
+                                }
+                            })
                             .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
                             .children(
                                 form_data_entries

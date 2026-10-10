@@ -667,6 +667,7 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         );
     });
 
+    click(cx, "response-pane-cookies").unwrap();
     assert!(
         cx.debug_bounds("response-cookies-empty").is_some(),
         "the later /cookies response should expose Cookies (0)"
@@ -1871,8 +1872,6 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         "body-form-row-2",
         "body-form-row-8",
         "body-form-scroll",
-        "body-form-scrollbar",
-        "body-form-scrollbar-thumb",
         "body-form-add-row",
         "body-form-add-row-hint",
         "body-url-encoded-effective-request",
@@ -1884,6 +1883,18 @@ fn post_urlencoded_sends_the_active_value_and_excludes_disabled_rows(cx: &mut Te
         assert!(
             cx.debug_bounds(selector).is_some(),
             "Issue #95 design contract element `{selector}` should be rendered"
+        );
+    }
+
+    let viewport = cx.debug_bounds("body-form-scroll").unwrap();
+    let first = cx.debug_bounds("body-form-row-0").unwrap();
+    let last = cx.debug_bounds("body-form-row-8").unwrap();
+    let overflow = last.bottom() - first.top() + gpui::px(16.) > viewport.size.height;
+    for selector in ["body-form-scrollbar", "body-form-scrollbar-thumb"] {
+        assert_eq!(
+            cx.debug_bounds(selector).is_some(),
+            overflow,
+            "scrollbar follows the resized viewport"
         );
     }
 
@@ -2073,7 +2084,7 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
             .clone()),
         ResponseState::Success { status: 200, .. }
     ));
-    assert!(cx.debug_bounds("response-echo-bar").is_some());
+    assert!(cx.debug_bounds("response-footer").is_some());
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             workspace

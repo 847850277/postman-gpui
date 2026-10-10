@@ -62,7 +62,7 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
         (request_head.size.height.as_f32() - 172.625).abs() <= 0.5,
         "{request_head:?}"
     );
-    assert_eq!(request_panel.size.height, px(360.0));
+    assert!(request_panel.size.height > px(180.));
     assert_eq!(new_tab.size.width, px(32.0));
     assert_eq!(new_tab.size.height, px(32.0));
     assert_eq!(send.size.width, px(128.0));
@@ -144,6 +144,7 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
         })
     });
     ui::open_http(cx);
+    click(cx, "response-layout-toggle").unwrap();
 
     let initial_request = cx
         .debug_bounds("request-panel")
@@ -158,7 +159,7 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
 
     cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
     cx.simulate_mouse_move(
-        point(start.x, start.y - px(4.0)),
+        point(start.x, start.y - px(6.0)),
         MouseButton::Left,
         Modifiers::none(),
     );
@@ -179,11 +180,11 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let expanded_response = cx
         .debug_bounds("response-container")
         .expect("response panel should remain rendered after expanding");
-    assert_eq!(initial_request.size.height, px(360.0));
-    assert_eq!(expanded_request.size.height, px(300.0));
-    assert_eq!(
-        expanded_response.size.height,
-        initial_response.size.height + px(60.0)
+    assert!(
+        (expanded_request.size.height - (initial_request.size.height - px(60.))).abs() <= px(1.)
+    );
+    assert!(
+        (expanded_response.size.height - initial_response.size.height - px(60.)).abs() <= px(1.)
     );
 
     let resize_handle = cx
@@ -192,7 +193,7 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let start = resize_handle.center();
     cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
     cx.simulate_mouse_move(
-        point(start.x, start.y + px(4.0)),
+        point(start.x, start.y + px(6.0)),
         MouseButton::Left,
         Modifiers::none(),
     );
@@ -210,16 +211,15 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let shortened_response = cx
         .debug_bounds("response-container")
         .expect("response panel should remain rendered after shrinking");
-    assert_eq!(
-        cx.debug_bounds("request-panel")
-            .expect("request panel should grow as Response shrinks")
-            .size
-            .height,
-        px(400.0)
+    assert!(
+        (cx.debug_bounds("request-panel").unwrap().size.height
+            - expanded_request.size.height
+            - px(100.))
+        .abs()
+            <= px(1.)
     );
-    assert_eq!(
-        shortened_response.size.height,
-        expanded_response.size.height - px(100.0)
+    assert!(
+        (shortened_response.size.height - expanded_response.size.height + px(100.)).abs() <= px(1.)
     );
 }
 
@@ -530,7 +530,7 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
             "Issue #57 contract element `{selector}` should render"
         );
     }
-    assert_eq!(panel.size.height, px(360.0));
+    assert!(panel.size.height > px(180.));
     assert_eq!(kinds.size.height, px(44.0));
     assert!(kinds.origin.y >= panel.origin.y);
     assert!(editor.origin.y >= kinds.bottom());
@@ -569,6 +569,7 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
         })
     });
     ui::open_http(cx);
+    click(cx, "response-layout-toggle").unwrap();
     cx.run_until_parked();
 
     let text_scrollbar = cx
@@ -679,7 +680,7 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
         .effective_headers()
         .is_empty()));
 
-    assert_eq!(panel.size.height, px(360.0));
+    assert!(panel.size.height > px(180.));
     assert_eq!(kinds.size.height, px(44.0));
     assert!(editor.origin.y >= kinds.bottom());
     assert!(editor.origin.x < semantics.origin.x);
@@ -714,6 +715,8 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
         })
     });
     ui::open_http(cx);
+    click(cx, "response-layout-toggle").unwrap();
+    let initial_height = cx.debug_bounds("request-panel").unwrap().size.height;
 
     let resize_handle = cx
         .debug_bounds("response-resize-handle")
@@ -721,7 +724,7 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
     let start = resize_handle.center();
     cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
     cx.simulate_mouse_move(
-        point(start.x, start.y - px(4.0)),
+        point(start.x, start.y - px(6.0)),
         MouseButton::Left,
         Modifiers::none(),
     );
@@ -736,12 +739,9 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
         Modifiers::none(),
     );
 
-    assert_eq!(
-        cx.debug_bounds("request-panel")
-            .expect("the narrowed request panel should remain rendered")
-            .size
-            .height,
-        px(300.0)
+    assert!(
+        (cx.debug_bounds("request-panel").unwrap().size.height - initial_height + px(60.)).abs()
+            <= px(1.)
     );
     let rows = cx
         .debug_bounds("body-raw-semantics-scroll")
@@ -859,7 +859,7 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
         .debug_bounds("body-effective-header-accept")
         .expect("Accept preview should render");
 
-    assert_eq!(panel.size.height, px(360.0));
+    assert!(panel.size.height > px(180.));
     assert_eq!(kinds.size.height, px(44.0));
     assert!(editor.origin.y >= kinds.bottom());
     assert!(table.origin.y >= editor.origin.y);
@@ -873,7 +873,7 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
 }
 
 #[gpui::test]
-fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAppContext) {
+fn urlencoded_rows_grow_then_scroll_without_moving_the_divider(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
         workspace
@@ -905,7 +905,7 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
     let initial_rows = cx
         .debug_bounds("body-form-scroll")
         .expect("URL-encoded row viewport should render");
-    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(initial_panel.size.height > px(180.));
     assert!(cx.debug_bounds("body-form-scrollbar").is_none());
 
     for _ in 0..4 {
@@ -919,14 +919,17 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
     let grown_rows = cx
         .debug_bounds("body-form-scroll")
         .expect("URL-encoded row viewport should grow with rows");
-    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_panel.size.height, initial_panel.size.height,
+        "rows must not move the user-owned divider"
+    );
     assert_eq!(
         grown_rows.size.height - initial_rows.size.height,
-        grown_panel.size.height - initial_panel.size.height
+        px(0.) // Rows use the available split viewport; adding rows does not resize it.
     );
     assert!(cx.debug_bounds("body-form-scrollbar").is_none());
 
-    for _ in 0..4 {
+    for _ in 0..20 {
         click(cx, "body-form-add-row").unwrap();
     }
     cx.run_until_parked();
@@ -956,7 +959,7 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
         .debug_bounds("body-url-encoded-ready-indicator")
         .expect("ready state should remain fixed");
 
-    assert_eq!(capped_panel.size.height, px(544.0));
+    assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
     assert!(thumb.origin.y >= scrollbar.origin.y);
     assert!(thumb.bottom() <= scrollbar.bottom());
@@ -983,7 +986,9 @@ fn issue_95_urlencoded_rows_grow_then_scroll_below_fixed_actions(cx: &mut TestAp
 }
 
 #[gpui::test]
-fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mut TestAppContext) {
+fn form_panel_preserves_split_when_blank_or_disabled_rows_are_added_and_removed(
+    cx: &mut TestAppContext,
+) {
     for kind in [BodyKind::UrlEncoded, BodyKind::Multipart] {
         let workspace = cx.new(|_| {
             let mut workspace = WorkspaceViewModel::new();
@@ -1004,15 +1009,18 @@ fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mu
             click(cx, "body-form-add-row").unwrap();
         }
         let grown = cx.debug_bounds("request-panel").unwrap().size.height;
-        assert!(grown > initial, "blank rows must grow the {kind:?} panel");
+        assert_eq!(
+            grown, initial,
+            "blank rows must not move the {kind:?} divider"
+        );
 
         click(cx, "body-form-toggle-0").unwrap();
         assert_eq!(cx.debug_bounds("request-panel").unwrap().size.height, grown);
         click(cx, "body-form-delete-4").unwrap();
         let shrunk = cx.debug_bounds("request-panel").unwrap().size.height;
-        assert!(
-            shrunk < grown,
-            "removing a row must shrink the {kind:?} panel"
+        assert_eq!(
+            shrunk, grown,
+            "removing a row must preserve the {kind:?} split"
         );
         assert!(cx.debug_bounds("body-form-row-4").is_none());
         click(cx, "body-form-delete-3").unwrap();
@@ -1029,7 +1037,7 @@ fn form_panel_height_tracks_blank_and_disabled_rows_after_add_and_remove(cx: &mu
 }
 
 #[gpui::test]
-fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppContext) {
+fn params_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
@@ -1045,7 +1053,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
     let initial_rows = cx
         .debug_bounds("params-rows-scroll")
         .expect("Params rows should render");
-    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(initial_panel.size.height > px(180.));
     assert!(cx.debug_bounds("params-scrollbar").is_none());
 
     workspace.update(cx, |workspace, cx| {
@@ -1062,7 +1070,10 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
     let grown_rows = cx
         .debug_bounds("params-rows-scroll")
         .expect("Params rows should grow");
-    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_panel.size.height, initial_panel.size.height,
+        "rows must not move the user-owned divider"
+    );
     assert_eq!(
         grown_rows.size.height - initial_rows.size.height,
         px(120.0) // Three additional prototype rows at 40px each.
@@ -1089,7 +1100,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
         .debug_bounds("params-scrollbar-thumb")
         .expect("the Params scrollbar should expose its thumb");
     assert!(capped_panel.size.height >= grown_panel.size.height);
-    assert!(capped_panel.size.height <= px(544.0));
+    assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
     assert!(thumb.origin.y >= scrollbar.origin.y);
     assert!(thumb.bottom() <= scrollbar.bottom());
@@ -1110,7 +1121,7 @@ fn params_panel_grows_with_rows_then_preserves_response_space(cx: &mut TestAppCo
 }
 
 #[gpui::test]
-fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut TestAppContext) {
+fn header_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
         workspace
@@ -1133,7 +1144,7 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
     let initial_rows = cx
         .debug_bounds("headers-rows-scroll")
         .expect("Headers rows should render");
-    assert_eq!(initial_panel.size.height, px(360.0));
+    assert!(initial_panel.size.height > px(180.));
     assert!(cx.debug_bounds("headers-scrollbar").is_none());
 
     workspace.update(cx, |workspace, cx| {
@@ -1150,7 +1161,10 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
     let grown_rows = cx
         .debug_bounds("headers-rows-scroll")
         .expect("Headers rows should grow");
-    assert!(grown_panel.size.height > initial_panel.size.height);
+    assert_eq!(
+        grown_panel.size.height, initial_panel.size.height,
+        "rows must not move the user-owned divider"
+    );
     assert_eq!(
         grown_rows.size.height - initial_rows.size.height,
         px(120.0) // Three additional prototype rows at 40px each.
@@ -1184,7 +1198,7 @@ fn headers_panel_grows_with_rows_then_exposes_a_fixed_scroll_region(cx: &mut Tes
         .expect("Headers rows should remain scrollable");
 
     assert!(capped_panel.size.height >= grown_panel.size.height);
-    assert!(capped_panel.size.height <= px(452.0));
+    assert_eq!(capped_panel.size.height, initial_panel.size.height);
     assert!(response.size.height > px(0.0));
     assert!(thumb.origin.y >= scrollbar.origin.y);
     assert!(thumb.bottom() <= scrollbar.bottom());
@@ -1202,7 +1216,7 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
             "headers-rows-scroll",
             "headers-scrollbar",
             "headers-scrollbar-thumb",
-            900.,
+            740.,
         ),
         (
             "request-pane-params",
@@ -1211,7 +1225,7 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
             "params-rows-scroll",
             "params-scrollbar",
             "params-scrollbar-thumb",
-            970.,
+            810.,
         ),
     ] {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
@@ -1309,7 +1323,12 @@ fn kit_request_editor_fits_minimum_window_in_both_themes_and_scales(cx: &mut Tes
                     let url = cx.debug_bounds("url-input").unwrap();
                     assert!(url.right() < send.left());
                     assert_eq!(send.size.height, px(48.));
-                    assert!(send.right() < px(width));
+                    assert!(
+                        send.right() < px(width),
+                        "{width}x{height} {pane}: send={send:?} split={:?} head={:?}",
+                        cx.debug_bounds("http-split"),
+                        cx.debug_bounds("request-head")
+                    );
                 }
                 // End/Home reveal the selected stable tab even when the strip scrolls.
                 click(cx, "request-tab-17").unwrap();
