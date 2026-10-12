@@ -104,6 +104,11 @@ impl RequestWorkspace {
         }
     }
 
+    pub(super) fn open_curl_import(&self, window: &mut Window, cx: &mut Context<Self>) {
+        self.composer
+            .update(cx, |composer, cx| composer.open_curl(true, window, cx));
+    }
+
     pub(super) fn rebase_environments(
         &mut self,
         previous: &str,

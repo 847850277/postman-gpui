@@ -56,6 +56,7 @@ pub struct PostmanApp {
     cookie_jar_open: bool,
     app_focus_handle: FocusHandle,
     cookie_trigger_focus: FocusHandle,
+    curl_import_focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -188,6 +189,7 @@ impl PostmanApp {
             cookie_jar_open: false,
             app_focus_handle: cx.focus_handle(),
             cookie_trigger_focus: cx.focus_handle().tab_index(0).tab_stop(true),
+            curl_import_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         if let Some(worker) = app.history_worker.clone() {

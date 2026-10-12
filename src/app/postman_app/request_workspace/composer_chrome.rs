@@ -280,7 +280,25 @@ impl RequestComposer {
                                 )
                             }),
                     )
-                    .child(self.environments.clone()),
+                    .child(self.environments.clone())
+                    .child(
+                        kit_controls::editor_button("show-code", "", cx)
+                            .track_focus(&self.code_focus_handle)
+                            .accessibility_label("Request code")
+                            .debug_selector(|| "show-code".into())
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                gpui_kit::component::Icon::new(gpui_kit::assets::IconName::Code)
+                                    .size(m::SMALL_ICON),
+                            )
+                            .child("Code")
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.code_focus_handle.focus(window, cx);
+                                this.open_curl(false, window, cx)
+                            })),
+                    ),
             )
             .child(
                 div()

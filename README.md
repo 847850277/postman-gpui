@@ -31,6 +31,7 @@ editor is still an HTML prototype; executable workflows use the CLI or Rust API.
 - Response status, headers, formatted body, and quick copy
 - Multi-tab requests, global search, and replayable SQLite history
 - Shared, persistent HTTP/Flows environment settings with safe request URL rebasing
+- cURL import with live preview and request Code export/copy via GPUI Kit dialogs
 - Cross-platform keyboard, selection, and clipboard behavior
 
 ## Install
@@ -94,6 +95,12 @@ unrelated URLs, running request snapshots, and history are unchanged. A failed s
 draft for retry; a damaged configuration offers reload without overwriting the file.
 The Flows page shares these settings while its editor remains unavailable. Run
 `cargo test --locked --test ui_environments` for the environment interaction and transport tests.
+
+Use the HTTP rail's **Import** action to preview a literal POSIX cURL command and create a new
+unsent request tab. **Code** exports the current effective request and copies the displayed
+command; **Import cURL** switches directly to the importer. Neither action executes commands
+or reads files. See [cURL support and native adaptations](docs/curl.md) for accepted flags,
+file-reference export, and redirect/version requirements.
 
 The request/response split uses columns at an available editor width of 900 logical
 pixels and stacks below it. History and search overlay the editor without changing its split.
@@ -227,12 +234,14 @@ a normal workspace test run alone does not establish that these suites ran.
 
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
-- The visual Flow editor, cURL import/export, and redesigned HTTP screen described above are
-  prototype features; see the CLI for actual Flow execution.
+- The visual Flow editor remains a prototype; see the CLI for actual Flow execution.
+- Request Save/persistence is still planned. Native cURL import supports the documented inline
+  subset; file-based and multipart commands are export-only.
 
 ## Documentation
 
 - [Changelog](CHANGELOG.md) and [open issues](https://github.com/847850277/postman-gpui/issues)
+- [cURL import/export support](docs/curl.md)
 - [Live editor synchronization audit](docs/autofill-contract.md)
 - [Release runbook](docs/releasing.md)
 - [Cross-platform smoke checklist](docs/release-smoke-test.md)

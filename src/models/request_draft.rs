@@ -464,15 +464,26 @@ impl RequestDraft {
         let authorization = request
             .headers
             .iter()
-            .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
-            .map(|(_, value)| value.as_str());
+            .filter(|(key, _)| key.eq_ignore_ascii_case("authorization"))
+            .map(|(_, value)| value.as_str())
+            .collect::<Vec<_>>();
+        // A managed auth field represents exactly one canonical header. Keep duplicate or
+        // noncanonical fields as ordered Header rows so replay/import remain lossless.
+        let authorization = (authorization.len() == 1).then(|| authorization[0]);
         let manages_authorization = if let Some(value) = authorization {
-            if let Some((username, password)) = decode_basic_credentials(value) {
+            if let Some((username, password)) =
+                decode_basic_credentials(value).filter(|(user, pass)| {
+                    (!user.is_empty() || !pass.is_empty())
+                        && basic_authorization_value(user, pass) == value
+                })
+            {
                 draft.authorization_kind = AuthorizationKind::Basic;
                 draft.basic_username = username;
                 draft.basic_password = password;
                 true
-            } else if let Some(token) = bearer_token_from_header(value) {
+            } else if let Some(token) =
+                bearer_token_from_header(value).filter(|token| format!("Bearer {token}") == value)
+            {
                 draft.bearer_token = token;
                 true
             } else {

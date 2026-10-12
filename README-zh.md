@@ -28,6 +28,7 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
 - 展示响应状态、响应头和格式化响应体，并支持快速复制
 - 支持多标签页、全局搜索和可回放的 SQLite 历史记录
 - HTTP/Flows 共用环境设置，持久化保存并切换匹配请求的基础地址
+- 基于 GPUI Kit 的 cURL 导入预览、新建请求和 Code 导出/复制
 - 支持跨平台键盘操作、文本选择和剪贴板行为
 
 ## 安装
@@ -169,7 +170,10 @@ node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
 ## 当前限制
 
 - 响应体仍使用缓冲后的文本模型，尚未提供原始字节响应查看、响应原子保存和流式响应的增量进度。
-- 上述可视化 Flow 编辑器、cURL 导入导出和新版 HTTP 界面属于原型能力；实际 Flow 执行请使用 CLI。
+- 可视化 Flow 编辑器仍属于原型能力；实际 Flow 执行请使用 CLI。
+- 请求 Save/持久化仍待实现。原生 cURL 导入支持内联请求；文件与 multipart 命令只支持导出。
+  HTTP 侧栏 **Import** 可预览并创建未发送的新标签，**Code** 导出当前有效请求且不会执行命令或读取文件。
+  支持范围和重定向版本要求见 [cURL 导入导出说明](docs/curl.md)。
 
 ## 文档
 

@@ -52,6 +52,7 @@ pub(super) struct RequestComposer {
     pub(super) request_pane_focus_handles: Vec<FocusHandle>,
     pub(super) pane_tabs_scroll: gpui::ScrollHandle,
     pub(super) send_focus_handle: FocusHandle,
+    pub(super) code_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -144,6 +145,7 @@ impl RequestComposer {
                 .collect(),
             pane_tabs_scroll: gpui::ScrollHandle::new(),
             send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            code_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         composer.project_active_request(window, cx);
@@ -324,6 +326,22 @@ impl RequestComposer {
         self.options_pane
             .update(cx, |pane, cx| pane.project_active_request(window, cx));
         cx.notify();
+    }
+
+    pub(super) fn open_curl(&self, import: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let owner = cx.weak_entity();
+        crate::app::curl::open(
+            self.view_model.clone(),
+            import,
+            std::rc::Rc::new(move |window, cx| {
+                let _ = owner.update(cx, |this, cx| {
+                    this.project_active_request(window, cx);
+                    this.focus_url(window, cx);
+                });
+            }),
+            window,
+            cx,
+        );
     }
 
     pub(super) fn click_send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
