@@ -22,7 +22,7 @@ use gpui_kit::{
 use std::rc::Rc;
 
 type OnImport = Rc<dyn Fn(&mut Window, &mut App)>;
-const EXAMPLE: &str = "curl 'https://example.com/users' \\\n  --header 'Accept: application/json' \\\n  --json '{\"name\":\"Maya Chen\"}'";
+const EXAMPLE: &str = "curl 'https://httpbingo.org/post' \\\n  --header 'Accept: application/json' \\\n  --json '{\"name\":\"Maya Chen\"}'";
 
 pub(super) fn open(
     workspace: Entity<WorkspaceViewModel>,
@@ -92,7 +92,7 @@ impl CurlDialog {
         let input = cx.new(|cx| {
             TextareaState::new(window, cx)
                 .default_value(value)
-                .placeholder("curl 'https://example.com/users'")
+                .placeholder("curl 'https://httpbingo.org/get'")
         });
         let subscription = cx.subscribe(&input, |this, input, event, cx| {
             if matches!(event, InputEvent::Change) && this.code.is_none() {
