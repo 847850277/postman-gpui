@@ -245,33 +245,42 @@ impl RequestComposer {
             .bg(PANEL.resolve(cx))
             .child(
                 div()
-                    .min_w_0()
                     .flex()
-                    .flex_col()
-                    .gap_2()
+                    .items_center()
+                    .gap_4()
+                    .min_w_0()
                     .child(
                         div()
-                            .debug_selector(|| "request-title".into())
-                            .truncate()
-                            .text_size(if compact { rems(22. / 16.) } else { m::TITLE })
-                            .line_height(if compact {
-                                rems(27.5 / 16.)
-                            } else {
-                                rems(32.5 / 16.)
-                            })
-                            .font_weight(m::SEMIBOLD)
-                            .text_color(TEXT.resolve(cx))
-                            .child(title),
+                            .min_w_0()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .debug_selector(|| "request-title".into())
+                                    .truncate()
+                                    .text_size(if compact { rems(22. / 16.) } else { m::TITLE })
+                                    .line_height(if compact {
+                                        rems(27.5 / 16.)
+                                    } else {
+                                        rems(32.5 / 16.)
+                                    })
+                                    .font_weight(m::SEMIBOLD)
+                                    .text_color(TEXT.resolve(cx))
+                                    .child(title),
+                            )
+                            .when(!compact, |h| {
+                                h.child(
+                                    div()
+                                        .text_size(m::LABEL)
+                                        .line_height(rems(1.125))
+                                        .text_color(MUTED.resolve(cx))
+                                        .child("Configure and send an HTTP request."),
+                                )
+                            }),
                     )
-                    .when(!compact, |h| {
-                        h.child(
-                            div()
-                                .text_size(m::LABEL)
-                                .line_height(rems(1.125))
-                                .text_color(MUTED.resolve(cx))
-                                .child("Configure and send an HTTP request."),
-                        )
-                    }),
+                    .child(self.environments.clone()),
             )
             .child(
                 div()

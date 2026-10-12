@@ -30,6 +30,7 @@ editor is still an HTML prototype; executable workflows use the CLI or Rust API.
 - Redirect policy, response decompression, timeout, and cancellation controls
 - Response status, headers, formatted body, and quick copy
 - Multi-tab requests, global search, and replayable SQLite history
+- Shared, persistent HTTP/Flows environment settings with safe request URL rebasing
 - Cross-platform keyboard, selection, and clipboard behavior
 
 ## Install
@@ -82,6 +83,17 @@ See the [P4.1 implementation and visual evidence](docs/ui-evidence/p4.1/README.m
 Use Home → HTTP to compose requests and inspect the real response. Body offers
 Pretty/Raw display and text selection; the copy action preserves the received raw body.
 Headers retain duplicate entries, and Cookies/redirects remain inspectable.
+
+HTTP and Flows share an environment selector and **Settings…** dialog built with GPUI Kit.
+The first run starts with no environments; **Create environment…** adds a name and an absolute
+HTTP(S) base URL, optionally with a path. Names must be unique; URLs cannot contain credentials,
+query parameters, or fragments. Cancel discards edits. Save changes and environment switches
+commit to the local `postman-gpui/environments.json` configuration before updating matching open
+request drafts. Paths, query order, repeated parameters, and other request fields are retained;
+unrelated URLs, running request snapshots, and history are unchanged. A failed save retains the
+draft for retry; a damaged configuration offers reload without overwriting the file.
+The Flows page shares these settings while its editor remains unavailable. Run
+`cargo test --locked --test ui_environments` for the environment interaction and transport tests.
 
 The request/response split uses columns at an available editor width of 900 logical
 pixels and stacks below it. History and search overlay the editor without changing its split.

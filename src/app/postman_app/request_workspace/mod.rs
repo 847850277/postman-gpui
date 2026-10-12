@@ -66,6 +66,7 @@ impl EventEmitter<RequestWorkspaceEvent> for RequestWorkspace {}
 impl RequestWorkspace {
     pub(super) fn new(
         view_model: Entity<WorkspaceViewModel>,
+        environments: Entity<crate::app::environments::Environments>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -73,8 +74,15 @@ impl RequestWorkspace {
         cx.bind_keys(setup_request_tab_key_bindings());
 
         let panel_layout = cx.new(|_| RequestPanelLayout::default());
-        let composer =
-            cx.new(|cx| RequestComposer::new(view_model.clone(), panel_layout.clone(), window, cx));
+        let composer = cx.new(|cx| {
+            RequestComposer::new(
+                view_model.clone(),
+                panel_layout.clone(),
+                environments,
+                window,
+                cx,
+            )
+        });
         let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
         let subscriptions = vec![
             cx.subscribe(&composer, Self::on_composer_event),
@@ -93,6 +101,22 @@ impl RequestWorkspace {
             tab_scroll: gpui::ScrollHandle::new(),
             tab_reveal_key: None,
             _subscriptions: subscriptions,
+        }
+    }
+
+    pub(super) fn rebase_environments(
+        &mut self,
+        previous: &str,
+        next: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let changed =
+            self.update_view_model(cx, |model| model.rebase_environment_urls(previous, next));
+        if changed {
+            self.composer.update(cx, |composer, cx| {
+                composer.project_environment_url(window, cx)
+            });
         }
     }
 

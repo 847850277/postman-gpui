@@ -1,19 +1,24 @@
 //! Retained boundary for the future flow editor. No sample runs or editable-looking fake controls.
 use crate::ui::theme::{metrics as m, INFO, LINE, MUTED, PANEL, PANEL_ALT, TEXT};
 use gpui::{
-    div, App, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
+    div, App, Context, Entity, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
     ScrollHandle, StatefulInteractiveElement, Styled, Window,
 };
 use gpui_kit::{assets::IconName, component::Icon};
 
 pub(super) struct FlowsView {
+    environments: Entity<crate::app::environments::Environments>,
     focus: FocusHandle,
     scroll: ScrollHandle,
 }
 
 impl FlowsView {
-    pub(super) fn new(cx: &mut Context<Self>) -> Self {
+    pub(super) fn new(
+        environments: Entity<crate::app::environments::Environments>,
+        cx: &mut Context<Self>,
+    ) -> Self {
         Self {
+            environments,
             focus: cx.focus_handle(),
             scroll: ScrollHandle::new(),
         }
@@ -57,9 +62,17 @@ impl Render for FlowsView {
                     .gap_6()
                     .child(
                         div()
-                            .text_size(m::TITLE)
-                            .font_weight(m::SEMIBOLD)
-                            .child("Flows"),
+                            .flex()
+                            .items_center()
+                            .gap_4()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_size(m::TITLE)
+                                    .font_weight(m::SEMIBOLD)
+                                    .child("Flows"),
+                            )
+                            .child(self.environments.clone()),
                     )
                     .child(
                         div()
