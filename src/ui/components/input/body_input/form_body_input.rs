@@ -1,30 +1,15 @@
 use super::{FormDataEntry, FormDataFile};
-use crate::ui::{
-    components::{
-        common::{
-            keyboard::ActivateControl,
-            scrollbar::{scrollbar_geometry, ScrollbarGeometry},
-        },
-        input::table_cell_input::{
-            TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
-            TableRowId,
-        },
-    },
-    theme::{
-        ACCENT_SOFT, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT,
-    },
+use crate::ui::components::input::table_cell_input::{
+    TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
+    TableRowId,
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, App, AppContext, Context, CursorStyle, Entity,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
-    Role, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, Window,
+    px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle,
+    Subscription, Window,
 };
 use std::path::PathBuf;
 
-const FORM_DATA_ROW_HEIGHT: f32 = 38.0;
-const FORM_DATA_ROW_GAP: f32 = 8.0;
-const FORM_DATA_ROWS_PADDING: f32 = 16.0;
-const FORM_DATA_MAX_VISIBLE_ROWS: usize = 6;
+mod layout;
 
 #[derive(Clone, Debug)]
 pub(super) enum FormBodyInputEvent {
@@ -59,6 +44,9 @@ enum PendingFormFocus {
 pub(super) struct FormBodyInput {
     form_data_allows_files: bool,
     form_data_scroll: ScrollHandle,
+    viewport_width: gpui::Pixels,
+    has_overflow: bool,
+    focused_row: Option<TableRowId>,
     form_data_entries: Vec<FormDataEntry>,
     row_editors: Vec<FormRowEditor>,
     row_toggle_focus_handles: Vec<FocusHandle>,
@@ -81,12 +69,15 @@ impl Focusable for FormBodyInput {
 }
 
 impl FormBodyInput {
-    pub(super) fn new(cx: &mut Context<Self>) -> Self {
+    pub(super) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let entry = FormDataEntry::text("", "", true);
-        let row_editor = Self::new_row_editor(&entry, cx);
+        let row_editor = Self::new_row_editor(&entry, window, cx);
         Self {
             form_data_allows_files: false,
             form_data_scroll: ScrollHandle::new(),
+            viewport_width: px(0.),
+            has_overflow: false,
+            focused_row: None,
             form_data_entries: vec![entry],
             row_editors: vec![row_editor],
             row_toggle_focus_handles: vec![cx.focus_handle().tab_index(0).tab_stop(true)],
@@ -98,28 +89,35 @@ impl FormBodyInput {
         }
     }
 
-    fn new_row_editor(entry: &FormDataEntry, cx: &mut Context<Self>) -> FormRowEditor {
+    fn new_row_editor(
+        entry: &FormDataEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> FormRowEditor {
         let row_id = TableRowId::next();
         let key_input = cx.new(|cx| {
-            let mut input =
-                TableCellInput::new(TableCellId::new(row_id, TableCellColumn::Key), "Key", cx)
-                    .with_context_menu_id("body-edit-menu");
-            input.project_content(entry.key.clone(), cx);
+            let mut input = TableCellInput::new(
+                TableCellId::new(row_id, TableCellColumn::Key),
+                "Key",
+                window,
+                cx,
+            );
+            input.project_content(entry.key.clone(), window, cx);
             input
         });
         let value_input = cx.new(|cx| {
             let mut input = TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Value),
                 "Value",
+                window,
                 cx,
-            )
-            .with_context_menu_id("body-edit-menu");
-            input.project_content(entry.value.clone(), cx);
+            );
+            input.project_content(entry.value.clone(), window, cx);
             input
         });
         let subscriptions = vec![
-            cx.subscribe(&key_input, Self::on_cell_event),
-            cx.subscribe(&value_input, Self::on_cell_event),
+            cx.subscribe_in(&key_input, window, Self::on_cell_event),
+            cx.subscribe_in(&value_input, window, Self::on_cell_event),
         ];
         FormRowEditor {
             row_id,
@@ -161,9 +159,9 @@ impl FormBodyInput {
             .push(cx.focus_handle().tab_index(0).tab_stop(true));
     }
 
-    fn push_blank_entry(&mut self, cx: &mut Context<Self>) -> TableRowId {
+    fn push_blank_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) -> TableRowId {
         let entry = FormDataEntry::text("", "", true);
-        let editor = Self::new_row_editor(&entry, cx);
+        let editor = Self::new_row_editor(&entry, window, cx);
         let row_id = editor.row_id;
         self.form_data_entries.push(entry);
         self.row_editors.push(editor);
@@ -171,11 +169,11 @@ impl FormBodyInput {
         row_id
     }
 
-    fn rebuild_row_editors(&mut self, cx: &mut Context<Self>) {
+    fn rebuild_row_editors(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let entries = self.form_data_entries.clone();
         self.row_editors = entries
             .iter()
-            .map(|entry| Self::new_row_editor(entry, cx))
+            .map(|entry| Self::new_row_editor(entry, window, cx))
             .collect();
         self.row_toggle_focus_handles = (0..entries.len())
             .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
@@ -190,19 +188,21 @@ impl FormBodyInput {
             .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
             .collect();
         self.pending_focus = None;
+        self.focused_row = None;
     }
 
     fn editor_text_matches(&self, entries: &[FormDataEntry], cx: &App) -> bool {
         self.row_editors.len() == entries.len()
             && self.row_editors.iter().zip(entries).all(|(editor, entry)| {
-                editor.key_input.read(cx).content() == entry.key
-                    && editor.value_input.read(cx).content() == entry.value
+                editor.key_input.read(cx).content(cx) == entry.key
+                    && editor.value_input.read(cx).content(cx) == entry.value
             })
     }
 
     pub(super) fn set_form_data_allows_files(
         &mut self,
         allows_files: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if self.form_data_allows_files == allows_files {
@@ -221,20 +221,29 @@ impl FormBodyInput {
                 }
             }
             for (input, value) in projections {
-                input.update(cx, |input, cx| input.project_content(value, cx));
+                input.update(cx, |input, cx| input.project_content(value, window, cx));
             }
         }
         cx.notify();
     }
 
-    pub(super) fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
-        self.push_blank_entry(cx);
+    pub(super) fn add_form_data_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let row_id = self.push_blank_entry(window, cx);
+        self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
+            row_id,
+            TableCellColumn::Key,
+        )));
         self.form_data_scroll.scroll_to_bottom();
         self.emit_form_data_changed(cx);
         cx.notify();
     }
 
-    pub(super) fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+    pub(super) fn remove_form_data_entry(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if index >= self.form_data_entries.len() {
             return;
         }
@@ -245,7 +254,7 @@ impl FormBodyInput {
         self.row_file_focus_handles.remove(index);
         self.row_delete_focus_handles.remove(index);
         if self.form_data_entries.is_empty() {
-            self.push_blank_entry(cx);
+            self.push_blank_entry(window, cx);
         }
         self.emit_form_data_changed(cx);
         cx.notify();
@@ -259,7 +268,12 @@ impl FormBodyInput {
         }
     }
 
-    fn toggle_form_data_value_kind(&mut self, index: usize, cx: &mut Context<Self>) {
+    fn toggle_form_data_value_kind(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !self.form_data_allows_files || index >= self.form_data_entries.len() {
             return;
         }
@@ -279,7 +293,7 @@ impl FormBodyInput {
         };
         self.row_editors[index]
             .value_input
-            .update(cx, |input, cx| input.project_content(value, cx));
+            .update(cx, |input, cx| input.project_content(value, window, cx));
         self.emit_form_data_changed(cx);
         cx.notify();
     }
@@ -336,16 +350,18 @@ impl FormBodyInput {
         .detach();
     }
 
+    #[cfg(test)]
     pub(super) fn set_form_data_entries(
         &mut self,
         mut entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if entries.is_empty() {
             entries.push(FormDataEntry::text("", "", true));
         }
         self.form_data_entries = entries;
-        self.rebuild_row_editors(cx);
+        self.rebuild_row_editors(window, cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
@@ -355,15 +371,17 @@ impl FormBodyInput {
     pub(super) fn project_form_data_entries(
         &mut self,
         entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.project_form_data_entries_with_rebind(entries, false, cx);
+        self.project_form_data_entries_with_rebind(entries, false, window, cx);
     }
 
     pub(super) fn project_form_data_entries_with_rebind(
         &mut self,
         mut entries: Vec<FormDataEntry>,
         force_rebind: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if entries.is_empty() {
@@ -372,58 +390,27 @@ impl FormBodyInput {
         let text_matches = self.editor_text_matches(&entries, cx);
         self.form_data_entries = entries;
         if force_rebind || !text_matches {
-            self.rebuild_row_editors(cx);
+            self.rebuild_row_editors(window, cx);
         }
         cx.notify();
     }
 
-    pub(super) fn start_editing_key(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(editor) = self.row_editors.get(index) {
-            self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
-                editor.row_id,
-                TableCellColumn::Key,
-            )));
-            cx.notify();
-        }
-    }
-
-    pub(super) fn start_editing_value(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self
-            .form_data_entries
-            .get(index)
-            .is_some_and(|entry| entry.file.is_none())
-        {
-            let row_id = self.row_editors[index].row_id;
-            self.pending_focus = Some(PendingFormFocus::Cell(TableCellId::new(
-                row_id,
-                TableCellColumn::Value,
-            )));
-            cx.notify();
-        }
-    }
-
-    pub(super) fn finish_editing(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn finish_key_editing_only(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn finish_value_editing_only(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn cancel_editing(&mut self, _cx: &mut Context<Self>) {}
-
-    pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    pub(super) fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.form_data_entries == [FormDataEntry::text("", "", true)] {
             return;
         }
         self.form_data_entries = vec![FormDataEntry::text("", "", true)];
-        self.rebuild_row_editors(cx);
+        self.rebuild_row_editors(window, cx);
         self.emit_form_data_changed(cx);
         cx.notify();
     }
 
     fn on_cell_event(
         &mut self,
-        _input: Entity<TableCellInput>,
+        _input: &Entity<TableCellInput>,
         event: &TableCellInputEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let cell = match event {
@@ -455,7 +442,7 @@ impl FormBodyInput {
             }
             TableCellInputEvent::SubmitRequested { .. } => {}
             TableCellInputEvent::TraversalRequested { direction, .. } => {
-                self.queue_traversal(cell, index, *direction, cx);
+                self.queue_traversal(cell, index, *direction, window, cx);
             }
         }
     }
@@ -465,6 +452,7 @@ impl FormBodyInput {
         cell: TableCellId,
         index: usize,
         direction: TableCellTraversal,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let target = match (cell.column(), direction) {
@@ -482,7 +470,7 @@ impl FormBodyInput {
                 let next_row_id = if index + 1 < self.row_editors.len() {
                     self.row_editors[index + 1].row_id
                 } else {
-                    let row_id = self.push_blank_entry(cx);
+                    let row_id = self.push_blank_entry(window, cx);
                     self.form_data_scroll.scroll_to_bottom();
                     self.emit_form_data_changed(cx);
                     row_id
@@ -541,691 +529,27 @@ impl FormBodyInput {
     }
 }
 
-fn form_data_scrollbar_geometry(
-    row_count: usize,
-    offset_y: f32,
-    max_offset_y: f32,
-) -> Option<ScrollbarGeometry> {
-    if row_count <= FORM_DATA_MAX_VISIBLE_ROWS {
-        return None;
-    }
-
-    let content_height = FORM_DATA_ROWS_PADDING
-        + FORM_DATA_ROW_HEIGHT * row_count as f32
-        + FORM_DATA_ROW_GAP * row_count.saturating_sub(1) as f32;
-    let visible_fraction = if max_offset_y > 0.0 && content_height > 0.0 {
-        (content_height - max_offset_y) / content_height
-    } else {
-        FORM_DATA_MAX_VISIBLE_ROWS as f32 / row_count as f32
-    };
-
-    Some(scrollbar_geometry(visible_fraction, offset_y, max_offset_y))
-}
-
-impl Render for FormBodyInput {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.apply_pending_focus(window, cx);
-        let form_data_entries = self.form_data_entries.clone();
-        let form_data_allows_files = self.form_data_allows_files;
-        let row_cells = self
-            .row_editors
-            .iter()
-            .map(|row| (row.row_id, row.key_input.clone(), row.value_input.clone()))
-            .collect::<Vec<_>>();
-        let row_toggle_focus_handles = self.row_toggle_focus_handles.clone();
-        let row_type_focus_handles = self.row_type_focus_handles.clone();
-        let row_file_focus_handles = self.row_file_focus_handles.clone();
-        let row_delete_focus_handles = self.row_delete_focus_handles.clone();
-        let form_data_scrollbar = form_data_scrollbar_geometry(
-            form_data_entries.len(),
-            self.form_data_scroll.offset().y.as_f32(),
-            self.form_data_scroll.max_offset().y.as_f32(),
-        );
-
-        div()
-            .debug_selector(|| "body-form-editor".into())
-            .flex_1()
-            .min_h_0()
-            .flex()
-            .flex_col()
-            .bg(PANEL.resolve(cx))
-            .border_1()
-            .border_color(LINE.resolve(cx))
-            .child(
-                div()
-                    .debug_selector(|| "body-form-table-header".into())
-                    .h(px(30.0))
-                    .flex_none()
-                    .flex()
-                    .gap_2()
-                    .items_center()
-                    .px_3()
-                    .bg(PANEL_ALT.resolve(cx))
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .child(
-                        div()
-                            .w(px(18.0))
-                            .font_family(FONT_UI)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("✓"),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .font_family(FONT_UI)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("KEY"),
-                    )
-                    .when(form_data_allows_files, |header| {
-                        header.child(
-                            div()
-                                .w(px(64.0))
-                                .font_family(FONT_UI)
-                                .font_weight(gpui::FontWeight::BOLD)
-                                .text_size(px(9.0))
-                                .text_color(SUBTEXT.resolve(cx))
-                                .child("TYPE"),
-                        )
-                    })
-                    .child(
-                        div()
-                            .flex_1()
-                            .font_family(FONT_UI)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("VALUE"),
-                    )
-                    .child(
-                        div()
-                            .w(px(58.0))
-                            .font_family(FONT_UI)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .text_align(gpui::TextAlign::Center)
-                            .child("STATE"),
-                    )
-                    .child(
-                        div()
-                            .w(px(44.0))
-                            .font_family(FONT_UI)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_size(px(9.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .text_align(gpui::TextAlign::Center)
-                            .child("ACTION"),
-                    ),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .relative()
-                    .child(
-                        div()
-                            .id("body-form-scroll")
-                            .debug_selector(|| "body-form-scroll".into())
-                            .flex_1()
-                            .min_h_0()
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .p_2()
-                            .when(form_data_scrollbar.is_some(), |rows| rows.pr(px(20.0)))
-                            .overflow_y_scroll()
-                            .track_scroll(&self.form_data_scroll)
-                            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
-                            .children(
-                                form_data_entries
-                                    .iter()
-                                    .zip(row_cells)
-                                    .enumerate()
-                                    .map(|(index, (entry, (row_id, key_input, value_input)))| {
-                                        let entry_is_file = entry.file.is_some();
-                                        let entry_file_name = entry.file.as_ref().and_then(|file| {
-                                            if file.path.as_os_str().is_empty() {
-                                                None
-                                            } else {
-                                                file.file_name.clone().or_else(|| {
-                                                    file.path.file_name().map(|name| {
-                                                        name.to_string_lossy().into_owned()
-                                                    })
-                                                })
-                                            }
-                                        });
-                                        let entry_file_content_type =
-                                            entry.file.as_ref().and_then(|file| {
-                                                (!file.path.as_os_str().is_empty()).then(|| {
-                                                    file.content_type.clone().unwrap_or_else(|| {
-                                                        "content type: automatic".to_string()
-                                                    })
-                                                })
-                                            });
-                                        let entry_enabled = entry.enabled;
-                                        let toggle_focus =
-                                            row_toggle_focus_handles[index].clone();
-                                        let mouse_toggle_focus = toggle_focus.clone();
-                                        let toggle_focused = toggle_focus.is_focused(window);
-                                        let type_focus = row_type_focus_handles[index].clone();
-                                        let mouse_type_focus = type_focus.clone();
-                                        let type_focused = type_focus.is_focused(window);
-                                        let file_focus = row_file_focus_handles[index].clone();
-                                        let mouse_file_focus = file_focus.clone();
-                                        let file_focused = file_focus.is_focused(window);
-                                        let delete_focus =
-                                            row_delete_focus_handles[index].clone();
-                                        let mouse_delete_focus = delete_focus.clone();
-                                        let delete_focused = delete_focus.is_focused(window);
-
-                                        div()
-                                            .debug_selector(move || {
-                                                format!("body-form-row-{index}")
-                                            })
-                                            .h(px(FORM_DATA_ROW_HEIGHT))
-                                            .flex_none()
-                                            .flex()
-                                            .gap_2()
-                                            .items_center()
-                                            .bg((if entry_enabled {
-                                                PANEL
-                                            } else {
-                                                PANEL_ALT
-                                            }).resolve(cx))
-                                            .child(
-                                                div()
-                                                    .id(("body-form-toggle", index))
-                                                    .debug_selector(move || {
-                                                        format!("body-form-toggle-{index}")
-                                                    })
-                                                    .track_focus(&toggle_focus)
-                                                    .key_context("KeyboardButton")
-                                                    .role(Role::CheckBox)
-                                                    .aria_label(format!(
-                                                        "{} form body row {}",
-                                                        if entry_enabled {
-                                                            "Disable"
-                                                        } else {
-                                                            "Enable"
-                                                        },
-                                                        index + 1
-                                                    ))
-                                                    .aria_selected(entry_enabled)
-                                                    .size(px(18.0))
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .border_1()
-                                                    .border_color((if entry_enabled {
-                                                        INFO
-                                                    } else {
-                                                        LINE
-                                                    }).resolve(cx))
-                                                    .rounded_sm()
-                                                    .bg((if entry_enabled {
-                                                        INFO
-                                                    } else {
-                                                        PANEL
-                                                    }).resolve(cx))
-                                                    .text_color(PANEL.resolve(cx))
-                                                    .font_family(FONT_UI)
-                                                    .font_weight(gpui::FontWeight::BOLD)
-                                                    .text_size(px(10.0))
-                                                    .cursor_pointer()
-                                                    .when(toggle_focused, |control| {
-                                                        control
-                                                            .border_2()
-                                                            .border_color(ACCENT_SOFT.resolve(cx))
-                                                    })
-                                                    .child(if entry_enabled { "✓" } else { "" })
-                                                    .on_action(cx.listener(
-                                                        move |this,
-                                                              _: &ActivateControl,
-                                                              _,
-                                                              cx| {
-                                                            this.toggle_form_data_entry(
-                                                                index, cx,
-                                                            );
-                                                        },
-                                                    ))
-                                                    .on_mouse_up(
-                                                        gpui::MouseButton::Left,
-                                                        cx.listener(
-                                                            move |this, _, window, cx| {
-                                                                mouse_toggle_focus
-                                                                    .focus(window, cx);
-                                                                this.toggle_form_data_entry(
-                                                                    index, cx,
-                                                                );
-                                                            },
-                                                        ),
-                                                    ),
-                                            )
-                                            .child(
-                                                div()
-                                                    .debug_selector(move || {
-                                                        format!("body-form-key-{index}")
-                                                    })
-                                                    .h_full()
-                                                    .min_w_0()
-                                                    .flex_1()
-                                                    .flex()
-                                                    .child(key_input),
-                                            )
-                                            .when(form_data_allows_files, |row| {
-                                                row.child(
-                                                    div()
-                                                        .id(("body-form-type", index))
-                                                        .debug_selector(move || {
-                                                            format!("body-form-type-{index}")
-                                                        })
-                                                        .track_focus(&type_focus)
-                                                        .key_context("KeyboardButton")
-                                                        .role(Role::Button)
-                                                        .aria_label(format!(
-                                                            "Use {} value for form row {}",
-                                                            if entry_is_file {
-                                                                "text"
-                                                            } else {
-                                                                "file"
-                                                            },
-                                                            index + 1
-                                                        ))
-                                                        .w(px(64.0))
-                                                        .h(px(32.0))
-                                                        .flex_none()
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .bg((if !entry_enabled {
-                                                            PANEL_ALT
-                                                        } else if entry_is_file {
-                                                            crate::ui::theme::INFO_SOFT
-                                                        } else {
-                                                            PANEL_ALT
-                                                        }).resolve(cx))
-                                                        .border_1()
-                                                        .border_color(LINE.resolve(cx))
-                                                        .rounded_md()
-                                                        .text_size(px(12.0))
-                                                        .font_weight(
-                                                            gpui::FontWeight::SEMIBOLD,
-                                                        )
-                                                        .text_color((if !entry_enabled {
-                                                            MUTED
-                                                        } else if entry_is_file {
-                                                            crate::ui::theme::INFO
-                                                        } else {
-                                                            SUBTEXT
-                                                        }).resolve(cx))
-                                                        .cursor_pointer()
-                                                        .when(type_focused, |control| {
-                                                            control
-                                                                .border_2()
-                                                                .border_color(INFO.resolve(cx))
-                                                        })
-                                                        .child(if entry_is_file {
-                                                            "File"
-                                                        } else {
-                                                            "Text"
-                                                        })
-                                                        .on_action(cx.listener(
-                                                            move |this,
-                                                                  _: &ActivateControl,
-                                                                  _,
-                                                                  cx| {
-                                                                this.toggle_form_data_value_kind(
-                                                                    index, cx,
-                                                                );
-                                                            },
-                                                        ))
-                                                        .on_mouse_up(
-                                                            gpui::MouseButton::Left,
-                                                            cx.listener(
-                                                                move |this, _, window, cx| {
-                                                                    mouse_type_focus
-                                                                        .focus(window, cx);
-                                                                    this.toggle_form_data_value_kind(
-                                                                        index, cx,
-                                                                    );
-                                                                },
-                                                            ),
-                                                        ),
-                                                )
-                                            })
-                                            .child(
-                                                div()
-                                                    .id(("body-form-value", index))
-                                                    .debug_selector(move || {
-                                                        format!("body-form-value-{index}")
-                                                    })
-                                                    .h_full()
-                                                    .min_w_0()
-                                                    .flex_1()
-                                                    .flex()
-                                                    .when(!entry_is_file, |cell| {
-                                                        cell.child(value_input)
-                                                    })
-                                                    .when(entry_is_file, |file_cell| {
-                                                        file_cell
-                                                            .debug_selector(move || {
-                                                                format!(
-                                                                    "body-form-file-{index}"
-                                                                )
-                                                            })
-                                                            .track_focus(&file_focus)
-                                                            .key_context("KeyboardButton")
-                                                            .role(Role::Button)
-                                                            .aria_label(format!(
-                                                                "Choose file for form row {}",
-                                                                index + 1
-                                                            ))
-                                                            .px_2()
-                                                            .border_1()
-                                                            .border_color(LINE.resolve(cx))
-                                                            .rounded_md()
-                                                            .cursor(CursorStyle::PointingHand)
-                                                            .when(file_focused, |control| {
-                                                                control
-                                                                    .border_2()
-                                                                    .border_color(INFO.resolve(cx))
-                                                            })
-                                                            .flex()
-                                                            .flex_col()
-                                                            .justify_center()
-                                                            .text_color((if !entry_enabled {
-                                                                SUBTEXT
-                                                            } else if entry_file_name.is_none() {
-                                                                MUTED
-                                                            } else {
-                                                                crate::ui::theme::TEXT
-                                                            }).resolve(cx))
-                                                            .child(
-                                                                div()
-                                                                    .debug_selector(move || {
-                                                                        format!(
-                                                                            "body-form-file-name-{index}"
-                                                                        )
-                                                                    })
-                                                                    .child(
-                                                                        entry_file_name
-                                                                            .clone()
-                                                                            .unwrap_or_else(|| {
-                                                                                "Choose file…"
-                                                                                    .to_string()
-                                                                            }),
-                                                                    ),
-                                                            )
-                                                            .when_some(
-                                                                entry_file_content_type.clone(),
-                                                                |file, content_type| {
-                                                                    file.child(
-                                                                        div()
-                                                                            .debug_selector(
-                                                                                move || {
-                                                                                    format!(
-                                                                                        "body-form-file-metadata-{index}"
-                                                                                    )
-                                                                                },
-                                                                            )
-                                                                            .font_family(FONT_UI)
-                                                                            .text_size(px(8.0))
-                                                                            .text_color(SUBTEXT.resolve(cx))
-                                                                            .child(content_type),
-                                                                    )
-                                                                },
-                                                            )
-                                                            .on_action(cx.listener(
-                                                                move |this,
-                                                                      _: &ActivateControl,
-                                                                      window,
-                                                                      cx| {
-                                                                    this.choose_form_data_file(
-                                                                        row_id, window, cx,
-                                                                    );
-                                                                },
-                                                            ))
-                                                            .on_mouse_up(
-                                                                gpui::MouseButton::Left,
-                                                                cx.listener(
-                                                                    move |this, _, window, cx| {
-                                                                        mouse_file_focus
-                                                                            .focus(window, cx);
-                                                                        this.choose_form_data_file(
-                                                                            row_id, window, cx,
-                                                                        );
-                                                                    },
-                                                                ),
-                                                            )
-                                                    }),
-                                            )
-                                            .child(
-                                                div()
-                                                    .debug_selector(move || {
-                                                        format!("body-form-state-{index}")
-                                                    })
-                                                    .w(px(58.0))
-                                                    .h(px(30.0))
-                                                    .flex_none()
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .child(
-                                                        div()
-                                                            .debug_selector(move || {
-                                                                format!(
-                                                                    "body-form-{}-{index}",
-                                                                    if entry_enabled {
-                                                                        "ready"
-                                                                    } else {
-                                                                        "omitted"
-                                                                    }
-                                                                )
-                                                            })
-                                                            .px_2()
-                                                            .py_1()
-                                                            .rounded_lg()
-                                                            .bg((if entry_enabled {
-                                                                OK_SOFT
-                                                            } else {
-                                                                PANEL_ALT
-                                                            }).resolve(cx))
-                                                            .font_family(FONT_UI)
-                                                            .font_weight(
-                                                                gpui::FontWeight::BOLD,
-                                                            )
-                                                            .text_size(px(7.0))
-                                                            .text_color((if entry_enabled {
-                                                                OK
-                                                            } else {
-                                                                MUTED
-                                                            }).resolve(cx))
-                                                            .child(if entry_enabled {
-                                                                "READY"
-                                                            } else {
-                                                                "OMITTED"
-                                                            }),
-                                                    ),
-                                            )
-                                            .child(
-                                                div()
-                                                    .id(("body-form-delete", index))
-                                                    .debug_selector(move || {
-                                                        format!("body-form-delete-{index}")
-                                                    })
-                                                    .track_focus(&delete_focus)
-                                                    .key_context("KeyboardButton")
-                                                    .role(Role::Button)
-                                                    .aria_label(format!(
-                                                        "Delete form body row {}",
-                                                        index + 1
-                                                    ))
-                                                    .w(px(44.0))
-                                                    .h(px(30.0))
-                                                    .flex_none()
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .bg((if entry_enabled {
-                                                        PANEL
-                                                    } else {
-                                                        PANEL_ALT
-                                                    }).resolve(cx))
-                                                    .text_color(SUBTEXT.resolve(cx))
-                                                    .border_1()
-                                                    .border_color(LINE.resolve(cx))
-                                                    .rounded_md()
-                                                    .cursor_pointer()
-                                                    .hover(|style| {
-                                                        style.bg(ACCENT_SOFT.resolve(cx))
-                                                    })
-                                                    .when(delete_focused, |control| {
-                                                        control
-                                                            .border_2()
-                                                            .border_color(INFO.resolve(cx))
-                                                    })
-                                                    .child("×")
-                                                    .text_size(px(15.0))
-                                                    .on_action(cx.listener(
-                                                        move |this,
-                                                              _: &ActivateControl,
-                                                              window,
-                                                              cx| {
-                                                            this.remove_form_data_entry(
-                                                                index, cx,
-                                                            );
-                                                            this.focus_after_row_removal(
-                                                                index, window, cx,
-                                                            );
-                                                        },
-                                                    ))
-                                                    .on_mouse_up(
-                                                        gpui::MouseButton::Left,
-                                                        cx.listener(
-                                                            move |this, _, window, cx| {
-                                                                mouse_delete_focus
-                                                                    .focus(window, cx);
-                                                                this.remove_form_data_entry(
-                                                                    index, cx,
-                                                                );
-                                                                this.focus_after_row_removal(
-                                                                    index, window, cx,
-                                                                );
-                                                            },
-                                                        ),
-                                                    ),
-                                            )
-                                    }),
-                            ),
-                    )
-                    .when_some(form_data_scrollbar, |viewport, scrollbar| {
-                        viewport.child(
-                            div()
-                                .debug_selector(|| "body-form-scrollbar".into())
-                                .absolute()
-                                .top(px(8.0))
-                                .right(px(5.0))
-                                .bottom(px(8.0))
-                                .w(px(8.0))
-                                .rounded_full()
-                                .bg(PANEL_ALT.resolve(cx))
-                                .border_1()
-                                .border_color(LINE.resolve(cx))
-                                .child(
-                                    div()
-                                        .debug_selector(|| {
-                                            "body-form-scrollbar-thumb".into()
-                                        })
-                                        .absolute()
-                                        .top(relative(scrollbar.thumb_top))
-                                        .w_full()
-                                        .h(relative(scrollbar.thumb_height))
-                                        .rounded_full()
-                                        .bg(INFO.resolve(cx)),
-                                ),
-                        )
-                    }),
-            )
-            .child(
-                div()
-                    .id("body-form-add-row")
-                    .debug_selector(|| "body-form-add-row".into())
-                    .track_focus(&self.add_row_focus_handle)
-                    .key_context("KeyboardButton")
-                    .role(Role::Button)
-                    .aria_label("Add form body row")
-                    .h(px(34.0))
-                    .mx_2()
-                    .mb_2()
-                    .px_3()
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .bg(INFO_SOFT.resolve(cx))
-                    .text_color(INFO.resolve(cx))
-                    .border_1()
-                    .border_color(LINE.resolve(cx))
-                    .rounded_md()
-                    .cursor_pointer()
-                    .hover(|style| style.bg(PANEL_ALT.resolve(cx)))
-                    .when(self.add_row_focus_handle.is_focused(window), |button| {
-                        button.border_2().border_color(INFO.resolve(cx))
-                    })
-                    .child("+ Add form field")
-                    .child(
-                        div()
-                            .debug_selector(|| "body-form-add-row-hint".into())
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child("one click = one row · no limit"),
-                    )
-                    .font_family(FONT_UI)
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                    .text_size(px(11.0))
-                    .on_action(cx.listener(
-                        |this, _: &ActivateControl, _window, cx| {
-                            this.add_form_data_entry(cx);
-                        },
-                    ))
-                    .on_mouse_up(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.add_row_focus_handle.focus(window, cx);
-                            this.add_form_data_entry(cx);
-                        }),
-                    ),
-            )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::FormBodyInput;
-    use crate::ui::components::input::{
-        body_input::FormDataEntry,
-        table_cell_input::{TableCellColumn, TableCellId, TableCellInputEvent},
-    };
-    use gpui::{AppContext, TestAppContext};
+    use crate::ui::components::input::body_input::FormDataEntry;
+    use gpui::{Focusable, TestAppContext};
     use std::path::PathBuf;
 
     #[gpui::test]
     fn row_insertion_removal_and_enabled_state_preserve_order(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(cx, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("duplicate", "first", true),
                     FormDataEntry::text("duplicate", "second", false),
                 ],
+                window,
                 cx,
             );
-            input.add_form_data_entry(cx);
+            input.add_form_data_entry(window, cx);
             input.toggle_form_data_entry(1, cx);
         });
 
@@ -1240,10 +564,10 @@ mod tests {
             );
         });
 
-        input.update(cx, |input, cx| {
-            input.remove_form_data_entry(0, cx);
-            input.remove_form_data_entry(1, cx);
-            input.remove_form_data_entry(0, cx);
+        input.update_in(cx, |input, window, cx| {
+            input.remove_form_data_entry(0, window, cx);
+            input.remove_form_data_entry(1, window, cx);
+            input.remove_form_data_entry(0, window, cx);
         });
         assert_eq!(
             input.read_with(cx, |input, _| input.entries().to_vec()),
@@ -1253,13 +577,15 @@ mod tests {
 
     #[gpui::test]
     fn duplicate_rows_keep_identity_across_append_and_neighbor_removal(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(cx, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("duplicate", "first", true),
                     FormDataEntry::text("duplicate", "second", false),
                 ],
+                window,
                 cx,
             );
         });
@@ -1271,66 +597,103 @@ mod tests {
                 .collect::<Vec<_>>()
         });
 
-        input.update(cx, |input, cx| {
-            input.add_form_data_entry(cx);
+        input.update_in(cx, |input, window, cx| {
+            input.add_form_data_entry(window, cx);
             assert_eq!(input.row_editors[0].row_id, ids[0]);
             assert_eq!(input.row_editors[1].row_id, ids[1]);
-            input.remove_form_data_entry(0, cx);
+            input.remove_form_data_entry(0, window, cx);
             assert_eq!(input.row_editors[0].row_id, ids[1]);
         });
     }
 
     #[gpui::test]
     fn same_tab_projection_retains_cells_but_request_rebind_resets_them(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
         let entries = vec![FormDataEntry::text("same", "value", true)];
-        input.update(cx, |input, cx| {
-            input.project_form_data_entries(entries.clone(), cx);
+        input.update_in(cx, |input, window, cx| {
+            input.project_form_data_entries(entries.clone(), window, cx);
         });
         let original = input.read_with(cx, |input, _| input.row_editors[0].row_id);
 
-        input.update(cx, |input, cx| {
-            input.project_form_data_entries(entries.clone(), cx);
+        input.update_in(cx, |input, window, cx| {
+            input.project_form_data_entries(entries.clone(), window, cx);
             assert_eq!(input.row_editors[0].row_id, original);
-            input.project_form_data_entries_with_rebind(entries, true, cx);
+            input.project_form_data_entries_with_rebind(entries, true, window, cx);
             assert_ne!(input.row_editors[0].row_id, original);
         });
     }
 
     #[gpui::test]
     fn stable_cell_event_updates_the_same_logical_row_after_deletion(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
-        input.update(cx, |input, cx| {
+        cx.update(crate::ui::kit::init);
+        let (input, visual) = cx.add_window_view(FormBodyInput::new);
+        let second = input.update_in(visual, |input, window, cx| {
             input.project_form_data_entries(
                 vec![
                     FormDataEntry::text("first", "one", true),
                     FormDataEntry::text("second", "two", true),
                 ],
+                window,
                 cx,
             );
-            let second = input.row_editors[1].row_id;
-            input.remove_form_data_entry(0, cx);
-            input.on_cell_event(
-                input.row_editors[0].key_input.clone(),
-                &TableCellInputEvent::ValueChanged {
-                    cell: TableCellId::new(second, TableCellColumn::Key),
-                    value: "still-second".to_string(),
-                },
-                cx,
-            );
+            let second = input.row_editors[1].key_input.clone();
+            input.remove_form_data_entry(0, window, cx);
+            second.read(cx).focus_handle(cx).focus(window, cx);
+            second
         });
+        visual.simulate_keystrokes("ctrl-a");
+        visual.simulate_input("still-second");
         assert_eq!(
-            input.read_with(cx, |input, _| input.entries()[0].key.clone()),
+            input.read_with(visual, |input, _| input.entries()[0].key.clone()),
             "still-second"
+        );
+        assert_eq!(
+            input.read_with(visual, |input, _| input.row_editors[0]
+                .key_input
+                .entity_id()),
+            second.entity_id()
         );
     }
 
     #[gpui::test]
+    fn kit_cell_tab_traverses_and_appends_form_rows(cx: &mut TestAppContext) {
+        cx.update(crate::ui::kit::init);
+        let (input, visual) = cx.add_window_view(FormBodyInput::new);
+        input.update_in(visual, |input, window, cx| {
+            input.focus_handle(cx).focus(window, cx)
+        });
+        visual.simulate_input("duplicate");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("first😀");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("duplicate");
+        visual.simulate_keystrokes("tab");
+        visual.simulate_input("second中");
+        visual.simulate_keystrokes("shift-tab");
+        input.update_in(visual, |input, window, cx| {
+            assert_eq!(
+                input.entries(),
+                &[
+                    FormDataEntry::text("duplicate", "first😀", true),
+                    FormDataEntry::text("duplicate", "second中", true),
+                ]
+            );
+            assert!(input.row_editors[1]
+                .key_input
+                .read(cx)
+                .focus_handle(cx)
+                .is_focused(window));
+        });
+    }
+
+    #[gpui::test]
     fn text_and_file_transitions_retain_typed_metadata_and_enabled_state(cx: &mut TestAppContext) {
-        let input = cx.new(FormBodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(FormBodyInput::new);
         let path = PathBuf::from("/tmp/issue-101-upload.txt");
-        input.update(cx, |input, cx| {
-            input.set_form_data_allows_files(true, cx);
+        input.update_in(cx, |input, window, cx| {
+            input.set_form_data_allows_files(true, window, cx);
             input.project_form_data_entries(
                 vec![FormDataEntry::file(
                     "upload",
@@ -1339,9 +702,10 @@ mod tests {
                     Some("text/plain".to_string()),
                     false,
                 )],
+                window,
                 cx,
             );
-            input.toggle_form_data_value_kind(0, cx);
+            input.toggle_form_data_value_kind(0, window, cx);
         });
 
         assert_eq!(
@@ -1353,7 +717,9 @@ mod tests {
             )]
         );
 
-        input.update(cx, |input, cx| input.toggle_form_data_value_kind(0, cx));
+        input.update_in(cx, |input, window, cx| {
+            input.toggle_form_data_value_kind(0, window, cx)
+        });
         input.read_with(cx, |input, _| {
             let entry = &input.entries()[0];
             assert_eq!(entry.key, "upload");

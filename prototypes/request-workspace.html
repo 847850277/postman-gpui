@@ -141,7 +141,6 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  .request-title>.code-button{grid-column:2;grid-row:2}.request-title>.save-button{grid-column:3;grid-row:2}
 }
 
-.body-format{background:var(--subtle);border:1px solid var(--line-strong);border-radius:4px;padding:3px 6px;font-size:10px}
 .import-dialog[open]{display:flex;flex-direction:column;width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:hidden}.import-dialog>.dialog-head{flex-shrink:0}.import-form{display:flex;flex-direction:column;min-height:0}.import-content{padding:20px;overflow:auto;min-height:0}.import-intro{margin:0 0 18px;color:var(--muted);font-size:12px;line-height:1.7}.import-label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;margin-bottom:8px}.import-label .text-button{font-size:11px;color:var(--accent);padding:4px 6px}
 .curl-input{display:block;resize:vertical;width:100%;height:210px;min-height:120px;max-height:360px;padding:14px;border:1px solid var(--line-strong);border-radius:7px;background:var(--canvas);font:11px/1.9 var(--font-code);color:var(--code-string)}.curl-input:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.curl-input[aria-invalid="true"]{border-color:var(--red)}.import-hint{margin:9px 0 0;color:var(--faint);font-size:10px;line-height:1.7}.import-error{margin:10px 0 0;color:var(--red);font-size:11px;line-height:1.7}
 .import-preview{margin-top:18px;padding:14px 16px;border:1px solid var(--line);border-radius:7px;background:var(--subtle)}.import-preview-label{display:flex;align-items:center;gap:7px;color:var(--green);font-size:11px;font-weight:500;margin-bottom:12px}.import-preview-label .icon{width:14px;height:14px}.import-target{display:flex;align-items:flex-start;gap:10px}.import-target .method{flex-shrink:0;padding-top:3px;overflow-wrap:anywhere;max-width:90px}.import-url{font:11px/1.8 var(--font-code);overflow-wrap:anywhere;min-width:0;color:var(--text)}.import-details{display:flex;gap:8px 16px;flex-wrap:wrap;margin-top:12px;font-size:10px;color:var(--muted)}.import-options{border-top:1px solid var(--line);padding-top:10px;margin:12px 0 0;font-size:10px;line-height:1.8;color:var(--muted)}
@@ -153,6 +152,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 <link rel="stylesheet" href="./flow-studio.css">
 <link rel="stylesheet" href="./panel-resize.css?v=1">
 <link rel="stylesheet" href="./request-tabs.css?v=3">
+<link rel="stylesheet" href="./body-editor.css?v=3">
 </head>
 <body data-view="home">
 <a class="skip-link" href="#home-screen">Skip to main content</a>
@@ -246,11 +246,11 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
      <div class="pane-content" id="pane-headers" role="tabpanel" aria-labelledby="tab-headers" hidden>
       <div class="section-heading">Request headers<span class="spacer"></span><span class="hint">Sent with this request</span></div>
       <table class="kv-table"><thead><tr><th>✓</th><th>KEY</th><th>VALUE</th><th>DESCRIPTION</th></tr></thead><tbody id="headers-rows"></tbody></table>
+      <p class="body-auto-header" id="body-auto-header" hidden></p>
       <button class="add-row" id="add-header"><svg aria-hidden="true" class="icon small"><use href="#i-plus"/></svg>Add header</button>
      </div>
      <div class="pane-content" id="pane-body" role="tabpanel" aria-labelledby="tab-body" hidden>
-      <div class="section-heading">Request body<select class="body-format" id="body-format" aria-label="Body format"><option value="json">JSON</option><option value="raw">Raw</option></select><span class="spacer"></span><button class="text-button" id="format-body">Format</button></div>
-      <textarea class="body-editor" id="body-editor" aria-label="Request body" spellcheck="false"></textarea>
+
      </div>
      <div class="pane-content" id="pane-auth" role="tabpanel" aria-labelledby="tab-auth" hidden>
       <div class="auth-fields"><label>Authorization type<select id="auth-kind"><option value="bearer">Bearer token</option><option value="none">No auth</option></select></label><label>Token<input id="auth-token" type="password" placeholder="Enter your access token" autocomplete="off"></label></div>
@@ -298,7 +298,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
 <dialog id="search-dialog" aria-label="Search requests"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-search"/></svg><input id="command-query" placeholder="Find a request…" aria-label="Find a request"><button class="icon-button close-dialog" aria-label="Close search"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content" id="command-results"></div></dialog>
 <dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-head"><strong id="help-title">Keyboard shortcuts</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close shortcuts"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="shortcut-row"><span>Send / cancel request</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Search requests</span><kbd>⌘ / Ctrl + K</kbd></div><div class="shortcut-row"><span>Save request</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Run / stop flow preview</span><kbd>⌘ / Ctrl + Enter</kbd></div><div class="shortcut-row"><span>Export active flow</span><kbd>⌘ / Ctrl + S</kbd></div><div class="shortcut-row"><span>Close dialog</span><kbd>Esc</kbd></div></div></dialog>
 <dialog id="cookie-dialog" aria-labelledby="cookie-title"><div class="dialog-head"><strong id="cookie-title">Cookie jar</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close cookie jar"><svg aria-hidden="true" class="icon small"><use href="#i-x"/></svg></button></div><div class="dialog-content"><div class="response-empty"><svg aria-hidden="true" class="icon"><use href="#i-cookie"/></svg><strong>No cookies yet</strong><span>Cookies returned by your API will appear here.</span></div></div></dialog>
-<dialog id="code-dialog" aria-labelledby="code-title"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-code"/></svg><strong id="code-title">Request code</strong><span class="spacer"></span><span class="muted">cURL</span><button class="icon-button close-dialog" aria-label="Close request code"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div><div class="dialog-content"><pre class="code-snippet" id="code-snippet"></pre></div><div class="dialog-footer code-footer"><button class="text-button" id="code-import" aria-haspopup="dialog" aria-controls="import-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-import"/></svg>Import cURL</button><button class="text-button" id="copy-code"><svg aria-hidden="true" class="icon small"><use href="#i-copy"/></svg>Copy code</button></div></dialog>
+<dialog id="code-dialog" aria-labelledby="code-title"><div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-code"/></svg><strong id="code-title">Request code</strong><span class="spacer"></span><span class="muted">cURL</span><button class="icon-button close-dialog" aria-label="Close request code"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div><div class="dialog-content"><pre class="code-snippet" id="code-snippet"></pre></div><p id="code-file-note" hidden>File references use names relative to your terminal’s current directory. Place the files there or update the paths before running cURL.</p><div class="dialog-footer code-footer"><button class="text-button" id="code-import" aria-haspopup="dialog" aria-controls="import-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-import"/></svg>Import cURL</button><button class="text-button" id="copy-code"><svg aria-hidden="true" class="icon small"><use href="#i-copy"/></svg>Copy code</button></div></dialog>
 <dialog id="import-dialog" class="import-dialog" aria-labelledby="import-title">
  <div class="dialog-head"><svg aria-hidden="true" class="icon"><use href="#i-import"/></svg><strong id="import-title">Import cURL</strong><span class="spacer"></span><button class="icon-button close-dialog" aria-label="Close import"><svg aria-hidden="true" class="icon"><use href="#i-x"/></svg></button></div>
  <form id="import-form" class="import-form" novalidate>
@@ -323,7 +323,9 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  <div class="request-list-results" id="request-list-results"></div>
  <div class="request-list-footer"><span id="request-list-summary" role="status"></span><span>↑ ↓ to navigate · Esc to close</span></div>
 </dialog>
-<script src="./curl-request.js"></script>
+<script src="./request-body.js?v=1"></script>
+<script src="./body-editor.js?v=2"></script>
+<script src="./curl-request.js?v=2"></script>
 <script src="./request-tabs.js?v=2"></script>
 <script src="./panel-resize.js?v=2"></script>
 <script>
@@ -339,8 +341,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  ];
  const initialData = { data:users, pagination:{ page:1, limit:10, total:24, has_more:true } };
  const makeHeaders = () => [
-  { enabled:true, key:"Accept", value:"application/json", note:"Response format" },
-  { enabled:true, key:"Content-Type", value:"application/json", note:"Request format" }
+  { enabled:true, key:"Accept", value:"application/json", note:"Response format" }
  ];
  let environments = [
   {id:"dev",name:"Development",baseUrl:"https://api.acme.dev"},
@@ -392,8 +393,9 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  let activeId = "users", responsePane = "body", pretty = true, toastTimer, sequence = 0, untitledSequence = 0;
  const requestTabs = RequestTabs.attach({list:() => requests, active:() => activeId, activate, newRequest});
  const current = () => requests.find(request => request.id === activeId);
- const requestHasBody = request => request.bodyExplicit || (request.body.length > 0 && ["POST","PUT","PATCH"].includes(request.method));
- const requestCode = () => CurlRequest.stringify({...current(),hasBody:requestHasBody(current())});
+ const bodyEditor = BodyEditor.attach({current,changed:() => { dirty(); updateCount("headers"); },openHeaders:() => { setPane("headers"); $("add-header").focus(); }});
+ const requestHasBody = request => { RequestBody.ensure(request); return request.bodyFormat !== "none"; };
+ const requestCode = () => CurlRequest.stringify(RequestBody.project(current()));
  function dirty() { updateContext(); current().dirty = true; $("footer-status").textContent = "Unsaved changes"; renderTabs(); }
  function toast(message) {
   $("toast-text").textContent = message; $("toast").classList.add("visible"); clearTimeout(toastTimer);
@@ -429,7 +431,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
    return label + '<button class="history-item ' + (selected ? 'active' : '') + '" data-history="' + h.index + '"><span class="method ' + esc(h.method.toLowerCase()) + '">' + esc(h.method) + '</span><span class="history-details"><span class="history-title">' + esc(h.title) + '</span><span class="history-path">' + esc(h.path.split("?")[0]) + '</span><span class="history-meta"><span class="dot"></span><span class="' + (Number(h.status) >= 400 ? 'error' : 'status') + '">' + h.status + '</span><span>·</span><span>' + h.elapsed + '</span></span></span><span class="history-time">' + h.time + '</span></button>';
   }).join("") || '<p class="pane-hint" style="padding:12px">No matching requests.</p>';
  }
- function updateCount(kind) { $(kind + "-count").textContent = current()[kind].filter(r => r.enabled && r.key).length; }
+ function updateCount(kind) { const rows = kind === "headers" ? RequestBody.headers(current()) : current()[kind]; $(kind + "-count").textContent = rows.filter(r => r.enabled && r.key).length + (kind === "headers" && current().bodyFormat === "multipart" && !RequestBody.headerInfo(current()).explicit.length ? 1 : 0); }
  function renderRows(kind) {
   $(kind + "-rows").innerHTML = current()[kind].map((row,index) =>
    '<tr data-row="' + index + '"><td><input type="checkbox" aria-label="Enable ' + esc(row.key || kind + ' row ' + (index + 1)) + '" data-field="enabled"' + (row.enabled ? ' checked' : '') + '></td><td><input type="text" spellcheck="false" aria-label="' + kind + ' key ' + (index + 1) + '" data-field="key" placeholder="Key" value="' + esc(row.key) + '"></td><td><input type="text" spellcheck="false" aria-label="' + kind + ' value ' + (index + 1) + '" data-field="value" placeholder="Value" value="' + esc(row.value) + '"></td><td>' + esc(row.note || "—") + '</td></tr>'
@@ -486,8 +488,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   const request = current(); renderTabs(); renderHistory();
   $("request-title").textContent = request.title; $("request-description").textContent = request.description;
   if (!Array.from($("method").options).some(option => option.value === request.method)) $("method").add(new Option(request.method,request.method));
-  $("method").value = request.method; $("url").value = request.url; $("body-editor").value = request.body;
-  $("body-format").value = request.bodyFormat; $("format-body").hidden = request.bodyFormat !== "json";
+  $("method").value = request.method; $("url").value = request.url; bodyEditor.render();
   $("auth-kind").value = request.authKind; $("auth-token").value = request.token; $("auth-token").disabled = request.authKind === "none";
   $("footer-status").textContent = request.dirty ? "Unsaved changes" : "All changes saved";
   renderRows("params"); renderRows("headers"); setPane(request.pane); updateContext(); renderResponse();
@@ -516,12 +517,9 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   let url;
   try { url = new URL(request.url); if (!["http:","https:"].includes(url.protocol)) throw new Error(); }
   catch (_) { toast("Enter a valid HTTP or HTTPS URL"); $("url").focus(); return; }
-  let parsedBody = {};
-  if (requestHasBody(request)) {
-   try { parsedBody = request.bodyFormat === "raw" ? request.body : request.body.trim() ? JSON.parse(request.body) : {}; }
-   catch (_) { setPane("body"); toast("The request body contains invalid JSON"); $("body-editor").focus(); return; }
-  }
-  const configuration = Object.fromEntries(["headers","body","bodyFormat","bodyExplicit","curlOptions","authKind","token","pane"].map(key => [key,clone(request[key])]));
+  if (RequestBody.validate(request)) { setPane("body"); bodyEditor.validate(); return; }
+  const parsedBody = RequestBody.preview(request);
+  const configuration = Object.fromEntries(["headers","body","bodyFormat","bodyDrafts","bodyExplicit","curlOptions","authKind","token","pane"].map(key => [key,clone(request[key])]));
   const sent = {method:request.method,title:request.title,url:new URL(url.href),body:clone(parsedBody),hasBody:requestHasBody(request),bodyFormat:request.bodyFormat,configuration,route:relativeEndpoint(url.href,baseUrl())};
   const endpoint = new URL(sent.route ?? (url.pathname + url.search),"https://fixture.invalid");
   request.busy = true; renderResponse();
@@ -530,7 +528,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
    let data, status = "200 OK", elapsed = 142;
    if (endpoint.pathname === "/status/404") { data = {error:"not_found",message:"The requested resource could not be found."}; status = "404 Not Found"; elapsed = 64; }
    else if (sent.method === "HEAD" || sent.method === "DELETE") { data = null; status = sent.method === "DELETE" ? "204 No Content" : "200 OK"; elapsed = 86; }
-   else if (sent.hasBody && (sent.bodyFormat === "raw" || sent.body === null || typeof sent.body !== "object" || Array.isArray(sent.body))) { data = {method:sent.method,url:sent.url.href,body:sent.body,message:"Request received"}; }
+   else if (sent.hasBody && (sent.bodyFormat !== "json" || sent.body === null || typeof sent.body !== "object" || Array.isArray(sent.body))) { data = {method:sent.method,url:sent.url.href,body:sent.body,message:"Request received"}; }
    else if (sent.method === "POST") { data = {data:{id:"usr_25",...sent.body},message:"User created"}; status = "201 Created"; elapsed = 218; }
    else if (sent.method === "PUT" || sent.method === "PATCH") { data = {data:sent.body,message:"User updated"}; elapsed = 164; }
    else if (endpoint.pathname.endsWith("/health")) { data = {status:"healthy",version:"1.0.0",uptime:86400}; elapsed = 42; }
@@ -601,7 +599,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   $("open-import").classList.remove("selected"); $("open-import").setAttribute("aria-expanded","false");
  });
  $("import-example").addEventListener("click",() => {
-  const example = {method:"POST",url:"https://api.acme.dev/v1/users",headers:makeHeaders(),authKind:"none",hasBody:true,body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev"\n}'};
+  const example = {method:"POST",url:"https://api.acme.dev/v1/users",headers:[...makeHeaders(),{enabled:true,key:"Content-Type",value:"application/json"}],authKind:"none",hasBody:true,body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev"\n}'};
   $("curl-input").value = CurlRequest.stringify(example); previewImport(); $("curl-input").focus();
  });
  $("import-form").addEventListener("submit",event => {
@@ -612,7 +610,12 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   requests.push(request); $("import-dialog").close(); activate(request.id);
   $("url").focus(); toast("cURL imported into a new request");
  });
- $("show-code").addEventListener("click",() => { $("code-snippet").textContent = requestCode(); $("code-dialog").showModal(); });
+ $("show-code").addEventListener("click",() => {
+  if (RequestBody.validate(current())) { setPane("body"); bodyEditor.validate(); return; }
+  $("code-snippet").textContent = requestCode();
+  $("code-file-note").hidden = !(current().bodyFormat === "binary" || (current().bodyFormat === "multipart" && current().bodyDrafts.multipart.some(r => r.enabled && r.type === "file" && r.file)));
+  $("code-dialog").showModal();
+ });
  $("copy-code").addEventListener("click",async () => {
   try { await navigator.clipboard.writeText($("code-snippet").textContent); toast("cURL copied"); }
   catch (_) { toast("Clipboard unavailable. Select the code to copy it."); }
@@ -644,7 +647,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
    const field = event.target.dataset.field; if (!field) return;
    const index = Number(event.target.closest("tr").dataset.row);
    current()[kind][index][field] = field === "enabled" ? event.target.checked : event.target.value;
-   updateCount(kind); if (kind === "params") paramsToUrl(); dirty();
+   updateCount(kind); if (kind === "params") paramsToUrl(); else bodyEditor.refresh(); dirty();
   });
   $("add-" + (kind === "params" ? "param" : "header")).addEventListener("click",() => {
    current()[kind].push({enabled:true,key:"",value:"",note:""}); renderRows(kind); dirty();
@@ -657,12 +660,6 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   dirty();
  });
  $("method").addEventListener("change",() => { current().method = $("method").value; dirty(); });
- $("body-editor").addEventListener("input",() => { current().body = $("body-editor").value; current().bodyExplicit = true; dirty(); });
- $("body-format").addEventListener("change",() => { current().bodyFormat = $("body-format").value; $("format-body").hidden = current().bodyFormat !== "json"; dirty(); });
- $("format-body").addEventListener("click",() => {
-  try { current().body = JSON.stringify(JSON.parse($("body-editor").value),null,2); $("body-editor").value = current().body; dirty(); toast("JSON formatted"); }
-  catch (_) { toast("Check your JSON syntax before formatting"); }
- });
  $("auth-kind").addEventListener("change",() => { current().authKind = $("auth-kind").value; $("auth-token").disabled = current().authKind === "none"; dirty(); });
  $("auth-token").addEventListener("input",() => { current().token = $("auth-token").value; dirty(); });
  function renderEnvironmentOptions() {
@@ -796,7 +793,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  });
  window.PrototypeHTTP = {
   list:() => requests.map(r => ({id:r.id,title:r.title,method:r.method,url:r.url})),
-  current:() => ({...clone(current()),hasBody:requestHasBody(current())}),
+  current:() => RequestBody.project(current()),
   activate,newRequest,toast,
   environment:() => ({id:activeEnvironmentId,baseUrl:baseUrl(),items:clone(environments)}),
   setEnvironment:id => { $("environment").value=id; $("environment").dispatchEvent(new Event("change")); },
@@ -806,7 +803,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  renderEnvironmentOptions(); render(); updateLayout();
 })();
 </script>
-<script src="./flow-model.js"></script>
+<script src="./flow-model.js?v=2"></script>
 <script src="./flow-studio.js?v=panels-1"></script>
 </body>
 </html>

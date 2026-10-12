@@ -30,6 +30,18 @@ Try:
 - Change query parameters and watch the URL update.
 - Inspect the query string summary and open its authorization settings.
 - Switch requests and the Params, Headers, Body, and Auth panes.
+- Body has six modes: None, JSON, Raw, URL encoded, Form-data, and Binary.
+  Raw offers Text, XML, HTML, and JavaScript content types. Each mode retains
+  its own draft when switching; requests and history replays have independent
+  drafts. None excludes the body even on POST/PUT/PATCH requests.
+- Add, disable, or remove form fields; URL encoded preserves repeated keys and
+  shows the encoded payload. Form-data combines Text and File fields. Binary
+  selects one file, with a drop target and replace/remove actions. Narrow panes
+  stack key/value controls without horizontal scrolling.
+- Content-Type follows the body automatically unless an enabled header overrides
+  it. The automatic header is shown under Headers; multipart boundaries are left
+  to the sender. JSON errors, missing keys, and missing files appear inline and
+  focus the relevant control when Send or Code is invoked.
 - Open many requests: tabs adapt to the available width and wrap onto additional
   rows in their original order. New and the open-request count stay at the top
   right. The tab area uses up to roughly one third of the window height (at most
@@ -49,6 +61,11 @@ Try:
   import it into a new tab. Cmd/Ctrl+Enter also imports a valid command.
 - Edit imported JSON or raw text in Body. Code exports the edited request back
   to cURL, including explicit empty bodies and bodies on custom HTTP methods.
+  Form-data exports `--form-string` for literal text and `--form` for files;
+  Binary exports `--data-binary`. File references use filenames relative to the
+  terminal's current directory, with a reminder in Code to adjust paths.
+  The browser retains file metadata only: this prototype neither reads file
+  contents nor uploads files. Send still returns a local fixture.
 - Use Settings next to the environment picker, or its Manage environments item,
   to add, rename, remove, and configure environments. Save applies the changes;
   Cancel or Escape discards them. Invalid names and URLs show inline errors.
@@ -71,6 +88,9 @@ In Flows:
   action also copies a request into an existing or new flow. Unsupported cURL
   transport flags, header suppression, and nonstandard HTTP methods are rejected
   during conversion instead of being silently discarded.
+  URL encoded bodies transfer as encoded raw text with their Content-Type.
+  Form-data and Binary conversion is not implemented in the Flow preview and
+  reports an explicit error rather than silently discarding the file fields.
 - Use Inputs for per-run values and the shared environment picker for `base_url`.
   These runtime overrides are kept separate from YAML defaults.
 - Switch Canvas / YAML to inspect generated Flow v1 source, then copy it or
@@ -98,6 +118,8 @@ prototype. Exported example documents have been checked using the existing
 size controls between HTTP and Flows.
 `request-tabs.css` and `request-tabs.js` handle the responsive tab rows, fixed
 tools, active-tab visibility, and searchable list of open HTTP requests.
+`body-editor.css` and `body-editor.js` implement the body controls;
+`request-body.js` owns type-specific drafts, validation, headers, and payloads.
 
 Environment base URLs support HTTP(S), ports, and path prefixes. Switching or
 editing the active environment rebases matching requests and preserves endpoint
@@ -113,8 +135,10 @@ explicit authorization headers are editable under Headers. Redirect,
 compression, TLS verification, and URL globbing flags are shown in the import
 preview and retained when exporting; Send still uses local fixtures.
 
-Unsupported options, file references, multipart uploads, shell expansion, and
-multiple URLs produce inline errors and disable import. Commands are parsed as
+During cURL import, unsupported options, file references, multipart uploads,
+shell expansion, and multiple URLs produce inline errors and disable import.
+File and multipart requests can be composed in Body and exported, but cannot
+yet be imported back. Commands are parsed as
 text, never executed. Cancel and Escape leave existing requests unchanged.
 PowerShell/CMD syntax is not supported. Output-only flags such as `--silent` and
 `--verbose` do not change the imported request and are omitted from exports.
@@ -123,7 +147,7 @@ The parser and exporter share `curl-request.js`. Run their dependency-free tests
 with Node.js 18 or later:
 
 ```sh
-node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
+node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs prototypes/request-body.test.cjs
 ```
 
 The desktop reference viewport is 1440 × 960 CSS pixels at 100% browser zoom.

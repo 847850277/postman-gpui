@@ -43,22 +43,17 @@ pub(in crate::app::postman_app::request_workspace) struct OptionsPane {
 impl OptionsPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys(setup_redirect_policy_key_bindings());
-        let timeout_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("0")
-                .with_embedded_chrome(true)
-        });
-        let max_redirects_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("10")
-                .with_embedded_chrome(true)
-        });
+        let timeout_input =
+            cx.new(|cx| HeaderInput::new("0", window, cx).with_embedded_chrome(true));
+        let max_redirects_input =
+            cx.new(|cx| HeaderInput::new("10", window, cx).with_embedded_chrome(true));
         let subscriptions = vec![
-            cx.subscribe(&timeout_input, Self::on_timeout_event),
-            cx.subscribe(&max_redirects_input, Self::on_max_redirects_event),
+            cx.subscribe_in(&timeout_input, window, Self::on_timeout_event),
+            cx.subscribe_in(&max_redirects_input, window, Self::on_max_redirects_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
         let mut pane = Self {
@@ -73,7 +68,7 @@ impl OptionsPane {
                 .collect(),
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -93,8 +88,9 @@ impl OptionsPane {
 
     fn on_timeout_event(
         &mut self,
-        input: Entity<HeaderInput>,
+        input: &Entity<HeaderInput>,
         event: &HeaderInputEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let HeaderInputEvent::ValueChanged(value) = event else {
@@ -117,7 +113,7 @@ impl OptionsPane {
                 .active_request()
                 .map_or(0, RequestViewModel::timeout_ms);
             input.update(cx, |input, cx| {
-                input.project_content(timeout_value(timeout_ms), cx)
+                input.project_content(timeout_value(timeout_ms), window, cx)
             });
         }
         cx.notify();
@@ -125,8 +121,9 @@ impl OptionsPane {
 
     fn on_max_redirects_event(
         &mut self,
-        input: Entity<HeaderInput>,
+        input: &Entity<HeaderInput>,
         event: &HeaderInputEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let HeaderInputEvent::ValueChanged(value) = event else {
@@ -153,7 +150,7 @@ impl OptionsPane {
                 .active_request()
                 .map_or(1, RequestViewModel::max_redirect_hops);
             input.update(cx, |input, cx| {
-                input.project_content(max_redirect_hops.to_string(), cx)
+                input.project_content(max_redirect_hops.to_string(), window, cx)
             });
         }
         cx.notify();
@@ -163,7 +160,7 @@ impl OptionsPane {
         self.update_active_request(cx, |request| request.set_redirect_policy(policy));
     }
 
-    fn adjust_max_redirects(&mut self, delta: i32, cx: &mut Context<Self>) {
+    fn adjust_max_redirects(&mut self, delta: i32, window: &mut Window, cx: &mut Context<Self>) {
         let (policy, current) = {
             let view_model = self.view_model.read(cx);
             let Some(request) = view_model.active_request() else {
@@ -176,8 +173,9 @@ impl OptionsPane {
         }
         let next = (current as i32 + delta).clamp(1, MAX_REDIRECT_HOPS as i32) as u32;
         self.update_active_request(cx, |request| request.set_max_redirect_hops(next));
-        self.max_redirects_input
-            .update(cx, |input, cx| input.project_content(next.to_string(), cx));
+        self.max_redirects_input.update(cx, |input, cx| {
+            input.project_content(next.to_string(), window, cx)
+        });
         cx.notify();
     }
 
@@ -201,6 +199,7 @@ impl OptionsPane {
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (timeout_ms, max_redirect_hops) = {
@@ -210,10 +209,10 @@ impl OptionsPane {
             })
         };
         self.timeout_input.update(cx, |input, cx| {
-            input.project_content(timeout_value(timeout_ms), cx)
+            input.project_content(timeout_value(timeout_ms), window, cx)
         });
         self.max_redirects_input.update(cx, |input, cx| {
-            input.project_content(max_redirect_hops.to_string(), cx)
+            input.project_content(max_redirect_hops.to_string(), window, cx)
         });
         cx.notify();
     }
@@ -328,14 +327,14 @@ impl OptionsPane {
                 button.border_2().border_color(INFO.resolve(cx))
             })
             .child(if delta < 0 { "−" } else { "+" })
-            .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
-                this.adjust_max_redirects(delta, cx)
+            .on_action(cx.listener(move |this, _: &ActivateControl, window, cx| {
+                this.adjust_max_redirects(delta, window, cx)
             }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, _, window, cx| {
                     mouse_focus_handle.focus(window, cx);
-                    this.adjust_max_redirects(delta, cx);
+                    this.adjust_max_redirects(delta, window, cx);
                 }),
             )
     }

@@ -2,28 +2,20 @@ use crate::{
     app::{AuthorizationKind, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
-        theme::{ACCENT, ACCENT_DARK, ACCENT_SOFT, LINE, MUTED, PANEL, PANEL_ALT, TEXT},
+        theme::{LINE, MUTED, PANEL_ALT},
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, AppContext, Context, Entity, FocusHandle,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement,
-    Styled, Subscription, Window,
+    div, prelude::FluentBuilder, AppContext, Context, Entity, InteractiveElement, IntoElement,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
-actions!(
-    authorization_kind,
-    [NextAuthorizationKind, PreviousAuthorizationKind]
-);
-
-fn setup_authorization_kind_key_bindings() -> Vec<KeyBinding> {
-    vec![
-        KeyBinding::new("right", NextAuthorizationKind, Some("AuthorizationKind")),
-        KeyBinding::new("down", NextAuthorizationKind, Some("AuthorizationKind")),
-        KeyBinding::new("left", PreviousAuthorizationKind, Some("AuthorizationKind")),
-        KeyBinding::new("up", PreviousAuthorizationKind, Some("AuthorizationKind")),
-    ]
-}
+use crate::ui::components::kit_controls::MethodState;
+use gpui_kit::component::{
+    searchable_list::SearchableVec,
+    select::{Select, SelectEvent, SelectState},
+    IndexPath,
+};
 
 /// Authorization controls own cursor, masking, and subscription state; credentials remain in the
 /// shared WorkspaceViewModel.
@@ -32,33 +24,49 @@ pub(in crate::app::postman_app::request_workspace) struct AuthorizationPane {
     authorization_input: Entity<HeaderInput>,
     basic_username_input: Entity<HeaderInput>,
     basic_password_input: Entity<HeaderInput>,
-    kind_focus_handles: Vec<FocusHandle>,
+    kind_selector: Entity<MethodState>,
+    projected_basic: Option<bool>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl AuthorizationPane {
     pub(in crate::app::postman_app::request_workspace) fn new(
         view_model: Entity<WorkspaceViewModel>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        cx.bind_keys(setup_authorization_kind_key_bindings());
+        let kind_selector = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(vec!["Bearer token", "Basic auth"]),
+                Some(IndexPath::new(0)),
+                window,
+                cx,
+            )
+        });
         let authorization_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Token or Bearer token")
+            HeaderInput::new_masked("Enter your access token", window, cx)
                 .with_embedded_chrome(true)
         });
-        let basic_username_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Username")
-                .with_embedded_chrome(true)
-        });
-        let basic_password_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Password")
-                .with_masked(true)
-                .with_embedded_chrome(true)
-        });
+        let basic_username_input =
+            cx.new(|cx| HeaderInput::new("Username", window, cx).with_embedded_chrome(true));
+        let basic_password_input =
+            cx.new(|cx| HeaderInput::new_masked("Password", window, cx).with_embedded_chrome(true));
         let subscriptions = vec![
+            cx.subscribe(
+                &kind_selector,
+                |this, _, event: &SelectEvent<SearchableVec<&'static str>>, cx| {
+                    if let SelectEvent::Confirm(Some(label)) = event {
+                        this.set_authorization_kind(
+                            if *label == "Basic auth" {
+                                AuthorizationKind::Basic
+                            } else {
+                                AuthorizationKind::Bearer
+                            },
+                            cx,
+                        );
+                    }
+                },
+            ),
             cx.subscribe(&authorization_input, Self::on_authorization_event),
             cx.subscribe(&basic_username_input, Self::on_basic_username_event),
             cx.subscribe(&basic_password_input, Self::on_basic_password_event),
@@ -68,12 +76,11 @@ impl AuthorizationPane {
             authorization_input,
             basic_username_input,
             basic_password_input,
-            kind_focus_handles: (0..2)
-                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
-                .collect(),
+            kind_selector,
+            projected_basic: None,
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -130,6 +137,7 @@ impl AuthorizationPane {
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (bearer_token, basic_username, basic_password) = {
@@ -145,18 +153,21 @@ impl AuthorizationPane {
                 },
             )
         };
-        self.authorization_input
-            .update(cx, |input, cx| input.project_content(bearer_token, cx));
-        self.basic_username_input
-            .update(cx, |input, cx| input.project_content(basic_username, cx));
-        self.basic_password_input
-            .update(cx, |input, cx| input.project_content(basic_password, cx));
+        self.authorization_input.update(cx, |input, cx| {
+            input.project_content(bearer_token, window, cx)
+        });
+        self.basic_username_input.update(cx, |input, cx| {
+            input.project_content(basic_username, window, cx)
+        });
+        self.basic_password_input.update(cx, |input, cx| {
+            input.project_content(basic_password, window, cx)
+        });
         cx.notify();
     }
 
     fn render_authorization_editor(
         &self,
-        window: &Window,
+        _window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         use crate::ui::theme::metrics as m;
@@ -165,10 +176,11 @@ impl AuthorizationPane {
             return div().into_any_element();
         };
         let kind = request.authorization_kind();
-        let ready = request.authorization_header_preview().is_some();
         let basic = kind == AuthorizationKind::Basic;
         let mut fields = div()
             .debug_selector(|| "authorization-fields".into())
+            .flex_1()
+            .min_w_0()
             .flex()
             .flex_col()
             .gap_4();
@@ -176,7 +188,9 @@ impl AuthorizationPane {
             fields = fields.child(
                 div()
                     .debug_selector(|| "basic-auth-credentials".into())
+                    .min_w_0()
                     .flex()
+                    .flex_col()
                     .gap_4()
                     .child(Self::render_auth_field(
                         "Username",
@@ -199,56 +213,67 @@ impl AuthorizationPane {
                 cx,
             ));
         }
+        let selector = if basic {
+            "auth-kind-basic"
+        } else {
+            "auth-kind-bearer"
+        };
         div()
             .id("authorization-scroll")
             .flex_1()
             .min_h_0()
+            .min_w_0()
             .overflow_y_scroll()
             .px_7()
-            .py_4()
+            .pt(gpui::rems(22. / 16.))
+            .pb_2()
             .flex()
             .flex_col()
-            .gap_4()
+            .gap_3()
             .child(
                 div()
-                    .debug_selector(|| "authorization-kind-selector".into())
                     .flex()
-                    .items_center()
-                    .gap_4()
-                    .text_size(m::LABEL)
+                    .items_start()
+                    .gap(gpui::rems(18. / 16.))
+                    .min_w_0()
                     .child(
                         div()
-                            .w(gpui::rems(7.))
-                            .text_color(MUTED.resolve(cx))
-                            .child("Auth type"),
+                            .debug_selector(|| "authorization-kind-selector".into())
+                            .w(gpui::rems(140. / 16.))
+                            .flex_none()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_size(gpui::rems(11. / 16.))
+                                    .text_color(MUTED.resolve(cx))
+                                    .child("Authorization type"),
+                            )
+                            .child(
+                                div().debug_selector(move || selector.into()).child(
+                                    Select::new(&self.kind_selector)
+                                        .id("authorization-kind-select")
+                                        .accessibility_label("Authorization type")
+                                        .h(gpui::rems(34. / 16.))
+                                        .w_full()
+                                        .text_size(gpui::rems(11. / 16.))
+                                        .bg(PANEL_ALT.resolve(cx))
+                                        .rounded(m::RADIUS),
+                                ),
+                            ),
                     )
-                    .child(self.render_authorization_kind_button(
-                        AuthorizationKind::Bearer,
-                        "Bearer Token",
-                        "auth-kind-bearer",
-                        !basic,
-                        window,
-                        cx,
-                    ))
-                    .child(self.render_authorization_kind_button(
-                        AuthorizationKind::Basic,
-                        "Basic Auth",
-                        "auth-kind-basic",
-                        basic,
-                        window,
-                        cx,
-                    )),
+                    .child(fields),
             )
-            .child(fields)
             .child(
                 div()
                     .debug_selector(|| "authorization-status".into())
-                    .text_size(m::LABEL)
+                    .text_size(gpui::rems(11. / 16.))
                     .text_color(MUTED.resolve(cx))
-                    .child(if ready {
-                        "Authorization is added to this request automatically."
+                    .child(if basic {
+                        "Username and password are included in the Authorization header."
                     } else {
-                        "Enter credentials to add an Authorization header."
+                        "The token is included in the Authorization header when Bearer token is selected."
                     }),
             )
             .when(basic, |pane| {
@@ -278,14 +303,14 @@ impl AuthorizationPane {
             .gap_2()
             .child(
                 div()
-                    .text_size(m::LABEL)
-                    .text_color(TEXT.resolve(cx))
+                    .text_size(gpui::rems(11. / 16.))
+                    .text_color(MUTED.resolve(cx))
                     .child(label),
             )
             .child(
                 div()
                     .debug_selector(move || selector.into())
-                    .h(m::TABLE_ROW)
+                    .h(gpui::rems(34. / 16.))
                     .px_3()
                     .border_1()
                     .border_color(LINE.resolve(cx))
@@ -294,78 +319,21 @@ impl AuthorizationPane {
                     .child(input),
             )
     }
-    fn render_authorization_kind_button(
-        &self,
-        kind: AuthorizationKind,
-        label: &'static str,
-        selector: &'static str,
-        selected: bool,
-        _window: &Window,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let index = match kind {
-            AuthorizationKind::Bearer => 0,
-            AuthorizationKind::Basic => 1,
-        };
-        let focus_handle = self.kind_focus_handles[index].clone();
-        let on_select = cx.listener(move |this, _: &gpui::ClickEvent, _, cx| {
-            this.set_authorization_kind(kind, cx)
-        });
-        gpui_kit::base::Radio::new(selector)
-            .debug_selector(move || selector.into())
-            .checked(selected)
-            .accessibility_label(label)
-            .track_focus(&focus_handle)
-            .key_context("AuthorizationKind")
-            .h(gpui::rems(2.))
-            .px_3()
-            .flex()
-            .items_center()
-            .gap_2()
-            .rounded(crate::ui::theme::metrics::RADIUS)
-            .border_1()
-            .border_color((if selected { ACCENT } else { LINE }).resolve(cx))
-            .bg((if selected { ACCENT_SOFT } else { PANEL }).resolve(cx))
-            .text_size(crate::ui::theme::metrics::LABEL)
-            .text_color((if selected { ACCENT_DARK } else { MUTED }).resolve(cx))
-            .focus_visible(|s| s.border_color(ACCENT.resolve(cx)))
-            .child(label)
-            .on_change(move |_, event, window, cx| on_select(event, window, cx))
-            .on_action(
-                cx.listener(move |this, _: &NextAuthorizationKind, window, cx| {
-                    this.select_relative_authorization_kind(kind, 1, window, cx)
-                }),
-            )
-            .on_action(
-                cx.listener(move |this, _: &PreviousAuthorizationKind, window, cx| {
-                    this.select_relative_authorization_kind(kind, -1, window, cx)
-                }),
-            )
-    }
-
-    fn select_relative_authorization_kind(
-        &mut self,
-        kind: AuthorizationKind,
-        delta: isize,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let index = match kind {
-            AuthorizationKind::Bearer => 0,
-            AuthorizationKind::Basic => 1,
-        };
-        let next = (index as isize + delta).rem_euclid(2) as usize;
-        let kind = if next == 0 {
-            AuthorizationKind::Bearer
-        } else {
-            AuthorizationKind::Basic
-        };
-        self.kind_focus_handles[next].focus(window, cx);
-        self.set_authorization_kind(kind, cx);
-    }
 }
+
 impl Render for AuthorizationPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let basic = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .is_some_and(|r| r.authorization_kind() == AuthorizationKind::Basic);
+        let label = if basic { "Basic auth" } else { "Bearer token" };
+        if self.projected_basic != Some(basic) {
+            self.projected_basic = Some(basic);
+            self.kind_selector
+                .update(cx, |state, cx| state.set_selected_value(&label, window, cx));
+        }
         self.render_authorization_editor(window, cx)
     }
 }

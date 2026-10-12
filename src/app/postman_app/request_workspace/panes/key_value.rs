@@ -1,7 +1,8 @@
-use super::super::layout::{row_scrollbar_geometry, RequestPanelLayout};
+use super::super::layout::RequestPanelLayout;
 use crate::{
     app::{KeyValueRow, RequestPane, RequestTabId, RequestViewModel, WorkspaceViewModel},
     ui::{
+        components::input::header_input::{HeaderInput, HeaderInputEvent},
         components::input::table_cell_input::{
             TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
             TableRowId,
@@ -10,9 +11,13 @@ use crate::{
     },
 };
 use gpui::{
-    div, prelude::FluentBuilder, relative, AppContext, Context, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
     StatefulInteractiveElement, Styled, Subscription, Window,
+};
+use gpui_kit::{
+    base::ElementExt,
+    component::scroll::{Scrollbar, ScrollbarMode},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,6 +29,7 @@ pub(in crate::app::postman_app::request_workspace) enum KeyValueRowsKind {
 #[derive(Clone, Debug)]
 pub(in crate::app::postman_app::request_workspace) enum PersistentRowEditorEvent {
     Cell(TableCellInputEvent),
+    Description { row: TableRowId, value: String },
 }
 
 /// Editing buffers for one persistent Params or Headers row. Business values remain in the
@@ -34,12 +40,26 @@ pub(in crate::app::postman_app::request_workspace) struct PersistentRowEditor {
     row_id: TableRowId,
     key_input: Entity<TableCellInput>,
     value_input: Entity<TableCellInput>,
+    description_input: Entity<HeaderInput>,
+    description: String,
+    show_description: bool,
     _subscriptions: Vec<Subscription>,
 }
 
 impl PersistentRowEditor {
-    fn new(kind: KeyValueRowsKind, index: usize, row: KeyValueRow, cx: &mut Context<Self>) -> Self {
-        let KeyValueRow { key, value, .. } = row;
+    fn new(
+        kind: KeyValueRowsKind,
+        index: usize,
+        row: KeyValueRow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let KeyValueRow {
+            key,
+            value,
+            description,
+            ..
+        } = row;
         let row_id = TableRowId::next();
         let (key_placeholder, value_placeholder) = match kind {
             KeyValueRowsKind::Params => ("Key", "Value"),
@@ -49,23 +69,44 @@ impl PersistentRowEditor {
             let mut input = TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Key),
                 key_placeholder,
+                window,
                 cx,
             );
-            input.project_content(key, cx);
+            input.project_content(key, window, cx);
             input
         });
         let value_input = cx.new(|cx| {
             let mut input = TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Value),
                 value_placeholder,
+                window,
                 cx,
             );
-            input.project_content(value, cx);
+            input.project_content(value, window, cx);
+            input
+        });
+        let description_input = cx.new(|cx| {
+            let mut input = HeaderInput::new("Description", window, cx)
+                .with_font_family(crate::ui::theme::FONT_UI)
+                .with_embedded_chrome(true);
+            input.project_content(description.clone(), window, cx);
             input
         });
         let subscriptions = vec![
             cx.subscribe(&key_input, Self::on_cell_event),
             cx.subscribe(&value_input, Self::on_cell_event),
+            cx.subscribe(
+                &description_input,
+                |this, _, event: &HeaderInputEvent, cx| {
+                    if let HeaderInputEvent::ValueChanged(value) = event {
+                        this.description = value.clone();
+                        cx.emit(PersistentRowEditorEvent::Description {
+                            row: this.row_id,
+                            value: value.clone(),
+                        });
+                    }
+                },
+            ),
         ];
         Self {
             kind,
@@ -73,6 +114,9 @@ impl PersistentRowEditor {
             row_id,
             key_input,
             value_input,
+            description_input,
+            description,
+            show_description: true,
             _subscriptions: subscriptions,
         }
     }
@@ -121,6 +165,15 @@ impl Render for PersistentRowEditor {
                     Some(format!("header-row-value-input-{}", self.index)),
                 ),
             };
+        let description_selector = format!(
+            "{}-row-description-input-{}",
+            if self.kind == KeyValueRowsKind::Params {
+                "param"
+            } else {
+                "header"
+            },
+            self.index
+        );
         div()
             .h_full()
             .flex_1()
@@ -161,6 +214,18 @@ impl Render for PersistentRowEditor {
                             .child(self.value_input.clone()),
                     ),
             )
+            .when(self.show_description, |row| {
+                row.child(
+                    div()
+                        .debug_selector(move || description_selector.clone())
+                        .h_full()
+                        .flex_1()
+                        .min_w_0()
+                        .border_l_1()
+                        .border_color(LINE.resolve(cx))
+                        .child(div().h_full().px_3().child(self.description_input.clone())),
+                )
+            })
     }
 }
 
@@ -181,15 +246,18 @@ pub(in crate::app::postman_app::request_workspace) struct KeyValueRowsPane {
     row_toggle_focus_handles: Vec<FocusHandle>,
     row_delete_focus_handles: Vec<FocusHandle>,
     rows_scroll_handle: ScrollHandle,
+    rows_have_overflow: bool,
     draft_row_id: TableRowId,
     draft_key_input: Entity<TableCellInput>,
     draft_value_input: Entity<TableCellInput>,
+    draft_description_input: Entity<HeaderInput>,
     draft_subscriptions: Vec<Subscription>,
     draft_toggle_focus_handle: FocusHandle,
     draft_delete_focus_handle: FocusHandle,
     add_row_focus_handle: FocusHandle,
     pending_focus: Option<PendingTableFocus>,
     _panel_layout_subscription: Subscription,
+    _description_subscription: Subscription,
 }
 
 enum PendingTableFocus {
@@ -215,6 +283,7 @@ impl KeyValueRowsPane {
         view_model: Entity<WorkspaceViewModel>,
         panel_layout: Entity<RequestPanelLayout>,
         kind: KeyValueRowsKind,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         let (key_placeholder, value_placeholder) = match kind {
@@ -226,6 +295,7 @@ impl KeyValueRowsPane {
             TableCellInput::new(
                 TableCellId::new(draft_row_id, TableCellColumn::Key),
                 key_placeholder,
+                window,
                 cx,
             )
         });
@@ -233,14 +303,31 @@ impl KeyValueRowsPane {
             TableCellInput::new(
                 TableCellId::new(draft_row_id, TableCellColumn::Value),
                 value_placeholder,
+                window,
                 cx,
             )
         });
         let draft_subscriptions = vec![
-            cx.subscribe(&draft_key_input, Self::on_draft_cell_event),
-            cx.subscribe(&draft_value_input, Self::on_draft_cell_event),
+            cx.subscribe_in(&draft_key_input, window, Self::on_draft_cell_event),
+            cx.subscribe_in(&draft_value_input, window, Self::on_draft_cell_event),
         ];
         let panel_layout_subscription = cx.observe(&panel_layout, |_, _, cx| cx.notify());
+        let draft_description_input = cx.new(|cx| {
+            HeaderInput::new("Description", window, cx)
+                .with_font_family(crate::ui::theme::FONT_UI)
+                .with_embedded_chrome(true)
+        });
+        let description_subscription = cx.subscribe(
+            &draft_description_input,
+            |this, _, event: &HeaderInputEvent, cx| {
+                if let HeaderInputEvent::ValueChanged(value) = event {
+                    let pane = this.kind.request_pane();
+                    this.update_active_request(cx, |request| {
+                        request.set_row_description(pane, None, value.clone())
+                    });
+                }
+            },
+        );
         let mut pane = Self {
             view_model,
             panel_layout,
@@ -251,17 +338,20 @@ impl KeyValueRowsPane {
             row_toggle_focus_handles: Vec::new(),
             row_delete_focus_handles: Vec::new(),
             rows_scroll_handle: ScrollHandle::new(),
+            rows_have_overflow: false,
             draft_row_id,
             draft_key_input,
             draft_value_input,
+            draft_description_input,
             draft_subscriptions,
+            _description_subscription: description_subscription,
             draft_toggle_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             draft_delete_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             add_row_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             pending_focus: None,
             _panel_layout_subscription: panel_layout_subscription,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -285,24 +375,35 @@ impl KeyValueRowsPane {
         }
     }
 
-    fn rebuild_row_editors_from(&mut self, rows: &[KeyValueRow], cx: &mut Context<Self>) {
+    fn rebuild_row_editors_from(
+        &mut self,
+        rows: &[KeyValueRow],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.row_editors.clear();
         self.row_subscriptions.clear();
         self.row_toggle_focus_handles.clear();
         self.row_delete_focus_handles.clear();
         for (index, row) in rows.iter().cloned().enumerate() {
-            self.push_row_editor(index, row, cx);
+            self.push_row_editor(index, row, window, cx);
         }
     }
 
-    fn push_row_editor(&mut self, index: usize, row: KeyValueRow, cx: &mut Context<Self>) {
+    fn push_row_editor(
+        &mut self,
+        index: usize,
+        row: KeyValueRow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.row_toggle_focus_handles
             .push(cx.focus_handle().tab_index(0).tab_stop(true));
         self.row_delete_focus_handles
             .push(cx.focus_handle().tab_index(0).tab_stop(true));
         let kind = self.kind;
-        let editor = cx.new(|cx| PersistentRowEditor::new(kind, index, row, cx));
-        let subscription = cx.subscribe(&editor, Self::on_persistent_row_event);
+        let editor = cx.new(|cx| PersistentRowEditor::new(kind, index, row, window, cx));
+        let subscription = cx.subscribe_in(&editor, window, Self::on_persistent_row_event);
         self.row_editors.push(editor);
         self.row_subscriptions.push(subscription);
     }
@@ -311,8 +412,9 @@ impl KeyValueRowsPane {
         self.row_editors.len() == rows.len()
             && self.row_editors.iter().zip(rows).all(|(editor, row)| {
                 let editor = editor.read(cx);
-                editor.key_input.read(cx).content() == row.key
-                    && editor.value_input.read(cx).content() == row.value
+                editor.key_input.read(cx).content(cx).as_ref() == row.key
+                    && editor.value_input.read(cx).content(cx).as_ref() == row.value
+                    && editor.description == row.description
             })
     }
 
@@ -322,17 +424,19 @@ impl KeyValueRowsPane {
         &mut self,
         rows: &[KeyValueRow],
         force_rebind: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let prefix_matches = !force_rebind
             && self.row_editors.len() <= rows.len()
             && self.row_editors.iter().zip(rows).all(|(editor, row)| {
                 let editor = editor.read(cx);
-                editor.key_input.read(cx).content() == row.key
-                    && editor.value_input.read(cx).content() == row.value
+                editor.key_input.read(cx).content(cx).as_ref() == row.key
+                    && editor.value_input.read(cx).content(cx).as_ref() == row.value
+                    && editor.description == row.description
             });
         if !prefix_matches {
-            self.rebuild_row_editors_from(rows, cx);
+            self.rebuild_row_editors_from(rows, window, cx);
             return;
         }
         for (index, row) in rows
@@ -341,7 +445,7 @@ impl KeyValueRowsPane {
             .enumerate()
             .skip(self.row_editors.len())
         {
-            self.push_row_editor(index, row, cx);
+            self.push_row_editor(index, row, window, cx);
         }
     }
 
@@ -377,7 +481,9 @@ impl KeyValueRowsPane {
         })
     }
 
-    fn reset_draft_inputs(&mut self, cx: &mut Context<Self>) {
+    fn reset_draft_inputs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.draft_description_input
+            .update(cx, |input, cx| input.project_content("", window, cx));
         let (key_placeholder, value_placeholder) = match self.kind {
             KeyValueRowsKind::Params => ("Key", "Value"),
             KeyValueRowsKind::Headers => ("Header name", "Header value"),
@@ -387,6 +493,7 @@ impl KeyValueRowsPane {
             TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Key),
                 key_placeholder,
+                window,
                 cx,
             )
         });
@@ -394,17 +501,18 @@ impl KeyValueRowsPane {
             TableCellInput::new(
                 TableCellId::new(row_id, TableCellColumn::Value),
                 value_placeholder,
+                window,
                 cx,
             )
         });
         self.draft_subscriptions = vec![
-            cx.subscribe(&key_input, Self::on_draft_cell_event),
-            cx.subscribe(&value_input, Self::on_draft_cell_event),
+            cx.subscribe_in(&key_input, window, Self::on_draft_cell_event),
+            cx.subscribe_in(&value_input, window, Self::on_draft_cell_event),
         ];
         self.draft_row_id = row_id;
         self.draft_key_input = key_input;
         self.draft_value_input = value_input;
-        self.project_draft(cx);
+        self.project_draft(window, cx);
     }
 
     fn active_projection(&self, cx: &gpui::App) -> (Option<RequestTabId>, Vec<KeyValueRow>) {
@@ -421,27 +529,41 @@ impl KeyValueRowsPane {
 
     fn on_persistent_row_event(
         &mut self,
-        _editor: Entity<PersistentRowEditor>,
+        _editor: &Entity<PersistentRowEditor>,
         event: &PersistentRowEditorEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let PersistentRowEditorEvent::Cell(event) = event;
-        self.handle_cell_event(event, false, cx);
+        match event {
+            PersistentRowEditorEvent::Cell(event) => {
+                self.handle_cell_event(event, false, window, cx)
+            }
+            PersistentRowEditorEvent::Description { row, value } => {
+                if let Some(index) = self.row_index(*row, cx) {
+                    let pane = self.kind.request_pane();
+                    self.update_active_request(cx, |request| {
+                        request.set_row_description(pane, Some(index), value.clone())
+                    });
+                }
+            }
+        }
     }
 
     fn on_draft_cell_event(
         &mut self,
-        _input: Entity<TableCellInput>,
+        _input: &Entity<TableCellInput>,
         event: &TableCellInputEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.handle_cell_event(event, true, cx);
+        self.handle_cell_event(event, true, window, cx);
     }
 
     fn handle_cell_event(
         &mut self,
         event: &TableCellInputEvent,
         draft: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let cell = match event {
@@ -504,7 +626,7 @@ impl KeyValueRowsPane {
                     }
                 }
             }
-            TableCellInputEvent::SubmitRequested { .. } => self.append_row(cx),
+            TableCellInputEvent::SubmitRequested { .. } => self.append_row(window, cx),
             TableCellInputEvent::TraversalRequested { direction, .. } => {
                 self.queue_traversal(cell, *direction, cx);
             }
@@ -517,6 +639,21 @@ impl KeyValueRowsPane {
         direction: TableCellTraversal,
         cx: &mut Context<Self>,
     ) {
+        if cell.column() == TableCellColumn::Value
+            && direction == TableCellTraversal::Forward
+            && self.panel_layout.read(cx).show_descriptions()
+        {
+            let input = if cell.row() == self.draft_row_id {
+                self.draft_description_input.clone()
+            } else if let Some(index) = self.row_index(cell.row(), cx) {
+                self.row_editors[index].read(cx).description_input.clone()
+            } else {
+                return;
+            };
+            self.pending_focus = Some(PendingTableFocus::Control(input.read(cx).focus_handle(cx)));
+            cx.notify();
+            return;
+        }
         self.pending_focus = if cell.row() == self.draft_row_id {
             match (self.kind, cell.column(), direction) {
                 (_, TableCellColumn::Key, TableCellTraversal::Forward) => {
@@ -588,7 +725,7 @@ impl KeyValueRowsPane {
         }
     }
 
-    fn append_row(&mut self, cx: &mut Context<Self>) {
+    fn append_row(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let appended = match self.kind {
             KeyValueRowsKind::Params => {
                 let appended = self
@@ -605,14 +742,14 @@ impl KeyValueRowsPane {
         };
         if appended {
             let (_, rows) = self.active_projection(cx);
-            self.sync_row_editors(&rows, false, cx);
-            self.reset_draft_inputs(cx);
+            self.sync_row_editors(&rows, false, window, cx);
+            self.reset_draft_inputs(window, cx);
             self.rows_scroll_handle.scroll_to_bottom();
         }
     }
 
-    fn add_current_row(&mut self, cx: &mut Context<Self>) {
-        self.append_row(cx);
+    fn add_current_row(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.append_row(window, cx);
     }
 
     fn toggle_param(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -630,7 +767,7 @@ impl KeyValueRowsPane {
         self.update_active_request(cx, |request| request.toggle_header(index));
     }
 
-    fn toggle_header_draft(&mut self, cx: &mut Context<Self>) {
+    fn toggle_header_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let appended = self.update_active_request(cx, |request| {
             let index = request.headers().len();
             request.append_header_row();
@@ -638,8 +775,8 @@ impl KeyValueRowsPane {
         });
         if appended.is_some() {
             let (_, rows) = self.active_projection(cx);
-            self.sync_row_editors(&rows, false, cx);
-            self.reset_draft_inputs(cx);
+            self.sync_row_editors(&rows, false, window, cx);
+            self.reset_draft_inputs(window, cx);
             self.rows_scroll_handle.scroll_to_bottom();
         }
     }
@@ -649,9 +786,9 @@ impl KeyValueRowsPane {
         self.remove_row_editor(index, cx);
     }
 
-    fn clear_header_draft(&mut self, cx: &mut Context<Self>) {
+    fn clear_header_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.update_active_request(cx, RequestViewModel::clear_header_draft);
-        self.reset_draft_inputs(cx);
+        self.reset_draft_inputs(window, cx);
     }
 
     fn focus_after_row_removal(
@@ -671,7 +808,21 @@ impl KeyValueRowsPane {
         }
     }
 
-    fn project_draft(&self, cx: &mut Context<Self>) {
+    fn project_draft(&self, window: &mut Window, cx: &mut Context<Self>) {
+        let description = self
+            .view_model
+            .read(cx)
+            .active_request()
+            .map(|r| {
+                r.request_draft()
+                    .row_description(self.kind == KeyValueRowsKind::Headers, None)
+                    .to_string()
+            })
+            .unwrap_or_default();
+        self.draft_description_input.update(cx, |input, cx| {
+            input.project_content(description, window, cx)
+        });
+
         let (key, value) = {
             let view_model = self.view_model.read(cx);
             view_model
@@ -681,26 +832,27 @@ impl KeyValueRowsPane {
                 .unwrap_or_default()
         };
         self.draft_key_input.update(cx, |input, cx| {
-            input.project_content(key, cx);
+            input.project_content(key, window, cx);
         });
         self.draft_value_input.update(cx, |input, cx| {
-            input.project_content(value, cx);
+            input.project_content(value, window, cx);
         });
     }
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (tab_id, rows) = self.active_projection(cx);
         let tab_changed = self.projected_tab_id != tab_id;
         if tab_changed || !self.row_editors_match(&rows, cx) {
-            self.sync_row_editors(&rows, tab_changed, cx);
+            self.sync_row_editors(&rows, tab_changed, window, cx);
         }
         if tab_changed {
-            self.reset_draft_inputs(cx);
+            self.reset_draft_inputs(window, cx);
         } else {
-            self.project_draft(cx);
+            self.project_draft(window, cx);
         }
         self.projected_tab_id = tab_id;
         cx.notify();
@@ -710,6 +862,7 @@ impl KeyValueRowsPane {
         use crate::ui::{components::kit_controls, theme::metrics as m};
         use gpui_kit::{assets::IconName, component::Icon};
         let headers = self.kind == KeyValueRowsKind::Headers;
+        let show_description = self.panel_layout.read(cx).show_descriptions();
         let compact = panel_height < 300.;
         let prefix = if headers { "header" } else { "param" };
         let plural = if headers { "headers" } else { "params" };
@@ -723,27 +876,11 @@ impl KeyValueRowsPane {
             .unwrap_or_default();
         let draft_enabled =
             !draft_key.trim().is_empty() && (!headers || !draft_value.trim().is_empty());
-        let count = if headers {
-            request.enabled_header_count()
-        } else {
-            request.enabled_param_count()
-        };
-        let effective_url = request.effective_url();
         // Size the grid to its rows, with remaining space below Add rather than
         // inside an empty table. Overflow stays local to the row viewport.
         let section_height = if compact { 32. } else { 55. };
-        let preview_height = if !headers && !compact { 70. } else { 0. };
-        let table_available =
-            (panel_height - 2. - 43. - section_height - 40. - 12. - preview_height).max(34.);
+        let table_available = (panel_height - 2. - section_height - 40. - 12.).max(34.);
         let table_height = (34. + (rows.len() + 1) as f32 * 40.).min(table_available);
-        // Keep the fractional row: rounding up hides the bar when the last row is clipped.
-        let capacity = ((table_height - 34.) / 40.).max(0.);
-        let scrollbar = row_scrollbar_geometry(
-            rows.len() + 1,
-            capacity,
-            self.rows_scroll_handle.offset().y.as_f32(),
-            self.rows_scroll_handle.max_offset().y.as_f32(),
-        );
         let scroll_selector = format!("{plural}-rows-scroll");
         let mut table_rows = div()
             .id((plural, 0usize))
@@ -752,6 +889,7 @@ impl KeyValueRowsPane {
             .min_h_0()
             .overflow_y_scroll()
             .track_scroll(&self.rows_scroll_handle)
+            .when(self.rows_have_overflow, |rows| rows.pr_4())
             .flex()
             .flex_col();
         for (index, row) in rows.iter().enumerate() {
@@ -818,8 +956,9 @@ impl KeyValueRowsPane {
         } else {
             "params-draft-toggle".into()
         };
-        let on_draft_toggle =
-            cx.listener(|this, _: &gpui::ClickEvent, _, cx| this.toggle_header_draft(cx));
+        let on_draft_toggle = cx.listener(|this, _: &gpui::ClickEvent, window, cx| {
+            this.toggle_header_draft(window, cx)
+        });
         let mut draft = div()
             .id((plural, 1usize))
             .debug_selector(move || draft_row_selector.clone())
@@ -871,6 +1010,24 @@ impl KeyValueRowsPane {
                     ),
             );
         }
+        if show_description {
+            let selector = format!("{prefix}-row-description-input-{index}");
+            draft = draft.child(
+                div()
+                    .debug_selector(move || selector.clone())
+                    .h_full()
+                    .flex_1()
+                    .min_w_0()
+                    .border_l_1()
+                    .border_color(LINE.resolve(cx))
+                    .child(
+                        div()
+                            .h_full()
+                            .px_3()
+                            .child(self.draft_description_input.clone()),
+                    ),
+            );
+        }
         let delete_selector = format!("header-row-delete-{index}");
         draft = draft.child(div().w_10().flex_none().when(headers, |cell| {
             cell.child(
@@ -881,13 +1038,15 @@ impl KeyValueRowsPane {
                     .child(Icon::new(IconName::X).size(m::SMALL_ICON))
                     .debug_selector(move || delete_selector.clone())
                     .track_focus(&self.draft_delete_focus_handle)
-                    .on_click(cx.listener(|this, _, _, cx| this.clear_header_draft(cx))),
+                    .on_click(
+                        cx.listener(|this, _, window, cx| this.clear_header_draft(window, cx)),
+                    ),
             )
         }));
         table_rows = table_rows.child(draft);
         let count_selector = format!("{plural}-enabled-count");
         let scrollbar_selector = format!("{plural}-scrollbar");
-        let thumb_selector = format!("{plural}-scrollbar-thumb");
+
         div()
             .flex_1()
             .min_h_0()
@@ -915,7 +1074,7 @@ impl KeyValueRowsPane {
                             .text_size(m::CAPTION)
                             .text_color(MUTED.resolve(cx))
                             .child(if headers {
-                                format!("{count} enabled")
+                                "Sent with this request".to_string()
                             } else {
                                 "Synced with URL".to_string()
                             }),
@@ -935,15 +1094,16 @@ impl KeyValueRowsPane {
                     .child(
                         div()
                             .h(m::TABLE_HEADER)
+                            .when(self.rows_have_overflow, |head| head.pr_4())
                             .flex_none()
                             .flex()
                             .items_center()
                             .bg(PANEL_ALT.resolve(cx))
-                            .text_size(m::CAPTION)
+                            .text_size(gpui::rems(9. / 16.))
                             .font_family(FONT_MONO)
                             .text_color(MUTED.resolve(cx))
-                            .child(div().w_10())
-                            .child(div().flex_1().px_3().child("KEY"))
+                            .child(div().w_10().flex_none())
+                            .child(div().flex_1().min_w_0().px_3().child("KEY"))
                             .child(
                                 div()
                                     .flex_1()
@@ -952,31 +1112,60 @@ impl KeyValueRowsPane {
                                     .border_color(LINE.resolve(cx))
                                     .child("VALUE"),
                             )
-                            .child(div().w_10()),
+                            .when(show_description, |head| {
+                                head.child(
+                                    div()
+                                        .flex_1()
+                                        .px_3()
+                                        .border_l_1()
+                                        .border_color(LINE.resolve(cx))
+                                        .child("DESCRIPTION"),
+                                )
+                            })
+                            .child(div().w_10().flex_none()),
                     )
-                    .child(div().flex_1().min_h_0().flex().child(table_rows).when_some(
-                        scrollbar,
-                        |area, bar| {
-                            area.child(
-                                div()
-                                    .debug_selector(move || scrollbar_selector.clone())
-                                    .w(gpui::rems(0.375))
-                                    .h_full()
-                                    .flex_none()
-                                    .relative()
-                                    .child(
-                                        div()
-                                            .debug_selector(move || thumb_selector.clone())
-                                            .absolute()
-                                            .top(relative(bar.thumb_top))
-                                            .h(relative(bar.thumb_height))
-                                            .w_full()
-                                            .rounded_full()
-                                            .bg(MUTED.resolve(cx)),
-                                    ),
-                            )
-                        },
-                    )),
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .relative()
+                            .child(table_rows)
+                            .on_prepaint({
+                                let this = cx.weak_entity();
+                                let scroll = self.rows_scroll_handle.clone();
+                                let previous = self.rows_have_overflow;
+                                move |_, window, cx| {
+                                    let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                                    if has_overflow != previous {
+                                        window.defer(cx, move |_, cx| {
+                                            let _ = this.update(cx, |this, cx| {
+                                                if this.rows_have_overflow != has_overflow {
+                                                    this.rows_have_overflow = has_overflow;
+                                                    cx.notify();
+                                                }
+                                            });
+                                        });
+                                    }
+                                }
+                            })
+                            .when(self.rows_have_overflow, |area| {
+                                area.child(
+                                    div()
+                                        .debug_selector(move || scrollbar_selector.clone())
+                                        .absolute()
+                                        .top_0()
+                                        .right_0()
+                                        .bottom_0()
+                                        .w(Scrollbar::width())
+                                        .child(
+                                            Scrollbar::vertical(&self.rows_scroll_handle)
+                                                .id((plural, 4usize))
+                                                .mode(ScrollbarMode::Always),
+                                        ),
+                                )
+                            }),
+                    ),
             )
             .child(
                 div().h_10().flex_none().flex().items_center().child(
@@ -993,44 +1182,11 @@ impl KeyValueRowsPane {
                     .track_focus(&self.add_row_focus_handle)
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.add_row_focus_handle.focus(window, cx);
-                        this.add_current_row(cx);
+                        this.add_current_row(window, cx);
                     })),
                 ),
             )
             .child(div().flex_1().min_h_0())
-            .when(!headers && !compact, |pane| {
-                pane.child(
-                    div()
-                        .debug_selector(|| "effective-url-preview".into())
-                        .flex_none()
-                        .flex()
-                        .flex_col()
-                        .gap_2()
-                        .child(
-                            div()
-                                .text_size(m::CAPTION)
-                                .text_color(MUTED.resolve(cx))
-                                .child("REQUEST URL"),
-                        )
-                        .child(
-                            div()
-                                .debug_selector(|| "effective-url-value".into())
-                                .h_9()
-                                .flex()
-                                .items_center()
-                                .px_3()
-                                .rounded(m::RADIUS)
-                                .border_1()
-                                .border_color(LINE.resolve(cx))
-                                .bg(PANEL_ALT.resolve(cx))
-                                .font_family(FONT_MONO)
-                                .text_size(m::CODE)
-                                .text_color(MUTED.resolve(cx))
-                                .truncate()
-                                .child(effective_url),
-                        ),
-                )
-            })
             .into_any_element()
     }
 }
@@ -1039,24 +1195,19 @@ impl Render for KeyValueRowsPane {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (_, rows) = self.active_projection(cx);
         if !self.row_editors_match(&rows, cx) {
-            self.sync_row_editors(&rows, false, cx);
+            self.sync_row_editors(&rows, false, window, cx);
+        }
+        let visible = self.panel_layout.read(cx).show_descriptions();
+        for editor in &self.row_editors {
+            if editor.read(cx).show_description != visible {
+                editor.update(cx, |editor, cx| {
+                    editor.show_description = visible;
+                    cx.notify();
+                });
+            }
         }
         self.apply_pending_focus(window, cx);
-        let pane = self.kind.request_pane();
-        let visible_rows = {
-            let view_model = self.view_model.read(cx);
-            view_model
-                .active_request()
-                .map_or(0, |request| match self.kind {
-                    KeyValueRowsKind::Params => request.visible_param_row_count(),
-                    KeyValueRowsKind::Headers => request.visible_header_row_count(),
-                })
-        };
-        let panel_height = self.panel_layout.read(cx).resolved_height(
-            pane,
-            visible_rows,
-            window.viewport_size().height.as_f32(),
-        );
+        let panel_height = self.panel_layout.read(cx).height();
         self.render_rows_editor(panel_height, cx)
     }
 }
@@ -1072,18 +1223,22 @@ mod tests {
     ) {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
         let panel_layout = cx.new(|_| RequestPanelLayout::default());
-        let pane = cx.new(|cx| {
+        cx.update(crate::ui::kit::init);
+        let (pane, cx) = cx.add_window_view(|window, cx| {
             KeyValueRowsPane::new(
                 workspace.clone(),
                 panel_layout,
                 KeyValueRowsKind::Params,
+                window,
                 cx,
             )
         });
 
-        pane.update(cx, |pane, cx| {
-            pane.append_row(cx);
-            pane.append_row(cx);
+        cx.update(|window, cx| {
+            pane.update(cx, |pane, cx| {
+                pane.append_row(window, cx);
+                pane.append_row(window, cx);
+            })
         });
         let ids = pane.read_with(cx, |pane, cx| {
             pane.row_editors
@@ -1093,14 +1248,16 @@ mod tests {
         });
         assert_eq!(ids.len(), 2);
 
-        pane.update(cx, |pane, cx| {
-            pane.toggle_param(1, cx);
-            pane.project_active_request(cx);
-            assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[0]);
-            assert_eq!(pane.row_editors[1].read(cx).row_id(), ids[1]);
+        cx.update(|window, cx| {
+            pane.update(cx, |pane, cx| {
+                pane.toggle_param(1, cx);
+                pane.project_active_request(window, cx);
+                assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[0]);
+                assert_eq!(pane.row_editors[1].read(cx).row_id(), ids[1]);
 
-            pane.remove_param(0, cx);
-            assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[1]);
+                pane.remove_param(0, cx);
+                assert_eq!(pane.row_editors[0].read(cx).row_id(), ids[1]);
+            })
         });
         workspace.read_with(cx, |workspace, _| {
             let rows = workspace.active_request().unwrap().params();
@@ -1115,22 +1272,31 @@ mod tests {
     fn table_traversal_resolves_from_stable_cell_identity(cx: &mut TestAppContext) {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
         let panel_layout = cx.new(|_| RequestPanelLayout::default());
-        let pane = cx.new(|cx| {
-            KeyValueRowsPane::new(workspace, panel_layout, KeyValueRowsKind::Headers, cx)
-        });
-        pane.update(cx, |pane, cx| {
-            pane.append_row(cx);
-            let row_id = pane.row_editors[0].read(cx).row_id();
-            pane.queue_traversal(
-                TableCellId::new(row_id, TableCellColumn::Key),
-                TableCellTraversal::Forward,
+        cx.update(crate::ui::kit::init);
+        let (pane, cx) = cx.add_window_view(|window, cx| {
+            KeyValueRowsPane::new(
+                workspace,
+                panel_layout,
+                KeyValueRowsKind::Headers,
+                window,
                 cx,
-            );
-            assert!(matches!(
-                pane.pending_focus,
-                Some(PendingTableFocus::Cell(cell))
-                    if cell == TableCellId::new(row_id, TableCellColumn::Value)
-            ));
+            )
+        });
+        cx.update(|window, cx| {
+            pane.update(cx, |pane, cx| {
+                pane.append_row(window, cx);
+                let row_id = pane.row_editors[0].read(cx).row_id();
+                pane.queue_traversal(
+                    TableCellId::new(row_id, TableCellColumn::Key),
+                    TableCellTraversal::Forward,
+                    cx,
+                );
+                assert!(matches!(
+                    pane.pending_focus,
+                    Some(PendingTableFocus::Cell(cell))
+                        if cell == TableCellId::new(row_id, TableCellColumn::Value)
+                ));
+            })
         });
     }
 }

@@ -1,22 +1,26 @@
 use crate::ui::{
     components::{
-        common::edit_context_menu::{edit_context_menu, EDITABLE_ACTIONS},
-        common::scrollbar::{scrollbar_geometry, vertical_scrollbar, ScrollbarGeometry},
+        common::edit_context_menu::edit_popup_menu,
         input::multiline_input::{
             self as multiline, MultilineInputHost, MultilineInputState, MultilineTextElement,
         },
     },
-    theme::{CODE_BG, CODE_TEXT, FONT_MONO, INFO, LINE},
+    theme::{CODE_BG, FONT_MONO, INFO, LINE},
 };
 use gpui::{
-    div, prelude::FluentBuilder, px, App, Bounds, Context, CursorStyle, EntityInputHandler,
+    div, prelude::FluentBuilder, App, Bounds, Context, CursorStyle, EntityInputHandler,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Pixels, Point, Render, StatefulInteractiveElement, Styled, UTF16Selection,
     Window,
 };
+use gpui_kit::{
+    base::ElementExt,
+    component::{
+        menu::ContextMenuExt,
+        scroll::{Scrollbar, ScrollbarMode},
+    },
+};
 use std::ops::Range;
-
-const TEXT_BODY_FALLBACK_VISIBLE_LINES: usize = 7;
 
 #[derive(Clone, Debug)]
 pub(super) enum TextBodyInputEvent {
@@ -28,20 +32,24 @@ pub(super) enum TextBodyInputEvent {
 pub(super) struct TextBodyInput {
     focus_handle: FocusHandle,
     input: MultilineInputState,
+    has_overflow: bool,
 }
 
 impl TextBodyInput {
     pub(super) fn new(cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            input: MultilineInputState::new("Enter JSON body here..."),
+            input: MultilineInputState::new("Enter request body…"),
+            has_overflow: false,
         }
     }
 
+    #[cfg(test)]
     pub(super) fn content(&self) -> &str {
         self.input.text()
     }
 
+    #[cfg(test)]
     pub(super) fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         if self.input.set_text(content) {
             cx.emit(TextBodyInputEvent::ValueChanged(
@@ -57,6 +65,7 @@ impl TextBodyInput {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn clear(&mut self, cx: &mut Context<Self>) {
         if self.input.clear() {
             cx.emit(TextBodyInputEvent::ValueChanged(String::new()));
@@ -89,35 +98,6 @@ impl Focusable for TextBodyInput {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
-}
-
-fn text_body_scrollbar_geometry(
-    line_count: usize,
-    viewport_height: f32,
-    estimated_line_height: f32,
-    offset_y: f32,
-    max_offset_y: f32,
-) -> Option<ScrollbarGeometry> {
-    let estimated_content_height = estimated_line_height * line_count.max(1) as f32 + 16.0;
-    let overflows = max_offset_y > 0.0
-        || (viewport_height > 0.0 && estimated_content_height > viewport_height)
-        || (viewport_height <= 0.0 && line_count > TEXT_BODY_FALLBACK_VISIBLE_LINES);
-    if !overflows {
-        return None;
-    }
-
-    let visible_fraction = if viewport_height > 0.0 {
-        let content_height = if max_offset_y > 0.0 {
-            viewport_height + max_offset_y
-        } else {
-            estimated_content_height
-        };
-        viewport_height / content_height.max(viewport_height)
-    } else {
-        TEXT_BODY_FALLBACK_VISIBLE_LINES as f32 / line_count.max(1) as f32
-    };
-
-    Some(scrollbar_geometry(visible_fraction, offset_y, max_offset_y))
 }
 
 impl EntityInputHandler for TextBodyInput {
@@ -197,17 +177,10 @@ impl EntityInputHandler for TextBodyInput {
 
 impl Render for TextBodyInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let context_menu_position = self.input.context_menu_position();
         let scroll_handle = self.input.scroll_handle().clone();
-        let line_count = crate::ui::text_layout::line_ranges(self.input.text()).len();
-        let scrollbar = text_body_scrollbar_geometry(
-            line_count,
-            scroll_handle.bounds().size.height.as_f32(),
-            window.line_height().as_f32(),
-            scroll_handle.offset().y.as_f32(),
-            scroll_handle.max_offset().y.as_f32(),
-        );
-        let editor = div()
+        let menu_focus = self.focus_handle.clone();
+        div()
+            .id("body-text-editor")
             .flex_1()
             .min_h_0()
             .flex()
@@ -221,8 +194,8 @@ impl Render for TextBodyInput {
                     .h_full()
                     .min_h_0()
                     .px_3()
-                    .py_2()
-                    .when(scrollbar.is_some(), |editor| editor.pr(px(20.0)))
+                    .py_3()
+                    .when(self.has_overflow, |editor| editor.pr_5())
                     .bg(CODE_BG.resolve(cx))
                     .border_1()
                     .border_color(if self.focus_handle.is_focused(window) {
@@ -230,10 +203,11 @@ impl Render for TextBodyInput {
                     } else {
                         LINE.resolve(cx)
                     })
-                    .rounded_lg()
+                    .rounded(crate::ui::theme::metrics::RADIUS)
                     .font_family(FONT_MONO)
-                    .text_size(px(13.0))
-                    .text_color(CODE_TEXT.resolve(cx))
+                    .text_size(crate::ui::theme::metrics::CODE)
+                    .line_height(gpui::relative(1.8))
+                    .text_color(crate::ui::theme::TEXT.resolve(cx))
                     .cursor(CursorStyle::IBeam)
                     .track_focus(&self.focus_handle(cx))
                     .key_context("BodyInput")
@@ -265,14 +239,9 @@ impl Render for TextBodyInput {
                     .on_action(cx.listener(multiline::enter::<Self>))
                     .on_action(cx.listener(multiline::focus_next::<Self>))
                     .on_action(cx.listener(multiline::focus_previous::<Self>))
-                    .on_action(cx.listener(multiline::dismiss::<Self>))
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(multiline::on_mouse_down::<Self>),
-                    )
-                    .on_mouse_down(
-                        MouseButton::Right,
-                        cx.listener(multiline::open_context_menu::<Self>),
                     )
                     .on_mouse_up(
                         MouseButton::Left,
@@ -285,24 +254,57 @@ impl Render for TextBodyInput {
                     .on_mouse_move(cx.listener(multiline::on_mouse_move::<Self>))
                     .child(MultilineTextElement::new(cx.entity().clone())),
             )
-            .when_some(scrollbar, |editor, scrollbar| {
-                editor.child(vertical_scrollbar(
-                    "body-text-scrollbar",
-                    "body-text-scrollbar-thumb",
-                    scrollbar,
-                    cx,
-                ))
-            });
-        editor.when_some(context_menu_position, |root, position| {
-            root.child(edit_context_menu(
-                position,
-                "body-edit-menu",
-                EDITABLE_ACTIONS,
-                multiline::handle_context_menu_action::<Self>,
-                window,
-                cx,
-            ))
-        })
+            // Keep the observation canvas outside the padded scroll content.
+            .on_prepaint({
+                let this = cx.weak_entity();
+                let scroll = scroll_handle.clone();
+                let previous = self.has_overflow;
+                move |_, window, cx| {
+                    let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                    if has_overflow != previous {
+                        window.defer(cx, move |_, cx| {
+                            let _ = this.update(cx, |this, cx| {
+                                if this.has_overflow != has_overflow {
+                                    this.has_overflow = has_overflow;
+                                    cx.notify();
+                                }
+                            });
+                        });
+                    }
+                }
+            })
+            .when(self.has_overflow, |editor| {
+                editor.child(
+                    div()
+                        .debug_selector(|| "body-text-scrollbar".into())
+                        .absolute()
+                        .top_0()
+                        .right_0()
+                        .bottom_0()
+                        .w(Scrollbar::width())
+                        .child(
+                            Scrollbar::vertical(&scroll_handle)
+                                .id("body-text-scrollbar-control")
+                                .mode(ScrollbarMode::Always),
+                        ),
+                )
+            })
+            .capture_any_mouse_down(cx.listener(multiline::prepare_context_menu::<Self>))
+            .context_menu(move |menu, _, _| {
+                use super::{Copy, Cut, Paste, Redo, SelectAll, Undo};
+                edit_popup_menu(
+                    menu,
+                    menu_focus.clone(),
+                    vec![
+                        ("Undo", Box::new(Undo)),
+                        ("Redo", Box::new(Redo)),
+                        ("Cut", Box::new(Cut)),
+                        ("Copy", Box::new(Copy)),
+                        ("Paste", Box::new(Paste)),
+                        ("Select All", Box::new(SelectAll)),
+                    ],
+                )
+            })
     }
 }
 
@@ -311,7 +313,7 @@ mod tests {
     use super::*;
     use crate::ui::components::input::body_input::{Down, Redo, Undo};
     use gpui::{
-        Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, TestAppContext,
+        px, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, TestAppContext,
     };
 
     #[gpui::test]
@@ -378,12 +380,10 @@ mod tests {
         let scrollbar = visual
             .debug_bounds("body-text-scrollbar")
             .expect("long multiline content should expose a visible scrollbar");
-        let thumb = visual
-            .debug_bounds("body-text-scrollbar-thumb")
-            .expect("the visible text scrollbar should expose its thumb");
-        assert!(thumb.origin.y >= scrollbar.origin.y);
-        assert!(thumb.bottom() <= scrollbar.bottom());
-        assert!(thumb.size.height < scrollbar.size.height);
+        let viewport = visual.debug_bounds("body-text-scroll").unwrap();
+        assert_eq!(scrollbar.top(), viewport.top());
+        assert_eq!(scrollbar.bottom(), viewport.bottom());
+        assert_eq!(scrollbar.right(), viewport.right());
         assert!(
             input.read_with(visual, |host, _| host.input.scroll_handle().offset().y
                 < px(0.0)),
@@ -398,6 +398,106 @@ mod tests {
             input.read_with(visual, |host, _| host.input.scroll_handle().offset().y),
             px(0.0)
         );
+    }
+
+    #[gpui::test]
+    fn scrollbar_pointer_scroll_preserves_selection_and_caret_geometry(cx: &mut TestAppContext) {
+        use gpui_kit::test::TestWindowExt;
+
+        let (input, visual) = cx.add_window_view(|_, cx| TextBodyInput::new(cx));
+        let body = (0..80)
+            .map(|line| format!("line-{line:02}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        input.update(visual, |host, cx| {
+            host.set_content(body.clone(), cx);
+            multiline::replace_text_in_range(host, Some(0..0), "", cx);
+        });
+        visual.run_until_parked();
+        let viewport = visual.debug_bounds("body-text-scroll").unwrap();
+        let bar = visual.debug_bounds("body-text-scrollbar").unwrap();
+        let initial_caret = input.update(visual, |host, _| {
+            multiline::bounds_for_range(host, 0..0).unwrap()
+        });
+        let start = gpui::point(bar.center().x, bar.top() + px(8.));
+        let end = gpui::point(start.x, bar.center().y);
+        visual.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+        visual.simulate_mouse_move(
+            gpui::point(start.x, start.y + px(6.)),
+            MouseButton::Left,
+            Modifiers::none(),
+        );
+        visual.simulate_mouse_move(end, MouseButton::Left, Modifiers::none());
+        visual.simulate_mouse_up(end, MouseButton::Left, Modifiers::none());
+        let dragged_offset = input.update(visual, |host, _| {
+            let offset = host.input.scroll_handle().offset().y;
+            assert!(
+                offset < px(0.),
+                "dragging the real Kit thumb must scroll the text"
+            );
+            assert_eq!(multiline::selected_text_range(host).range, 0..0);
+            assert_eq!(host.content(), body);
+            let caret = multiline::bounds_for_range(host, 0..0).unwrap();
+            assert_eq!(caret.top() - initial_caret.top(), offset);
+            offset
+        });
+        assert_eq!(visual.debug_bounds("body-text-scrollbar").unwrap(), bar);
+        assert_eq!(visual.debug_bounds("body-text-scroll").unwrap(), viewport);
+        // An unrelated repaint must not snap manual scrolling back to the caret.
+        input.update(visual, |_, cx| cx.notify());
+        visual.run_until_parked();
+        assert_eq!(
+            input.update(visual, |host, _| host.input.scroll_handle().offset().y),
+            dragged_offset
+        );
+
+        // The drag may already reach the end. Reveal the first line before
+        // independently testing a click beyond the thumb at the track's bottom.
+        input.update(visual, |host, cx| {
+            multiline::replace_text_in_range(host, Some(1..1), "", cx);
+        });
+        visual.run_until_parked();
+        assert_eq!(
+            input.read_with(visual, |host, _| host.input.scroll_handle().offset().y),
+            px(0.)
+        );
+        let bottom = gpui::point(bar.center().x, bar.bottom() - px(2.));
+        visual.simulate_mouse_down(bottom, MouseButton::Left, Modifiers::none());
+        visual.simulate_mouse_up(bottom, MouseButton::Left, Modifiers::none());
+        input.update(visual, |host, _| {
+            let scroll = host.input.scroll_handle();
+            assert!(
+                scroll.offset().y < px(0.),
+                "clicking the track must scroll the text"
+            );
+            assert_eq!(
+                scroll.offset().y,
+                -scroll.max_offset().y,
+                "track-end click should reveal the final line"
+            );
+            assert_eq!(multiline::selected_text_range(host).range, 1..1);
+        });
+
+        // A subsequent caret movement still reveals the editor's first line.
+        input.update(visual, |host, cx| {
+            multiline::replace_text_in_range(host, Some(2..2), "", cx);
+        });
+        visual.run_until_parked();
+        visual.update(|window, cx| window.render_frame(cx));
+        input.update(visual, |host, _| {
+            assert_eq!(host.input.scroll_handle().offset().y, px(0.));
+            let caret = multiline::bounds_for_range(host, 2..2).unwrap();
+            assert!(caret.top() >= viewport.top());
+            assert!(caret.bottom() <= viewport.bottom());
+            assert_eq!(host.content(), body);
+        });
+        input.update(visual, |host, cx| host.clear(cx));
+        visual.run_until_parked();
+        assert!(visual.debug_bounds("body-text-scrollbar").is_none());
+        input.read_with(visual, |host, _| {
+            assert_eq!(host.input.scroll_handle().max_offset().y, px(0.));
+            assert_eq!(host.input.scroll_handle().offset().y, px(0.));
+        });
     }
 
     #[gpui::test]

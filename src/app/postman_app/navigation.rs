@@ -33,7 +33,7 @@ impl PostmanApp {
         self.shortcut_help_open = false;
         self.shortcut_help_return_focus = None;
         self.global_search_return_focus = None;
-        self.reset_global_search(cx);
+        self.reset_global_search(window, cx);
         match route {
             AppRoute::Home => self.app_focus_handle.focus(window, cx),
             AppRoute::Http => self.request_workspace.update(cx, |workspace, cx| {

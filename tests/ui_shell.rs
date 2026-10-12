@@ -81,7 +81,7 @@ fn hidden_http_does_not_accept_input_or_commands_and_recent_rows_reuse_tabs(
     replace_text(cx, "url-input", "https://example.test/first").unwrap();
     ui::choose_method(cx, "POST").unwrap();
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-json").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     replace_text(cx, "body-input", r#"{"name":"draft"}"#).unwrap();
     let (first_id, draft) = model.read_with(cx, |m, _| {
         (

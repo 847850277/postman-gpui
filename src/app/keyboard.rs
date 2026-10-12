@@ -34,6 +34,8 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("shift-tab", FocusPreviousControl, None),
         KeyBinding::new("cmd-enter", SendOrCancel, None),
         KeyBinding::new("ctrl-enter", SendOrCancel, None),
+        KeyBinding::new("cmd-enter", SendOrCancel, Some("HeaderInput > Input")),
+        KeyBinding::new("ctrl-enter", SendOrCancel, Some("HeaderInput > Input")),
         KeyBinding::new("cmd-t", NewRequest, None),
         KeyBinding::new("ctrl-t", NewRequest, None),
         KeyBinding::new("cmd-w", CloseRequest, None),
@@ -55,28 +57,28 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
 
 /// Search-input bindings are installed after the shared input bindings so Enter and Escape own
 /// the command palette while it is focused. The descendant context keeps that precedence local
-/// to global search and leaves ordinary HeaderInput editing unchanged.
+/// to global search's retained Kit input and leaves ordinary HeaderInput editing unchanged.
 pub(crate) fn setup_global_search_key_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new(
             "down",
             SelectNextGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput"),
+            Some("GlobalSearch > HeaderInput > Input"),
         ),
         KeyBinding::new(
             "up",
             SelectPreviousGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput"),
+            Some("GlobalSearch > HeaderInput > Input"),
         ),
         KeyBinding::new(
             "enter",
             ActivateGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput"),
+            Some("GlobalSearch > HeaderInput > Input"),
         ),
         KeyBinding::new(
             "escape",
             DismissGlobalSearch,
-            Some("GlobalSearch > HeaderInput"),
+            Some("GlobalSearch > HeaderInput > Input"),
         ),
     ]
 }

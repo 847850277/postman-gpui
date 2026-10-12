@@ -111,6 +111,7 @@
   return errors;
  }
  function fromRequest(request,id) {
+  if(request.hasBody&&['multipart','binary'].includes(request.bodyFormat))throw new Error('Form-data and binary bodies cannot be added to a flow in this preview. Use JSON, Raw, or URL encoded.');
   if(!['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'].includes(request.method))throw new Error('Flow v1 does not support '+request.method+'. Choose a standard HTTP method first.');
   if(request.curlOptions?.length)throw new Error('Remove cURL transport flags before adding this request to a flow.');
   if(request.headers.some(h=>h.enabled&&h.key&&!h.value&&!h.forceEmpty))throw new Error('cURL header suppression cannot be transferred to a flow in this preview.');

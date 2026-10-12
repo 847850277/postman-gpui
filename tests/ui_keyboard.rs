@@ -131,8 +131,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         RequestPane::Authorization
     );
 
-    click(cx, "auth-kind-bearer").unwrap();
-    cx.simulate_keystrokes("right");
+    ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -171,8 +170,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     );
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-raw").unwrap();
-    cx.simulate_keystrokes("right");
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -196,7 +194,10 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         initial_rows + 2
     );
 
-    // From Add: draft value, draft key, then the final row's Delete control.
+    // Reverse through the optional Description cell, then Value/Key to Delete.
+    if cx.debug_bounds("param-row-description-input-2").is_some() {
+        ui::press(cx, "shift-tab");
+    }
     ui::press(cx, "shift-tab shift-tab shift-tab enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -215,7 +216,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         .enabled));
 
     click(cx, "request-pane-body").unwrap();
-    click(cx, "body-kind-url-encoded").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     let initial_form_rows = workspace.read_with(cx, |workspace, _| {
         match workspace.active_request().unwrap().body_draft() {
             RequestBodyDraft::UrlEncoded(rows) => rows.len(),
@@ -223,7 +224,13 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         }
     });
     click(cx, "body-form-add-row").unwrap();
-    cx.simulate_keystrokes("enter");
+    // The prototype focuses the new key immediately. Continue editing with the
+    // keyboard; tabbing out of the last value creates the next editable row.
+    cx.simulate_input("second");
+    ui::press(cx, "tab");
+    cx.simulate_input("value");
+    ui::press(cx, "tab");
+    cx.simulate_input("third");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             match workspace.active_request().unwrap().body_draft() {
@@ -233,7 +240,20 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         }),
         initial_form_rows + 2
     );
-    cx.simulate_keystrokes("shift-tab enter");
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
+        else {
+            panic!("the form remains URL encoded");
+        };
+        assert_eq!(
+            (&rows[1].key, &rows[1].value),
+            (&"second".to_string(), &"value".to_string())
+        );
+        assert_eq!(rows[2].key, "third");
+    });
+    // Reverse from the next row's checkbox to the previous row's Delete button.
+    click(cx, "body-form-toggle-2").unwrap();
+    ui::press(cx, "shift-tab enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| {
             match workspace.active_request().unwrap().body_draft() {
@@ -367,5 +387,54 @@ fn identical_urls_in_different_tabs_do_not_share_undo_history(cx: &mut TestAppCo
     workspace.read_with(cx, |m, _| {
         assert_eq!(m.tabs()[0].url(), url);
         assert_eq!(m.tabs()[1].url(), url);
+    });
+}
+
+#[gpui::test]
+fn send_shortcuts_work_from_kit_fields_without_submitting_table_rows(cx: &mut TestAppContext) {
+    let mut server = mockito::Server::new();
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    for (index, (pane, field)) in [
+        ("request-pane-params", "param-row-key-input-0"),
+        ("request-pane-headers", "header-row-key-input-0"),
+        ("request-pane-authorization", "authorization-input"),
+        ("request-pane-options", "request-timeout-input"),
+        ("request-pane-body", "body-form-key-0"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        click(cx, pane).unwrap();
+        if pane == "request-pane-body" {
+            ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
+        }
+        for keys in ["cmd-enter", "ctrl-enter"] {
+            let path = format!("/field-{index}-{keys}");
+            let request = server
+                .mock("GET", path.as_str())
+                .expect(1)
+                .with_status(200)
+                .with_body("sent once")
+                .create();
+            ui::replace_text(cx, "url-input", &format!("{}{path}", server.url())).unwrap();
+            click(cx, field).unwrap();
+            ui::press(cx, keys);
+            cx.run_until_parked();
+            request.assert();
+        }
+    }
+    workspace.read_with(cx, |workspace, _| {
+        let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
+        else {
+            panic!("form mode must remain selected");
+        };
+        assert_eq!(rows.len(), 1, "Send must not append a form row");
     });
 }

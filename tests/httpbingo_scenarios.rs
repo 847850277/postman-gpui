@@ -13,8 +13,8 @@ use common::scenario::{
 use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::{
     app::{
-        AuthorizationKind, BodyKind, KeyValueRow, PostmanApp, RequestPane, ResponseState,
-        WorkspaceViewModel,
+        AuthorizationKind, BodyKind, EffectiveHeaderSource, KeyValueRow, PostmanApp,
+        RequestBodyDraft, RequestPane, ResponseState, WorkspaceViewModel,
     },
     models::{HistoryEntry, HttpMethod, RedirectPolicy, Request, RequestBody, RequestEditorIntent},
     persistence::{
@@ -50,7 +50,6 @@ const HISTORY_REPLAY_SCENARIO: &str =
     "HTTPBingo receives the complete request replayed from History";
 const MULTI_TAB_A_SCENARIO: &str = "HTTPBingo isolates the GET request in Tab A";
 const MULTI_TAB_B_SCENARIO: &str = "HTTPBingo isolates the POST JSON request in Tab B";
-const BODY_FORM_MAX_VISIBLE_ROWS: usize = 6;
 
 /// One file-backed SQLite database per real-application lifecycle.
 ///
@@ -497,61 +496,6 @@ const BODY_FORM_FILE_METADATA_SELECTORS: [&str; 16] = [
     "body-form-file-metadata-14",
     "body-form-file-metadata-15",
 ];
-const BODY_FORM_STATE_SELECTORS: [&str; 16] = [
-    "body-form-state-0",
-    "body-form-state-1",
-    "body-form-state-2",
-    "body-form-state-3",
-    "body-form-state-4",
-    "body-form-state-5",
-    "body-form-state-6",
-    "body-form-state-7",
-    "body-form-state-8",
-    "body-form-state-9",
-    "body-form-state-10",
-    "body-form-state-11",
-    "body-form-state-12",
-    "body-form-state-13",
-    "body-form-state-14",
-    "body-form-state-15",
-];
-const BODY_FORM_READY_SELECTORS: [&str; 16] = [
-    "body-form-ready-0",
-    "body-form-ready-1",
-    "body-form-ready-2",
-    "body-form-ready-3",
-    "body-form-ready-4",
-    "body-form-ready-5",
-    "body-form-ready-6",
-    "body-form-ready-7",
-    "body-form-ready-8",
-    "body-form-ready-9",
-    "body-form-ready-10",
-    "body-form-ready-11",
-    "body-form-ready-12",
-    "body-form-ready-13",
-    "body-form-ready-14",
-    "body-form-ready-15",
-];
-const BODY_FORM_OMITTED_SELECTORS: [&str; 16] = [
-    "body-form-omitted-0",
-    "body-form-omitted-1",
-    "body-form-omitted-2",
-    "body-form-omitted-3",
-    "body-form-omitted-4",
-    "body-form-omitted-5",
-    "body-form-omitted-6",
-    "body-form-omitted-7",
-    "body-form-omitted-8",
-    "body-form-omitted-9",
-    "body-form-omitted-10",
-    "body-form-omitted-11",
-    "body-form-omitted-12",
-    "body-form-omitted-13",
-    "body-form-omitted-14",
-    "body-form-omitted-15",
-];
-
 #[derive(Clone, Copy)]
 enum RowEditor {
     Params,
@@ -2304,6 +2248,7 @@ fn run_cookie_workflow(
         );
     }
 
+    click(cx, "response-pane-cookies")?;
     if cx.debug_bounds("response-cookies-empty").is_none() {
         return Err("the later /cookies response must expose Cookies (0)".to_string());
     }
@@ -2536,7 +2481,7 @@ fn run_application_scenario(
     }
     if let Some(credentials) = &scenario.draft.basic_auth {
         click(cx, "request-pane-authorization")?;
-        click(cx, "auth-kind-basic")?;
+        ui::choose_auth_kind(cx, "auth-kind-basic")?;
         assert_basic_auth_editor_contract(cx)?;
         type_into(cx, "basic-auth-username-input", &credentials.username)?;
         let live_username = workspace.read_with(cx, |workspace, _| {
@@ -3002,10 +2947,10 @@ fn assert_json_body_editor_contract(
         ));
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-json",
-        "body-live-saved",
         "body-editor-shell",
         "body-input",
         "body-effective-headers",
@@ -3075,17 +3020,23 @@ fn assert_raw_body_editor_contract(
             "active Raw body was not saved directly to the typed ViewModel draft\n  expected: {expected_body:?}\n  actual:   {request_body:?}"
         ));
     }
-    if effective_headers
+    let content_types = effective_headers
         .iter()
-        .any(|header| header.name.eq_ignore_ascii_case("content-type"))
+        .filter(|header| header.name.eq_ignore_ascii_case("content-type"))
+        .collect::<Vec<_>>();
+    if content_types.len() != 1
+        || content_types[0].value != "text/plain"
+        || content_types[0].source != EffectiveHeaderSource::Generated
     {
-        return Err("Raw Body generated an unexpected Content-Type header".to_string());
+        return Err(format!(
+            "Raw Body must expose exactly one automatic text/plain header: {content_types:?}"
+        ));
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-raw",
-        "body-raw-live-saved",
         "body-editor-shell",
         "body-input",
         "body-raw-effective-request",
@@ -3144,16 +3095,37 @@ fn assert_url_encoded_body_editor_contract(
         ));
     }
 
+    if cx.debug_bounds("body-encoded-preview").is_none() {
+        return Err(
+            "URL-encoded preview must be visible before opening Request details".to_string(),
+        );
+    }
+    let active_rows = workspace.read_with(cx, |workspace, _| {
+        match workspace.active_request().unwrap().body_draft() {
+            RequestBodyDraft::UrlEncoded(rows) => rows.clone(),
+            _ => Vec::new(),
+        }
+    });
+    for (index, expected) in scenario.draft.body_rows.iter().enumerate() {
+        if !active_rows.get(index).is_some_and(|actual| {
+            actual.enabled == expected.enabled
+                && actual.key == expected.key
+                && actual.value == expected.value
+        }) {
+            return Err(format!(
+                "URL-encoded row {index} lost its checkbox state or draft value"
+            ));
+        }
+    }
+
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-url-encoded",
-        "body-url-encoded-live-saved",
-        "body-url-encoded-row-count",
         "body-url-encoded-editor",
         "body-form-table-header",
         "body-form-scroll",
         "body-form-add-row",
-        "body-form-add-row-hint",
         "body-url-encoded-effective-request",
         "body-url-encoded-effective-body",
         "body-url-encoded-effective-headers",
@@ -3192,14 +3164,8 @@ fn assert_url_encoded_body_editor_contract(
             }
         }
     }
-    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
-        for selector in ["body-form-scrollbar", "body-form-scrollbar-thumb"] {
-            if cx.debug_bounds(selector).is_none() {
-                return Err(format!(
-                    "overflowing URL-encoded Body rows are missing `{selector}`"
-                ));
-            }
-        }
+    if form_rows_overflow(cx, row_count)? && cx.debug_bounds("body-form-scrollbar").is_none() {
+        return Err("overflowing URL-encoded Body rows are missing the Kit scrollbar".to_string());
     }
 
     let rows_viewport = cx
@@ -3298,16 +3264,14 @@ fn assert_multipart_body_editor_contract(
         }
     }
 
+    ui::show_body_details(cx)?;
     for selector in [
         "body-kind-selector",
         "body-kind-form-data",
-        "body-multipart-live-saved",
-        "body-multipart-row-count",
         "body-multipart-editor",
         "body-form-table-header",
         "body-form-scroll",
         "body-form-add-row",
-        "body-form-add-row-hint",
         "body-multipart-effective-request",
         "body-multipart-effective-parts",
         "body-multipart-part-count",
@@ -3342,6 +3306,17 @@ fn assert_multipart_body_editor_contract(
             .map(MultipartPartSpec::enabled)
             .or_else(|| scenario.draft.body_rows.get(index).map(|row| row.enabled))
             .unwrap_or(true);
+        let actual_enabled = workspace.read_with(cx, |workspace, _| {
+            match workspace.active_request().unwrap().body_draft() {
+                RequestBodyDraft::Multipart(parts) => parts.get(index).map(|part| part.enabled),
+                _ => None,
+            }
+        });
+        if actual_enabled != Some(enabled) {
+            return Err(format!(
+                "multipart row {index} checkbox state differs from its draft: expected {enabled}, actual {actual_enabled:?}"
+            ));
+        }
         let value_selector = if scenario
             .draft
             .multipart_parts
@@ -3358,12 +3333,6 @@ fn assert_multipart_body_editor_contract(
             BODY_FORM_KEY_SELECTORS[index],
             BODY_FORM_TYPE_SELECTORS[index],
             value_selector,
-            BODY_FORM_STATE_SELECTORS[index],
-            if enabled {
-                BODY_FORM_READY_SELECTORS[index]
-            } else {
-                BODY_FORM_OMITTED_SELECTORS[index]
-            },
             BODY_FORM_DELETE_SELECTORS[index],
         ] {
             if cx.debug_bounds(selector).is_none() {
@@ -3909,12 +3878,10 @@ fn apply_precreated_header_rows(
     // The editor now sizes rows to the available pane height; four rows is no longer
     // a fixed overflow threshold. Assert the rendered layout, including partial rows.
     let overflowing = row_height * expected_visible_rows as f32 > viewport.size.height;
-    for selector in ["headers-scrollbar", "headers-scrollbar-thumb"] {
-        if cx.debug_bounds(selector).is_some() != overflowing {
-            return Err(format!(
-                "Header scrollbar `{selector}` does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
-            ));
-        }
+    if cx.debug_bounds("headers-scrollbar").is_some() != overflowing {
+        return Err(format!(
+            "Header scrollbar does not match overflow={overflowing}: {expected_visible_rows} rows at {row_height:?}, viewport {:?}", viewport.size.height
+        ));
     }
     let add_button = cx
         .debug_bounds("add-row-button")
@@ -4020,13 +3987,13 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
 
     match kind.to_ascii_lowercase().as_str() {
         "none" => {
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body.as_deref().is_some_and(|body| !body.is_empty()) {
                 return Err("a `none` body cannot contain a payload".to_string());
             }
         }
         "json" | "raw" => {
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             let body = draft
                 .body
                 .as_deref()
@@ -4036,10 +4003,8 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
             cx.simulate_input(body);
         }
         "url_encoded" => {
-            // POST starts with a sample JSON body. Clear it through the same body-kind controls a
-            // user sees, then select the key/value editor.
-            click(cx, "body-kind-none")?;
-            click(cx, body_kind_selector(kind)?)?;
+            // Each body type owns an independent draft; select the key/value editor directly.
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body_rows.is_empty()
                 && draft.multipart_parts.is_empty()
                 && draft.precreate_body_rows == 0
@@ -4054,8 +4019,7 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
             }
         }
         "multipart" => {
-            click(cx, "body-kind-none")?;
-            click(cx, body_kind_selector(kind)?)?;
+            ui::choose_body_kind(cx, body_kind_selector(kind)?)?;
             if draft.body_rows.is_empty()
                 && draft.multipart_parts.is_empty()
                 && draft.precreate_body_rows == 0
@@ -4073,6 +4037,24 @@ fn apply_body(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<(), Strin
     }
 
     Ok(())
+}
+
+// A resizable panel has no fixed six-row capacity. Assert scrollbar presence
+// against the rendered viewport while preserving all form/transport assertions.
+fn form_rows_overflow(cx: &mut VisualTestContext, row_count: usize) -> Result<bool, String> {
+    if row_count == 0 {
+        return Ok(false);
+    }
+    let viewport = cx
+        .debug_bounds("body-form-scroll")
+        .ok_or("missing form viewport")?;
+    let first = cx
+        .debug_bounds(BODY_FORM_ROW_SELECTORS[0])
+        .ok_or("missing first form row")?;
+    let last = cx
+        .debug_bounds(BODY_FORM_ROW_SELECTORS[row_count - 1])
+        .ok_or("missing last form row")?;
+    Ok(last.bottom() - first.top() > viewport.size.height)
 }
 
 fn type_form_rows(cx: &mut VisualTestContext, encoded: &str) -> Result<(), String> {
@@ -4154,13 +4136,8 @@ fn type_form_body_rows(cx: &mut VisualTestContext, draft: &DraftSpec) -> Result<
         }
     }
 
-    if row_count > BODY_FORM_MAX_VISIBLE_ROWS {
-        for selector in [
-            "body-form-scrollbar",
-            "body-form-scrollbar-thumb",
-            "body-form-add-row",
-            "body-form-add-row-hint",
-        ] {
+    if form_rows_overflow(cx, row_count)? {
+        for selector in ["body-form-scrollbar", "body-form-add-row"] {
             if cx.debug_bounds(selector).is_none() {
                 return Err(format!("overflowing form rows do not render `{selector}`"));
             }

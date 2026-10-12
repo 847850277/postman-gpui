@@ -48,6 +48,12 @@ fn main() {
         }
         postman_gpui::ui::kit::init(cx);
         if let Some(dirs) = directories::BaseDirs::new() {
+            postman_gpui::app::http_layout::HttpLayoutPreferences::init(
+                dirs.data_local_dir()
+                    .join("postman-gpui")
+                    .join("http-layout.json"),
+                cx,
+            );
             postman_gpui::app::appearance::Appearance::init(
                 dirs.data_local_dir()
                     .join("postman-gpui")

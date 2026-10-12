@@ -254,7 +254,9 @@ impl PostmanApp {
             .text_color(MUTED.resolve(cx))
             .child(status)
             .when_some(
-                crate::app::appearance::Appearance::error(cx).map(str::to_owned),
+                crate::app::appearance::Appearance::error(cx)
+                    .or_else(|| crate::app::http_layout::HttpLayoutPreferences::error(cx))
+                    .map(str::to_owned),
                 |bar, error| {
                     bar.child(
                         div()

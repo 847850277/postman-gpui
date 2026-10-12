@@ -1,19 +1,19 @@
-//! Compatibility adapter for the two request-body editing surfaces.
+//! Retained text and form editors selected by their owning pane.
 //!
-//! `BodyInput` owns type selection and forwards the existing public events. Text editing mechanics
-//! live in `TextBodyInput`; typed form-row mechanics live in `FormBodyInput`. Neither child owns
-//! request semantics or transport serialization—the workspace ViewModel remains authoritative.
+//! `BodyInput` projects the pane-selected editor mode and forwards child edit events. Text editing
+//! mechanics live in `TextBodyInput`; typed form-row mechanics live in `FormBodyInput`. Request
+//! semantics and transport serialization remain authoritative in the workspace ViewModel.
 
 use form_body_input::{FormBodyInput, FormBodyInputEvent};
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render,
-    Styled, Subscription, Window,
+    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Styled, Subscription,
+    Window,
 };
 use std::path::PathBuf;
 use text_body_input::{TextBodyInput, TextBodyInputEvent};
 
-use crate::ui::theme::{CODE_BG, FONT_UI, INFO, PANEL, TEXT};
+use crate::ui::theme::{CODE_BG, PANEL};
 
 mod form_body_input;
 mod text_body_input;
@@ -108,9 +108,8 @@ impl FormDataEntry {
     }
 }
 
-/// Thin compatibility surface for callers that switch between JSON/raw and form body modes.
+/// Presents the text or form editor selected by the owning pane.
 pub struct BodyInput {
-    show_type_tabs: bool,
     current_type: BodyType,
     text_input: Entity<TextBodyInput>,
     form_input: Entity<FormBodyInput>,
@@ -129,30 +128,20 @@ impl Focusable for BodyInput {
 }
 
 impl BodyInput {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let text_input = cx.new(TextBodyInput::new);
-        let form_input = cx.new(FormBodyInput::new);
+        let form_input = cx.new(|cx| FormBodyInput::new(window, cx));
         let subscriptions = vec![
             cx.subscribe(&text_input, Self::on_text_event),
             cx.subscribe(&form_input, Self::on_form_event),
         ];
 
         Self {
-            show_type_tabs: true,
             current_type: BodyType::Json,
             text_input,
             form_input,
             _subscriptions: subscriptions,
         }
-    }
-
-    pub fn with_placeholder(self, _placeholder: &str) -> Self {
-        self
-    }
-
-    pub fn with_type_tabs(mut self, show_type_tabs: bool) -> Self {
-        self.show_type_tabs = show_type_tabs;
-        self
     }
 
     fn on_text_event(
@@ -177,23 +166,6 @@ impl BodyInput {
         cx.notify();
     }
 
-    pub fn set_type(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
-        if self.current_type == body_type {
-            return;
-        }
-
-        self.current_type = body_type;
-        match body_type {
-            BodyType::Json | BodyType::Raw => cx.emit(BodyInputEvent::ValueChanged(
-                self.text_input.read(cx).content().to_string(),
-            )),
-            BodyType::FormData => cx.emit(BodyInputEvent::FormDataChanged(
-                self.form_input.read(cx).entries().to_vec(),
-            )),
-        }
-        cx.notify();
-    }
-
     /// Change editor presentation without emitting a draft-value event.
     pub fn set_type_silent(&mut self, body_type: BodyType, cx: &mut Context<Self>) {
         if self.current_type != body_type {
@@ -202,13 +174,27 @@ impl BodyInput {
         }
     }
 
-    pub fn set_form_data_allows_files(&mut self, allows_files: bool, cx: &mut Context<Self>) {
+    pub fn set_form_data_allows_files(
+        &mut self,
+        allows_files: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.form_input.update(cx, |input, cx| {
-            input.set_form_data_allows_files(allows_files, cx)
+            input.set_form_data_allows_files(allows_files, window, cx)
         });
     }
 
-    pub fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+    /// Content-fit height of the form table and its separate Add field button.
+    /// Pass the actual editor width and clamp the result to the available pane height;
+    /// rows scroll within a smaller allocation while Add field remains accessible.
+    /// Excludes surrounding pane chrome.
+    pub fn preferred_form_height(&self, width: gpui::Pixels, cx: &App) -> gpui::Pixels {
+        self.form_input.read(cx).preferred_height(width, cx)
+    }
+
+    #[cfg(test)]
+    fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
         if self.current_type != BodyType::FormData {
             let content = content.into();
             self.text_input
@@ -225,17 +211,26 @@ impl BodyInput {
         }
     }
 
-    pub fn add_form_data_entry(&mut self, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn add_form_data_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.form_input
-            .update(cx, FormBodyInput::add_form_data_entry);
+            .update(cx, |input, cx| input.add_form_data_entry(window, cx));
     }
 
-    pub fn remove_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.remove_form_data_entry(index, cx));
+    #[cfg(test)]
+    fn remove_form_data_entry(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.form_input.update(cx, |input, cx| {
+            input.remove_form_data_entry(index, window, cx)
+        });
     }
 
-    pub fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn toggle_form_data_entry(&mut self, index: usize, cx: &mut Context<Self>) {
         self.form_input
             .update(cx, |input, cx| input.toggle_form_data_entry(index, cx));
     }
@@ -245,69 +240,53 @@ impl BodyInput {
         self.form_input.read(cx).entries().len()
     }
 
-    pub fn set_form_data_entries(&mut self, entries: Vec<FormDataEntry>, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.set_form_data_entries(entries, cx));
+    #[cfg(test)]
+    fn set_form_data_entries(
+        &mut self,
+        entries: Vec<FormDataEntry>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.form_input.update(cx, |input, cx| {
+            input.set_form_data_entries(entries, window, cx)
+        });
     }
 
     /// Projects parsed form data without turning the projection into a user edit event.
     pub fn project_form_data_entries(
         &mut self,
         entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.form_input
-            .update(cx, |input, cx| input.project_form_data_entries(entries, cx));
+        self.form_input.update(cx, |input, cx| {
+            input.project_form_data_entries(entries, window, cx)
+        });
     }
 
     /// Projects a different request tab and starts fresh per-cell selection/composition/history.
     pub(crate) fn project_form_data_entries_with_rebind(
         &mut self,
         entries: Vec<FormDataEntry>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         self.form_input.update(cx, |input, cx| {
-            input.project_form_data_entries_with_rebind(entries, true, cx)
+            input.project_form_data_entries_with_rebind(entries, true, window, cx)
         });
     }
 
-    pub fn clear(&mut self, cx: &mut Context<Self>) {
+    #[cfg(test)]
+    fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match self.current_type {
             BodyType::Json | BodyType::Raw => {
                 self.text_input.update(cx, TextBodyInput::clear);
             }
             BodyType::FormData => {
-                self.form_input.update(cx, FormBodyInput::clear);
+                self.form_input
+                    .update(cx, |input, cx| input.clear(window, cx));
             }
         }
-    }
-
-    pub fn start_editing_key(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.start_editing_key(index, cx));
-    }
-
-    pub fn start_editing_value(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, |input, cx| input.start_editing_value(index, cx));
-    }
-
-    pub fn finish_editing(&mut self, cx: &mut Context<Self>) {
-        self.form_input.update(cx, FormBodyInput::finish_editing);
-    }
-
-    pub fn finish_key_editing_only(&mut self, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, FormBodyInput::finish_key_editing_only);
-    }
-
-    pub fn finish_value_editing_only(&mut self, cx: &mut Context<Self>) {
-        self.form_input
-            .update(cx, FormBodyInput::finish_value_editing_only);
-    }
-
-    pub fn cancel_editing(&mut self, cx: &mut Context<Self>) {
-        self.form_input.update(cx, FormBodyInput::cancel_editing);
     }
 }
 
@@ -328,79 +307,6 @@ impl Render for BodyInput {
                 CODE_BG
             })
             .resolve(cx))
-            .when(self.show_type_tabs, |root| {
-                root.child(
-                    div()
-                        .h(px(40.0))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .gap_4()
-                        .px_4()
-                        .bg(crate::ui::theme::PANEL.resolve(cx))
-                        .border_b_1()
-                        .border_color(crate::ui::theme::LINE.resolve(cx))
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::Json, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::Json, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("● JSON ▾")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| this.set_type(BodyType::Json, cx)),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::FormData, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::FormData, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("○ form-data")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.set_type(BodyType::FormData, cx)
-                                    }),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .cursor_pointer()
-                                .font_family(FONT_UI)
-                                .text_size(px(12.0))
-                                .when(current_type == BodyType::Raw, |div| {
-                                    div.text_color(INFO.resolve(cx))
-                                        .font_weight(gpui::FontWeight::BOLD)
-                                })
-                                .when(current_type != BodyType::Raw, |div| {
-                                    div.text_color(crate::ui::theme::SUBTEXT.resolve(cx))
-                                        .hover(|style| style.text_color(TEXT.resolve(cx)))
-                                })
-                                .child("○ raw")
-                                .on_mouse_up(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| this.set_type(BodyType::Raw, cx)),
-                                ),
-                        ),
-                )
-            })
             .child(match current_type {
                 BodyType::Json | BodyType::Raw => self.text_input.clone().into_any_element(),
                 BodyType::FormData => self.form_input.clone().into_any_element(),
@@ -485,16 +391,18 @@ mod tests {
 
     #[gpui::test]
     fn form_row_count_tracks_edits_including_disabled_and_blank_rows(cx: &mut TestAppContext) {
-        let input = cx.new(BodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(BodyInput::new);
         let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
-        input.update(cx, |input, cx| {
+        input.update_in(cx, |input, _, cx| {
             input.set_type_silent(BodyType::FormData, cx);
             assert_eq!(input.form_data_entry_count(cx), 1);
         });
 
-        let mut check_edit = |edit: fn(&mut BodyInput, &mut Context<BodyInput>), expected| {
-            input.update(cx, |input, cx| {
-                edit(input, cx);
+        let mut check_edit = |edit: fn(&mut BodyInput, &mut Window, &mut Context<BodyInput>),
+                              expected| {
+            input.update_in(cx, |input, window, cx| {
+                edit(input, window, cx);
                 assert_eq!(input.form_data_entry_count(cx), expected);
             });
             recorder.update(cx, |recorder, _| {
@@ -505,41 +413,52 @@ mod tests {
             });
         };
         check_edit(
-            |input, cx| {
+            |input, window, cx| {
                 input.set_form_data_entries(
                     vec![
                         FormDataEntry::text("disabled", "value", false),
                         FormDataEntry::text("", "", true),
                     ],
+                    window,
                     cx,
                 )
             },
             2,
         );
-        check_edit(|input, cx| input.toggle_form_data_entry(0, cx), 2);
+        check_edit(|input, _, cx| input.toggle_form_data_entry(0, cx), 2);
         check_edit(BodyInput::add_form_data_entry, 3);
-        check_edit(|input, cx| input.remove_form_data_entry(1, cx), 2);
+        check_edit(
+            |input, window, cx| input.remove_form_data_entry(1, window, cx),
+            2,
+        );
         check_edit(BodyInput::clear, 1);
-        check_edit(|input, cx| input.remove_form_data_entry(0, cx), 1);
+        check_edit(
+            |input, window, cx| input.remove_form_data_entry(0, window, cx),
+            1,
+        );
     }
 
     #[gpui::test]
     fn view_model_projection_preserves_row_count_and_user_events(cx: &mut TestAppContext) {
-        let input = cx.new(BodyInput::new);
+        cx.update(crate::ui::kit::init);
+        let (input, cx) = cx.add_window_view(BodyInput::new);
         let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
-        input.update(cx, |input, cx| {
+        input.update_in(cx, |input, window, cx| {
             input.project_content("投影😀", cx);
-            input
-                .project_form_data_entries(vec![FormDataEntry::text("key", "value", false); 3], cx);
+            input.project_form_data_entries(
+                vec![FormDataEntry::text("key", "value", false); 3],
+                window,
+                cx,
+            );
             assert_eq!(input.form_data_entry_count(cx), 3);
             for mode in [BodyType::FormData, BodyType::Raw, BodyType::Json] {
                 input.set_type_silent(mode, cx);
                 assert_eq!(input.form_data_entry_count(cx), 3);
             }
-            input.set_form_data_allows_files(true, cx);
-            input.set_form_data_allows_files(false, cx);
+            input.set_form_data_allows_files(true, window, cx);
+            input.set_form_data_allows_files(false, window, cx);
             assert_eq!(input.form_data_entry_count(cx), 3);
-            input.project_form_data_entries_with_rebind(vec![], cx);
+            input.project_form_data_entries_with_rebind(vec![], window, cx);
             assert_eq!(input.form_data_entry_count(cx), 1);
         });
         assert!(recorder.read_with(cx, |recorder, _| recorder.events.is_empty()));
@@ -547,7 +466,7 @@ mod tests {
         // UI actions mutate the child directly; neither counting nor event forwarding may
         // depend on going through a parent mutation wrapper.
         let form = input.read_with(cx, |input, _| input.form_input.clone());
-        form.update(cx, FormBodyInput::add_form_data_entry);
+        form.update_in(cx, FormBodyInput::add_form_data_entry);
         assert_eq!(
             input.read_with(cx, |input, cx| input.form_data_entry_count(cx)),
             2
@@ -557,7 +476,7 @@ mod tests {
             [BodyInputEvent::FormDataChanged(entries)] if entries.len() == 2
         ));
         recorder.update(cx, |recorder, _| recorder.events.clear());
-        input.update(cx, |input, cx| {
+        input.update_in(cx, |input, _, cx| {
             input.set_type_silent(BodyType::Json, cx);
             input.set_content("user edit", cx);
         });

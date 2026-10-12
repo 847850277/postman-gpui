@@ -129,7 +129,7 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.reset_global_search(cx);
+        self.reset_global_search(window, cx);
         self.global_search_return_focus
             .take()
             .and_then(|focus| focus.upgrade())
@@ -139,7 +139,7 @@ impl PostmanApp {
     }
 
     fn clear_global_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.reset_global_search(cx);
+        self.reset_global_search(window, cx);
         self.global_search_input
             .read(cx)
             .focus_handle(cx)
@@ -147,11 +147,11 @@ impl PostmanApp {
         cx.notify();
     }
 
-    pub(super) fn reset_global_search(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn reset_global_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.global_search_query.clear();
         self.global_search_selected_index = 0;
         self.global_search_input
-            .update(cx, |input, cx| input.project_content("", cx));
+            .update(cx, |input, cx| input.project_content("", window, cx));
     }
 
     fn current_global_search_results(&self, cx: &Context<Self>) -> GlobalSearchResults {

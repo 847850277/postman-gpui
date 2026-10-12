@@ -625,3 +625,26 @@ fn decoded_v2_uses_the_sanitized_content_type_header_as_body_classification_trut
         HistoricalResponseBodySnapshotV2::Unsupported
     ));
 }
+
+#[test]
+fn binary_body_round_trips_as_a_file_and_reports_missing_replay_files() {
+    let file = tempfile::NamedTempFile::new().unwrap();
+    let bytes = [0, 255, 128, 0, 42];
+    std::fs::write(file.path(), bytes).unwrap();
+    let path = file.path().to_path_buf();
+    let entry = completed_entry(HttpMethod::POST, RequestBody::File(path.clone()));
+    assert_eq!(
+        round_trip(&entry).request.body,
+        RequestBody::File(path.clone())
+    );
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    snapshot.validate_replay_files().unwrap();
+    drop(file);
+    assert_eq!(
+        snapshot.validate_replay_files().unwrap_err(),
+        HistorySnapshotError::MissingBinaryFile { path }
+    );
+    // A literal Raw body beginning with @ remains text; legacy data must not be guessed.
+    let raw = completed_entry(HttpMethod::POST, RequestBody::Raw("@literal text".into()));
+    assert_eq!(round_trip(&raw).request.body, raw.request.body);
+}

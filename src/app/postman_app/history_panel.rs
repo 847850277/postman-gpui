@@ -28,7 +28,11 @@ fn setup_history_list_key_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new("enter", ActivateHistoryItem, Some("HistoryItem")),
         KeyBinding::new("space", ActivateHistoryItem, Some("HistoryItem")),
-        KeyBinding::new("tab", FocusFirstHistoryItem, Some("HistorySearch")),
+        KeyBinding::new(
+            "tab",
+            FocusFirstHistoryItem,
+            Some("HistorySearch > HeaderInput > Input"),
+        ),
         KeyBinding::new("tab", FocusNextHistoryItem, Some("HistoryItem")),
         KeyBinding::new("down", FocusNextHistoryItem, Some("HistoryItem")),
         KeyBinding::new("shift-tab", FocusPreviousHistoryItem, Some("HistoryItem")),
@@ -60,11 +64,14 @@ pub struct HistoryList {
 impl EventEmitter<HistoryListEvent> for HistoryList {}
 
 impl HistoryList {
-    pub fn new(view_model: Entity<WorkspaceViewModel>, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        view_model: Entity<WorkspaceViewModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         cx.bind_keys(setup_history_list_key_bindings());
         let search_input = cx.new(|cx| {
-            HeaderInput::new(cx)
-                .with_placeholder("Filter history")
+            HeaderInput::new("Filter history", window, cx)
                 .with_embedded_chrome(true)
                 .with_font_family(FONT_UI)
         });

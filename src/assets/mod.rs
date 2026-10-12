@@ -5,7 +5,7 @@ gpui_kit::assets::icon_assets!(
     RequestIcons,
     [
         Lock, House, Terminal, Workflow, Cookie, Keyboard, RotateCcw, Plus, Search, ArrowRight, X,
-        Send
+        Send, Rows2, Columns2, Trash, Code, Upload
     ]
 );
 pub struct KitAssets;

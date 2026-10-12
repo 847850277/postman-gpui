@@ -3,7 +3,7 @@
   "target": "local",
   "cases": [
     {
-      "name": "raw body removes an automatically generated content type",
+      "name": "raw body uses the automatic text content type",
       "draft": {
         "method": "POST",
         "path": "/raw",
@@ -18,7 +18,7 @@
         "request": {
           "method": "POST",
           "path": "/raw",
-          "headers": [["Accept", "application/json"]],
+          "headers": [["Content-Type", "text/plain"], ["Accept", "application/json"]],
           "body": "plain text"
         },
         "response": {
