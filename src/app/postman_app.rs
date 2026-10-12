@@ -1,7 +1,9 @@
 use crate::{
     app::{
-        request_runner::RequestRunner, setup_application_key_bindings,
-        spawn_history_operation_and_reload, HistoryStorageStage, WorkspaceViewModel,
+        environments::{EnvironmentChanged, Environments},
+        request_runner::RequestRunner,
+        setup_application_key_bindings, spawn_history_operation_and_reload, HistoryStorageStage,
+        WorkspaceViewModel,
     },
     persistence::{
         HistoryRepositoryWorker, SqliteHistoryRepository, DEFAULT_HISTORY_RETENTION_LIMIT,
@@ -63,6 +65,11 @@ impl PostmanApp {
         Self::compose(
             view_model,
             SqliteHistoryRepository::production(),
+            directories::BaseDirs::new().map(|d| {
+                d.data_local_dir()
+                    .join("postman-gpui")
+                    .join("environments.json")
+            }),
             None,
             window,
             cx,
@@ -78,10 +85,19 @@ impl PostmanApp {
     ) -> Self {
         let temporary_database = TemporaryHistoryDatabase::new();
         let repository = SqliteHistoryRepository::new(temporary_database.path());
-        Self::compose(view_model, repository, Some(temporary_database), window, cx)
+        let environment_path = temporary_database.directory.join("environments.json");
+        Self::compose(
+            view_model,
+            repository,
+            Some(environment_path),
+            Some(temporary_database),
+            window,
+            cx,
+        )
     }
 
-    /// Construct the application around an explicit file-backed SQLite database. This is useful
+    /// Construct the application around an explicit file-backed SQLite database. Environment
+    /// settings use `environments.json` in the same directory. This is useful
     /// for restart/lifecycle tests and alternate app hosts; production uses the platform path.
     pub fn with_view_model_and_history_path(
         view_model: Entity<WorkspaceViewModel>,
@@ -89,9 +105,12 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        let path = path.into();
+        let environment_path = path.with_file_name("environments.json");
         Self::compose(
             view_model,
             SqliteHistoryRepository::new(path),
+            Some(environment_path),
             None,
             window,
             cx,
@@ -101,6 +120,7 @@ impl PostmanApp {
     fn compose(
         view_model: Entity<WorkspaceViewModel>,
         repository: Result<SqliteHistoryRepository, crate::persistence::HistoryRepositoryError>,
+        environment_path: Option<PathBuf>,
         temporary_history_database: Option<TemporaryHistoryDatabase>,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -122,7 +142,9 @@ impl PostmanApp {
                 None
             }
         };
-        let request_workspace = cx.new(|cx| RequestWorkspace::new(view_model.clone(), window, cx));
+        let environments = cx.new(|cx| Environments::new(environment_path, window, cx));
+        let request_workspace = cx
+            .new(|cx| RequestWorkspace::new(view_model.clone(), environments.clone(), window, cx));
         let runner_history_worker = history_worker.clone();
         let request_runner = cx.new(move |_| RequestRunner::new(runner_history_worker));
         let history_list =
@@ -131,6 +153,17 @@ impl PostmanApp {
         let global_search =
             cx.new(|cx| RequestFinder::new(FinderKind::Search, view_model.clone(), window, cx));
         let subscriptions = vec![
+            cx.subscribe_in(
+                &environments,
+                window,
+                |this, _, event: &EnvironmentChanged, window, cx| {
+                    if let (Some(previous), Some(next)) = (&event.previous_base, &event.next_base) {
+                        this.request_workspace.update(cx, |workspace, cx| {
+                            workspace.rebase_environments(previous, next, window, cx)
+                        });
+                    }
+                },
+            ),
             cx.subscribe(&request_workspace, Self::on_request_workspace_event),
             cx.subscribe_in(&history_list, window, Self::on_finder_event),
             cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
@@ -138,7 +171,7 @@ impl PostmanApp {
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
-        let flows = cx.new(FlowsView::new);
+        let flows = cx.new(|cx| FlowsView::new(environments, cx));
         let app = Self {
             route: AppRoute::Home,
             flows,

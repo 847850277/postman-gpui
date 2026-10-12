@@ -790,6 +790,19 @@ impl WorkspaceViewModel {
             .and_then(|tab_id| self.tab_index(tab_id))
     }
 
+    /// Updates drafts only; lifecycle commands and historical snapshots remain immutable.
+    pub(crate) fn rebase_environment_urls(&mut self, previous: &str, next: &str) -> bool {
+        let mut active_changed = false;
+        let active_id = self.active_tab_id();
+        for request in self.tabs.values_mut() {
+            if let Some(url) = crate::app::environments::rebase_url(request.url(), previous, next) {
+                active_changed |= Some(request.tab_id()) == active_id;
+                request.edit_draft(|draft| draft.set_endpoint_url(url));
+            }
+        }
+        active_changed
+    }
+
     pub fn tab_index(&self, tab_id: RequestTabId) -> Option<usize> {
         self.tabs.index_of(tab_id)
     }
@@ -1400,6 +1413,41 @@ mod tests {
                     dirty: true,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn environment_rebase_preserves_parameter_drafts_and_in_flight_snapshot() {
+        let mut workspace = WorkspaceViewModel::new();
+        let request = workspace.active_request_mut().unwrap();
+        request.set_url("https://old.example/api/users?tag=a&tag=b");
+        request.upsert_param("disabled", "keep");
+        request.toggle_param(2);
+        request.append_param_row();
+        request.set_body_kind(BodyKind::Json);
+        request.set_body(r#"{"keep": true}"#);
+        let params = request.params().to_vec();
+        let body = request.body_draft().clone();
+        let pending = workspace.begin_send().unwrap();
+        let original = pending.request().clone();
+        assert!(workspace
+            .rebase_environment_urls("https://old.example/api", "http://localhost:3000/v2"));
+        let active = workspace.active_request().unwrap();
+        assert!(active.is_sending());
+        assert_eq!(active.params(), params);
+        assert_eq!(active.body_draft(), &body);
+        assert_eq!(pending.request(), &original);
+        assert_eq!(active.url(), "http://localhost:3000/v2/users?tag=a&tag=b");
+        assert!(complete_and_confirm_history(
+            &mut workspace,
+            pending,
+            Ok(HttpResponse::success("old response".into()))
+        ));
+        assert_eq!(workspace.history()[0].request.url, original.url);
+        assert!(workspace.active_request().unwrap().is_dirty());
+        assert_eq!(
+            workspace.begin_send().unwrap().request().url,
+            "http://localhost:3000/v2/users?tag=a&tag=b"
         );
     }
 

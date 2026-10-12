@@ -757,6 +757,17 @@ impl RequestDraft {
         true
     }
 
+    /// Replaces an endpoint without treating it as a query edit. Environment switching must keep
+    /// disabled/incomplete parameter rows and their descriptions, which are absent from the URL.
+    pub(crate) fn set_endpoint_url(&mut self, url: String) -> bool {
+        let suffix = |value: &str| value.find(['?', '#']).map(|ix| value[ix..].to_string());
+        if self.url == url || suffix(&self.url) != suffix(&url) {
+            return false;
+        }
+        self.url = url;
+        true
+    }
+
     pub fn set_body(&mut self, body: impl Into<String>) -> bool {
         let body = body.into();
         let kind_changed = self.body_kind() == BodyKind::None && self.set_body_kind(BodyKind::Raw);

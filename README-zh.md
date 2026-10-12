@@ -16,8 +16,8 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
 | Flow MCP Server | 为 Agent 提供 Schema、示例、校验、结构检查和 YAML 生成 | [postman-flow-mcp](crates/postman-flow-mcp/README.md) |
 | HTML UI 原型 | 独立的 Home、HTTP 和 Flows 界面，使用模拟响应 | [预览说明](prototypes/README.md) |
 
-新的 HTTP/Flows 导航和可视化流程编辑器目前处于 HTML 原型阶段。原生桌面应用尚未接入 Flow
-编辑器；实际流程执行通过 CLI 或 Rust API 完成。
+原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。可视化 Flow 编辑器仍处于 HTML
+原型阶段；实际流程执行通过 CLI 或 Rust API 完成。
 
 ## 桌面 HTTP 功能
 
@@ -27,6 +27,7 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
 - 支持重定向策略、响应解压、超时和取消
 - 展示响应状态、响应头和格式化响应体，并支持快速复制
 - 支持多标签页、全局搜索和可回放的 SQLite 历史记录
+- HTTP/Flows 共用环境设置，持久化保存并切换匹配请求的基础地址
 - 支持跨平台键盘操作、文本选择和剪贴板行为
 
 ## 安装
@@ -63,6 +64,14 @@ Form-data 和 Binary，切换类型保留各自草稿。请求表格、Body 编�
 保留专用渲染，并使用 Kit 右键菜单。使用
 `cargo test --locked --test ui_shell --test ui_kit --test ui_layout`
 验证页面导航、原生控件交互和布局。
+
+HTTP 和 Flows 共用基于 GPUI Kit 的环境选择器与 **Settings…** 弹窗。首次启动没有预置环境，
+通过 **Create environment…** 新建名称和 HTTP(S) 基础地址（可带路径）。名称不能重复，
+地址不能包含凭据、查询参数或片段。取消会放弃编辑；保存或切换环境时，先将配置写入本地
+`postman-gpui/environments.json`，成功后再更新匹配的请求草稿，保留路径、查询参数顺序及重复项。
+其他请求字段、无关地址、正在发送的请求快照和历史记录保持不变。保存失败可以重试；配置损坏时
+可修复后重新加载，原文件不会被自动覆盖。Flows 页面已共享设置，编辑器仍待实现。
+使用 `cargo test --locked --test ui_environments` 验证环境交互、持久化及真实本地 HTTP 行为。
 
 在本机生成对应平台的安装包：
 

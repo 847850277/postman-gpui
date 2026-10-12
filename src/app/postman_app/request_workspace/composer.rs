@@ -36,6 +36,7 @@ pub(super) enum RequestComposerEvent {
 /// subscriptions, focus/selection state, and scroll handles.
 pub(super) struct RequestComposer {
     pub(super) view_model: Entity<WorkspaceViewModel>,
+    pub(super) environments: Entity<crate::app::environments::Environments>,
     panel_layout: Entity<RequestPanelLayout>,
     pub(super) stacked: bool,
     pub(super) method_selector: Entity<MethodState>,
@@ -67,6 +68,7 @@ impl RequestComposer {
     pub(super) fn new(
         view_model: Entity<WorkspaceViewModel>,
         panel_layout: Entity<RequestPanelLayout>,
+        environments: Entity<crate::app::environments::Environments>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -124,6 +126,7 @@ impl RequestComposer {
 
         let mut composer = Self {
             view_model,
+            environments,
             panel_layout,
             stacked: false,
             method_selector,
@@ -242,6 +245,12 @@ impl RequestComposer {
                 cx,
             )
         });
+    }
+
+    pub(super) fn project_environment_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.project_url(window, cx);
+        self.params_pane
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
     }
 
     fn project_url(&mut self, window: &mut Window, cx: &mut Context<Self>) {
