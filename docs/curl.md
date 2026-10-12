@@ -15,6 +15,16 @@ Opening, copying, or closing Code never saves the request or changes its dirty f
 Explicit request credentials are included; the session cookie jar is not exported.
 Neither feature executes cURL, reads referenced files, or performs network I/O.
 
+**Try example** uses the same HTTPBingo JSON echo endpoint as the HTML prototype:
+
+```sh
+curl 'https://httpbingo.org/post' \
+  --header 'Accept: application/json' \
+  --json '{"name":"Maya Chen"}'
+```
+
+Sending it returns `200 OK`, with the submitted object under `json` in the response.
+
 ## Supported commands
 
 | Area | Supported behavior |

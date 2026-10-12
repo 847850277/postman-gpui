@@ -29,7 +29,7 @@ Download standalone `postman-g` binaries from [GitHub Releases](https://github.c
 Run one or more files/directories and override a binding:
 
 ```bash
-cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://example.com
+cargo run --locked -p postman-cli -- run path/to/api.http --var host=https://httpbingo.org
 cargo run --locked -p postman-cli -- run path/to/flow.http.yml --input client=hello
 cargo run --locked -p postman-cli -- run tests/smoke.http tests/regression/
 cargo run --locked -p postman-cli -- run path/to/flow.http.yml --check
@@ -110,12 +110,12 @@ distinguishes these from an ordinary literal "[REDACTED]" value. An output objec
 sensitive is redacted as a whole; unmarked output values are returned unchanged.
 Failed flows and flows without declared returns have empty output maps.
 
-The CRMEB YAML/Rust example now exports $.data from order-list as order_data.
-It does not declare its intermediate login key or token as flow returns. To run the YAML:
+The HTTPBingo order-chain example simulates an order workflow using echoed JSON.
+It requires no account or credentials. To run the YAML:
 
 ~~~sh
 cargo run --locked -p postman-cli -- run \
-  crates/postman-flow/examples/flows/crmeb_order_list.http.yml --json
+  crates/postman-flow/examples/flows/httpbingo_order_chain.http.yml --json
 ~~~
 
 ## Loop progress and reports

@@ -22,6 +22,10 @@ Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requ
 The native app now opens Home with separate HTTP and Flows destinations. The visual flow
 editor is still an HTML prototype; executable workflows use the CLI or Rust API.
 
+Runnable HTTP examples use [HTTPBingo](https://httpbingo.org/) throughout the app,
+prototype, and CLI/Flow guides. The HTML prototype uses local fixtures for these
+examples; native and CLI requests contact the configured URL when executed.
+
 ## Desktop HTTP features
 
 - GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS requests

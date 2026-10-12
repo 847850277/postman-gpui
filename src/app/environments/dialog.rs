@@ -86,7 +86,7 @@ impl EnvironmentEditor {
             }),
             base_url: cx.new(|cx| {
                 InputState::new(window, cx)
-                    .placeholder("https://api.example.com")
+                    .placeholder("https://httpbingo.org")
                     .default_value(env.base_url)
             }),
         }

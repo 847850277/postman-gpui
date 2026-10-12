@@ -46,7 +46,7 @@
   function parse(source) {
     if (source.includes("\0")) throw new Error("The command contains a null character.");
     const args = words(source.trim());
-    if (!/^(?:.*[\\/])?curl(?:\.exe)?$/i.test(args.shift() || "")) throw new Error("Start with a cURL command, such as curl 'https://api.example.com/users'.");
+    if (!/^(?:.*[\\/])?curl(?:\.exe)?$/i.test(args.shift() || "")) throw new Error("Start with a cURL command, such as curl 'https://httpbingo.org/get'.");
     let urlText = null, explicitMethod = null, get = false, head = false, json = false, basic = null, bearer = null;
     const headers = [], chunks = [], curlOptions = [];
     const setUrl = value => {

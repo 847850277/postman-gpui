@@ -5,22 +5,22 @@
  const literal = value => ({literal:value});
  const output = (step,name) => ({output:{step,name}});
  const url = path => ({concat:[{input:'base_url'},literal(path)]});
- const userUrl = () => ({concat:[{input:'base_url'},literal('/v1/users/'),output('create-user','user_id')]});
  const http = (id,name,method,path,status=200) => ({id,name,request:{kind:'http',method,url:url(path),headers:[{name:literal('Accept'),value:literal('application/json')}]},checks:[{kind:'status',equals:status}],exports:[]});
  function samples() {
-  const create = http('create-user','Create user','POST','/v1/users',201);
-  create.request.headers.push({name:literal('Content-Type'),value:literal('application/json')});
-  create.request.body={kind:'json',value:{object:{name:{input:'user_name'},email:literal('maya@acme.dev')}}};
-  create.exports=[{name:'user_id',path:'$.data.id'}];
-  const fetch = http('get-user','Get user','GET','/v1/users'); fetch.request.url=userUrl(); fetch.exports=[{name:'email',path:'$.data.email'}];
-  const activate = http('activate-user','Activate account','PATCH','/v1/users'); activate.request.url=userUrl();
-  activate.request.headers.push({name:literal('Content-Type'),value:literal('application/json')});
-  activate.request.body={kind:'json',value:{object:{status:literal('active')}}};
-  activate.when={ne:[output('get-user','email'),literal('')]}; activate.exports=[{name:'status',path:'$.data.status'}];
-  const query=http('query-health','Check health','GET','/v1/health');query.exports=[{name:'status',path:'$.status'}];
+  const uuid = http('generate-id','Generate UUID','GET','/uuid');
+  uuid.exports=[{name:'request_id',path:'$.uuid'}];
+  const echo = http('echo-json','Echo JSON','POST','/post');
+  echo.request.headers.push({name:literal('Content-Type'),value:literal('application/json')});
+  echo.request.body={kind:'json',value:{object:{id:output('generate-id','request_id'),name:{input:'user_name'}}}};
+  echo.exports=[{name:'request_id',path:'$.json.id'},{name:'name',path:'$.json.name'}];
+  const patch = http('echo-status','Echo status','PATCH','/patch');
+  patch.request.headers.push({name:literal('Content-Type'),value:literal('application/json')});
+  patch.request.body={kind:'json',value:{object:{id:output('echo-json','request_id'),status:literal('active')}}};
+  patch.when={ne:[output('echo-json','name'),literal('')]};patch.exports=[{name:'status',path:'$.json.status'}];
+  const query=http('query-status','Echo ready status','GET','/anything/health?status=ready');query.exports=[{name:'status',path:'$.args.status[0]'}];
   return [
-   {id:'onboarding',description:'Create an account, verify it, and activate it.',document:{schema_version:1,flow:{name:'User onboarding',inputs:[{name:'base_url',default:'https://api.acme.dev'},{name:'user_name',default:'Maya Chen'}],steps:[create,fetch,activate],outputs:[{name:'user_id',value:output('create-user','user_id')},{name:'status',value:{coalesce:[output('activate-user','status'),literal('not activated')]}}]}}},
-   {id:'health',description:'Poll your service until it is ready.',document:{schema_version:1,flow:{name:'Service readiness',inputs:[{name:'base_url',default:'https://api.acme.dev'}],steps:[{id:'wait-ready',name:'Wait for healthy service',kind:'repeat_until',max_iterations:3,interval_ms:1000,timeout_ms:10000,until:{eq:[output('query-health','status'),literal('healthy')]},steps:[query]}],outputs:[]}}}
+   {id:'echo-chain',description:'Generate an ID and pass it through JSON echo requests.',document:{schema_version:1,flow:{name:'UUID and JSON echo',inputs:[{name:'base_url',default:'https://httpbingo.org'},{name:'user_name',default:'Maya Chen'}],steps:[uuid,echo,patch],outputs:[{name:'request_id',value:output('generate-id','request_id')},{name:'status',value:{coalesce:[output('echo-status','status'),literal('not echoed')]}}]}}},
+   {id:'poll-status',description:'Check an echoed value with a bounded polling loop.',document:{schema_version:1,flow:{name:'Poll echoed status',inputs:[{name:'base_url',default:'https://httpbingo.org'}],steps:[{id:'wait-ready',name:'Wait for echoed ready status',kind:'repeat_until',max_iterations:3,interval_ms:1000,timeout_ms:10000,until:{eq:[output('query-status','status'),literal('ready')]},steps:[query]}],outputs:[]}}}
   ];
  }
  function expressionLabel(expr) {
@@ -61,7 +61,7 @@
   throw new Error('This condition is not available in the local preview.');
  }
  function extract(data,path) {
-  if(!/^\$(?:\.[\w-]+|\[\d+\])*$/.test(path))throw new Error('Use a JSONPath such as $.data.id.');
+  if(!/^\$(?:\.[\w-]+|\[\d+\])*$/.test(path))throw new Error('Use a JSONPath such as $.json.id.');
   let value=data;
   for(const key of path.slice(1).match(/[\w-]+/g)||[]) {if(value==null||!Object.hasOwn(value,key))throw new Error('Response has no value at '+path);value=value[key];}
   return value;
@@ -101,7 +101,7 @@
      const text=expressionLabel(step.request.url);
      if(!text.trim())fail('Enter a request URL.');
      else {try{const test=new URL(text.replace(/\{\{base_url\}\}/g,'https://preview.invalid').replace(/\{\{[^}]+\}\}/g,'value'));if(!['http:','https:'].includes(test.protocol))throw new Error();}catch(_){fail('Use an HTTP(S) URL or {{base_url}} with a path.');}}
-     for(const item of step.exports||[])if(!item.name||!/^\$(?:\.[\w-]+|\[\d+\])*$/.test(item.path))fail('Exports need a name and a JSONPath such as $.data.id.');
+     for(const item of step.exports||[])if(!item.name||!/^\$(?:\.[\w-]+|\[\d+\])*$/.test(item.path))fail('Exports need a name and a JSONPath such as $.json.id.');
     }
     scope[step.id]=(step.exports||[]).map(p=>p.name);
    }

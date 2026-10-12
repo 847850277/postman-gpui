@@ -19,6 +19,10 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
 原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。可视化 Flow 编辑器仍处于 HTML
 原型阶段；实际流程执行通过 CLI 或 Rust API 完成。
 
+应用、HTML 原型及 CLI/Flow 文档中的可运行 HTTP 示例统一使用
+[HTTPBingo](https://httpbingo.org/)。HTML 原型使用对应的本地模拟响应；原生客户端和
+CLI 执行请求时会实际访问配置的地址。
+
 ## 桌面 HTTP 功能
 
 - 支持 GET、POST、PUT、PATCH、DELETE、HEAD 和 OPTIONS

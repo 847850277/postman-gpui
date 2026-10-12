@@ -223,9 +223,9 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
     </div>
    </div>
    <section class="request-top">
-    <div class="request-title"><div><h1 id="request-title">List users</h1><div class="description" id="request-description">Retrieve a paginated list of users.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="dev">Development</option><option value="local">Local</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button to-flow-button" id="add-request-to-flow" title="Add to flow" aria-label="Add current request to a flow"><svg aria-hidden="true" class="icon small"><use href="#i-flow"/></svg><span>Add to flow</span></button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
+    <div class="request-title"><div><h1 id="request-title">Echo query</h1><div class="description" id="request-description">Inspect query parameters returned by HTTPBingo.</div></div><span class="spacer"></span><div class="environment-tools"><label class="environment"><span class="dot"></span><select id="environment" aria-label="Environment"><option value="httpbingo">HTTPBingo</option><option value="manage">Manage environments…</option></select></label><button class="text-button environment-settings" id="environment-settings" title="Manage environments" aria-label="Manage environments" aria-haspopup="dialog" aria-controls="environment-dialog"><svg aria-hidden="true" class="icon small"><use href="#i-settings"/></svg><span>Settings</span></button></div><button class="text-button code-button" id="show-code"><svg aria-hidden="true" class="icon small"><use href="#i-code"/></svg>Code</button><button class="text-button to-flow-button" id="add-request-to-flow" title="Add to flow" aria-label="Add current request to a flow"><svg aria-hidden="true" class="icon small"><use href="#i-flow"/></svg><span>Add to flow</span></button><button class="text-button save-button" id="save-request"><svg aria-hidden="true" class="icon small"><use href="#i-save"/></svg>Save <kbd>⌘ S</kbd></button></div>
     <div class="url-row">
-     <div class="url-field"><div class="method-field"><select id="method" class="method-select" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><svg aria-hidden="true" class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div><input class="url-input" id="url" aria-label="Request URL" spellcheck="false" value="https://api.acme.dev/v1/users?page=1&amp;limit=10"><svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg></div>
+     <div class="url-field"><div class="method-field"><select id="method" class="method-select" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><svg aria-hidden="true" class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div><input class="url-input" id="url" aria-label="Request URL" spellcheck="false" value="https://httpbingo.org/get?page=1&amp;limit=10"><svg aria-hidden="true" class="icon small"><use href="#i-lock"/></svg></div>
      <button class="send" id="send-button" data-testid="send-button"><svg aria-hidden="true" class="icon"><use href="#i-send"/></svg><span id="send-label">Send</span><span class="shortcut" id="send-shortcut">⌘ ↵</span></button>
     </div>
    </section>
@@ -305,7 +305,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   <div class="import-content">
    <p class="import-intro">Paste a cURL command to create a request with its URL, headers, authorization, and body.</p>
    <div class="import-label"><label for="curl-input">cURL command</label><button type="button" class="text-button" id="import-example">Try an example</button></div>
-   <textarea class="curl-input" id="curl-input" placeholder="curl 'https://api.example.com/users'" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="import-hint import-error"></textarea>
+   <textarea class="curl-input" id="curl-input" placeholder="curl 'https://httpbingo.org/get'" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="import-hint import-error"></textarea>
    <p class="import-hint" id="import-hint">Supports single-line and multiline commands copied for Bash / POSIX shells.</p>
    <p class="import-error" id="import-error" role="alert" hidden></p>
    <section class="import-preview" id="import-preview" aria-label="Request preview" hidden>
@@ -323,9 +323,10 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  <div class="request-list-results" id="request-list-results"></div>
  <div class="request-list-footer"><span id="request-list-summary" role="status"></span><span>↑ ↓ to navigate · Esc to close</span></div>
 </dialog>
+<script src="./httpbingo-demo.js?v=1"></script>
 <script src="./request-body.js?v=1"></script>
 <script src="./body-editor.js?v=2"></script>
-<script src="./curl-request.js?v=2"></script>
+<script src="./curl-request.js?v=3"></script>
 <script src="./request-tabs.js?v=2"></script>
 <script src="./panel-resize.js?v=2"></script>
 <script>
@@ -335,19 +336,13 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  const esc = value => String(value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
  const icon = name => '<svg aria-hidden="true" class="icon"><use href="#i-' + name + '"/></svg>';
  const clone = value => JSON.parse(JSON.stringify(value));
- const users = [
-  { id:"usr_01", name:"Maya Chen", email:"maya@acme.dev", role:"admin", status:"active" },
-  { id:"usr_02", name:"Oliver Park", email:"oliver@acme.dev", role:"member", status:"active" }
- ];
- const initialData = { data:users, pagination:{ page:1, limit:10, total:24, has_more:true } };
+ const demo = HTTPBingoDemo;
  const makeHeaders = () => [
   { enabled:true, key:"Accept", value:"application/json", note:"Response format" }
  ];
- let environments = [
-  {id:"dev",name:"Development",baseUrl:"https://api.acme.dev"},
-  {id:"local",name:"Local",baseUrl:"http://localhost:3000"}
- ];
- let activeEnvironmentId = "dev", environmentDraft = [], environmentSequence = 0;
+ const initialData = demo.response({url:demo.baseUrl + "/get?page=1&limit=10",headers:makeHeaders()}).data;
+ let environments = [{id:"httpbingo",name:"HTTPBingo",baseUrl:demo.baseUrl}];
+ let activeEnvironmentId = "httpbingo", environmentDraft = [], environmentSequence = 0;
  const baseUrl = () => environments.find(env => env.id === activeEnvironmentId).baseUrl;
  function relativeEndpoint(raw, base) {
   try {
@@ -369,28 +364,34 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   return {
    id, title, method, url:parsed.href, description,
    params:Array.from(parsed.searchParams, ([key,value]) => ({ enabled:true, key, value, note:key === "page" ? "Page number" : key === "limit" ? "Results per page" : "" })),
-   headers:makeHeaders(), body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev",\n  "role": "member"\n}',
+   headers:makeHeaders(), body:JSON.stringify(demo.sampleBody,null,2),
    bodyFormat:"json", bodyExplicit:false, curlOptions:[],
-   authKind:"bearer", token:"acme_demo_token", pane:method === "POST" ? "body" : "params",
+   authKind:"none", token:"", pane:method === "POST" ? "body" : "params",
    response:response === undefined ? null : { data:response, status:"200 OK", elapsed:142 }, busy:false, dirty:false
   };
  }
  const requests = [
-  makeRequest("users","List users","GET","/v1/users?page=1&limit=10","Retrieve a paginated list of users.",initialData),
-  makeRequest("create","Create user","POST","/v1/users","Create a new user through the API."),
-  makeRequest("health","Health check","GET","/v1/health","A quick pulse check for your API.")
+  makeRequest("query","Echo query","GET","/get?page=1&limit=10","Inspect query parameters returned by HTTPBingo.",initialData),
+  makeRequest("json","Echo JSON","POST","/post","Send JSON and inspect the echoed request body."),
+  makeRequest("status","Status check","GET","/status/200","Request an HTTP status code from HTTPBingo.")
  ];
  let history = [
-  { title:"List users", method:"GET", path:"/v1/users?page=1&limit=10", status:"200", elapsed:"142 ms", time:"14:32", group:"Today", data:initialData },
-  { title:"Create user", method:"POST", path:"/v1/users", status:"201", elapsed:"218 ms", time:"14:28", group:"Today", data:{ data:users[0], message:"User created" } },
-  { title:"Get user", method:"GET", path:"/v1/users/usr_01", status:"200", elapsed:"96 ms", time:"14:24", group:"Today", data:{ data:users[0] } },
-  { title:"Update profile", method:"PATCH", path:"/v1/users/usr_01", status:"200", elapsed:"164 ms", time:"14:18", group:"Today", data:{ data:users[0], message:"Profile updated" } },
-  { title:"Health check", method:"GET", path:"/v1/health", status:"200", elapsed:"42 ms", time:"14:12", group:"Today", data:{ status:"healthy", version:"1.0.0", uptime:86400 } },
-  { title:"List projects", method:"GET", path:"/v1/projects", status:"200", elapsed:"128 ms", time:"17:46", group:"Yesterday", data:{ data:[{ id:"prj_01", name:"Acme API" }] } },
-  { title:"Delete user", method:"DELETE", path:"/v1/users/usr_03", status:"204", elapsed:"112 ms", time:"17:40", group:"Yesterday", data:null },
-  { title:"Missing endpoint", method:"GET", path:"/status/404", status:"404", elapsed:"64 ms", time:"17:32", group:"Yesterday", data:{ error:"not_found", message:"The requested resource could not be found." } }
- ];
- let activeId = "users", responsePane = "body", pretty = true, toastTimer, sequence = 0, untitledSequence = 0;
+  ["Echo query","GET","/get?page=1&limit=10","14:32"],
+  ["Echo JSON","POST","/post","14:28"],
+  ["Generate UUID","GET","/uuid","14:24"],
+  ["Echo PATCH","PATCH","/patch","14:18"],
+  ["Status check","GET","/status/200","14:12"],
+  ["Echo headers","GET","/headers","17:46"],
+  ["Echo DELETE","DELETE","/delete","17:40"],
+  ["Not found status","GET","/status/404","17:32"]
+ ].map(([title,method,path,time],index) => {
+  const request = makeRequest("sample",title,method,path,"");
+  const body = RequestBody.preview(request);
+  const data = demo.response({...request,body,headers:RequestBody.headers(request)});
+  const configuration = Object.fromEntries(["headers","body","bodyFormat","bodyDrafts","bodyExplicit","curlOptions","authKind","token","pane"].map(key => [key,clone(request[key])]));
+  return {title,method,path,time,configuration,status:String(data.code),elapsed:"142 ms",group:index < 5 ? "Today" : "Yesterday",data:data.data};
+ });
+ let activeId = "query", responsePane = "body", pretty = true, toastTimer, sequence = 0, untitledSequence = 0;
  const requestTabs = RequestTabs.attach({list:() => requests, active:() => activeId, activate, newRequest});
  const current = () => requests.find(request => request.id === activeId);
  const bodyEditor = BodyEditor.attach({current,changed:() => { dirty(); updateCount("headers"); },openHeaders:() => { setPane("headers"); $("add-header").focus(); }});
@@ -520,20 +521,11 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   if (RequestBody.validate(request)) { setPane("body"); bodyEditor.validate(); return; }
   const parsedBody = RequestBody.preview(request);
   const configuration = Object.fromEntries(["headers","body","bodyFormat","bodyDrafts","bodyExplicit","curlOptions","authKind","token","pane"].map(key => [key,clone(request[key])]));
-  const sent = {method:request.method,title:request.title,url:new URL(url.href),body:clone(parsedBody),hasBody:requestHasBody(request),bodyFormat:request.bodyFormat,configuration,route:relativeEndpoint(url.href,baseUrl())};
-  const endpoint = new URL(sent.route ?? (url.pathname + url.search),"https://fixture.invalid");
+  const sent = {method:request.method,title:request.title,url:new URL(url.href),body:clone(parsedBody),hasBody:requestHasBody(request),bodyFormat:request.bodyFormat,headers:RequestBody.headers(request),configuration,route:relativeEndpoint(url.href,baseUrl())};
   request.busy = true; renderResponse();
   request.timer = setTimeout(() => {
    request.busy = false;
-   let data, status = "200 OK", elapsed = 142;
-   if (endpoint.pathname === "/status/404") { data = {error:"not_found",message:"The requested resource could not be found."}; status = "404 Not Found"; elapsed = 64; }
-   else if (sent.method === "HEAD" || sent.method === "DELETE") { data = null; status = sent.method === "DELETE" ? "204 No Content" : "200 OK"; elapsed = 86; }
-   else if (sent.hasBody && (sent.bodyFormat !== "json" || sent.body === null || typeof sent.body !== "object" || Array.isArray(sent.body))) { data = {method:sent.method,url:sent.url.href,body:sent.body,message:"Request received"}; }
-   else if (sent.method === "POST") { data = {data:{id:"usr_25",...sent.body},message:"User created"}; status = "201 Created"; elapsed = 218; }
-   else if (sent.method === "PUT" || sent.method === "PATCH") { data = {data:sent.body,message:"User updated"}; elapsed = 164; }
-   else if (endpoint.pathname.endsWith("/health")) { data = {status:"healthy",version:"1.0.0",uptime:86400}; elapsed = 42; }
-   else if (endpoint.pathname === "/v1/users") { data = {data:clone(users),pagination:{page:Number(sent.url.searchParams.get("page") || 1),limit:Number(sent.url.searchParams.get("limit") || 10),total:24,has_more:true}}; }
-   else { data = {method:sent.method,url:sent.url.href,args:Object.fromEntries(sent.url.searchParams),message:"Request received"}; }
+   const {data,status} = demo.response({...sent,url:sent.url.href}), elapsed = 142;
    request.response = {data,status,elapsed};
    history.unshift({title:sent.title,method:sent.method,configuration:sent.configuration,route:sent.route,url:sent.url.href,path:sent.url.pathname + sent.url.search,status:status.slice(0,3),elapsed:elapsed + " ms",time:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),group:"Today",data:clone(data)});
    history = history.slice(0,30); renderHistory(); if (current().id === request.id) renderResponse(); toast(status + " · " + elapsed + " ms");
@@ -599,7 +591,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
   $("open-import").classList.remove("selected"); $("open-import").setAttribute("aria-expanded","false");
  });
  $("import-example").addEventListener("click",() => {
-  const example = {method:"POST",url:"https://api.acme.dev/v1/users",headers:[...makeHeaders(),{enabled:true,key:"Content-Type",value:"application/json"}],authKind:"none",hasBody:true,body:'{\n  "name": "Maya Chen",\n  "email": "maya@acme.dev"\n}'};
+  const example = {method:"POST",url:demo.baseUrl + "/post",headers:[...makeHeaders(),{enabled:true,key:"Content-Type",value:"application/json"}],authKind:"none",hasBody:true,body:JSON.stringify(demo.sampleBody,null,2)};
   $("curl-input").value = CurlRequest.stringify(example); previewImport(); $("curl-input").focus();
  });
  $("import-form").addEventListener("submit",event => {
@@ -668,7 +660,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  }
  function renderEnvironmentDraft() {
   $("environment-rows").innerHTML = environmentDraft.map((env,index) => {
-   const fields = [["name","Name","e.g. Staging"],["baseUrl","Base URL","https://api.example.com"]].map(([field,label,placeholder]) => {
+   const fields = [["name","Name","e.g. Staging"],["baseUrl","Base URL","https://httpbingo.org"]].map(([field,label,placeholder]) => {
     const id = "env-" + env.id + "-" + field;
     return '<div class="environment-field"><label for="' + id + '">' + label + '</label><input id="' + id + '" data-field="' + field + '" value="' + esc(env[field]) + '" placeholder="' + placeholder + '" autocomplete="off" spellcheck="false" aria-describedby="' + id + '-error"' + (field === "baseUrl" ? ' inputmode="url"' : ' maxlength="40"') + '><p class="environment-error" id="' + id + '-error" role="alert" hidden></p></div>';
    }).join("");
@@ -721,7 +713,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
     if (!["http:","https:"].includes(url.protocol) || !url.hostname) throw new Error("Use an HTTP or HTTPS URL.");
     if (url.search || url.hash || url.username || url.password) throw new Error("Use a base URL without credentials, query parameters or a fragment.");
     env.baseUrl = url.origin + url.pathname.replace(/\/+$/, "");
-   } catch (error) { fail(env,"baseUrl", error instanceof TypeError ? "Enter a valid URL, such as https://api.example.com." : error.message); }
+   } catch (error) { fail(env,"baseUrl", error instanceof TypeError ? "Enter a valid URL, such as https://httpbingo.org." : error.message); }
   }
   if (firstInvalid) { firstInvalid.focus(); return; }
   const previousBase = baseUrl(); environments = normalized;
@@ -803,7 +795,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  renderEnvironmentOptions(); render(); updateLayout();
 })();
 </script>
-<script src="./flow-model.js?v=2"></script>
-<script src="./flow-studio.js?v=panels-1"></script>
+<script src="./flow-model.js?v=3"></script>
+<script src="./flow-studio.js?v=httpbingo-1"></script>
 </body>
 </html>
