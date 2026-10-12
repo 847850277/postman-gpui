@@ -526,9 +526,12 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
         1
     );
     assert!(cx.debug_bounds("response-content").is_some());
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+    ui::close_history(cx);
 
     replace_text(cx, "url-input", "https://draft.example/changed").unwrap();
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -540,8 +543,8 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     );
 
     replace_text(cx, "url-input", "https://draft.example/enter").unwrap();
+    ui::open_history(cx);
     click(cx, "history-search-input").unwrap();
-    cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -553,6 +556,7 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     );
 
     replace_text(cx, "url-input", "https://draft.example/space").unwrap();
+    ui::open_history(cx);
     click(cx, "history-search-input").unwrap();
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("space");
@@ -869,12 +873,19 @@ fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
         workspace.read_with(cx, |workspace, _| workspace.history_len()),
         2
     );
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
-    assert!(cx.debug_bounds("history-item-1").is_some());
 
-    type_into(cx, "history-search-input", "alpha-resource").unwrap();
-    assert!(cx.debug_bounds("history-item-0").is_none());
     assert!(cx.debug_bounds("history-item-1").is_some());
+    ui::close_history(cx);
+
+    ui::open_history(cx);
+    type_into(cx, "history-search-input", "alpha-resource").unwrap();
+    ui::open_history(cx);
+    assert!(cx.debug_bounds("history-item-0").is_none());
+
+    assert!(cx.debug_bounds("history-item-1").is_some());
+    ui::close_history(cx);
     alpha.assert();
     beta.assert();
 }
@@ -958,7 +969,9 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
         1
     );
     assert!(cx.debug_bounds("response-content").is_some());
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+    ui::close_history(cx);
     secured.assert();
 }
 
@@ -1084,7 +1097,9 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
         "the request must send Basic Auth, but SQLite History must not persist it"
     );
     assert!(cx.debug_bounds("response-content").is_some());
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+    ui::close_history(cx);
     secured.assert();
 }
 

@@ -177,6 +177,8 @@ fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestApp
     assert!(model.read_with(cx, |m, _| m.request_for_tab(first).unwrap().is_sending()));
     ui::click_without_wait(cx, "nav-flows").unwrap();
     assert!(cx.debug_bounds("flows-screen").is_some());
+    ui::click_without_wait(cx, "global-search-trigger").unwrap();
+    assert!(cx.debug_bounds("global-search-dialog").is_some());
     release.send(()).unwrap();
     server.join().unwrap();
     cx.run_until_parked();
@@ -186,6 +188,7 @@ fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestApp
         assert_eq!(m.active_tab_id(), Some(second));
         assert!(matches!(m.request_for_tab(second).unwrap().response(), ResponseState::NotSent));
     });
+    click(cx, "global-search-close").unwrap();
     click(cx, "nav-http").unwrap();
     click(cx, "request-tab-0").unwrap();
     assert!(cx.debug_bounds("response-container").is_some());

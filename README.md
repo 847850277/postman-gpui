@@ -72,12 +72,20 @@ and restores that choice on restart. Home cards stack at compact window widths;
 the native minimum remains 960 × 640.
 
 GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
+History, global search, and keyboard help now use Kit modal dialogs. History groups real
+SQLite records by local date, filters method/name/URL/headers/body, and replays the stored
+request and response without sending. Refresh retains selection; Clear requires confirmation.
+Search (`Cmd/Ctrl+K`) distinguishes open tabs from history and supports Up/Down and Enter.
+`Cmd/Ctrl+Shift+F` opens History; `Cmd/Ctrl+/` opens the native shortcut reference.
+Escape closes the topmost dialog and restores focus. In-flight requests continue normally.
+See the [P4.1 implementation and visual evidence](docs/ui-evidence/p4.1/README.md).
 Use Home → HTTP to compose requests and inspect the real response. Body offers
 Pretty/Raw display and text selection; the copy action preserves the received raw body.
 Headers retain duplicate entries, and Cookies/redirects remain inspectable.
 
 The request/response split uses columns at an available editor width of 900 logical
-pixels and stacks below it (including space taken by History). The response toolbar
+pixels and stacks below it. History and search overlay the editor without changing its split.
+The response toolbar
 can keep a stacked layout explicitly or return to automatic layout. Drag the divider,
 double-click to reset to 46%, or focus it and use arrows (2%), Shift+arrows (10%),
 Home/End, and Escape to cancel a drag. Enter opens the same **Panel sizes** dialog

@@ -65,8 +65,9 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
     choose_method(cx, "POST").unwrap();
     type_into(cx, "url-input", "https://beta.example/httpbingo/orders").unwrap();
 
+    click(cx, "global-search-trigger").unwrap();
     type_into(cx, "global-search-input", "HTTPBINGO").unwrap();
-    assert!(cx.debug_bounds("global-search-popover").is_some());
+    assert!(cx.debug_bounds("global-search-dialog").is_some());
     assert!(cx.debug_bounds("global-search-requests-group").is_some());
     assert!(cx.debug_bounds("global-search-history-group").is_some());
     assert!(cx.debug_bounds("global-search-request-result-0").is_some());
@@ -79,8 +80,9 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
         workspace.read_with(cx, |workspace, _| workspace.active_tab_index().unwrap()),
         1
     );
-    assert!(cx.debug_bounds("global-search-popover").is_none());
+    assert!(cx.debug_bounds("global-search-dialog").is_none());
 
+    click(cx, "global-search-trigger").unwrap();
     type_into(cx, "global-search-input", "archived httpbingo form").unwrap();
     assert!(cx.debug_bounds("global-search-requests-group").is_none());
     assert!(cx.debug_bounds("global-search-history-group").is_some());
@@ -137,7 +139,7 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     assert!(cx.debug_bounds("global-search-requests-group").is_some());
     assert!(cx.debug_bounds("global-search-history-group").is_none());
     cx.simulate_keystrokes("escape");
-    assert!(cx.debug_bounds("global-search-popover").is_none());
+    assert!(cx.debug_bounds("global-search-dialog").is_none());
 
     click(cx, "url-input").unwrap();
     cx.simulate_keystrokes("ctrl-k");
@@ -162,13 +164,13 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     });
 
     replace_text(cx, "url-input", "https://draft.example/base").unwrap();
-    click(cx, "global-search-input").unwrap();
+    click(cx, "global-search-trigger").unwrap();
     cx.simulate_input("nothing-can-match-this-query");
     assert!(cx.debug_bounds("global-search-empty").is_some());
     let tab_count = workspace.read_with(cx, |workspace, _| workspace.tab_count());
     let history_count = workspace.read_with(cx, |workspace, _| workspace.history_len());
-    click(cx, "global-search-empty-clear").unwrap();
-    assert!(cx.debug_bounds("global-search-popover").is_none());
+    replace_text(cx, "global-search-input", "").unwrap();
+    assert!(cx.debug_bounds("global-search-dialog").is_some());
     assert_eq!(
         workspace.read_with(cx, |workspace, _| (
             workspace.tab_count(),
@@ -180,7 +182,7 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     cx.simulate_input("second-empty-query");
     assert!(cx.debug_bounds("global-search-empty").is_some());
     cx.simulate_keystrokes("escape");
-    assert!(cx.debug_bounds("global-search-popover").is_none());
+    assert!(cx.debug_bounds("global-search-dialog").is_none());
     cx.simulate_input("/restored");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace

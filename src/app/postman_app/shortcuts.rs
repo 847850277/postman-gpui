@@ -1,31 +1,14 @@
 use super::{navigation::AppRoute, PostmanApp};
-use crate::{
-    app::{
-        ActivateControl, ActivateNextRequest, ActivatePreviousRequest, CloseRequest,
-        DismissOverlay, FocusHistorySearch, FocusNextControl, FocusPreviousControl, FocusUrl,
-        NewRequest, SendOrCancel, ToggleShortcutHelp,
-    },
-    ui::theme::{
-        ACCENT, ACCENT_SOFT, FONT_HEADING, FONT_MONO, FONT_UI, MUTED, PANEL, PANEL_ALT, SUBTEXT,
-        TEXT,
-    },
+use crate::app::{
+    ActivateNextRequest, ActivatePreviousRequest, CloseRequest, DismissOverlay, FocusHistorySearch,
+    FocusNextControl, FocusPreviousControl, FocusUrl, NewRequest, SendOrCancel, ToggleShortcutHelp,
 };
-use gpui::{
-    div, px, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Role,
-    StatefulInteractiveElement, Styled, Window,
+use crate::ui::theme::{metrics as m, FONT_MONO, LINE, MUTED};
+use gpui::{div, Context, InteractiveElement, ParentElement, Styled, Window};
+use gpui_kit::component::{
+    button::{Button, ButtonVariants},
+    IconName, Sizable, WindowExt,
 };
-
-const SHORTCUTS: [(&str, &str); 9] = [
-    ("Send / cancel active request", "⌘/Ctrl + Enter"),
-    ("New request tab", "⌘/Ctrl + T"),
-    ("Close active request tab", "⌘/Ctrl + W"),
-    ("Focus request URL", "⌘/Ctrl + L"),
-    ("Focus History search", "⌘/Ctrl + Shift + F"),
-    ("Search requests and history", "⌘/Ctrl + K"),
-    ("Next request tab", "Ctrl + Tab"),
-    ("Previous request tab", "Ctrl + Shift + Tab"),
-    ("Open / close this help", "⌘/Ctrl + /"),
-];
 
 impl PostmanApp {
     pub(super) fn focus_next_control(
@@ -100,11 +83,7 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.navigate(AppRoute::Http, window, cx);
-        self.history_panel_open = true;
-        cx.notify();
-        self.history_list
-            .update(cx, |history, cx| history.focus_search(window, cx));
+        self.open_finder(super::FinderKind::History, window, cx);
     }
 
     pub(super) fn activate_next_request(
@@ -141,153 +120,67 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.shortcut_help_open {
-            self.close_shortcut_help(window, cx);
-        } else {
-            self.shortcut_help_return_focus = window.focused(cx).map(|focus| focus.downgrade());
-            self.shortcut_help_open = true;
-            self.shortcut_help_focus.focus(window, cx);
-            cx.notify();
+        if window.has_active_dialog(cx) {
+            return;
         }
-    }
-
-    fn close_shortcut_help(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.shortcut_help_open = false;
-        self.shortcut_help_return_focus
-            .take()
-            .and_then(|focus| focus.upgrade())
-            .unwrap_or_else(|| self.app_focus_handle.clone())
-            .focus(window, cx);
+        self.active_tool = Some(super::ToolDialog::Help);
+        let owner = cx.weak_entity();
+        window.open_dialog(cx, move |dialog, window, cx| {
+            let owner = owner.clone();
+            let modifier = if cfg!(target_os = "macos") { "⌘" } else { "Ctrl" };
+            let shortcuts = [
+                ("Send / cancel active request (HTTP)", format!("{modifier} + Enter")),
+                ("New request tab", format!("{modifier} + T")),
+                ("Close active request tab (HTTP)", format!("{modifier} + W")),
+                ("Focus request URL (HTTP)", format!("{modifier} + L")),
+                ("History", format!("{modifier} + Shift + F")),
+                ("Search requests and history", format!("{modifier} + K")),
+                ("Next request tab (HTTP)", "Ctrl + Tab".into()),
+                ("Previous request tab (HTTP)", "Ctrl + Shift + Tab".into()),
+                ("Keyboard shortcuts", format!("{modifier} + /")),
+                ("Close topmost dialog or menu", "Esc".into()),
+            ];
+            let rows = shortcuts.into_iter().map(|(label, key)| {
+                div().flex().items_center().gap_4().py_3()
+                    .border_b_1().border_color(LINE.resolve(cx)).text_size(m::LABEL)
+                    .child(div().flex_1().child(label))
+                    .child(div().font_family(FONT_MONO).text_color(MUTED.resolve(cx)).child(key))
+            });
+            let help = "In text fields: use standard selection, copy/paste, Undo/Redo, and word navigation. \
+                        In search results: ↑ / ↓ selects and Enter opens. \
+                        Background editor commands are unavailable while a dialog is open.";
+            dialog
+                .title(div().text_size(m::BODY).font_weight(m::BOLD).child("Keyboard shortcuts"))
+                .w(window.rem_size() * 35.)
+                .close_button(true)
+                .child(div().debug_selector(|| "shortcut-help-dialog".into()).flex().flex_col().children(rows))
+                .child(div().py_3().text_size(m::LABEL).text_color(MUTED.resolve(cx)).child(help))
+                .footer(
+                    Button::new("shortcut-help-close")
+                        .debug_selector(|| "shortcut-help-close".into())
+                        .small().ghost().icon(IconName::Check).label("Done")
+                        .on_click(|_, w, cx| w.dispatch_action(Box::new(gpui_kit::base::actions::Cancel), cx))
+                )
+                .on_ok(|_, _, _| false)
+                .on_close(move |_, _, cx| {
+                    let _ = owner.update(cx, |this, cx| {
+                        this.active_tool = None;
+                        cx.notify();
+                    });
+                })
+        });
         cx.notify();
     }
-
     pub(super) fn dismiss_overlay(
         &mut self,
         _: &DismissOverlay,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.shortcut_help_open {
-            self.close_shortcut_help(window, cx);
-        } else if self.cookie_jar_open {
+        if self.cookie_jar_open {
             self.cookie_jar_open = false;
             self.cookie_trigger_focus.focus(window, cx);
             cx.notify();
         }
-    }
-
-    pub(super) fn render_shortcut_help(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let focus = self.shortcut_help_focus.clone();
-        let mouse_focus = focus.clone();
-        div()
-            .debug_selector(|| "shortcut-help-backdrop".into())
-            .absolute()
-            .inset_0()
-            .flex()
-            .items_center()
-            .justify_center()
-            .bg(gpui::rgba(0x0000_0000_0099))
-            .on_mouse_up(
-                gpui::MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.close_shortcut_help(window, cx)),
-            )
-            .child(
-                div()
-                    .id("shortcut-help-dialog")
-                    .debug_selector(|| "shortcut-help-dialog".into())
-                    .track_focus(&focus)
-                    .key_context("KeyboardButton ShortcutHelp")
-                    .role(Role::Dialog)
-                    .aria_label("Keyboard shortcuts")
-                    .w(px(520.0))
-                    .p_5()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    .rounded(px(14.0))
-                    .border_1()
-                    .border_color(ACCENT.resolve(cx))
-                    .bg(PANEL.resolve(cx))
-                    .on_mouse_up(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .on_action(cx.listener(Self::dismiss_overlay))
-                    .on_action(cx.listener(
-                        |this, _: &ActivateControl, window, cx| {
-                            this.close_shortcut_help(window, cx)
-                        },
-                    ))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .font_family(FONT_HEADING)
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_size(px(20.0))
-                                    .text_color(TEXT.resolve(cx))
-                                    .child("Keyboard shortcuts"),
-                            )
-                            .child(
-                                div()
-                                    .debug_selector(|| "shortcut-help-close".into())
-                                    .size(px(30.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_lg()
-                                    .bg(ACCENT_SOFT.resolve(cx))
-                                    .text_color(ACCENT.resolve(cx))
-                                    .font_family(FONT_UI)
-                                    .font_weight(FontWeight::BOLD)
-                                    .cursor_pointer()
-                                    .child("×")
-                                    .on_mouse_up(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, window, cx| {
-                                            this.close_shortcut_help(window, cx)
-                                        }),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .font_family(FONT_UI)
-                            .text_size(px(12.0))
-                            .text_color(SUBTEXT.resolve(cx))
-                            .child(
-                                "Text fields keep standard selection, clipboard, Undo/Redo, and word-navigation shortcuts.",
-                            ),
-                    )
-                    .children(SHORTCUTS.into_iter().map(|(command, shortcut)| {
-                        div()
-                            .h(px(34.0))
-                            .flex()
-                            .items_center()
-                            .px_3()
-                            .rounded_lg()
-                            .bg(PANEL_ALT.resolve(cx))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .font_family(FONT_UI)
-                                    .text_size(px(12.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(TEXT.resolve(cx))
-                                    .child(command),
-                            )
-                            .child(
-                                div()
-                                    .font_family(FONT_MONO)
-                                    .text_size(px(11.0))
-                                    .text_color(MUTED.resolve(cx))
-                                    .child(shortcut),
-                            )
-                    }))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        move |_, window, cx| mouse_focus.focus(window, cx),
-                    ),
-            )
     }
 }

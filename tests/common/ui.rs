@@ -80,7 +80,11 @@ pub fn replace_text(
     value: &str,
 ) -> Result<(), String> {
     click(cx, selector)?;
-    cx.simulate_keystrokes("cmd-a");
+    cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+        "cmd-a"
+    } else {
+        "ctrl-a"
+    });
     cx.simulate_input(value);
     Ok(())
 }
@@ -208,7 +212,6 @@ pub fn shell(
 
 pub fn open_http(cx: &mut VisualTestContext) {
     click(cx, "nav-http").unwrap();
-    click(cx, "rail-history").unwrap();
 }
 
 /// Kit controls expose stable IDs through Kit's native test observations.
@@ -234,4 +237,19 @@ pub fn show_body_details(cx: &mut VisualTestContext) -> Result<(), String> {
         body_action(cx, 2)?;
     }
     Ok(())
+}
+
+/// History is a modal in P4.1; callers explicitly open it before inspecting/replaying rows.
+pub fn open_history(cx: &mut VisualTestContext) {
+    if cx.debug_bounds("history-panel").is_none() {
+        click(cx, "rail-history").unwrap();
+    }
+}
+pub fn close_history(cx: &mut VisualTestContext) {
+    click(cx, "history-close").unwrap();
+}
+pub fn confirm_clear_history(cx: &mut VisualTestContext) {
+    use gpui_kit::test::TestWindowExt;
+    cx.update(|window, cx| window.click("ok", cx));
+    cx.run_until_parked();
 }

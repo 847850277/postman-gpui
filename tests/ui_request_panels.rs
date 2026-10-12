@@ -25,7 +25,6 @@ fn request_context_and_compact_forms_follow_the_selected_request(cx: &mut TestAp
     let handle = cx.update(|window, _| window.window_handle());
     cx.simulate_window_resize(handle, size(px(1920.), px(1080.)));
     ui::open_http(cx);
-    ui::click(cx, "rail-history").unwrap();
     let context = cx.debug_bounds("request-context").unwrap();
     for pane in [
         "request-pane-params",
@@ -120,7 +119,6 @@ fn descriptions_follow_rows_tabs_and_resize_without_entering_the_request(cx: &mu
     let handle = cx.update(|window, _| window.window_handle());
     cx.simulate_window_resize(handle, size(px(1920.), px(1080.)));
     ui::open_http(cx);
-    ui::click(cx, "rail-history").unwrap();
     ui::replace_text(cx, "param-row-description-input-0", "Page number").unwrap();
     ui::replace_text(cx, "param-row-description-input-1", "Results per page").unwrap();
     ui::replace_text(cx, "param-row-description-input-2", "Draft note").unwrap();

@@ -1486,12 +1486,14 @@ fn run_multi_tab_workflow(
     }) {
         return Err("SQLite History persisted Tab B's Authorization secret".to_string());
     }
+    ui::open_history(cx);
     for selector in ["history-method-0", "history-method-1"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!("shared History row `{selector}` is not rendered"));
         }
     }
 
+    ui::close_history(cx);
     click(cx, "request-tab-0")?;
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
         .map_err(|error| format!("Tab A changed after both Sends: {error}"))?;
@@ -1536,6 +1538,7 @@ fn run_multi_tab_workflow(
     assert_response_state(&after_close.4, &workflow.tab_a.expect.response)?;
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected_a)
         .map_err(|error| format!("closing Tab B changed Tab A: {error}"))?;
+    ui::open_history(cx);
     if cx.debug_bounds("request-tab-0").is_none()
         || cx.debug_bounds("request-tab-1").is_some()
         || cx.debug_bounds("history-method-0").is_none()
@@ -1611,6 +1614,7 @@ fn run_history_replay_workflow(
 
     click(cx, "new-tab-button")?;
     type_into(cx, "url-input", "https://draft.example/mouse")?;
+    ui::open_history(cx);
     click(cx, "history-item-0")?;
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
         .map_err(|error| format!("mouse History replay mismatch: {error}"))?;
@@ -1629,13 +1633,14 @@ fn run_history_replay_workflow(
     }
 
     replace_text(cx, "url-input", "https://draft.example/enter")?;
+    ui::open_history(cx);
     click(cx, "history-search-input")?;
-    cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("enter");
     assert_requests_equivalent(&active_request_projection(&workspace, cx), &expected)
         .map_err(|error| format!("Enter History replay mismatch: {error}"))?;
 
     replace_text(cx, "url-input", "https://draft.example/space")?;
+    ui::open_history(cx);
     click(cx, "history-search-input")?;
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("space");
@@ -1779,6 +1784,7 @@ fn run_head_options_workflow(
     assert_requests_equivalent(&history[1].request, &head_request)
         .map_err(|error| format!("HEAD History changed: {error}"))?;
 
+    ui::open_history(cx);
     click(cx, "history-item-1")?;
     let restored_head = workspace.read_with(cx, |workspace, _| {
         (
@@ -1799,6 +1805,7 @@ fn run_head_options_workflow(
         ));
     }
 
+    ui::open_history(cx);
     click(cx, "history-item-0")?;
     let restored_options = workspace.read_with(cx, |workspace, _| {
         (
@@ -1955,6 +1962,7 @@ fn run_compression_workflow(
             "Brotli provider capability must remain distinct from decoder errors: {statuses:?}"
         ));
     }
+    ui::open_history(cx);
     for selector in ["history-method-0", "history-method-1", "history-method-2"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
@@ -1963,6 +1971,7 @@ fn run_compression_workflow(
         }
     }
 
+    ui::open_history(cx);
     click(cx, "history-item-2")?;
     let restored = workspace.read_with(cx, |workspace, _| {
         (
@@ -2108,6 +2117,7 @@ fn run_html_form_workflow(
                 .collect::<Vec<_>>()
         ));
     }
+    ui::open_history(cx);
     for selector in ["history-method-0", "history-method-1"] {
         if cx.debug_bounds(selector).is_none() {
             return Err(format!(
@@ -2116,6 +2126,7 @@ fn run_html_form_workflow(
         }
     }
 
+    ui::close_history(cx);
     click(cx, "request-tab-0")?;
     let restored_discovery = workspace.read_with(cx, |workspace, _| {
         workspace.active_request().unwrap().response().clone()
@@ -2339,6 +2350,7 @@ fn run_cookie_workflow(
             "cookie lifecycle History contains an incomplete status: {final_history:#?}"
         ));
     }
+    ui::open_history(cx);
     for selector in [
         "history-status-200-0",
         "history-status-200-1",
@@ -2819,6 +2831,7 @@ fn run_application_scenario(
             scenario.expect.history_len
         ));
     }
+    ui::open_history(cx);
     if scenario.expect.history_len > 0 && cx.debug_bounds("history-method-0").is_none() {
         return Err("completed request method is not rendered in History".to_string());
     }
@@ -2882,6 +2895,7 @@ fn run_application_scenario(
         }
     }
 
+    ui::close_history(cx);
     assert_multipart_file_selection_retained(cx, &workspace, scenario)?;
 
     Ok(())

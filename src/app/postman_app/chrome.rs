@@ -145,18 +145,11 @@ impl PostmanApp {
                         "rail-history",
                         "History",
                         IconName::RotateCcw,
-                        self.history_panel_open,
+                        self.active_tool == Some(super::ToolDialog::History),
                         cx,
                     )
                     .on_click(cx.listener(|this, _, window, cx| {
-                        this.history_panel_open = !this.history_panel_open;
-                        if this.history_panel_open {
-                            this.history_list
-                                .update(cx, |history, cx| history.focus_search(window, cx));
-                        } else {
-                            this.app_focus_handle.focus(window, cx);
-                        }
-                        cx.notify();
+                        this.open_finder(super::FinderKind::History, window, cx);
                     })),
                 )
                 .child(

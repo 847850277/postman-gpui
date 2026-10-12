@@ -1,45 +1,40 @@
 use crate::{
     app::{
         request_runner::RequestRunner, setup_application_key_bindings,
-        setup_global_search_key_bindings, spawn_history_operation_and_reload, HistoryStorageStage,
-        WorkspaceViewModel,
+        spawn_history_operation_and_reload, HistoryStorageStage, WorkspaceViewModel,
     },
     persistence::{
         HistoryRepositoryWorker, SqliteHistoryRepository, DEFAULT_HISTORY_RETENTION_LIMIT,
     },
-    ui::components::input::header_input::HeaderInput,
     ui::theme::{BG, FONT_UI, LINE, PANEL, TEXT},
 };
 use gpui::{
-    deferred, div, prelude::FluentBuilder, px, AppContext, Bounds, Context, DragMoveEvent, Entity,
-    FocusHandle, InteractiveElement, IntoElement, MouseButton, MouseUpEvent, ParentElement, Pixels,
-    Render, StatefulInteractiveElement, Styled, Subscription, WeakFocusHandle, Window,
+    div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 use std::{fs, path::PathBuf, sync::Arc};
 use uuid::Uuid;
 
 mod chrome;
 mod flows;
-mod global_search;
-mod history_panel;
 mod home;
 mod navigation;
+mod request_finder;
 mod request_workspace;
 mod shortcuts;
 
 use flows::FlowsView;
-use history_panel::{HistoryList, HistoryListEvent};
+use gpui_kit::component::WindowExt;
 use navigation::AppRoute;
+use request_finder::{FinderKind, RequestFinder, RequestFinderEvent, RequestTarget};
 use request_workspace::{CookiePane, CookiePaneEvent, RequestWorkspace, RequestWorkspaceEvent};
 
-const LEFT_RAIL_WIDTH: f32 = 72.0;
-const HISTORY_PANEL_DEFAULT_WIDTH: f32 = 260.0;
-const HISTORY_PANEL_MIN_WIDTH: f32 = 240.0;
-const HISTORY_PANEL_MAX_WIDTH: f32 = 560.0;
-const REQUEST_WORKSPACE_MIN_WIDTH: f32 = 560.0;
-const HISTORY_RESIZE_HANDLE_WIDTH: f32 = 8.0;
-
-struct HistoryPanelResize;
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ToolDialog {
+    History,
+    Search,
+    Help,
+}
 
 /// Application composition root. Feature-specific controls and task lifetimes live in child
 /// entities; this type only wires the shell together.
@@ -48,26 +43,17 @@ pub struct PostmanApp {
     route: AppRoute,
     flows: Entity<FlowsView>,
     home_scroll: gpui::ScrollHandle,
-    history_panel_open: bool,
+    active_tool: Option<ToolDialog>,
     request_workspace: Entity<RequestWorkspace>,
     request_runner: Entity<RequestRunner>,
-    history_list: Entity<HistoryList>,
+    history_list: Entity<RequestFinder>,
     history_worker: Option<Arc<HistoryRepositoryWorker>>,
     _temporary_history_database: Option<TemporaryHistoryDatabase>,
     cookie_pane: Entity<CookiePane>,
-    global_search_input: Entity<HeaderInput>,
-    global_search_query: String,
-    global_search_selected_index: usize,
-    global_search_return_focus: Option<WeakFocusHandle>,
-    global_search_bounds: Bounds<Pixels>,
-    global_search_clear_focus: FocusHandle,
+    global_search: Entity<RequestFinder>,
     cookie_jar_open: bool,
-    shortcut_help_open: bool,
-    shortcut_help_return_focus: Option<WeakFocusHandle>,
     app_focus_handle: FocusHandle,
-    shortcut_help_focus: FocusHandle,
     cookie_trigger_focus: FocusHandle,
-    history_panel_width: Pixels,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -139,19 +125,16 @@ impl PostmanApp {
         let request_workspace = cx.new(|cx| RequestWorkspace::new(view_model.clone(), window, cx));
         let runner_history_worker = history_worker.clone();
         let request_runner = cx.new(move |_| RequestRunner::new(runner_history_worker));
-        let history_list = cx.new(|cx| HistoryList::new(view_model.clone(), window, cx));
+        let history_list =
+            cx.new(|cx| RequestFinder::new(FinderKind::History, view_model.clone(), window, cx));
         let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
-        let global_search_input = cx.new(|cx| {
-            HeaderInput::new("Search requests and history", window, cx)
-                .with_embedded_chrome(true)
-                .with_font_family(FONT_UI)
-        });
-        cx.bind_keys(setup_global_search_key_bindings());
+        let global_search =
+            cx.new(|cx| RequestFinder::new(FinderKind::Search, view_model.clone(), window, cx));
         let subscriptions = vec![
             cx.subscribe(&request_workspace, Self::on_request_workspace_event),
-            cx.subscribe_in(&history_list, window, Self::on_history_selected),
+            cx.subscribe_in(&history_list, window, Self::on_finder_event),
             cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
-            cx.subscribe(&global_search_input, Self::on_global_search_input_event),
+            cx.subscribe_in(&global_search, window, Self::on_finder_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
@@ -160,7 +143,7 @@ impl PostmanApp {
             route: AppRoute::Home,
             flows,
             home_scroll: gpui::ScrollHandle::new(),
-            history_panel_open: false,
+            active_tool: None,
             view_model,
             request_workspace,
             request_runner,
@@ -168,19 +151,10 @@ impl PostmanApp {
             history_worker,
             _temporary_history_database: temporary_history_database,
             cookie_pane,
-            global_search_input,
-            global_search_query: String::new(),
-            global_search_selected_index: 0,
-            global_search_return_focus: None,
-            global_search_bounds: Bounds::default(),
-            global_search_clear_focus: cx.focus_handle().tab_index(0).tab_stop(true),
+            global_search,
             cookie_jar_open: false,
-            shortcut_help_open: false,
-            shortcut_help_return_focus: None,
             app_focus_handle: cx.focus_handle(),
-            shortcut_help_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             cookie_trigger_focus: cx.focus_handle().tab_index(0).tab_stop(true),
-            history_panel_width: px(HISTORY_PANEL_DEFAULT_WIDTH),
             _subscriptions: subscriptions,
         };
         if let Some(worker) = app.history_worker.clone() {
@@ -267,22 +241,68 @@ impl PostmanApp {
         cx.notify();
     }
 
-    fn on_history_selected(
+    fn on_finder_event(
         &mut self,
-        _list: &Entity<HistoryList>,
-        event: &HistoryListEvent,
+        _: &Entity<RequestFinder>,
+        event: &RequestFinderEvent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            HistoryListEvent::RequestSelected(entry) => {
-                self.request_workspace.update(cx, |workspace, cx| {
-                    workspace.load_history_entry(entry, window, cx)
-                });
+            RequestFinderEvent::Activate(target) => {
+                // Resolve against the authoritative model, never a stale row index.
+                match target {
+                    RequestTarget::Request(id) => {
+                        if self.view_model.read(cx).request_for_tab(*id).is_none() {
+                            return;
+                        }
+                        window.close_dialog(cx);
+                        self.active_tool = None;
+                        self.resume_request(*id, window, cx);
+                    }
+                    RequestTarget::History(id) => {
+                        let entry = self
+                            .view_model
+                            .read(cx)
+                            .history()
+                            .iter()
+                            .find(|e| e.id == *id)
+                            .cloned();
+                        if let Some(entry) = entry {
+                            window.close_dialog(cx);
+                            self.active_tool = None;
+                            self.navigate(AppRoute::Http, window, cx);
+                            self.request_workspace.update(cx, |workspace, cx| {
+                                workspace.load_history_entry(&entry, window, cx);
+                                workspace.focus_url(window, cx);
+                            });
+                        }
+                    }
+                }
             }
-            HistoryListEvent::RefreshRequested => self.refresh_history(cx),
-            HistoryListEvent::ClearRequested => self.clear_history(cx),
+            RequestFinderEvent::Closed => {
+                self.active_tool = None;
+                cx.notify();
+            }
+            RequestFinderEvent::Refresh => self.refresh_history(cx),
+            RequestFinderEvent::Clear => self.clear_history(cx),
         }
+    }
+
+    fn open_finder(&mut self, kind: FinderKind, window: &mut Window, cx: &mut Context<Self>) {
+        if window.has_active_dialog(cx) {
+            return;
+        }
+        self.active_tool = Some(match kind {
+            FinderKind::History => ToolDialog::History,
+            FinderKind::Search => ToolDialog::Search,
+        });
+        let finder = match kind {
+            FinderKind::History => &self.history_list,
+            FinderKind::Search => &self.global_search,
+        };
+        finder.update(cx, |finder, cx| finder.open(window, cx));
+        cx.notify();
     }
 
     fn refresh_history(&mut self, cx: &mut Context<Self>) {
@@ -325,31 +345,6 @@ impl PostmanApp {
     fn new_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.request_workspace
             .update(cx, |workspace, cx| workspace.new_request(window, cx));
-    }
-
-    fn resize_history_panel(
-        &mut self,
-        event: &DragMoveEvent<HistoryPanelResize>,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let available_max_width = event.bounds.size.width - px(REQUEST_WORKSPACE_MIN_WIDTH);
-        let max_width =
-            px(HISTORY_PANEL_MAX_WIDTH).min(available_max_width.max(px(HISTORY_PANEL_MIN_WIDTH)));
-        let width = (event.event.position.x - event.bounds.left())
-            .clamp(px(HISTORY_PANEL_MIN_WIDTH), max_width);
-
-        if width != self.history_panel_width {
-            self.history_panel_width = width;
-            cx.notify();
-        }
-    }
-
-    fn reset_history_panel_width(&mut self, cx: &mut Context<Self>) {
-        if self.history_panel_width != px(HISTORY_PANEL_DEFAULT_WIDTH) {
-            self.history_panel_width = px(HISTORY_PANEL_DEFAULT_WIDTH);
-            cx.notify();
-        }
     }
 }
 
@@ -410,10 +405,6 @@ impl Render for PostmanApp {
             .on_action(cx.listener(Self::focus_url))
             .on_action(cx.listener(Self::focus_history_search))
             .on_action(cx.listener(Self::focus_global_search))
-            .on_action(cx.listener(Self::select_next_global_search_result))
-            .on_action(cx.listener(Self::select_previous_global_search_result))
-            .on_action(cx.listener(Self::activate_global_search_result))
-            .on_action(cx.listener(Self::dismiss_global_search))
             .on_action(cx.listener(Self::activate_next_request))
             .on_action(cx.listener(Self::activate_previous_request))
             .on_action(cx.listener(Self::toggle_shortcut_help))
@@ -428,7 +419,7 @@ impl Render for PostmanApp {
                     .child(self.render_left_rail(window, cx))
                     .child(match self.route {
                         AppRoute::Home => self.render_home(window, cx).into_any_element(),
-                        AppRoute::Http => self.render_http(window, cx).into_any_element(),
+                        AppRoute::Http => self.render_http().into_any_element(),
                         AppRoute::Flows => self.flows.clone().into_any_element(),
                     }),
             )
@@ -450,63 +441,16 @@ impl Render for PostmanApp {
                         .child(self.cookie_pane.clone()),
                 )
             })
-            .when(self.shortcut_help_open, |root| {
-                root.child(self.render_shortcut_help(cx))
-            })
     }
 }
 
 impl PostmanApp {
-    fn render_http(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_http(&self) -> impl IntoElement {
         div()
             .flex_1()
             .min_h_0()
             .min_w_0()
             .flex()
-            .on_drag_move::<HistoryPanelResize>(cx.listener(Self::resize_history_panel))
-            .when(self.history_panel_open, |row| {
-                row.child(
-                    div()
-                        .id("history-panel-container")
-                        .relative()
-                        .h_full()
-                        .w(self.history_panel_width.min(
-                            (window.viewport_size().width
-                                - px(LEFT_RAIL_WIDTH + REQUEST_WORKSPACE_MIN_WIDTH))
-                            .max(px(HISTORY_PANEL_MIN_WIDTH)),
-                        ))
-                        .flex_none()
-                        .child(self.history_list.clone())
-                        .child(deferred(
-                            div()
-                                .id("history-resize-handle")
-                                .debug_selector(|| "history-resize-handle".into())
-                                .absolute()
-                                .right(px(-HISTORY_RESIZE_HANDLE_WIDTH / 2.0))
-                                .top_0()
-                                .h_full()
-                                .w(px(HISTORY_RESIZE_HANDLE_WIDTH))
-                                .cursor_col_resize()
-                                .aria_label("Resize History panel")
-                                .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                    cx.stop_propagation();
-                                })
-                                .on_mouse_up(
-                                    MouseButton::Left,
-                                    cx.listener(|this, event: &MouseUpEvent, _window, cx| {
-                                        if event.click_count >= 2 {
-                                            this.reset_history_panel_width(cx);
-                                        }
-                                        cx.stop_propagation();
-                                    }),
-                                )
-                                .on_drag(HistoryPanelResize, |_, _, _, cx| {
-                                    cx.stop_propagation();
-                                    cx.new(|_| gpui::Empty)
-                                }),
-                        )),
-                )
-            })
             .child(self.request_workspace.clone())
     }
 }
