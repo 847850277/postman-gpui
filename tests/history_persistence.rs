@@ -74,8 +74,11 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
             &HistoryStorageStatus::Ready { skipped_rows: 0 }
         );
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-storage-ready").is_some());
+    ui::close_history(cx);
 
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -94,7 +97,9 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
         ResponseState::HistoricalUnavailable { .. }
     ));
 
+    ui::open_history(cx);
     click(cx, "history-clear-button").unwrap();
+    ui::confirm_clear_history(cx);
     cx.run_until_parked();
 
     workspace.read_with(cx, |workspace, _| {
@@ -167,6 +172,7 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     });
     assert_eq!(stored_history_count(&database_path), 1);
 
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert!(matches!(
@@ -243,7 +249,9 @@ fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
         ));
     });
     assert_eq!(stored_history_count(&database_path), 0);
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-storage-error").is_some());
+    ui::close_history(cx);
 }
 
 #[gpui::test]
@@ -307,8 +315,10 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
     });
 
     if binary_index == 0 {
+        ui::open_history(cx);
         click(cx, "history-item-0").unwrap();
     } else {
+        ui::open_history(cx);
         click(cx, "history-item-1").unwrap();
     }
     assert!(matches!(
@@ -322,8 +332,10 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
     assert!(cx.debug_bounds("response-copy-button").is_none());
 
     if truncated_index == 0 {
+        ui::open_history(cx);
         click(cx, "history-item-0").unwrap();
     } else {
+        ui::open_history(cx);
         click(cx, "history-item-1").unwrap();
     }
     assert!(matches!(
@@ -369,5 +381,7 @@ fn corrupt_database_shows_unavailable_state_without_an_in_memory_fallback(cx: &m
             }
         ));
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-storage-error").is_some());
+    ui::close_history(cx);
 }

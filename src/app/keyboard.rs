@@ -13,10 +13,6 @@ actions!(
         FocusUrl,
         FocusHistorySearch,
         FocusGlobalSearch,
-        SelectNextGlobalSearchResult,
-        SelectPreviousGlobalSearchResult,
-        ActivateGlobalSearchResult,
-        DismissGlobalSearch,
         ActivateNextRequest,
         ActivatePreviousRequest,
         ToggleShortcutHelp,
@@ -30,8 +26,8 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new("enter", ActivateControl, Some("KeyboardButton")),
         KeyBinding::new("space", ActivateControl, Some("KeyboardButton")),
-        KeyBinding::new("tab", FocusNextControl, None),
-        KeyBinding::new("shift-tab", FocusPreviousControl, None),
+        KeyBinding::new("tab", FocusNextControl, Some("PostmanApp")),
+        KeyBinding::new("shift-tab", FocusPreviousControl, Some("PostmanApp")),
         KeyBinding::new("cmd-enter", SendOrCancel, None),
         KeyBinding::new("ctrl-enter", SendOrCancel, None),
         KeyBinding::new("cmd-enter", SendOrCancel, Some("HeaderInput > Input")),
@@ -51,34 +47,5 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-/", ToggleShortcutHelp, None),
         KeyBinding::new("ctrl-/", ToggleShortcutHelp, None),
         KeyBinding::new("escape", DismissOverlay, Some("OverlayTrigger")),
-        KeyBinding::new("escape", DismissOverlay, Some("ShortcutHelp")),
-    ]
-}
-
-/// Search-input bindings are installed after the shared input bindings so Enter and Escape own
-/// the command palette while it is focused. The descendant context keeps that precedence local
-/// to global search's retained Kit input and leaves ordinary HeaderInput editing unchanged.
-pub(crate) fn setup_global_search_key_bindings() -> Vec<KeyBinding> {
-    vec![
-        KeyBinding::new(
-            "down",
-            SelectNextGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput > Input"),
-        ),
-        KeyBinding::new(
-            "up",
-            SelectPreviousGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput > Input"),
-        ),
-        KeyBinding::new(
-            "enter",
-            ActivateGlobalSearchResult,
-            Some("GlobalSearch > HeaderInput > Input"),
-        ),
-        KeyBinding::new(
-            "escape",
-            DismissGlobalSearch,
-            Some("GlobalSearch > HeaderInput > Input"),
-        ),
     ]
 }

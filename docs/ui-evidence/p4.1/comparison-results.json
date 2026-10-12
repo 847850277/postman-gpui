@@ -1,0 +1,134 @@
+[
+  {
+    "name": "history / light / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "search / light / method",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "help / light / title",
+    "glyph_bounds_difference_px": 0,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "history / light / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "search / light / surface",
+    "maximum_channel_difference": 8,
+    "passed": true
+  },
+  {
+    "name": "help / light / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "history / light-minimum / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "search / light-minimum / method",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "help / light-minimum / title",
+    "glyph_bounds_difference_px": 0,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "history / light-minimum / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "search / light-minimum / surface",
+    "maximum_channel_difference": 3,
+    "passed": true
+  },
+  {
+    "name": "help / light-minimum / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "history / dark / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "search / dark / method",
+    "glyph_bounds_difference_px": 0,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "help / dark / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "history / dark / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "search / dark / surface",
+    "maximum_channel_difference": 7,
+    "passed": true
+  },
+  {
+    "name": "help / dark / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "history / dark-minimum / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "search / dark-minimum / method",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "help / dark-minimum / title",
+    "glyph_bounds_difference_px": 1,
+    "unmatched_ink": 0.0,
+    "passed": true
+  },
+  {
+    "name": "history / dark-minimum / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  },
+  {
+    "name": "search / dark-minimum / surface",
+    "maximum_channel_difference": 6,
+    "passed": true
+  },
+  {
+    "name": "help / dark-minimum / surface",
+    "maximum_channel_difference": 0,
+    "passed": true
+  }
+]

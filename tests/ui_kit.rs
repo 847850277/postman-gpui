@@ -102,7 +102,9 @@ fn kit_root_preserves_existing_http_shortcuts_focused_input_and_history(cx: &mut
         workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Success { status: 200, ref body, .. } if body == "kit-http-ok"
     ));
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+    ui::close_history(cx);
     ui::click(cx, "response-pane-body").unwrap();
     cx.simulate_keystrokes("right");
     assert!(cx.debug_bounds("response-pane-headers-active").is_some());

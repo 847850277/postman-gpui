@@ -101,9 +101,7 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let left_rail = cx
         .debug_bounds("left-rail")
         .expect("left rail should render");
-    let history = cx
-        .debug_bounds("history-panel")
-        .expect("history panel should render");
+    assert!(cx.debug_bounds("history-panel").is_none());
     let request_tabs = cx
         .debug_bounds("request-tabs-bar")
         .expect("request tabs should render");
@@ -126,7 +124,6 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
 
     assert_eq!(top_header.size.height, px(52.0));
     assert_eq!(left_rail.size.width, px(72.0));
-    assert_eq!(history.size.width, px(260.0));
     assert_eq!(request_tabs.size.height, px(39.0));
     assert!(
         (request_head.size.height.as_f32() - 172.625).abs() <= 0.5,
@@ -140,68 +137,29 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn history_panel_can_be_dragged_wider_and_narrower(cx: &mut TestAppContext) {
+fn history_dialog_overlays_editor_without_changing_split(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
-    let observed = workspace.clone();
-    let (_app, cx) = cx.add_window_view(move |window, cx| {
+    let (_, cx) = cx.add_window_view(move |window, cx| {
         ui::shell(window, cx, |window, cx| {
-            PostmanApp::with_view_model(observed, window, cx)
+            PostmanApp::with_view_model(workspace, window, cx)
         })
     });
     ui::open_http(cx);
-
-    let resize_handle = cx
-        .debug_bounds("history-resize-handle")
-        .expect("History resize handle should render");
-    let start = resize_handle.center();
-
-    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
-    cx.simulate_mouse_move(
-        point(start.x + px(4.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-    cx.simulate_mouse_move(
-        point(start.x + px(120.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-    cx.simulate_mouse_up(
-        point(start.x + px(120.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-
-    let widened = cx
-        .debug_bounds("history-panel")
-        .expect("History panel should remain rendered after widening");
-    assert_eq!(widened.size.width, px(380.0));
-
-    let resize_handle = cx
-        .debug_bounds("history-resize-handle")
-        .expect("History resize handle should move with the panel");
-    let start = resize_handle.center();
-    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
-    cx.simulate_mouse_move(
-        point(start.x - px(4.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-    cx.simulate_mouse_move(
-        point(start.x - px(400.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-    cx.simulate_mouse_up(
-        point(start.x - px(400.0), start.y),
-        MouseButton::Left,
-        Modifiers::none(),
-    );
-
-    let narrowed = cx
-        .debug_bounds("history-panel")
-        .expect("History panel should remain rendered after narrowing");
-    assert_eq!(narrowed.size.width, px(240.0));
+    for (width, height) in [(1440., 960.), (1920., 1080.), (1024., 768.), (960., 640.)] {
+        let handle = cx.update(|w, _| w.window_handle());
+        cx.simulate_window_resize(handle, gpui::size(px(width), px(height)));
+        let before = cx.debug_bounds("request-container").unwrap();
+        let response = cx.debug_bounds("response-container").unwrap();
+        ui::open_history(cx);
+        let dialog = cx.debug_bounds("dialog-0").unwrap();
+        assert!(dialog.left() >= px(0.) && dialog.right() <= px(width));
+        assert!(dialog.top() >= px(0.) && dialog.bottom() <= px(height));
+        assert_eq!(before, cx.debug_bounds("request-container").unwrap());
+        assert_eq!(response, cx.debug_bounds("response-container").unwrap());
+        assert!(cx.debug_bounds("history-resize-handle").is_none());
+        ui::close_history(cx);
+        assert_eq!(before, cx.debug_bounds("request-container").unwrap());
+    }
 }
 
 #[gpui::test]
@@ -325,7 +283,7 @@ fn kit_method_select_matches_composer_geometry_and_escape_restores_focus(cx: &mu
 }
 
 #[gpui::test]
-fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
+fn history_dialog_keeps_header_filter_results_and_footer_in_order(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
     let entry = HistoryEntry::completed(
@@ -351,47 +309,26 @@ fn history_panel_uses_the_issue_51_card_hierarchy(cx: &mut TestAppContext) {
     ui::open_http(cx);
     cx.run_until_parked();
 
-    let panel = cx
-        .debug_bounds("history-panel")
-        .expect("history panel should render");
-    let header = cx
-        .debug_bounds("history-header")
-        .expect("history header should render");
-    let actions = cx
-        .debug_bounds("history-actions")
-        .expect("history actions should render");
-    let refresh = cx
-        .debug_bounds("history-refresh-button")
-        .expect("history refresh should render");
-    let clear = cx
-        .debug_bounds("history-clear-button")
-        .expect("history clear should render");
-    let search = cx
-        .debug_bounds("history-search-input")
-        .expect("history search should render");
-    let date = cx
-        .debug_bounds("history-date")
-        .expect("history date should render");
-    let item = cx
-        .debug_bounds("history-item-0")
-        .expect("history item should render");
-    let method = cx
-        .debug_bounds("history-method-0")
-        .expect("history method pill should render");
-
-    assert_eq!(panel.size.width, px(260.0));
-    assert_eq!(header.origin.x, panel.origin.x + px(16.0));
-    assert_eq!(header.origin.y, panel.origin.y + px(18.0));
-    assert!(actions.size.width > px(18.0));
-    assert_eq!(actions.size.height, px(24.0));
-    assert_eq!(refresh.size.height, px(24.0));
-    assert_eq!(clear.size.height, px(24.0));
-    assert!(cx.debug_bounds("history-storage-ready").is_some());
-    assert_eq!(search.size.height, px(38.0));
-    assert!(date.origin.y >= search.bottom());
-    assert_eq!(item.size.height, px(58.0));
-    assert_eq!(method.size.width, px(48.0));
-    assert_eq!(method.size.height, px(24.0));
+    ui::open_history(cx);
+    let panel = cx.debug_bounds("history-panel").unwrap();
+    let header = cx.debug_bounds("finder-header").unwrap();
+    let search = cx.debug_bounds("history-search-input").unwrap();
+    let date = cx.debug_bounds("history-date").unwrap();
+    let item = cx.debug_bounds("history-item-0").unwrap();
+    let footer = cx.debug_bounds("history-footer").unwrap();
+    assert!(panel.size.width > px(400.) && panel.size.width <= px(560.));
+    assert!(header.bottom() <= search.top());
+    assert!(date.top() >= search.bottom());
+    assert!(item.top() >= date.bottom());
+    assert!(footer.top() >= item.bottom());
+    for selector in [
+        "history-refresh-button",
+        "history-clear-button",
+        "history-storage-ready",
+    ] {
+        let control = cx.debug_bounds(selector).unwrap();
+        assert!(control.top() >= footer.top() && control.bottom() <= footer.bottom());
+    }
 }
 
 #[gpui::test]

@@ -95,7 +95,6 @@ fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
     });
     click(cx, "nav-http").unwrap();
     resize(cx, 1440., 960.);
-    click(cx, "rail-history").unwrap();
     click(cx, "response-layout-toggle").unwrap();
     model.update(cx, |model, cx| {
         assert!(model.load_history_entry(&entry));
@@ -207,9 +206,10 @@ fn split_uses_editor_width_restores_preferences_and_keeps_controls_inside_window
     let preferred = share(cx, false);
     assert!(preferred > 0.5, "dragged share {preferred}");
     resize(cx, 1024., 768.);
-    click(cx, "rail-history").unwrap();
-    assert!(share(cx, true) > 0.);
-    click(cx, "rail-history").unwrap();
+    let before_history = share(cx, false);
+    ui::open_history(cx);
+    assert_eq!(share(cx, false), before_history);
+    ui::close_history(cx);
     let _ = share(cx, false);
     resize(cx, 1440., 960.);
     assert!((share(cx, false) - preferred).abs() < 0.01);

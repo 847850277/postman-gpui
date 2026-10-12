@@ -1,0 +1,532 @@
+{
+  "pairs": [
+    {
+      "name": "history / light / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-history-light.jpg",
+        "rect": [
+          524,
+          183,
+          52,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-history-light.jpg",
+        "rect": [
+          526,
+          184,
+          52,
+          22
+        ]
+      }
+    },
+    {
+      "name": "search / light / method",
+      "kind": "glyph",
+      "html": {
+        "path": "html-search-light.jpg",
+        "rect": [
+          460,
+          326,
+          30,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-search-light.jpg",
+        "rect": [
+          462,
+          316,
+          30,
+          22
+        ]
+      }
+    },
+    {
+      "name": "help / light / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-help-light.jpg",
+        "rect": [
+          456,
+          329,
+          140,
+          28
+        ]
+      },
+      "native": {
+        "path": "native-help-light.jpg",
+        "rect": [
+          454,
+          113,
+          140,
+          28
+        ]
+      }
+    },
+    {
+      "name": "history / light / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-history-light.jpg",
+        "rect": [
+          650,
+          170,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-history-light.jpg",
+        "rect": [
+          650,
+          170,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "search / light / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-search-light.jpg",
+        "rect": [
+          650,
+          246,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-search-light.jpg",
+        "rect": [
+          650,
+          218,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "help / light / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-help-light.jpg",
+        "rect": [
+          650,
+          315,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-help-light.jpg",
+        "rect": [
+          650,
+          106,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "history / light-minimum / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-history-light-minimum.jpg",
+        "rect": [
+          284,
+          39,
+          52,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-history-light-minimum.jpg",
+        "rect": [
+          286,
+          40,
+          52,
+          22
+        ]
+      }
+    },
+    {
+      "name": "search / light-minimum / method",
+      "kind": "glyph",
+      "html": {
+        "path": "html-search-light-minimum.jpg",
+        "rect": [
+          221,
+          178,
+          30,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-search-light-minimum.jpg",
+        "rect": [
+          222,
+          156,
+          30,
+          22
+        ]
+      }
+    },
+    {
+      "name": "help / light-minimum / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-help-light-minimum.jpg",
+        "rect": [
+          216,
+          169,
+          140,
+          28
+        ]
+      },
+      "native": {
+        "path": "native-help-light-minimum.jpg",
+        "rect": [
+          214,
+          33,
+          140,
+          28
+        ]
+      }
+    },
+    {
+      "name": "history / light-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-history-light-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-history-light-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "search / light-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-search-light-minimum.jpg",
+        "rect": [
+          410,
+          86,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-search-light-minimum.jpg",
+        "rect": [
+          410,
+          58,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "help / light-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-help-light-minimum.jpg",
+        "rect": [
+          410,
+          155,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-help-light-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "history / dark / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-history-dark.jpg",
+        "rect": [
+          524,
+          183,
+          52,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-history-dark.jpg",
+        "rect": [
+          526,
+          183,
+          52,
+          22
+        ]
+      }
+    },
+    {
+      "name": "search / dark / method",
+      "kind": "glyph",
+      "html": {
+        "path": "html-search-dark.jpg",
+        "rect": [
+          460,
+          326,
+          30,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-search-dark.jpg",
+        "rect": [
+          462,
+          316,
+          30,
+          22
+        ]
+      }
+    },
+    {
+      "name": "help / dark / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-help-dark.jpg",
+        "rect": [
+          456,
+          329,
+          140,
+          28
+        ]
+      },
+      "native": {
+        "path": "native-help-dark.jpg",
+        "rect": [
+          454,
+          113,
+          140,
+          28
+        ]
+      }
+    },
+    {
+      "name": "history / dark / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-history-dark.jpg",
+        "rect": [
+          650,
+          170,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-history-dark.jpg",
+        "rect": [
+          650,
+          170,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "search / dark / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-search-dark.jpg",
+        "rect": [
+          650,
+          246,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-search-dark.jpg",
+        "rect": [
+          650,
+          218,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "help / dark / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-help-dark.jpg",
+        "rect": [
+          650,
+          315,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-help-dark.jpg",
+        "rect": [
+          650,
+          106,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "history / dark-minimum / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-history-dark-minimum.jpg",
+        "rect": [
+          284,
+          39,
+          52,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-history-dark-minimum.jpg",
+        "rect": [
+          286,
+          39,
+          52,
+          22
+        ]
+      }
+    },
+    {
+      "name": "search / dark-minimum / method",
+      "kind": "glyph",
+      "html": {
+        "path": "html-search-dark-minimum.jpg",
+        "rect": [
+          221,
+          178,
+          30,
+          22
+        ]
+      },
+      "native": {
+        "path": "native-search-dark-minimum.jpg",
+        "rect": [
+          222,
+          156,
+          30,
+          22
+        ]
+      }
+    },
+    {
+      "name": "help / dark-minimum / title",
+      "kind": "glyph",
+      "html": {
+        "path": "html-help-dark-minimum.jpg",
+        "rect": [
+          216,
+          169,
+          140,
+          28
+        ]
+      },
+      "native": {
+        "path": "native-help-dark-minimum.jpg",
+        "rect": [
+          214,
+          33,
+          140,
+          28
+        ]
+      }
+    },
+    {
+      "name": "history / dark-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-history-dark-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-history-dark-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "search / dark-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-search-dark-minimum.jpg",
+        "rect": [
+          410,
+          86,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-search-dark-minimum.jpg",
+        "rect": [
+          410,
+          58,
+          30,
+          5
+        ]
+      }
+    },
+    {
+      "name": "help / dark-minimum / surface",
+      "kind": "flat",
+      "html": {
+        "path": "html-help-dark-minimum.jpg",
+        "rect": [
+          410,
+          155,
+          30,
+          5
+        ]
+      },
+      "native": {
+        "path": "native-help-dark-minimum.jpg",
+        "rect": [
+          410,
+          26,
+          30,
+          5
+        ]
+      }
+    }
+  ]
+}

@@ -84,9 +84,14 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     cx.simulate_keystrokes("ctrl-shift-f");
     cx.simulate_input("no matching history entry");
     assert!(cx.debug_bounds("history-item-0").is_none());
-    cx.simulate_keystrokes("ctrl-a backspace");
+    cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+        "cmd-a backspace"
+    } else {
+        "ctrl-a backspace"
+    });
     assert!(cx.debug_bounds("history-item-0").is_some());
 
+    cx.simulate_keystrokes("escape");
     cx.simulate_keystrokes("ctrl-/");
     assert!(cx.debug_bounds("shortcut-help-dialog").is_some());
     cx.simulate_keystrokes("escape");

@@ -275,6 +275,7 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
         assert_eq!(entry.status, Some(418));
         assert_eq!(entry.response_size, Some(response_body.len()));
     });
+    ui::open_history(cx);
     for selector in [
         "history-method-0",
         "history-response-detail-0",
@@ -285,6 +286,7 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
             "Issue #61 History contract element `{selector}` should be rendered"
         );
     }
+    ui::close_history(cx);
 
     request.assert();
 }
@@ -386,12 +388,14 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
         assert_eq!(entry.status, Some(200));
         assert_eq!(entry.response_size, Some(final_body.len()));
     });
+    ui::open_history(cx);
     for selector in ["history-method-0", "history-response-detail-0"] {
         assert!(
             cx.debug_bounds(selector).is_some(),
             "Issue #62 History contract element `{selector}` should be rendered"
         );
     }
+    ui::close_history(cx);
 
     redirect.assert();
     target.assert();
@@ -500,6 +504,7 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
         assert_eq!(entry.status, Some(200));
         assert_eq!(entry.response_size, Some(response_body.len()));
     });
+    ui::open_history(cx);
     for selector in [
         "history-method-0",
         "history-response-detail-0",
@@ -510,6 +515,7 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
             "Issue #63 History contract element `{selector}` should be rendered"
         );
     }
+    ui::close_history(cx);
 
     // Quick Copy deliberately uses the complete raw ResponseState body, not the formatted view.
     cx.write_to_clipboard(ClipboardItem::new_string("raw sentinel".to_string()));
@@ -725,6 +731,7 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         let body: serde_json::Value = serde_json::from_str(body).unwrap();
         assert_eq!(body["cookies"], serde_json::json!({}));
     });
+    ui::open_history(cx);
     for selector in [
         "response-status-200",
         "history-status-200-0",
@@ -733,6 +740,7 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     ] {
         assert!(cx.debug_bounds(selector).is_some());
     }
+    ui::close_history(cx);
 
     set_cookie.assert();
     cookie_echo.assert();
@@ -809,7 +817,9 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
         assert_eq!(entry.request.body, RequestBody::None);
         assert_eq!(entry.status, Some(200));
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-method-0").is_some());
+    ui::close_history(cx);
     request.assert();
 }
 
@@ -1140,11 +1150,14 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
         assert_eq!(workspace.history()[1].request.method, HttpMethod::HEAD);
     });
     assert!(cx.debug_bounds("response-copy-button").is_none());
+    ui::open_history(cx);
     for selector in ["history-method-0", "history-method-1"] {
         assert!(cx.debug_bounds(selector).is_some());
     }
+    ui::close_history(cx);
     options_request.assert();
 
+    ui::open_history(cx);
     click(cx, "history-item-1").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -1166,6 +1179,7 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
     assert!(ui::kit_control_exists(cx, "method-select"));
     assert!(cx.debug_bounds("request-tab-method-1").is_some());
 
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -1306,6 +1320,7 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
             assert_eq!(entry.response_size, Some(body.len()));
         });
 
+        ui::open_history(cx);
         for selector in [
             "response-container",
             "response-content",
@@ -1319,6 +1334,7 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
                 "Issue #67 lifecycle element `{selector}` should be rendered"
             );
         }
+        ui::close_history(cx);
         cx.write_to_clipboard(ClipboardItem::new_string("compressed sentinel".to_string()));
         click(cx, "response-copy-button").unwrap();
         assert_eq!(
@@ -1351,6 +1367,7 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
     assert!(cx.debug_bounds("response-transport-error").is_some());
     assert!(cx.debug_bounds("response-copy-button").is_none());
 
+    ui::open_history(cx);
     click(cx, "history-item-2").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -1501,7 +1518,9 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
         }));
         assert_eq!(entry.status, Some(200));
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-method-0").is_some());
+    ui::close_history(cx);
     request.assert();
 }
 
@@ -1719,7 +1738,9 @@ fn put_raw_sends_active_exact_body_with_automatic_text_content_type_and_records_
         );
         assert_eq!(entry.status, Some(200));
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-method-0").is_some());
+    ui::close_history(cx);
     request.assert();
 }
 
@@ -2006,7 +2027,9 @@ fn post_urlencoded_validates_incomplete_rows_then_sends_the_active_value(cx: &mu
             );
         }
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-method-0").is_some());
+    ui::close_history(cx);
     request.assert();
 }
 
@@ -3286,6 +3309,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     submitted.assert();
 
     ui::choose_body_kind(cx, "body-kind-none").unwrap();
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(

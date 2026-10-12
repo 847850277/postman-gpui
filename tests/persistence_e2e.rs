@@ -259,6 +259,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     // remains the sanitized SQLite projection.
     click(cx, "new-tab-button").unwrap();
     type_into(cx, "url-input", "https://draft.example/mouse").unwrap();
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -316,8 +317,8 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     // The search editor precedes History rows in the focus order. Tab focuses the first row;
     // Enter and Space must both invoke the same stable-ID command as the mouse path above.
     replace_text(cx, "url-input", "https://draft.example/enter").unwrap();
+    ui::open_history(cx);
     click(cx, "history-search-input").unwrap();
-    cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
@@ -337,6 +338,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     );
 
     replace_text(cx, "url-input", "https://draft.example/space").unwrap();
+    ui::open_history(cx);
     click(cx, "history-search-input").unwrap();
     cx.simulate_keystrokes("tab");
     cx.simulate_keystrokes("space");
@@ -507,8 +509,11 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     });
     let recovered = assert_visible_matches_sqlite(&second_workspace, cx, &database_path);
     assert_eq!(recovered[0].id, original_id);
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+    ui::close_history(cx);
 
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.active_request().unwrap().method(), HttpMethod::POST);
@@ -539,13 +544,18 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     assert!(cx.debug_bounds("response-copy-button").is_some());
     assert!(cx.debug_bounds("response-pane-cookies").is_none());
 
+    ui::open_history(cx);
     type_into(cx, "history-search-input", "does-not-match-selected-row").unwrap();
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_none());
+    ui::close_history(cx);
     assert!(matches!(
         second_workspace.read_with(cx, |workspace, _| workspace.active_request().unwrap().response().clone()),
         ResponseState::Historical { entry_id, .. } if entry_id == original_id
     ));
+    ui::open_history(cx);
     replace_text(cx, "history-search-input", "").unwrap();
+    ui::close_history(cx);
 
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -627,6 +637,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     let (second_app, second_workspace, cx) = launch_app(&mut cx.cx, &database_path);
     assert_visible_matches_sqlite(&second_workspace, cx, &database_path);
 
+    ui::open_history(cx);
     click(cx, "history-item-1").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.active_request().unwrap().body_kind(), BodyKind::Raw);
@@ -645,6 +656,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     cx.run_until_parked();
 
     // The original URL-encoded entry remains index 1 after the new raw replay is inserted.
+    ui::open_history(cx);
     click(cx, "history-item-1").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.active_request().unwrap().body_kind(), BodyKind::UrlEncoded);
@@ -751,6 +763,7 @@ fn binary_file_validation_and_exact_replay_survive_a_sqlite_restart(test_cx: &mu
             .body,
         RequestBody::File(upload_path.clone())
     );
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         let request = workspace.active_request().unwrap();
@@ -785,6 +798,7 @@ fn binary_file_validation_and_exact_replay_survive_a_sqlite_restart(test_cx: &mu
         Err(postman_gpui::persistence::HistorySnapshotError::MissingBinaryFile { path })
             if path == upload_path
     ));
+    ui::open_history(cx);
     click(cx, "history-item-1").unwrap();
     click(cx, "send-button").unwrap();
     cx.run_until_parked();
@@ -911,6 +925,7 @@ fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &m
     let (second_app, second_workspace, cx) = launch_app(&mut cx.cx, &database_path);
     let recovered = assert_visible_matches_sqlite(&second_workspace, cx, &database_path);
     assert_eq!(recovered[0].editor_intent, Some(expected_intent.clone()));
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.active_request().unwrap().body_kind(), BodyKind::Multipart);
@@ -1024,6 +1039,7 @@ fn missing_multipart_file_after_restart_uses_the_normal_validation_error(
     std::fs::remove_file(&upload_path).unwrap();
 
     let (second_app, second_workspace, cx) = launch_app(&mut cx.cx, &database_path);
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     second_workspace.read_with(cx, |workspace, _| {
         let RequestBodyDraft::Multipart(parts) = workspace.active_request().unwrap().body_draft()
@@ -1361,12 +1377,17 @@ fn retention_retry_and_search_use_the_latest_fifty_sqlite_rows(test_cx: &mut Tes
         .collect::<Vec<_>>();
     assert_eq!(after_retry_ids, before_retry_ids);
 
+    ui::open_history(cx);
     click(cx, "history-refresh-button").unwrap();
     cx.run_until_parked();
     assert_visible_matches_sqlite(&workspace, cx, &database_path);
+    ui::open_history(cx);
     type_into(cx, "history-search-input", "sequence=51").unwrap();
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+
     assert!(cx.debug_bounds("history-item-1").is_none());
+    ui::close_history(cx);
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.history_len()),
         DEFAULT_HISTORY_RETENTION_LIMIT,
@@ -1426,7 +1447,9 @@ fn successful_clear_stays_empty_after_restart(test_cx: &mut TestAppContext) {
         2
     );
     replace_text(cx, "url-input", "https://unsent.example/keep-editor").unwrap();
+    ui::open_history(cx);
     click(cx, "history-clear-button").unwrap();
+    ui::confirm_clear_history(cx);
     cx.run_until_parked();
     first_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.history_len(), 0);
@@ -1450,7 +1473,9 @@ fn successful_clear_stays_empty_after_restart(test_cx: &mut TestAppContext) {
         .unwrap()
         .url()
         .is_empty()));
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_none());
+    ui::close_history(cx);
 
     close_app(second_app, cx);
 }
@@ -1482,7 +1507,9 @@ fn failed_clear_keeps_sqlite_and_the_last_successful_query_result(test_cx: &mut 
         .unwrap();
     drop(connection);
 
+    ui::open_history(cx);
     click(cx, "history-clear-button").unwrap();
+    ui::confirm_clear_history(cx);
     cx.run_until_parked();
     first_workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.history_len(), before.len());
@@ -1499,7 +1526,9 @@ fn failed_clear_keeps_sqlite_and_the_last_successful_query_result(test_cx: &mut 
         after.iter().map(|entry| &entry.id).collect::<Vec<_>>(),
         before.iter().map(|entry| &entry.id).collect::<Vec<_>>()
     );
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-storage-error").is_some());
+    ui::close_history(cx);
 
     close_app(first_app, cx);
     drop(first_workspace);
@@ -1706,6 +1735,7 @@ fn legacy_schema_migrates_and_a_malformed_newer_row_is_skipped_after_restart(
     assert_eq!(snapshot_version, 1);
     drop(connection);
 
+    ui::open_history(cx);
     click(cx, "history-item-0").unwrap();
     first_workspace.read_with(cx, |workspace, _| {
         assert_eq!(
@@ -1765,9 +1795,11 @@ fn legacy_schema_migrates_and_a_malformed_newer_row_is_skipped_after_restart(
             &HistoryStorageStatus::Ready { skipped_rows: 1 }
         );
     });
+    ui::open_history(cx);
     assert!(cx
         .debug_bounds("history-storage-ready-with-warnings")
         .is_some());
+    ui::close_history(cx);
 
     close_app(second_app, cx);
 }
@@ -1801,7 +1833,9 @@ fn future_schema_is_not_downgraded_and_does_not_enable_a_volatile_fallback(
         assert!(message.contains("999"));
         assert!(message.contains("newer than supported"));
     });
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-storage-error").is_some());
+    ui::close_history(cx);
 
     type_into(cx, "url-input", &format!("{}/still-usable", server.url())).unwrap();
     click(cx, "send-button").unwrap();
@@ -1874,6 +1908,7 @@ fn refresh_load_failure_keeps_the_last_successful_sqlite_projection(test_cx: &mu
         )
         .unwrap();
     drop(connection);
+    ui::open_history(cx);
     click(cx, "history-refresh-button").unwrap();
     cx.run_until_parked();
 
@@ -1893,8 +1928,11 @@ fn refresh_load_failure_keeps_the_last_successful_sqlite_projection(test_cx: &mu
         .query_row("SELECT COUNT(*) FROM history_entries", [], |row| row.get(0))
         .unwrap();
     assert_eq!(row_count, 1);
+    ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
+
     assert!(cx.debug_bounds("history-storage-error").is_some());
+    ui::close_history(cx);
 
     close_app(app, cx);
 }

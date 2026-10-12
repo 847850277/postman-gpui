@@ -67,11 +67,13 @@ pub const FONT_MONO: &str = "JetBrains Mono";
 /// All product lengths are relative to the 16px Kit rem base. The prototype's
 /// 13px body type is a separate role, so control geometry and type zoom together.
 pub mod metrics {
+    pub const BOLD: gpui::FontWeight = gpui::FontWeight::BOLD;
     pub const MEDIUM: gpui::FontWeight = gpui::FontWeight::MEDIUM;
     pub const SEMIBOLD: gpui::FontWeight = gpui::FontWeight::SEMIBOLD;
     use gpui::{rems, Rems};
     pub const BODY: Rems = rems(13. / 16.);
     pub const LABEL: Rems = rems(12. / 16.);
+    pub const COMPACT_LABEL: Rems = rems(11. / 16.);
     pub const CAPTION: Rems = rems(10. / 16.);
     pub const CODE: Rems = rems(12. / 16.);
     pub const TITLE: Rems = rems(26. / 16.);
