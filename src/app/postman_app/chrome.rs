@@ -141,6 +141,36 @@ impl PostmanApp {
                         })),
                 )
                 .child(
+                    gpui_kit::base::Button::new("rail-import")
+                        .debug_selector(|| "rail-import".into())
+                        .accessibility_label("Import cURL")
+                        .track_focus(&self.curl_import_focus)
+                        .w_full()
+                        .h(gpui::rems(3.5))
+                        .p_1()
+                        .rounded(m::RADIUS)
+                        .bg(SIDEBAR.resolve(cx))
+                        .text_color(MUTED.resolve(cx))
+                        .hover(|s| s.bg(ACCENT_SOFT.resolve(cx)))
+                        .focus_visible(|s| s.border_1().border_color(ACCENT.resolve(cx)))
+                        .child(
+                            div()
+                                .size_full()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_center()
+                                .gap_1()
+                                .child(Icon::new(IconName::Download).size(m::ICON))
+                                .child(div().text_size(m::CAPTION).child("Import")),
+                        )
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.curl_import_focus.focus(window, cx);
+                            this.request_workspace
+                                .update(cx, |workspace, cx| workspace.open_curl_import(window, cx));
+                        })),
+                )
+                .child(
                     rail_button(
                         "rail-history",
                         "History",

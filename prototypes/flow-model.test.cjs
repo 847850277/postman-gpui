@@ -9,7 +9,7 @@ test('both shipped examples pass the local reference checks', () => {
 test('reordering a consumer before its producer reports the broken reference', () => {
   const doc = M.samples()[0].document;
   [doc.flow.steps[0], doc.flow.steps[1]] = [doc.flow.steps[1], doc.flow.steps[0]];
-  assert.ok(M.validate(doc).some(error => error.step === 'get-user' && error.message.includes('create-user.user_id')));
+  assert.ok(M.validate(doc).some(error => error.step === 'echo-json' && error.message.includes('generate-id.request_id')));
 });
 
 test('bindings become explicit DSL expressions and keep typed outputs', () => {
@@ -28,7 +28,7 @@ test('literal JSON is never mistaken for references', () => {
 test('missing inputs, duplicate exports and invalid polling limits are reported', () => {
   const doc = M.samples()[0].document;
   doc.flow.steps[0].request.url = M.textExpression('https://example.com/{{missing}}');
-  doc.flow.steps[0].exports.push({name:'user_id',path:'$.other'});
+  doc.flow.steps[0].exports.push({name:'request_id',path:'$.other'});
   const errors = M.validate(doc);
   assert.ok(errors.some(error => error.message.includes('Unknown input')));
   assert.ok(errors.some(error => error.message.includes('unique')));

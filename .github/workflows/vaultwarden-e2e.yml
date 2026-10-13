@@ -37,7 +37,9 @@ jobs:
 
     services:
       vaultwarden:
-        image: vaultwarden/server:latest
+        # Fixture API baseline; keep in sync with run.sh and harness/vaultwarden.rs.
+        # 1.37.4 removed legacy auth/Send endpoints used by this suite.
+        image: vaultwarden/server:1.37.3@sha256:1587c45feaa479f1f5e8af3b00eded36bff77bcf1880cf8dbf0541706dd470e0
         ports:
           - 8088:80
         env:

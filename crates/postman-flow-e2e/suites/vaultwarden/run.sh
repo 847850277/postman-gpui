@@ -14,6 +14,8 @@ fi
 
 PORT="${VAULTWARDEN_PORT:-8088}"
 CONTAINER_NAME="postman_flow_e2e_vw_$PORT"
+# Fixture API baseline; update alongside the CI service and Rust harness.
+VAULTWARDEN_IMAGE="vaultwarden/server:1.37.3@sha256:1587c45feaa479f1f5e8af3b00eded36bff77bcf1880cf8dbf0541706dd470e0"
 
 # Parse arguments: detect if first argument is a path or an option
 TARGET_PATH="$DIR/flows"
@@ -51,7 +53,7 @@ if command -v docker >/dev/null 2>&1; then
         -e LOGIN_RATELIMIT_MAX_BURST=1000 \
         -e UNAUTHENTICATED_RATELIMIT_MAX_BURST=1000 \
         -e ADMIN_TOKEN=testadmin1234567890 \
-        vaultwarden/server:latest >/dev/null
+        "$VAULTWARDEN_IMAGE" >/dev/null
 
     cleanup() {
         echo "==> Stopping Vaultwarden container..."

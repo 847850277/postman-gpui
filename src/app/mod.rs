@@ -1,4 +1,5 @@
 pub mod appearance;
+mod curl;
 mod environments;
 pub mod http_layout;
 // src/app/mod.rs

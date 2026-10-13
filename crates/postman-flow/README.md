@@ -190,7 +190,7 @@ request:
   method: GET
   url:
     concat:
-      - literal: 'https://example.com/account?timestamp='
+      - literal: 'https://httpbingo.org/anything/account?timestamp='
       - input: $timestamp_ms
   auth:
     type: hmac_sha256

@@ -21,6 +21,14 @@ This is an exploratory HTML prototype, not a GPUI implementation or an E2E
 baseline. Requests use local fixtures; clicking Send does not contact the URL.
 Edits and saved requests last for the current page session only.
 
+All shipped HTTP requests, cURL examples, and Flow defaults use
+[HTTPBingo](https://httpbingo.org/). The sample environment is HTTPBingo; add
+other environments in Settings as needed. The local fixtures cover the shipped
+query, header, UUID, JSON echo, and status examples. They preserve HTTPBingo's
+array-valued query parameters and JSON echo paths, but are not a full service
+emulator. UUID, origin, and timing are fixed preview values; file bodies show
+metadata placeholders. HTTPBingo echoes data rather than storing users or orders.
+
 Try:
 
 - Start at Home and choose HTTP requests or Flows. The left navigation preserves
@@ -52,7 +60,7 @@ Try:
   list marks the current request and unsaved edits; Up/Down moves between items,
   Enter opens one, and Escape returns to the tab bar. New untitled requests get
   sequential names so multiple blank tabs remain distinguishable.
-- Send or cancel; Create user returns 201, Missing endpoint returns 404.
+- Send or cancel; Echo JSON returns 200, and Not found status returns an empty 404 response.
 - Filter or replay history, or search with Cmd/Ctrl+K.
 - Switch Pretty, Raw, and response Headers, and copy a response.
 - Open Code to generate and copy cURL from the current request configuration.
@@ -78,8 +86,8 @@ Try:
 
 In Flows:
 
-- Choose User onboarding (three HTTP steps, output references, and a condition)
-  or Service readiness (bounded polling). Create a new flow using the plus next
+- Choose UUID and JSON echo (three HTTP steps, output references, and a condition)
+  or Poll echoed status (bounded polling that succeeds on its first ready response). Create a new flow using the plus next
   to Your flows; in compact windows use the Choose flow menu.
 - Select a node to edit its request, checks, and exports in the right inspector.
   Narrow windows switch between Canvas and Details. Move steps using the up/down
@@ -114,6 +122,7 @@ prototype. Exported example documents have been checked using the existing
 
 `flow-studio.css` and `flow-studio.js` implement the new screens;
 `flow-model.js` holds sample definitions, conversion, and preview helpers.
+`httpbingo-demo.js` shares the local HTTPBingo response fixtures between both editors.
 `panel-resize.css` and `panel-resize.js` share the split handles and accessible
 size controls between HTTP and Flows.
 `request-tabs.css` and `request-tabs.js` handle the responsive tab rows, fixed
@@ -147,7 +156,7 @@ The parser and exporter share `curl-request.js`. Run their dependency-free tests
 with Node.js 18 or later:
 
 ```sh
-node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs prototypes/request-body.test.cjs
+node --test prototypes/*.test.cjs
 ```
 
 The desktop reference viewport is 1440 × 960 CSS pixels at 100% browser zoom.

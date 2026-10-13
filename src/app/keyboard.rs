@@ -26,6 +26,12 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
     vec![
         KeyBinding::new("enter", ActivateControl, Some("KeyboardButton")),
         KeyBinding::new("space", ActivateControl, Some("KeyboardButton")),
+        KeyBinding::new("tab", FocusNextControl, Some("CurlCommandInput > Input")),
+        KeyBinding::new(
+            "shift-tab",
+            FocusPreviousControl,
+            Some("CurlCommandInput > Input"),
+        ),
         KeyBinding::new("tab", FocusNextControl, Some("PostmanApp")),
         KeyBinding::new("shift-tab", FocusPreviousControl, Some("PostmanApp")),
         KeyBinding::new("cmd-enter", SendOrCancel, None),

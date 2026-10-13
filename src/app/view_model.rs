@@ -915,6 +915,22 @@ impl WorkspaceViewModel {
         }
     }
 
+    /// Import creates one dirty tab without replacing any existing tab or send snapshot.
+    pub(crate) fn import_request(&mut self, draft: RequestDraft) {
+        let mut request = RequestViewModel::new();
+        request.request_pane = if draft.body_kind() == BodyKind::None {
+            RequestPane::Params
+        } else {
+            RequestPane::Body
+        };
+        request.draft = draft;
+        request.dirty = true;
+        self.tabs.push(request);
+        if let Some(id) = self.active_tab_id() {
+            self.touch_request(id);
+        }
+    }
+
     pub fn close_tab(&mut self, index: usize) -> bool {
         let changed = self.tabs.close(index).changed();
         self.recent_tabs.retain(|id| self.tabs.get(*id).is_some());
