@@ -5,16 +5,52 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+## [0.1.0-rc.4] - 2026-10-13
+
+### Added
+
+- Home with separate HTTP and Flows destinations, matching the HTML design baseline. HTTP
+  drafts, responses, and running requests survive navigation between screens.
+- Named request saving in local SQLite storage, reopening from Home and search after restart,
+  and Save / Discard / Cancel protection when closing modified requests or quitting.
+- Shared, persistent environment management with URL rebasing that preserves request paths,
+  query parameters, and unrelated URLs.
+- Native cURL import with live preview and request-code export/copy. Runnable examples use
+  HTTPBingo consistently.
+- History and global search dialogs, single-entry history deletion, and confirmation before
+  clearing all history.
+
 ### Changed
 
-- `BodyInput::form_data_entry_count` now reads the form editor's rows directly instead of
-  maintaining a duplicate count. This changes the public Rust signature from
-  `form_data_entry_count(&self)` to `form_data_entry_count(&self, cx: &gpui::App)`.
-  Rust callers must migrate `input.form_data_entry_count()` to
-  `input.form_data_entry_count(cx)` using their current GPUI application context; this is
-  a source-breaking change for consumers of the UI library. Both workspace callers have
-  been migrated. Disabled and blank editor rows still count, and application behavior
-  and persisted data formats are unchanged. Refs #190, #180.
+- Rebuilt the HTTP request and response surfaces with GPUI Kit 0.7.3 and GPUI 0.3.9, including
+  retained inputs, dialogs, menus, scrollbars, and persistent light/dark appearance.
+- Added responsive request/response splitting, pointer and keyboard resizing, a panel-size
+  dialog, and saved layout preferences.
+- Aligned Params, Headers, Body, and Auth with the prototype. Body supports None, JSON, Raw,
+  URL encoded, Form-data, and Binary while retaining each type's draft.
+- Replaced custom Body, Scripts, and Tests editors with Kit Textarea, and the response body
+  with a read-only Kit Editor. Pretty mode provides JSON highlighting and line numbers; Raw
+  mode wraps text. Selection and scrolling are retained per request.
+- Removed superseded custom input, text-layout, selection, and scrollbar implementations.
+
+### Fixed
+
+- Anchored response scrollbars to the visible viewport when resizing and switching layouts.
+- Corrected request-table scrolling in constrained editor heights.
+- Pinned the Vaultwarden E2E service image to the tested API baseline.
+
+### Known limitations
+
+- The native Flows destination does not yet provide a visual editor or execution UI. Flow DSL
+  checking and execution remain available through the CLI.
+- Saving is explicit. Unsaved drafts are not recovered after a crash or force quit. Saved
+  requests retain explicitly entered credentials in unencrypted local storage; History
+  redaction is independent.
+- cURL import supports the documented inline subset. File-based and multipart commands are
+  export-only; see [cURL support](docs/curl.md).
+- Response bodies remain buffered text; byte-native viewing, atomic save-as, and incremental
+  streaming progress are not implemented.
+- Unsigned candidate packages can trigger macOS Gatekeeper or Windows SmartScreen warnings.
 
 ## [0.1.0] - Unreleased
 
@@ -35,6 +71,17 @@ This section summarizes the 0.1.0 prerelease series. Candidate builds are availa
   Windows, and Linux installations.
 - Reproducible macOS, Windows, and Linux packaging and tag-driven GitHub Releases.
 
+### Changed
+
+- `BodyInput::form_data_entry_count` now reads the form editor's rows directly instead of
+  maintaining a duplicate count. This changes the public Rust signature from
+  `form_data_entry_count(&self)` to `form_data_entry_count(&self, cx: &gpui::App)`.
+  Rust callers must migrate `input.form_data_entry_count()` to
+  `input.form_data_entry_count(cx)` using their current GPUI application context; this is
+  a source-breaking change for consumers of the UI library. Both workspace callers have
+  been migrated. Disabled and blank editor rows still count, and application behavior
+  and persisted data formats are unchanged. Refs #190, #180.
+
 ### Known limitations
 
 - Binary and range responses do not yet have a byte-native viewer.
@@ -43,5 +90,6 @@ This section summarizes the 0.1.0 prerelease series. Candidate builds are availa
 - Unsigned release candidates can trigger macOS Gatekeeper or Windows SmartScreen warnings. Final
   release packages should be signed using the credentials documented in `docs/releasing.md`.
 
-[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.3...HEAD
+[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.4...HEAD
+[0.1.0-rc.4]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.3...v0.1.0-rc.4
 [0.1.0]: https://github.com/847850277/postman-gpui/releases

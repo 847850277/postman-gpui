@@ -29,9 +29,22 @@ SHA-256, signing status, and pass/fail result in issue #148.
 ## Native interaction and persistence
 
 - [ ] Open two request tabs, edit both, switch between them, and confirm isolation.
+- [ ] Switch between Home, HTTP, and Flows without losing HTTP drafts or in-flight requests.
+- [ ] Save and rename a request, restart, and reopen it from Home and search with its body,
+      authorization, scripts, options, and notes intact.
+- [ ] Modify a saved request, then exercise Save, Discard changes, and Cancel when closing
+      the tab or quitting; cancellation keeps the edited request open.
+- [ ] Import the HTTPBingo cURL example, inspect its preview, send it, and copy its Code export.
+- [ ] Change and persist an environment; matching URLs rebase without losing paths or queries.
+- [ ] Resize the request/response split in both arrangements, reset it, and check the saved
+      layout after restarting. Scrollbars remain attached to the visible editor viewport.
+- [ ] Switch light/dark appearance and response Pretty/Raw modes; verify JSON highlighting,
+      wrapping, selection, and copy. The response editor must remain read-only.
 - [ ] Copy response text and paste into a request editor using native shortcuts.
 - [ ] Open the multipart file picker and select a local test file.
 - [ ] Search History, replay a completed request, and send it again.
+- [ ] Delete one History entry, cancel Clear all, then confirm Clear all; saved requests and
+      open drafts remain intact.
 - [ ] Quit and relaunch; completed History remains available and sensitive values remain redacted.
 - [ ] Uninstall succeeds. Existing local History behavior matches `docs/installation.md`.
 
