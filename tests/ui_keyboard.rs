@@ -98,6 +98,8 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     assert!(cx.debug_bounds("shortcut-help-dialog").is_none());
 
     cx.simulate_keystrokes("ctrl-w");
+    click(cx, "request-save-discard").unwrap();
+    cx.run_until_parked();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.tab_count()),
         1
@@ -164,7 +166,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
         RedirectPolicy::Follow
     );
     click(cx, "redirect-max-hops-decrease").unwrap();
-    cx.simulate_keystrokes("enter");
+    ui::press(cx, "enter");
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace
             .active_request()
@@ -172,6 +174,45 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
             .max_redirect_hops()),
         8,
         "the focused stepper should activate through Enter"
+    );
+    ui::press(cx, "space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .max_redirect_hops()),
+        7,
+        "Space should activate the focused stepper exactly once"
+    );
+
+    // Native radio activation must also work when Tab reaches an unchecked choice.
+    click(cx, "redirect-policy-follow").unwrap();
+    ui::press(cx, "tab space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_policy()),
+        RedirectPolicy::DoNotFollow
+    );
+    click(cx, "redirect-max-hops-decrease").unwrap();
+    click(cx, "redirect-max-hops-increase").unwrap();
+    ui::press(cx, "enter space");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .max_redirect_hops()),
+        7,
+        "disabled steppers must neither mutate the draft nor capture keyboard activation"
+    );
+    ui::press(cx, "shift-tab enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace
+            .active_request()
+            .unwrap()
+            .redirect_policy()),
+        RedirectPolicy::Follow
     );
 
     click(cx, "request-pane-body").unwrap();
@@ -271,7 +312,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
 }
 
 #[gpui::test]
-fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut TestAppContext) {
+fn cookie_overlay_controls_activate_and_restore_focus_on_close(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
     let (_app, cx) = cx.add_window_view(move |window, cx| {
@@ -281,17 +322,33 @@ fn cookie_overlay_enters_its_controls_and_escape_restores_the_trigger(cx: &mut T
     });
     ui::open_http(cx);
 
-    // Cookies now lives in the rail. Escape must still restore its keyboard target.
     click(cx, "cookie-jar-trigger").unwrap();
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
-    cx.simulate_keystrokes("tab escape");
+    ui::press(cx, "enter");
+    assert_eq!(
+        workspace.read_with(cx, |workspace, _| workspace.last_cookie_clear_count()),
+        Some(0),
+        "opening Cookies should focus the working Clear button"
+    );
+
+    // Escape and native close-button activation all return to the rail trigger.
+    for close_keys in ["tab escape", "tab space", "tab enter"] {
+        ui::press(cx, close_keys);
+        assert!(
+            cx.debug_bounds("cookie-jar-panel").is_none(),
+            "{close_keys}"
+        );
+        ui::press(cx, "enter");
+        assert!(
+            cx.debug_bounds("cookie-jar-panel").is_some(),
+            "{close_keys}"
+        );
+    }
+    click(cx, "cookie-jar-close").unwrap();
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
-    cx.update(|window, cx| {
-        use gpui_kit::test::TestWindowExt;
-        window.press("enter", cx);
-    });
+    ui::press(cx, "space");
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
-    cx.simulate_keystrokes("escape");
+    ui::press(cx, "escape");
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
 }
 
@@ -412,13 +469,24 @@ fn send_shortcuts_work_from_kit_fields_without_submitting_table_rows(cx: &mut Te
         ("request-pane-authorization", "authorization-input"),
         ("request-pane-options", "request-timeout-input"),
         ("request-pane-body", "body-form-key-0"),
+        ("request-pane-body", "body-input"),
+        ("request-pane-scripts", "script-editor"),
+        ("request-pane-tests", "tests-editor"),
     ]
     .into_iter()
     .enumerate()
     {
         click(cx, pane).unwrap();
         if pane == "request-pane-body" {
-            ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
+            ui::choose_body_kind(
+                cx,
+                if field == "body-input" {
+                    "body-kind-raw"
+                } else {
+                    "body-kind-url-encoded"
+                },
+            )
+            .unwrap();
         }
         for keys in ["cmd-enter", "ctrl-enter"] {
             let path = format!("/field-{index}-{keys}");
@@ -435,6 +503,8 @@ fn send_shortcuts_work_from_kit_fields_without_submitting_table_rows(cx: &mut Te
             request.assert();
         }
     }
+    click(cx, "request-pane-body").unwrap();
+    ui::choose_body_kind(cx, "body-kind-url-encoded").unwrap();
     workspace.read_with(cx, |workspace, _| {
         let RequestBodyDraft::UrlEncoded(rows) = workspace.active_request().unwrap().body_draft()
         else {

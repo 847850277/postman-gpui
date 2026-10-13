@@ -102,6 +102,15 @@ impl HistoryRepositoryWorker {
         HistoryRepositoryTask { queued, response }
     }
 
+    pub fn delete(&self, entry_id: String) -> HistoryRepositoryTask<()> {
+        let (reply, response) = oneshot::channel();
+        let queued = self
+            .sender
+            .send(HistoryRepositoryCommand::Delete { entry_id, reply })
+            .map_err(|_| HistoryRepositoryError::WorkerUnavailable);
+        HistoryRepositoryTask { queued, response }
+    }
+
     pub fn clear(&self) -> HistoryRepositoryTask<()> {
         let (reply, response) = oneshot::channel();
         let queued = self
@@ -123,6 +132,10 @@ enum HistoryRepositoryCommand {
     AppendAndTrim {
         snapshot: Box<VersionedHistorySnapshot>,
         limit: usize,
+        reply: oneshot::Sender<Result<(), HistoryRepositoryError>>,
+    },
+    Delete {
+        entry_id: String,
         reply: oneshot::Sender<Result<(), HistoryRepositoryError>>,
     },
     Clear {
@@ -148,6 +161,9 @@ fn run_worker(
                 reply,
             } => {
                 let _ = reply.send(repository.append_and_trim(&snapshot, limit));
+            }
+            HistoryRepositoryCommand::Delete { entry_id, reply } => {
+                let _ = reply.send(repository.delete(&entry_id));
             }
             HistoryRepositoryCommand::Clear { reply } => {
                 let _ = reply.send(repository.clear());

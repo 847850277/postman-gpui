@@ -635,6 +635,11 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     click(cx, "response-open-cookie-jar").unwrap();
     assert!(cx.debug_bounds("cookie-jar-workspace-overlay").is_some());
     assert!(cx.debug_bounds("cookie-jar-panel").is_some());
+    cx.update(|window, cx| {
+        use gpui_kit::test::TestWindowExt;
+        window.render_frame(cx);
+        assert_eq!(window.find("cookie-jar-clear-all").focused(), Some(true));
+    });
     click(cx, "cookie-jar-close").unwrap();
 
     // A rendered New Request keeps the application-level transport session while creating a

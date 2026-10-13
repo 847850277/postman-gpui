@@ -2,6 +2,7 @@ pub mod appearance;
 mod curl;
 mod environments;
 pub mod http_layout;
+mod saved_requests;
 // src/app/mod.rs
 mod history_storage;
 mod keyboard;
@@ -15,7 +16,8 @@ pub(crate) use history_storage::spawn_history_operation_and_reload;
 pub(crate) use keyboard::{
     setup_application_key_bindings, ActivateControl, ActivateNextRequest, ActivatePreviousRequest,
     CloseRequest, DismissOverlay, FocusGlobalSearch, FocusHistorySearch, FocusNextControl,
-    FocusPreviousControl, FocusUrl, NewRequest, SendOrCancel, ToggleShortcutHelp,
+    FocusPreviousControl, FocusUrl, NewRequest, RenameRequest, SaveRequest, SendOrCancel,
+    ToggleShortcutHelp,
 };
 pub use postman_app::PostmanApp;
 pub use view_model::{
@@ -27,3 +29,5 @@ pub use view_model::{
     RequestViewModel, ResponseState, SendCompletion, SendId, SendProgress, SendRejection,
     SendStart, SendTerminal, SendTerminalOutcome, SendTransition, WorkspaceViewModel,
 };
+
+pub use keyboard::Quit;

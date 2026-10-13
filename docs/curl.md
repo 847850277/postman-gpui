@@ -141,4 +141,5 @@ cargo build --locked
 node --test prototypes/curl-request.test.cjs prototypes/request-body.test.cjs
 ```
 
-Request Save/persistence remains P4.4; Flows and Add to flow are separate work.
+Imported requests can be saved and reopened through [Saved requests](saved-requests.md).
+Import alone does not save or send a request. Flows and Add to flow remain separate work.

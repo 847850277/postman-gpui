@@ -100,18 +100,35 @@ fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
         assert!(model.load_history_entry(&entry));
         cx.notify();
     });
-    for (pane, viewport, first_item) in [
-        (
-            "response-pane-body",
-            "response-content",
-            "response-document",
-        ),
-        (
-            "response-pane-headers",
-            "response-headers-rows",
-            "response-header-row-0",
-        ),
-    ] {
+    let assert_body_edges = |cx: &mut VisualTestContext| {
+        let body = cx.debug_bounds("response-content").unwrap();
+        let response = cx.debug_bounds("response-container").unwrap();
+        let footer = cx.debug_bounds("response-footer").unwrap();
+        assert!((body.left() - response.left()).abs() <= px(1.));
+        assert!((body.right() - response.right()).abs() <= px(1.));
+        assert!((body.bottom() - footer.top()).abs() <= px(1.));
+        let before = body;
+        ui::scroll_down(cx, "response-content", 100.).unwrap();
+        assert_eq!(cx.debug_bounds("response-content").unwrap(), before);
+    };
+    assert_body_edges(cx);
+    for dy in [-80., 160.] {
+        drag(cx, 0., dy, false);
+        assert_body_edges(cx);
+    }
+    click(cx, "response-layout-toggle").unwrap();
+    drag(cx, 100., 0., false);
+    assert_body_edges(cx);
+    resize(cx, 1024., 768.);
+    assert_body_edges(cx);
+    resize(cx, 1440., 960.);
+    click(cx, "response-layout-toggle").unwrap();
+    let (pane, viewport, first_item) = (
+        "response-pane-headers",
+        "response-headers-rows",
+        "response-header-row-0",
+    );
+    {
         click(cx, pane).unwrap();
         let initial = cx.debug_bounds(first_item).unwrap();
         ui::scroll_down(cx, viewport, 100.).unwrap();
@@ -348,6 +365,11 @@ async fn pretty_raw_long_content_and_per_tab_view_state_preserve_the_received_re
     }
     assert!(cx.debug_bounds("response-status-422").is_some());
     click(cx, "response-content").unwrap();
+    let response_focus = cx.update(|window, cx| window.focused(cx).unwrap());
+    ui::press(cx, "tab");
+    cx.update(|window, cx| assert_ne!(window.focused(cx).as_ref(), Some(&response_focus)));
+    ui::press(cx, "shift-tab");
+    cx.update(|window, cx| assert_eq!(window.focused(cx).as_ref(), Some(&response_focus)));
     cx.simulate_keystrokes("cmd-a cmd-c");
     let pretty = cx.read_from_clipboard().unwrap().text().unwrap();
     assert!(pretty.contains('\n'));
@@ -368,24 +390,9 @@ async fn pretty_raw_long_content_and_per_tab_view_state_preserve_the_received_re
         Some(raw.as_str())
     );
     let viewport = cx.debug_bounds("response-content").unwrap();
-    let document = cx.debug_bounds("response-document").unwrap();
-    assert!(
-        document.size.width > viewport.size.width,
-        "long lines must scroll, not resize the window: {document:?} {viewport:?}"
-    );
-    cx.simulate_event(gpui::ScrollWheelEvent {
-        position: viewport.center(),
-        delta: gpui::ScrollDelta::Pixels(point(px(-400.), px(0.))),
-        ..Default::default()
-    });
-    let scrolled = cx.debug_bounds("response-document").unwrap();
-    assert!(scrolled.left() < document.left());
     click(cx, "nav-home").unwrap();
     click(cx, "nav-http").unwrap();
-    assert_eq!(
-        cx.debug_bounds("response-document").unwrap().left(),
-        scrolled.left()
-    );
+    assert_eq!(cx.debug_bounds("response-content").unwrap(), viewport);
     click(cx, "new-tab-button").unwrap();
     click(cx, "request-tab-0").unwrap();
     click(cx, "response-content").unwrap();

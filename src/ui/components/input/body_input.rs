@@ -1,55 +1,20 @@
 //! Retained text and form editors selected by their owning pane.
 //!
 //! `BodyInput` projects the pane-selected editor mode and forwards child edit events. Text editing
-//! mechanics live in `TextBodyInput`; typed form-row mechanics live in `FormBodyInput`. Request
+//! mechanics live in `MultilineInput`; typed form-row mechanics live in `FormBodyInput`. Request
 //! semantics and transport serialization remain authoritative in the workspace ViewModel.
 
+use super::multiline_input::{MultilineInput, MultilineInputEvent};
 use form_body_input::{FormBodyInput, FormBodyInputEvent};
 use gpui::{
-    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, Styled, Subscription,
-    Window,
+    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 use std::path::PathBuf;
-use text_body_input::{TextBodyInput, TextBodyInputEvent};
 
 use crate::ui::theme::{CODE_BG, PANEL};
 
 mod form_body_input;
-mod text_body_input;
-
-actions!(
-    body_input,
-    [
-        Backspace,
-        Delete,
-        Enter,
-        Escape,
-        Tab,
-        ShiftTab,
-        Left,
-        Right,
-        WordLeft,
-        WordRight,
-        Up,
-        Down,
-        SelectLeft,
-        SelectRight,
-        SelectWordLeft,
-        SelectWordRight,
-        SelectUp,
-        SelectDown,
-        SelectAll,
-        Home,
-        End,
-        Paste,
-        Cut,
-        Copy,
-        Undo,
-        Redo,
-    ]
-);
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BodyType {
     Json,
@@ -111,7 +76,7 @@ impl FormDataEntry {
 /// Presents the text or form editor selected by the owning pane.
 pub struct BodyInput {
     current_type: BodyType,
-    text_input: Entity<TextBodyInput>,
+    text_input: Entity<MultilineInput>,
     form_input: Entity<FormBodyInput>,
     _subscriptions: Vec<Subscription>,
 }
@@ -129,7 +94,8 @@ impl Focusable for BodyInput {
 
 impl BodyInput {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let text_input = cx.new(TextBodyInput::new);
+        let text_input =
+            cx.new(|cx| MultilineInput::new("Request body", "Enter request body…", window, cx));
         let form_input = cx.new(|cx| FormBodyInput::new(window, cx));
         let subscriptions = vec![
             cx.subscribe(&text_input, Self::on_text_event),
@@ -146,11 +112,11 @@ impl BodyInput {
 
     fn on_text_event(
         &mut self,
-        _input: Entity<TextBodyInput>,
-        event: &TextBodyInputEvent,
+        _input: Entity<MultilineInput>,
+        event: &MultilineInputEvent,
         cx: &mut Context<Self>,
     ) {
-        let TextBodyInputEvent::ValueChanged(value) = event;
+        let MultilineInputEvent::ValueChanged(value) = event;
         cx.emit(BodyInputEvent::ValueChanged(value.clone()));
         cx.notify();
     }
@@ -194,20 +160,30 @@ impl BodyInput {
     }
 
     #[cfg(test)]
-    fn set_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+    fn set_content(
+        &mut self,
+        content: impl Into<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.current_type != BodyType::FormData {
             let content = content.into();
             self.text_input
-                .update(cx, |input, cx| input.set_content(content, cx));
+                .update(cx, |input, cx| input.set_content(content, window, cx));
         }
     }
 
     /// Projects a ViewModel value into the active editor buffer without emitting an edit event.
-    pub fn project_content(&mut self, content: impl Into<String>, cx: &mut Context<Self>) {
+    pub fn project_content(
+        &mut self,
+        content: impl Into<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.current_type != BodyType::FormData {
             let content = content.into();
             self.text_input
-                .update(cx, |input, cx| input.project_content(content, cx));
+                .update(cx, |input, cx| input.project_content(content, window, cx));
         }
     }
 
@@ -280,7 +256,8 @@ impl BodyInput {
     fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match self.current_type {
             BodyType::Json | BodyType::Raw => {
-                self.text_input.update(cx, TextBodyInput::clear);
+                self.text_input
+                    .update(cx, |input, cx| input.set_content("", window, cx));
             }
             BodyType::FormData => {
                 self.form_input
@@ -312,50 +289,6 @@ impl Render for BodyInput {
                 BodyType::FormData => self.form_input.clone().into_any_element(),
             })
     }
-}
-
-pub fn setup_body_input_key_bindings() -> Vec<KeyBinding> {
-    vec![
-        KeyBinding::new("backspace", Backspace, Some("BodyInput")),
-        KeyBinding::new("delete", Delete, Some("BodyInput")),
-        KeyBinding::new("enter", Enter, Some("BodyInput")),
-        KeyBinding::new("escape", Escape, Some("BodyInput")),
-        KeyBinding::new("tab", Tab, Some("BodyInput")),
-        KeyBinding::new("shift-tab", ShiftTab, Some("BodyInput")),
-        KeyBinding::new("left", Left, Some("BodyInput")),
-        KeyBinding::new("right", Right, Some("BodyInput")),
-        KeyBinding::new("alt-left", WordLeft, Some("BodyInput")),
-        KeyBinding::new("ctrl-left", WordLeft, Some("BodyInput")),
-        KeyBinding::new("alt-right", WordRight, Some("BodyInput")),
-        KeyBinding::new("ctrl-right", WordRight, Some("BodyInput")),
-        KeyBinding::new("up", Up, Some("BodyInput")),
-        KeyBinding::new("down", Down, Some("BodyInput")),
-        KeyBinding::new("shift-left", SelectLeft, Some("BodyInput")),
-        KeyBinding::new("shift-right", SelectRight, Some("BodyInput")),
-        KeyBinding::new("alt-shift-left", SelectWordLeft, Some("BodyInput")),
-        KeyBinding::new("ctrl-shift-left", SelectWordLeft, Some("BodyInput")),
-        KeyBinding::new("alt-shift-right", SelectWordRight, Some("BodyInput")),
-        KeyBinding::new("ctrl-shift-right", SelectWordRight, Some("BodyInput")),
-        KeyBinding::new("shift-up", SelectUp, Some("BodyInput")),
-        KeyBinding::new("shift-down", SelectDown, Some("BodyInput")),
-        KeyBinding::new("cmd-a", SelectAll, Some("BodyInput")),
-        KeyBinding::new("ctrl-a", SelectAll, Some("BodyInput")),
-        KeyBinding::new("cmd-v", Paste, Some("BodyInput")),
-        KeyBinding::new("ctrl-v", Paste, Some("BodyInput")),
-        KeyBinding::new("cmd-c", Copy, Some("BodyInput")),
-        KeyBinding::new("ctrl-c", Copy, Some("BodyInput")),
-        KeyBinding::new("cmd-x", Cut, Some("BodyInput")),
-        KeyBinding::new("ctrl-x", Cut, Some("BodyInput")),
-        KeyBinding::new("cmd-z", Undo, Some("BodyInput")),
-        KeyBinding::new("ctrl-z", Undo, Some("BodyInput")),
-        KeyBinding::new("cmd-shift-z", Redo, Some("BodyInput")),
-        KeyBinding::new("ctrl-shift-z", Redo, Some("BodyInput")),
-        KeyBinding::new("ctrl-y", Redo, Some("BodyInput")),
-        KeyBinding::new("home", Home, Some("BodyInput")),
-        KeyBinding::new("end", End, Some("BodyInput")),
-        KeyBinding::new("cmd-left", Home, Some("BodyInput")),
-        KeyBinding::new("cmd-right", End, Some("BodyInput")),
-    ]
 }
 
 #[cfg(test)]
@@ -444,7 +377,7 @@ mod tests {
         let (input, cx) = cx.add_window_view(BodyInput::new);
         let recorder = cx.new(|cx| EventRecorder::new(input.clone(), cx));
         input.update_in(cx, |input, window, cx| {
-            input.project_content("投影😀", cx);
+            input.project_content("投影😀", window, cx);
             input.project_form_data_entries(
                 vec![FormDataEntry::text("key", "value", false); 3],
                 window,
@@ -476,9 +409,9 @@ mod tests {
             [BodyInputEvent::FormDataChanged(entries)] if entries.len() == 2
         ));
         recorder.update(cx, |recorder, _| recorder.events.clear());
-        input.update_in(cx, |input, _, cx| {
+        input.update_in(cx, |input, window, cx| {
             input.set_type_silent(BodyType::Json, cx);
-            input.set_content("user edit", cx);
+            input.set_content("user edit", window, cx);
         });
         assert!(matches!(
             recorder.read_with(cx, |recorder, _| recorder.events.clone()).as_slice(),

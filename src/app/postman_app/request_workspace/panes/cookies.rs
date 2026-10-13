@@ -1,14 +1,16 @@
 use crate::{
-    app::{ActivateControl, WorkspaceViewModel},
-    ui::theme::{
-        ACCENT, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT, PANEL,
-        PANEL_ALT, SUBTEXT, TEXT,
+    app::WorkspaceViewModel,
+    ui::{
+        components::kit_controls,
+        theme::{
+            ACCENT, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT,
+            PANEL, PANEL_ALT, SUBTEXT, TEXT,
+        },
     },
 };
 use gpui::{
     div, prelude::FluentBuilder, px, Context, Entity, EventEmitter, FocusHandle, FontWeight,
-    InteractiveElement, IntoElement, ParentElement, Render, Role, StatefulInteractiveElement,
-    Styled, Subscription, Window,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Debug)]
@@ -22,7 +24,6 @@ pub(in crate::app::postman_app) enum CookiePaneEvent {
 pub(in crate::app::postman_app) struct CookiePane {
     view_model: Entity<WorkspaceViewModel>,
     clear_focus_handle: FocusHandle,
-    close_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -37,7 +38,6 @@ impl CookiePane {
         Self {
             view_model,
             clear_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
-            close_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         }
     }
@@ -49,39 +49,10 @@ impl CookiePane {
     ) {
         self.clear_focus_handle.focus(window, cx);
     }
-
-    fn clear_all(
-        &mut self,
-        _event: &gpui::MouseUpEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.clear_focus_handle.focus(window, cx);
-        cx.emit(CookiePaneEvent::ClearAllRequested);
-    }
-
-    fn close(&mut self, _event: &gpui::MouseUpEvent, window: &mut Window, cx: &mut Context<Self>) {
-        window.blur(cx);
-        cx.emit(CookiePaneEvent::CloseRequested);
-    }
-
-    fn clear_with_keyboard(&mut self, _: &ActivateControl, _: &mut Window, cx: &mut Context<Self>) {
-        cx.emit(CookiePaneEvent::ClearAllRequested);
-    }
-
-    fn close_with_keyboard(
-        &mut self,
-        _: &ActivateControl,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        window.blur(cx);
-        cx.emit(CookiePaneEvent::CloseRequested);
-    }
 }
 
 impl Render for CookiePane {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (cookies, cleared) = {
             let view_model = self.view_model.read(cx);
             (
@@ -93,6 +64,7 @@ impl Render for CookiePane {
 
         div()
             .debug_selector(|| "cookie-jar-panel".into())
+            .key_context("OverlayTrigger")
             .size_full()
             .min_h_0()
             .flex()
@@ -155,61 +127,26 @@ impl Render for CookiePane {
                             .child(format!("{count} stored")),
                     )
                     .child(
-                        div()
-                            .id("cookie-jar-clear-all")
+                        kit_controls::editor_button("cookie-jar-clear-all", "Clear all cookies", cx)
                             .debug_selector(|| "cookie-jar-clear-all".into())
                             .track_focus(&self.clear_focus_handle)
-                            .key_context("KeyboardButton OverlayTrigger")
-                            .role(Role::Button)
-                            .aria_label("Clear all cookies")
-                            .h(px(30.0))
-                            .px_3()
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .rounded_lg()
+                            .h_8()
                             .bg(ACCENT_SOFT.resolve(cx))
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::BOLD)
-                            .text_size(px(10.0))
                             .text_color(ACCENT.resolve(cx))
-                            .cursor_pointer()
-                            .hover(|style| style.bg(crate::ui::theme::ACCENT_SOFT.resolve(cx)))
-                            .when(self.clear_focus_handle.is_focused(window), |button| {
-                                button.border_1().border_color(ACCENT.resolve(cx))
-                            })
-                            .child("Clear all cookies")
-                            .on_action(cx.listener(Self::clear_with_keyboard))
-                            .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::clear_all)),
+                            .on_click(cx.listener(|_, _, _, cx| {
+                                cx.emit(CookiePaneEvent::ClearAllRequested)
+                            })),
                     )
                     .child(
-                        div()
-                            .id("cookie-jar-close")
-                            .debug_selector(|| "cookie-jar-close".into())
-                            .track_focus(&self.close_focus_handle)
-                            .key_context("KeyboardButton OverlayTrigger")
-                            .role(Role::Button)
-                            .aria_label("Close Cookie Jar")
-                            .size(px(30.0))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .rounded_lg()
-                            .bg(PANEL.resolve(cx))
-                            .font_family(FONT_UI)
-                            .font_weight(FontWeight::BOLD)
-                            .text_size(px(16.0))
-                            .text_color(MUTED.resolve(cx))
-                            .cursor_pointer()
-                            .hover(|style| style.bg(ACCENT_SOFT.resolve(cx)).text_color(ACCENT.resolve(cx)))
-                            .when(self.close_focus_handle.is_focused(window), |button| {
-                                button.border_1().border_color(ACCENT.resolve(cx))
-                            })
-                            .child("×")
-                            .on_action(cx.listener(Self::close_with_keyboard))
-                            .on_mouse_up(gpui::MouseButton::Left, cx.listener(Self::close)),
+                        kit_controls::icon_button(
+                            "cookie-jar-close",
+                            gpui_kit::assets::IconName::Close,
+                            "Close Cookie Jar",
+                        )
+                        .debug_selector(|| "cookie-jar-close".into())
+                        .on_click(cx.listener(|_, _, _, cx| {
+                            cx.emit(CookiePaneEvent::CloseRequested)
+                        })),
                     ),
             )
             .when_some(cleared, |panel, cleared| {

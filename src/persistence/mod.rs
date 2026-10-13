@@ -27,3 +27,5 @@ pub use sqlite_history_repository::{
     production_history_database_path, SqliteHistoryRepository, CURRENT_HISTORY_SCHEMA_VERSION,
     DEFAULT_HISTORY_RETENTION_LIMIT,
 };
+
+pub(crate) mod request_documents;

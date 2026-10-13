@@ -11,6 +11,39 @@ use gpui_kit::component::{
 };
 
 impl PostmanApp {
+    pub(super) fn save_request_command(
+        &mut self,
+        _: &crate::app::SaveRequest,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.route == AppRoute::Http {
+            self.saved_requests
+                .update(cx, |saved, cx| saved.save_active(false, window, cx));
+        }
+    }
+    pub(super) fn rename_request_command(
+        &mut self,
+        _: &crate::app::RenameRequest,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.route == AppRoute::Http {
+            self.saved_requests
+                .update(cx, |saved, cx| saved.save_active(true, window, cx));
+        }
+    }
+    pub(super) fn quit_command(
+        &mut self,
+        _: &crate::app::Quit,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.saved_requests.update(cx, |saved, cx| {
+            saved.request_close(super::CloseIntent::Quit, window, cx)
+        });
+    }
+
     pub(super) fn focus_next_control(
         &mut self,
         _: &FocusNextControl,
@@ -130,6 +163,7 @@ impl PostmanApp {
             let modifier = if cfg!(target_os = "macos") { "⌘" } else { "Ctrl" };
             let shortcuts = [
                 ("Send / cancel active request (HTTP)", format!("{modifier} + Enter")),
+                ("Save request (HTTP)", format!("{modifier} + S")),
                 ("New request tab", format!("{modifier} + T")),
                 ("Close active request tab (HTTP)", format!("{modifier} + W")),
                 ("Focus request URL (HTTP)", format!("{modifier} + L")),

@@ -35,6 +35,7 @@ examples; native and CLI requests contact the configured URL when executed.
 - Response status, headers, formatted body, and quick copy
 - Multi-tab requests, global search, and replayable SQLite history
 - Shared, persistent HTTP/Flows environment settings with safe request URL rebasing
+- Named request saving, reopening after restart, and unsaved-change protection
 - cURL import with live preview and request Code export/copy via GPUI Kit dialogs
 - Cross-platform keyboard, selection, and clipboard behavior
 
@@ -71,16 +72,21 @@ Normal startup opens **Home**, with separate **HTTP** and **Flows** destinations
 Home resumes real requests from the current session; changing pages preserves HTTP
 drafts, responses, and running requests. History, search, cookies, and keyboard help
 remain available. The Flows page is an explicit unavailable state until its editor
-and execution UI land. Drafts are not restored across application restarts.
+and execution UI land. Unsaved drafts are not restored across application restarts;
+saved requests can be reopened from Home or search.
 
 The shell defaults to light appearance; the rail's theme button switches it manually
 and restores that choice on restart. Home cards stack at compact window widths;
 the native minimum remains 960 × 640.
 
 GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
+The application and native tests pin GPUI Kit **0.7.3** with its matching
+**gpui-pre 0.3.9** snapshot; update these together and regenerate `Cargo.lock`.
 History, global search, and keyboard help now use Kit modal dialogs. History groups real
 SQLite records by local date, filters method/name/URL/headers/body, and replays the stored
-request and response without sending. Refresh retains selection; Clear requires confirmation.
+request and response without sending. Each row's trash button deletes only that history entry
+after confirmation. Refresh retains selection; **Clear…** requires confirmation and clears all
+history, including filtered-out entries. Neither operation deletes saved requests or open drafts.
 Search (`Cmd/Ctrl+K`) distinguishes open tabs from history and supports Up/Down and Enter.
 `Cmd/Ctrl+Shift+F` opens History; `Cmd/Ctrl+/` opens the native shortcut reference.
 Escape closes the topmost dialog and restores focus. In-flight requests continue normally.
@@ -106,6 +112,13 @@ command; **Import cURL** switches directly to the importer. Neither action execu
 or reads files. See [cURL support and native adaptations](docs/curl.md) for accepted flags,
 file-reference export, and redirect/version requirements.
 
+**Save** / **Cmd+S** / **Ctrl+S** stores a named request locally. Reopen it after
+closing or restarting through **Home → Saved requests** or global search. Closing
+modified requests offers Save, Discard changes, or Cancel; sending does not mark
+a document saved. Saved documents retain explicitly entered credentials in
+unencrypted local storage. See [saved requests](docs/saved-requests.md) for the
+storage contract, file references, recovery and validation.
+
 The request/response split uses columns at an available editor width of 900 logical
 pixels and stacks below it. History and search overlay the editor without changing its split.
 The response toolbar
@@ -116,7 +129,7 @@ as the toolbar button. Each arrangement's ratio and the explicit layout preferen
 are saved locally; an invalid/unavailable preference file falls back to a usable session.
 
 Params and Headers include editable Description notes, retained in the current tab's draft
-and excluded from the outgoing request. History replays the effective request; it does not
+and in saved request documents, and excluded from the outgoing request. History replays the effective request; it does not
 persist these notes. Wide layouts show a Query String preview and an authorization shortcut
 outside the Body editor. Body offers None, JSON, Raw, URL encoded, Form-data and Binary,
 retaining each type's draft when switching. Its actions menu contains Request details,
@@ -124,8 +137,10 @@ Sample JSON and Clear body. Auth places its scheme selector beside the credentia
 with both bearer tokens and passwords masked. Request tables, body editors and response
 panels use Kit scrollbars for wheel, thumb-drag and track-click scrolling. Search, auth,
 Options, descriptions and table cells use retained Kit inputs for selection, IME, undo
-and native editing menus. Body and response text keep their specialized rendering,
-with Kit context menus for editing and copying.
+and native editing menus. JSON/Raw request bodies, pre-request scripts and tests use
+Kit Textarea. Response bodies use a read-only Kit Editor with JSON highlighting, line
+numbers in Pretty mode, wrapping in Raw mode, and per-request selection/scroll state.
+Kit context menus support editing and copying; the toolbar copies the full raw response.
 
 Run `cargo test --locked --test ui_shell --test ui_kit --test ui_layout --test ui_response_layout --test ui_request_panels` for navigation, in-flight
 request preservation, keyboard behavior, and geometry at 960 × 640 through
@@ -239,8 +254,9 @@ a normal workspace test run alone does not establish that these suites ran.
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
 - The visual Flow editor remains a prototype; see the CLI for actual Flow execution.
-- Request Save/persistence is still planned. Native cURL import supports the documented inline
-  subset; file-based and multipart commands are export-only.
+- Request saving is explicit; unsaved drafts are not recovered after a crash or force quit.
+- Native cURL import supports the documented inline subset; file-based and multipart commands
+  are export-only.
 
 ## Documentation
 

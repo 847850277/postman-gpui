@@ -12,7 +12,9 @@ use gpui::{
 };
 use gpui_kit::{
     base::Tab,
-    component::{input::Input, scroll::ScrollableElement},
+    component::{
+        button::ButtonVariants, input::Input, scroll::ScrollableElement, Disableable, Sizable,
+    },
 };
 
 actions!(request_pane_tabs, [NextRequestPane, PreviousRequestPane]);
@@ -298,6 +300,52 @@ impl RequestComposer {
                                 this.code_focus_handle.focus(window, cx);
                                 this.open_curl(false, window, cx)
                             })),
+                    )
+                    .when(
+                        active.is_some_and(|r| r.saved_document_id().is_some()),
+                        |row| {
+                            row.child(
+                                gpui_kit::component::button::Button::new("rename-request")
+                                    .debug_selector(|| "rename-request".into())
+                                    .small()
+                                    .ghost()
+                                    .icon(gpui_kit::assets::IconName::Pencil)
+                                    .accessibility_label("Rename request…")
+                                    .tooltip("Rename request…")
+                                    .on_click(|_, window, cx| {
+                                        window.dispatch_action(
+                                            Box::new(crate::app::RenameRequest),
+                                            cx,
+                                        )
+                                    }),
+                            )
+                        },
+                    )
+                    .child(
+                        gpui_kit::component::button::Button::new("save-request")
+                            .debug_selector(|| "save-request".into())
+                            .small()
+                            .icon(gpui_kit::assets::IconName::Save)
+                            .label(if model.saving_request().is_some() {
+                                "Saving…"
+                            } else if window.viewport_size().width > gpui::px(1100.) {
+                                if cfg!(target_os = "macos") {
+                                    "Save  ⌘ S"
+                                } else {
+                                    "Save  Ctrl S"
+                                }
+                            } else {
+                                "Save"
+                            })
+                            .disabled(
+                                model.saving_request().is_some()
+                                    || model.documents_loading()
+                                    || !model.documents_ready(),
+                            )
+                            .accessibility_label("Save request (Cmd/Ctrl+S)")
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(Box::new(crate::app::SaveRequest), cx)
+                            }),
                     ),
             )
             .child(

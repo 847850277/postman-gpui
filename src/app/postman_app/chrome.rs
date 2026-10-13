@@ -252,12 +252,20 @@ impl PostmanApp {
     pub(super) fn render_status_bar(&self, cx: &Context<Self>) -> impl IntoElement {
         let model = self.view_model.read(cx);
         let running = model.tabs().iter().filter(|tab| tab.is_sending()).count();
-        let status = if running > 0 {
+        let status = if model.saving_request().is_some() {
+            "Saving request…".into()
+        } else if let Some(error) = model.documents_error() {
+            error.to_owned()
+        } else if running > 0 {
             format!("Sending {running} request(s)…")
         } else {
             match self.route {
                 AppRoute::Home => "Ready when you are",
-                AppRoute::Http => "Requests stay open in this session",
+                AppRoute::Http => match model.active_request() {
+                    Some(r) if r.is_dirty() => "Unsaved changes",
+                    Some(r) if r.saved_document_id().is_some() => "All changes saved",
+                    _ => "Ready when you are",
+                },
                 AppRoute::Flows => "Flow editing is not available yet",
             }
             .into()
@@ -275,7 +283,7 @@ impl PostmanApp {
             .bg(BG.resolve(cx))
             .text_size(m::CAPTION)
             .text_color(MUTED.resolve(cx))
-            .child(status)
+            .child(div().min_w_0().truncate().child(status))
             .when_some(
                 crate::app::appearance::Appearance::error(cx)
                     .or_else(|| crate::app::http_layout::HttpLayoutPreferences::error(cx))

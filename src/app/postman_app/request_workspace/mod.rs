@@ -42,6 +42,7 @@ pub(super) enum RequestWorkspaceEvent {
     Execute(PendingRequest),
     Abort(SendId),
     OpenCookieJar,
+    CloseRequested(RequestTabId),
 }
 
 /// Workspace composition for request tabs, the active composer, and its response.
@@ -83,7 +84,7 @@ impl RequestWorkspace {
                 cx,
             )
         });
-        let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), cx));
+        let response_viewer = cx.new(|cx| ResponseViewer::new(view_model.clone(), window, cx));
         let subscriptions = vec![
             cx.subscribe(&composer, Self::on_composer_event),
             cx.subscribe_in(&response_viewer, window, Self::on_response_viewer_event),
@@ -172,7 +173,7 @@ impl RequestWorkspace {
         cx.emit(RequestWorkspaceEvent::Abort(send_id));
     }
 
-    fn project_active_request(&self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn project_active_request(&self, window: &mut Window, cx: &mut Context<Self>) {
         self.composer.update(cx, |composer, cx| {
             composer.project_active_request(window, cx)
         });
@@ -198,6 +199,18 @@ impl RequestWorkspace {
     }
 
     pub(super) fn close_request_tab(
+        &mut self,
+        tab_id: RequestTabId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if gpui_kit::component::WindowExt::has_active_dialog(window, cx) {
+            return;
+        }
+        cx.emit(RequestWorkspaceEvent::CloseRequested(tab_id));
+    }
+
+    pub(super) fn close_confirmed(
         &mut self,
         tab_id: RequestTabId,
         window: &mut Window,
@@ -267,8 +280,13 @@ impl RequestWorkspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(send_id) = self.view_model.read(cx).active_send_id() {
-            self.cancel_send(send_id, cx);
+        if self
+            .view_model
+            .read(cx)
+            .active_request()
+            .is_some_and(|r| r.is_dirty() || r.saved_document_id().is_some() || r.is_sending())
+        {
+            self.update_view_model(cx, WorkspaceViewModel::new_request);
         }
         if self.update_view_model(cx, |view_model| view_model.load_history_entry(entry)) {
             self.project_active_request(window, cx);

@@ -72,7 +72,7 @@ fn assert_scrollbar_pointer_moves_rows(
 }
 
 fn copy_visible_json_line(cx: &mut gpui::VisualTestContext) -> u64 {
-    click(cx, "body-text-scroll").unwrap();
+    click(cx, "request-text-editor").unwrap();
     cx.simulate_keystrokes("home shift-down cmd-c");
     let copied = cx
         .read_from_clipboard()
@@ -558,11 +558,10 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     assert!(cx
         .debug_bounds("body-effective-headers-scrollbar")
         .is_none());
-    assert!(cx.debug_bounds("body-text-scrollbar").is_none());
 }
 
 #[gpui::test]
-fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overflows(
+fn kit_body_scrolls_inside_its_viewport_and_effective_headers_keep_their_scrollbar(
     cx: &mut TestAppContext,
 ) {
     let long_body = (0..80)
@@ -591,11 +590,10 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     click(cx, "response-layout-toggle").unwrap();
     cx.run_until_parked();
 
-    scroll_up(cx, "body-text-scroll", 10_000.0).unwrap();
+    scroll_up(cx, "request-text-editor", 10_000.0).unwrap();
     let line_before = copy_visible_json_line(cx);
-    let text_scrollbar =
-        assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll");
-    scroll_down(cx, "body-text-scroll", 90.0).unwrap();
+    let text_viewport = cx.debug_bounds("request-text-editor").unwrap();
+    scroll_down(cx, "request-text-editor", 90.0).unwrap();
     let line_after = copy_visible_json_line(cx);
     assert!(
         line_after > line_before,
@@ -604,8 +602,8 @@ fn json_body_and_effective_headers_expose_visible_scrollbars_when_content_overfl
     // The prototype's ancestor can scroll too; the overlay must stay pinned
     // to this editor's viewport, rather than follow its text content.
     assert_eq!(
-        assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll").size,
-        text_scrollbar.size
+        cx.debug_bounds("request-text-editor").unwrap(),
+        text_viewport
     );
 
     ui::show_body_details(cx).unwrap();
@@ -739,7 +737,9 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
 }
 
 #[gpui::test]
-fn text_body_scrollbar_disappears_when_empty_or_short_content_fits(cx: &mut TestAppContext) {
+fn kit_text_body_preserves_viewport_and_contents_across_long_and_empty_edits(
+    cx: &mut TestAppContext,
+) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
         let request = workspace.active_request_mut().unwrap();
@@ -758,10 +758,7 @@ fn text_body_scrollbar_disappears_when_empty_or_short_content_fits(cx: &mut Test
     // Match the native preview where an empty editor previously showed a full track.
     cx.simulate_window_resize(handle, gpui::size(px(1480.), px(978.)));
     ui::open_http(cx);
-    for (kind, selector) in [
-        (BodyKind::Json, "body-kind-json"),
-        (BodyKind::Raw, "body-kind-raw"),
-    ] {
+    for selector in ["body-kind-json", "body-kind-raw"] {
         ui::choose_body_kind(cx, selector).unwrap();
         for body in [
             String::new(),
@@ -769,7 +766,7 @@ fn text_body_scrollbar_disappears_when_empty_or_short_content_fits(cx: &mut Test
             String::new(),
             "short body".to_string(),
         ] {
-            click(cx, "body-text-scroll").unwrap();
+            click(cx, "request-text-editor").unwrap();
             cx.simulate_keystrokes("cmd-a");
             if body.is_empty() {
                 cx.simulate_keystrokes("backspace");
@@ -785,16 +782,10 @@ fn text_body_scrollbar_disappears_when_empty_or_short_content_fits(cx: &mut Test
                     .to_string()),
                 body
             );
-            let viewport = cx.debug_bounds("body-text-scroll").unwrap();
+            let viewport = cx.debug_bounds("request-text-editor").unwrap();
             assert!(viewport.size.height > px(100.));
             if body.lines().count() > 1 {
-                assert_scrollbar_at_viewport(cx, "body-text-scrollbar", "body-text-scroll");
-                scroll_down(cx, "body-text-scroll", 1000.).unwrap();
-            } else {
-                assert!(
-                    cx.debug_bounds("body-text-scrollbar").is_none(),
-                    "{kind:?}: fitting content {body:?} must not show a scrollbar in {viewport:?}"
-                );
+                scroll_down(cx, "request-text-editor", 1000.).unwrap();
             }
         }
     }

@@ -1,19 +1,24 @@
 use crate::{
-    app::{ActivateControl, RequestViewModel, ResponseState, WorkspaceViewModel},
+    app::{RequestViewModel, ResponseState, WorkspaceViewModel},
     models::{RedirectPolicy, MAX_REDIRECT_HOPS},
     ui::{
-        components::input::header_input::{HeaderInput, HeaderInputEvent},
+        components::{
+            input::header_input::{HeaderInput, HeaderInputEvent},
+            kit_controls,
+        },
         theme::{
-            ACCENT, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED, OK, OK_SOFT,
-            PANEL, PANEL_ALT, SUBTEXT, TEXT,
+            metrics as m, ACCENT, ACCENT_SOFT, FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, MUTED,
+            OK, OK_SOFT, PANEL, PANEL_ALT, SUBTEXT, TEXT,
         },
     },
 };
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, FontWeight,
-    InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Render, Role,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    actions, div, px, AppContext, Context, Entity, FocusHandle, FontWeight, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement, Styled,
+    Subscription, Window,
 };
+
+use gpui_kit::base::{Radio, RadioGroup};
 
 actions!(
     redirect_policy,
@@ -36,7 +41,6 @@ pub(in crate::app::postman_app::request_workspace) struct OptionsPane {
     timeout_input: Entity<HeaderInput>,
     max_redirects_input: Entity<HeaderInput>,
     redirect_policy_focus_handles: Vec<FocusHandle>,
-    redirect_stepper_focus_handles: Vec<FocusHandle>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -61,9 +65,6 @@ impl OptionsPane {
             timeout_input,
             max_redirects_input,
             redirect_policy_focus_handles: (0..2)
-                .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
-                .collect(),
-            redirect_stepper_focus_handles: (0..2)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
             _subscriptions: subscriptions,
@@ -223,46 +224,41 @@ impl OptionsPane {
         label: &'static str,
         selector: &'static str,
         selected: bool,
-        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let index = usize::from(policy == RedirectPolicy::DoNotFollow);
-        let focus_handle = self.redirect_policy_focus_handles[index].clone();
-        let mouse_focus_handle = focus_handle.clone();
-        let focused = focus_handle.is_focused(window);
-        div()
-            .id(selector)
+        let focus = self.redirect_policy_focus_handles[index].clone();
+        let on_change =
+            cx.listener(move |this, _: &bool, _, cx| this.set_redirect_policy(policy, cx));
+        // Kit 0.7.3 RadioGroup supplies semantics but not arrow-key navigation.
+        // Retain only that group navigation; Kit Radio owns pointer/Enter/Space activation.
+        Radio::new(selector)
             .debug_selector(move || selector.into())
-            .track_focus(&focus_handle)
-            .key_context("KeyboardButton RedirectPolicy")
-            .role(Role::RadioButton)
-            .aria_label(label)
-            .aria_selected(selected)
-            .h(px(30.0))
+            .track_focus(&focus)
+            .key_context("RedirectPolicy")
+            .checked(selected)
+            .set_position(index + 1, 2)
+            .accessibility_label(label)
+            .h_8()
             .px_3()
             .flex()
             .items_center()
-            .rounded_md()
+            .rounded(m::RADIUS)
             .border_1()
             .border_color((if selected { ACCENT } else { LINE }).resolve(cx))
             .bg((if selected { ACCENT_SOFT } else { PANEL }).resolve(cx))
             .font_family(FONT_UI)
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_size(px(11.0))
+            .font_weight(m::SEMIBOLD)
+            .text_size(m::COMPACT_LABEL)
             .text_color((if selected { ACCENT } else { MUTED }).resolve(cx))
-            .cursor_pointer()
             .hover(|style| {
                 style
                     .border_color(ACCENT.resolve(cx))
                     .text_color(ACCENT.resolve(cx))
             })
-            .when(focused, |button| {
-                button.border_2().border_color(INFO.resolve(cx))
-            })
+            .focus_visible(|style| style.border_color(INFO.resolve(cx)))
             .child(label)
-            .on_action(cx.listener(move |this, _: &ActivateControl, _, cx| {
-                this.set_redirect_policy(policy, cx)
-            }))
+            .on_change(move |checked, _, window, cx| on_change(&checked, window, cx))
             .on_action(
                 cx.listener(move |this, _: &NextRedirectPolicy, window, cx| {
                     this.select_relative_redirect_policy(policy, 1, window, cx)
@@ -273,13 +269,6 @@ impl OptionsPane {
                     this.select_relative_redirect_policy(policy, -1, window, cx)
                 }),
             )
-            .on_mouse_up(
-                MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    mouse_focus_handle.focus(window, cx);
-                    this.set_redirect_policy(policy, cx);
-                }),
-            )
     }
 
     fn render_redirect_stepper(
@@ -288,60 +277,28 @@ impl OptionsPane {
         label: &'static str,
         selector: &'static str,
         enabled: bool,
-        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let index = usize::from(delta > 0);
-        let focus_handle = self.redirect_stepper_focus_handles[index].clone();
-        let mouse_focus_handle = focus_handle.clone();
-        let focused = focus_handle.is_focused(window);
-        div()
-            .id(selector)
+        kit_controls::editor_button(selector, if delta < 0 { "−" } else { "+" }, cx)
             .debug_selector(move || selector.into())
-            .track_focus(&focus_handle)
-            .key_context("KeyboardButton")
-            .role(Role::Button)
-            .aria_label(label)
-            .h(px(30.0))
-            .w(px(30.0))
-            .flex_none()
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded_md()
+            .accessibility_label(label)
+            .size(m::ICON_BUTTON)
+            .px_0()
             .border_1()
             .border_color(LINE.resolve(cx))
             .bg(PANEL.resolve(cx))
-            .font_family(FONT_MONO)
-            .font_weight(FontWeight::BOLD)
-            .text_size(px(14.0))
-            .text_color((if enabled { TEXT } else { MUTED }).resolve(cx))
-            .when(enabled, |button| {
-                button.cursor_pointer().hover(|style| {
-                    style
-                        .border_color(ACCENT.resolve(cx))
-                        .text_color(ACCENT.resolve(cx))
-                })
-            })
-            .when(focused, |button| {
-                button.border_2().border_color(INFO.resolve(cx))
-            })
-            .child(if delta < 0 { "−" } else { "+" })
-            .on_action(cx.listener(move |this, _: &ActivateControl, window, cx| {
-                this.adjust_max_redirects(delta, window, cx)
-            }))
-            .on_mouse_up(
-                MouseButton::Left,
+            .disabled(!enabled)
+            .styles(|styles| styles.disabled(|style| style.opacity(0.5)))
+            .on_click(
                 cx.listener(move |this, _, window, cx| {
-                    mouse_focus_handle.focus(window, cx);
-                    this.adjust_max_redirects(delta, window, cx);
+                    this.adjust_max_redirects(delta, window, cx)
                 }),
             )
     }
 }
 
 impl Render for OptionsPane {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (
             timeout_ms,
             redirect_policy,
@@ -435,7 +392,9 @@ impl Render for OptionsPane {
                             ),
                     )
                     .child(
-                        div()
+                        RadioGroup::new("redirect-policy-group")
+                            .axis(gpui::Axis::Horizontal)
+                            .aria_label("Redirect policy")
                             .flex()
                             .items_center()
                             .gap_2()
@@ -444,7 +403,6 @@ impl Render for OptionsPane {
                                 "Follow",
                                 "redirect-policy-follow",
                                 redirect_policy == RedirectPolicy::Follow,
-                                window,
                                 cx,
                             ))
                             .child(self.render_redirect_policy_button(
@@ -452,7 +410,6 @@ impl Render for OptionsPane {
                                 "Do not follow",
                                 "redirect-policy-do-not-follow",
                                 redirect_policy == RedirectPolicy::DoNotFollow,
-                                window,
                                 cx,
                             )),
                     )
@@ -479,7 +436,6 @@ impl Render for OptionsPane {
                                         "Decrease maximum redirects",
                                         "redirect-max-hops-decrease",
                                         redirect_policy == RedirectPolicy::Follow,
-                                        window,
                                         cx,
                                     ))
                                     .child(
@@ -513,7 +469,6 @@ impl Render for OptionsPane {
                                         "Increase maximum redirects",
                                         "redirect-max-hops-increase",
                                         redirect_policy == RedirectPolicy::Follow,
-                                        window,
                                         cx,
                                     )),
                             ),

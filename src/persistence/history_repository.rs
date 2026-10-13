@@ -8,6 +8,7 @@ pub enum HistoryRepositoryOperation {
     Initialize,
     Load,
     Append,
+    Delete,
     Clear,
 }
 
@@ -17,6 +18,7 @@ impl fmt::Display for HistoryRepositoryOperation {
             Self::Initialize => formatter.write_str("initialize"),
             Self::Load => formatter.write_str("load"),
             Self::Append => formatter.write_str("append"),
+            Self::Delete => formatter.write_str("delete"),
             Self::Clear => formatter.write_str("clear"),
         }
     }
@@ -253,6 +255,9 @@ pub trait HistoryRepository: Send {
         snapshot: &VersionedHistorySnapshot,
         limit: usize,
     ) -> Result<(), HistoryRepositoryError>;
+
+    /// Delete only the row with this stable ID. Missing IDs are an idempotent success.
+    fn delete(&mut self, entry_id: &str) -> Result<(), HistoryRepositoryError>;
 
     fn clear(&mut self) -> Result<(), HistoryRepositoryError>;
 }

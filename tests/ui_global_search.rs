@@ -88,7 +88,7 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
     assert!(cx.debug_bounds("global-search-history-group").is_some());
     click(cx, "global-search-history-result-0").unwrap();
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.active_tab_index().unwrap(), 1);
+        assert_eq!(workspace.active_tab_index().unwrap(), 2);
         assert_eq!(
             workspace.active_request().unwrap().url(),
             form_history.request.url
@@ -101,7 +101,12 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
                 .historical_entry_id(),
             Some(form_history.id.as_str())
         );
-        assert_eq!(workspace.tab_count(), 2);
+        assert_eq!(workspace.tab_count(), 3);
+        assert_eq!(
+            workspace.tabs()[1].url(),
+            "https://beta.example/httpbingo/orders",
+            "history replay preserves the existing unsaved request"
+        );
         assert_eq!(workspace.history_len(), 2);
     });
 }
@@ -148,7 +153,8 @@ fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mu
     assert!(cx.debug_bounds("global-search-history-group").is_some());
     cx.simulate_keystrokes("down enter");
     workspace.read_with(cx, |workspace, _| {
-        assert_eq!(workspace.active_tab_index().unwrap(), 1);
+        assert_eq!(workspace.active_tab_index().unwrap(), 2);
+        assert_eq!(workspace.tabs()[1].url(), "https://method.example/orders");
         assert_eq!(
             workspace.active_request().unwrap().url(),
             archived.request.url

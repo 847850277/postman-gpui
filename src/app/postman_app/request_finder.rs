@@ -12,7 +12,7 @@ use chrono::{Local, NaiveDate};
 use gpui::{
     actions, div, prelude::FluentBuilder, App, AppContext, Context, Entity, EventEmitter,
     Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window,
+    StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_kit::assets::IconName;
 use gpui_kit::base::actions::{Confirm, SelectDown, SelectUp};
@@ -33,11 +33,13 @@ pub(super) enum FinderKind {
 pub(super) enum RequestTarget {
     Request(RequestTabId),
     History(String),
+    Saved(String),
 }
 #[derive(Clone)]
 pub(super) enum RequestFinderEvent {
     Activate(RequestTarget),
     Refresh,
+    Delete(String),
     Clear,
     Closed,
 }
@@ -59,6 +61,8 @@ struct RequestGroup {
     rows: Vec<RequestRow>,
 }
 struct RequestResults {
+    owner: WeakEntity<RequestFinder>,
+    busy: bool,
     compact: bool,
     groups: Vec<RequestGroup>,
     selected: Option<RequestTarget>,
@@ -104,6 +108,7 @@ impl ListDelegate for RequestResults {
         let id: SharedString = match &row.target {
             RequestTarget::Request(id) => format!("search-request-{id:?}").into(),
             RequestTarget::History(id) => format!("history-{id}").into(),
+            RequestTarget::Saved(id) => format!("saved-{id}").into(),
         };
         let selector = row.selector.clone();
         let suffix = row
@@ -113,6 +118,12 @@ impl ListDelegate for RequestResults {
         let method_selector = format!("history-method-{suffix}");
         let detail_selector = format!("history-response-detail-{suffix}");
         let status_selector = format!("history-status-{}-{suffix}", row.status.unwrap_or_default());
+        let delete = match &row.target {
+            RequestTarget::History(id) if !self.compact => Some(id.clone()),
+            _ => None,
+        };
+        let owner = self.owner.clone();
+        let busy = self.busy;
         Some(
             ListItem::new(id)
                 .role(gpui::Role::Button)
@@ -192,9 +203,37 @@ impl ListDelegate for RequestResults {
                             d.child(
                                 div()
                                     .flex_none()
+                                    .flex()
+                                    .flex_col()
+                                    .items_end()
+                                    .gap_1()
                                     .text_size(m::CAPTION)
                                     .text_color(MUTED.resolve(cx))
-                                    .child(row.time.clone()),
+                                    .child(row.time.clone())
+                                    .when_some(delete, |d, id| {
+                                        let selector = format!("history-delete-{id}");
+                                        d.child(
+                                            Button::new(format!("delete-history-{id}"))
+                                                .key_context("HistoryDelete")
+                                                .debug_selector(move || selector.clone())
+                                                .small()
+                                                .ghost()
+                                                .icon(IconName::Trash)
+                                                .accessibility_label(format!(
+                                                    "Delete history entry {}",
+                                                    row.name
+                                                ))
+                                                .tooltip("Delete history entry")
+                                                .disabled(busy)
+                                                .on_click(move |_, window, cx| {
+                                                    // A row action must never bubble into opening the request.
+                                                    cx.stop_propagation();
+                                                    let _ = owner.update(cx, |this, cx| {
+                                                        this.confirm_delete(&id, window, cx)
+                                                    });
+                                                }),
+                                        )
+                                    }),
                             )
                         }),
                 ),
@@ -260,6 +299,9 @@ impl RequestFinder {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys([
+            // Let Kit Button own native Enter/Space activation instead of the parent List.
+            KeyBinding::new("enter", gpui::NoAction, Some("HistoryDelete")),
+            KeyBinding::new("space", gpui::NoAction, Some("HistoryDelete")),
             KeyBinding::new(
                 "space",
                 Confirm { secondary: false },
@@ -279,9 +321,12 @@ impl RequestFinder {
                 "Find a request…"
             })
         });
+        let owner = cx.weak_entity();
         let results = cx.new(|cx| {
             let list = ListState::new(
                 RequestResults {
+                    owner,
+                    busy: false,
                     compact: kind == FinderKind::Search,
                     groups: vec![],
                     selected: None,
@@ -387,10 +432,36 @@ impl RequestFinder {
             }
         } else {
             empty = if query.is_empty() {
-                "Type to search open requests and history."
+                "Type to search saved requests, open requests and history."
             } else {
                 "No matching requests. Try another name, method, or URL."
             };
+            let saved = model
+                .saved_requests()
+                .iter()
+                .filter(|d| {
+                    format!("{} {} {}", d.name(), d.draft().method(), d.draft().url())
+                        .to_lowercase()
+                        .contains(&query)
+                })
+                .map(|d| RequestRow {
+                    target: RequestTarget::Saved(d.id().to_owned()),
+                    method: d.draft().method(),
+                    name: d.name().to_owned(),
+                    url: d.draft().url().to_owned(),
+                    detail: "Saved request".into(),
+                    time: String::new(),
+                    status: None,
+                    selector: format!("saved-request-{}", d.id()),
+                })
+                .collect::<Vec<_>>();
+            if !saved.is_empty() {
+                groups.push(RequestGroup {
+                    title: "Saved requests".into(),
+                    selector: "global-search-saved-group",
+                    rows: saved,
+                });
+            }
             let projection = model.global_search_results(&query);
             if !projection.requests().is_empty() {
                 groups.push(RequestGroup {
@@ -434,7 +505,12 @@ impl RequestFinder {
                 });
             }
         }
+        let busy = matches!(
+            model.history_storage_status(),
+            HistoryStorageStatus::Loading { .. }
+        );
         self.results.update(cx, |list, cx| {
+            list.delegate_mut().busy = busy;
             list.delegate_mut().groups = groups;
             list.delegate_mut().empty = empty;
             list.delegate_mut().empty_selector = if self.kind == FinderKind::History {
@@ -456,16 +532,92 @@ impl RequestFinder {
         });
         cx.notify();
     }
+    fn confirm_delete(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if self.kind != FinderKind::History
+            || matches!(
+                self.model.read(cx).history_storage_status(),
+                HistoryStorageStatus::Loading { .. }
+            )
+        {
+            return;
+        }
+        let Some(entry) = self
+            .model
+            .read(cx)
+            .history()
+            .iter()
+            .find(|entry| entry.id == id)
+        else {
+            return;
+        };
+        let title = format!("{} {}", entry.request.method, entry.name);
+        let url = entry.request.url.clone();
+        let id = entry.id.clone();
+        let owner = cx.weak_entity();
+        let focus = self.input.read(cx).focus_handle(cx);
+        window.open_alert_dialog(cx, move |dialog, window, _| {
+            let (owner, id, focus) = (owner.clone(), id.clone(), focus.clone());
+            dialog
+                .title("Delete history entry?")
+                .w(window.rem_size() * 28.)
+                .description(
+                    div()
+                        .debug_selector(|| "history-delete-confirmation".into())
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .child(div().truncate().font_weight(m::MEDIUM).child(title.clone()))
+                        .child(
+                            div()
+                                .truncate()
+                                .font_family(FONT_MONO)
+                                .text_size(m::CAPTION)
+                                .child(url.clone()),
+                        )
+                        .child(
+                            "This deletes only this history entry and its stored response. \
+                             It cannot be undone. Saved requests and open request drafts stay unchanged.",
+                        ),
+                )
+                .button_props(
+                    DialogButtonProps::default()
+                        .show_cancel(true)
+                        .ok_text("Delete entry")
+                        .ok_variant(ButtonVariant::Danger),
+                )
+                .on_ok(move |_, window, cx| {
+                    let _ = owner.update(cx, |_, cx| {
+                        cx.emit(RequestFinderEvent::Delete(id.clone()))
+                    });
+                    // The deleted row's keyboard trigger will disappear after the SQLite reload.
+                    let focus = focus.clone();
+                    window.defer(cx, move |window, cx| focus.focus(window, cx));
+                    true
+                })
+        });
+    }
     fn confirm_clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.model.read(cx).history_len() == 0
+            || matches!(
+                self.model.read(cx).history_storage_status(),
+                HistoryStorageStatus::Loading { .. }
+            )
+        {
+            return;
+        }
         let owner = cx.weak_entity();
         window.open_alert_dialog(cx, move |dialog, window, _| {
             let owner = owner.clone();
-            let description = "Delete all stored requests and historical responses. \
-                               This cannot be undone. Open request drafts stay unchanged.";
+            let description = "Delete all history entries and stored responses, including entries hidden by the current filter. \
+                               This cannot be undone. Saved requests and open request drafts stay unchanged.";
             dialog
                 .title("Clear all history?")
                 .w(window.rem_size() * 28.)
-                .description(description)
+                .description(
+                    div()
+                        .debug_selector(|| "history-clear-confirmation".into())
+                        .child(description),
+                )
                 .button_props(
                     DialogButtonProps::default()
                         .show_cancel(true)

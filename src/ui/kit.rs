@@ -13,6 +13,7 @@ pub fn init(cx: &mut App) {
         "RequestUrl > Input",
         "HeaderInput > Input",
         "TableCellInput > Input",
+        "RequestTextInput > Input",
     ] {
         cx.bind_keys([
             gpui::KeyBinding::new("ctrl-a", SelectAll, Some(context)),

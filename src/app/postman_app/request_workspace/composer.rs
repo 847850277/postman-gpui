@@ -9,12 +9,8 @@ use super::{
 use crate::{
     app::{BodyKind, PendingRequest, RequestPane, RequestViewModel, SendId, WorkspaceViewModel},
     ui::{
-        components::input::{
-            body_input::setup_body_input_key_bindings,
-            header_input::setup_header_input_key_bindings,
-        },
-        components::kit_controls::MethodState,
-        theme::PANEL,
+        components::input::header_input::setup_header_input_key_bindings,
+        components::kit_controls::MethodState, theme::PANEL,
     },
 };
 use gpui::{
@@ -74,7 +70,6 @@ impl RequestComposer {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys(setup_header_input_key_bindings());
-        cx.bind_keys(setup_body_input_key_bindings());
         cx.bind_keys(setup_request_pane_key_bindings());
 
         let method_selector = cx.new(|cx| {
@@ -296,10 +291,10 @@ impl RequestComposer {
                 .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Scripts => self
                 .script_pane
-                .update(cx, ScriptPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Tests => self
                 .tests_pane
-                .update(cx, ScriptPane::project_active_request),
+                .update(cx, |pane, cx| pane.project_active_request(window, cx)),
             RequestPane::Options => self
                 .options_pane
                 .update(cx, |pane, cx| pane.project_active_request(window, cx)),
@@ -320,9 +315,9 @@ impl RequestComposer {
         self.body_pane
             .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.script_pane
-            .update(cx, ScriptPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.tests_pane
-            .update(cx, ScriptPane::project_active_request);
+            .update(cx, |pane, cx| pane.project_active_request(window, cx));
         self.options_pane
             .update(cx, |pane, cx| pane.project_active_request(window, cx));
         cx.notify();
@@ -598,7 +593,9 @@ mod tests {
                     input.set_value("http://127.0.0.1:1/stale-control", window, cx)
                 });
                 let body_input = composer.body_pane.read(cx).input_entity();
-                body_input.update(cx, |input, cx| input.project_content("stale-body", cx));
+                body_input.update(cx, |input, cx| {
+                    input.project_content("stale-body", window, cx)
+                });
                 composer.click_send(window, cx);
             })
         });

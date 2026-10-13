@@ -192,12 +192,12 @@ pub fn apply(mode: ThemeMode, cx: &mut App) {
         t.link = c(INFO);
         t.overlay = gpui::rgba(0x08090b99).into();
         let highlight = std::sync::Arc::make_mut(&mut t.highlight_theme);
-        highlight.style.editor_background = Some(c(PANEL));
+        highlight.style.editor_background = Some(c(SIDEBAR));
         highlight.style.editor_foreground = Some(c(TEXT));
-        highlight.style.editor_active_line = Some(c(PANEL_ALT));
+        highlight.style.editor_active_line = None;
         highlight.style.editor_line_number = Some(c(MUTED));
         highlight.style.editor_active_line_number = Some(c(SUBTEXT));
-        highlight.style.editor_gutter_background = Some(c(PANEL));
+        highlight.style.editor_gutter_background = Some(c(SIDEBAR));
         let syntax = |token| {
             serde_json::from_value(serde_json::json!({"color": c(token)}))
                 .expect("valid semantic syntax color")
