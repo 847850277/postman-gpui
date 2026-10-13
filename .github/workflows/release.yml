@@ -410,8 +410,14 @@ jobs:
             notes+=$'\n\nThe Windows installer is unsigned and can trigger SmartScreen.'
           fi
 
-          release_api="repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
-          if release_id=$(gh api "$release_api" --jq .id 2>/dev/null); then
+          # The tag endpoint only returns published releases. Include drafts so a new
+          # release can be published and an interrupted upload can be resumed.
+          find_release_id() {
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .id"
+          }
+          release_id=$(find_release_id)
+          if [[ -n "$release_id" ]]; then
             gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
           else
             arguments=(
@@ -428,9 +434,10 @@ jobs:
               arguments+=(--prerelease)
             fi
             gh release create "${arguments[@]}"
-            release_id=$(gh api "$release_api" --jq .id)
+            release_id=$(find_release_id)
           fi
 
+          test -n "$release_id"
           # The release remains a draft until every native package and checksum has uploaded.
           # Publishing this final state change prevents users from seeing a partial first release.
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
