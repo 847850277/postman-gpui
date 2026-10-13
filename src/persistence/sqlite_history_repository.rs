@@ -451,6 +451,26 @@ WHERE sequence NOT IN (
         })
     }
 
+    fn delete(&mut self, entry_id: &str) -> Result<(), HistoryRepositoryError> {
+        let mut connection = self.open_current_schema(HistoryRepositoryOperation::Delete)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|error| {
+                map_sqlite_error(HistoryRepositoryOperation::Delete, &self.path, error)
+            })?;
+        transaction
+            .execute(
+                "DELETE FROM history_entries WHERE entry_id = ?1",
+                [entry_id],
+            )
+            .map_err(|error| {
+                map_sqlite_error(HistoryRepositoryOperation::Delete, &self.path, error)
+            })?;
+        transaction.commit().map_err(|error| {
+            map_sqlite_error(HistoryRepositoryOperation::Delete, &self.path, error)
+        })
+    }
+
     fn clear(&mut self) -> Result<(), HistoryRepositoryError> {
         let mut connection = self.open_current_schema(HistoryRepositoryOperation::Clear)?;
         let transaction = connection

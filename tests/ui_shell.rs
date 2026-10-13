@@ -120,6 +120,8 @@ fn hidden_http_does_not_accept_input_or_commands_and_recent_rows_reuse_tabs(
     });
     assert!(cx.debug_bounds("body-input").is_some());
     cx.simulate_keystrokes("ctrl-w");
+    click(cx, "request-save-discard").unwrap();
+    cx.run_until_parked();
     click(cx, "nav-home").unwrap();
     assert!(cx.debug_bounds(selector).is_none());
     assert_eq!(

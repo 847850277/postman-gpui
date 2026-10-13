@@ -1,3 +1,4 @@
+mod documents;
 use super::request_lifecycle::{
     BeginSendTransition, RequestSendLifecycle, RequestTabValue, RequestTabs,
 };
@@ -14,6 +15,7 @@ pub use super::workspace_projections::{
     HistoryReplayInput, HistoryReplaySource, HistoryStorageStage, HistoryStorageStatus,
     RequestTagProjection,
 };
+use crate::models::request_document::RequestDocument;
 pub use crate::models::{
     AuthorizationKind, BodyKind, EffectiveHeader, EffectiveHeaderSource, KeyValueRow,
     MultipartDraftPart, MultipartDraftValue, RequestBodyDraft, RequestConstruction, RequestDraft,
@@ -97,7 +99,7 @@ pub struct RequestViewModel {
     redirect_chain: Vec<RedirectHop>,
     response_stored_cookies: Vec<CookieJarEntry>,
     send_lifecycle: RequestSendLifecycle,
-    dirty: bool,
+    saved_document: Option<RequestDocument>,
 }
 
 impl RequestViewModel {
@@ -117,7 +119,7 @@ impl RequestViewModel {
             redirect_chain: Vec::new(),
             response_stored_cookies: Vec::new(),
             send_lifecycle: RequestSendLifecycle::default(),
-            dirty: false,
+            saved_document: None,
         }
     }
 
@@ -314,13 +316,19 @@ impl RequestViewModel {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.dirty
+        self.saved_document.as_ref().map_or_else(
+            || {
+                self.draft != RequestDraft::new()
+                    || !self.pre_request_script.is_empty()
+                    || !self.tests_script.is_empty()
+            },
+            |saved| !saved.same_content(&self.draft, &self.pre_request_script, &self.tests_script),
+        )
     }
 
     fn edit_draft(&mut self, edit: impl FnOnce(&mut RequestDraft) -> bool) {
         if edit(&mut self.draft) {
             self.draft_revision = self.draft_revision.wrapping_add(1);
-            self.dirty = true;
         }
     }
 
@@ -400,7 +408,6 @@ impl RequestViewModel {
         let script = script.into();
         if self.pre_request_script != script {
             self.pre_request_script = script;
-            self.dirty = true;
         }
     }
 
@@ -408,7 +415,6 @@ impl RequestViewModel {
         let script = script.into();
         if self.tests_script != script {
             self.tests_script = script;
-            self.dirty = true;
         }
     }
 
@@ -440,7 +446,6 @@ impl RequestViewModel {
         };
         if changed {
             self.draft_revision = self.draft_revision.wrapping_add(1);
-            self.dirty = true;
         }
     }
 
@@ -456,7 +461,6 @@ impl RequestViewModel {
         };
         if changed {
             self.draft_revision = self.draft_revision.wrapping_add(1);
-            self.dirty = true;
         }
     }
 
@@ -550,12 +554,14 @@ impl RequestViewModel {
     pub fn new_request(&mut self) {
         self.reset_send_lifecycle();
         self.draft = RequestDraft::new();
+        self.pre_request_script.clear();
+        self.tests_script.clear();
         self.draft_revision = self.draft_revision.wrapping_add(1);
         self.request_pane = RequestPane::Params;
         self.response = ResponseState::NotSent;
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
-        self.dirty = false;
+        self.saved_document = None;
     }
 
     pub fn load_request(&mut self, request: &Request) {
@@ -572,7 +578,7 @@ impl RequestViewModel {
         self.response = ResponseState::NotSent;
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
-        self.dirty = false;
+        self.saved_document = None;
     }
 
     fn load_history_entry(&mut self, entry: &HistoryEntry, replay_request: &Request) {
@@ -581,7 +587,7 @@ impl RequestViewModel {
         if let Some(intent) = &entry.editor_intent {
             self.draft.restore_editor_intent(intent);
             self.request_pane = RequestPane::Body;
-            self.dirty = false;
+            self.saved_document = None;
         }
         self.response = entry.historical_response.clone().map_or_else(
             || ResponseState::HistoricalUnavailable {
@@ -639,9 +645,6 @@ impl RequestViewModel {
         }
         match result {
             Ok(result) => {
-                let construction = self.draft.construct();
-                let draft_is_unchanged = construction.request() == pending.request()
-                    && construction.request_options() == pending.request_options();
                 self.redirect_chain = result.redirect_chain;
                 self.response = ResponseState::Success {
                     status: result.status,
@@ -650,9 +653,6 @@ impl RequestViewModel {
                     elapsed_ms: result.elapsed_ms,
                 };
                 self.response_stored_cookies = stored_cookies;
-                if draft_is_unchanged {
-                    self.dirty = false;
-                }
             }
             Err(error) => {
                 self.redirect_chain = error.redirect_chain().to_vec();
@@ -687,7 +687,10 @@ impl RequestViewModel {
     }
 
     pub fn tab_title(&self) -> String {
-        request_tag_title(self.url())
+        self.saved_document
+            .as_ref()
+            .map(|saved| saved.name().to_owned())
+            .unwrap_or_else(|| request_tag_title(self.url()))
     }
 
     #[cfg(test)]
@@ -750,6 +753,7 @@ pub struct WorkspaceViewModel {
     recent_tabs: Vec<RequestTabId>,
     projections: WorkspaceProjections,
     next_send_id: u64,
+    documents: documents::DocumentLibrary,
 }
 
 impl WorkspaceViewModel {
@@ -765,6 +769,7 @@ impl WorkspaceViewModel {
             recent_tabs,
             projections: WorkspaceProjections::new(),
             next_send_id: 1,
+            documents: documents::DocumentLibrary::default(),
         }
     }
 
@@ -887,12 +892,14 @@ impl WorkspaceViewModel {
             .values()
             .iter()
             .map(|request| {
-                self.projections.request_tags.project(RequestTagInput {
+                let mut tag = self.projections.request_tags.project(RequestTagInput {
                     tab_id: request.tab_id(),
                     method: request.method(),
                     url: request.url(),
                     dirty: request.is_dirty(),
-                })
+                });
+                tag.display_name = request.tab_title();
+                tag
             })
             .collect()
     }
@@ -924,7 +931,6 @@ impl WorkspaceViewModel {
             RequestPane::Body
         };
         request.draft = draft;
-        request.dirty = true;
         self.tabs.push(request);
         if let Some(id) = self.active_tab_id() {
             self.touch_request(id);
@@ -1704,7 +1710,10 @@ mod tests {
             workspace.active_request().unwrap().response(),
             ResponseState::Success { status: 201, .. }
         ));
-        assert!(!workspace.active_request().unwrap().is_dirty());
+        assert!(
+            workspace.active_request().unwrap().is_dirty(),
+            "Send does not save a request document"
+        );
     }
 
     #[test]

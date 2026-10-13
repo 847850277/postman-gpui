@@ -62,6 +62,8 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
     );
 
     click(cx, "close-tab-0").unwrap();
+    click(cx, "request-save-discard").unwrap();
+    cx.run_until_parked();
     assert_eq!(
         workspace.read_with(cx, |workspace, _| workspace.tab_count()),
         1
@@ -195,7 +197,10 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
                 ..
             } if body.contains(r#""tab":"A""#)
         ));
-        assert!(!workspace.tabs()[0].is_dirty());
+        assert!(
+            workspace.tabs()[0].is_dirty(),
+            "Send does not save a document"
+        );
         assert!(matches!(
             workspace.tabs()[1].response(),
             ResponseState::NotSent
@@ -223,7 +228,10 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
                 ..
             } if body.contains(r#""tab":"B""#)
         ));
-        assert!(!workspace.tabs()[1].is_dirty());
+        assert!(
+            workspace.tabs()[1].is_dirty(),
+            "Send does not save a document"
+        );
         assert_eq!(workspace.history_len(), 2);
 
         let newest = &workspace.history()[0].request;
@@ -250,6 +258,8 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     });
 
     click(cx, "close-tab-1").unwrap();
+    click(cx, "request-save-discard").unwrap();
+    cx.run_until_parked();
     workspace.read_with(cx, |workspace, _| {
         assert_eq!(workspace.tab_count(), 1);
         assert_eq!(workspace.active_tab_index().unwrap(), 0);

@@ -47,6 +47,11 @@ impl HistoryRepository for RecordingRepository {
         self.record();
         Ok(())
     }
+
+    fn delete(&mut self, _entry_id: &str) -> Result<(), HistoryRepositoryError> {
+        self.record();
+        Ok(())
+    }
 }
 
 #[tokio::test]
@@ -69,10 +74,11 @@ async fn every_repository_operation_runs_on_the_dedicated_storage_thread() {
     );
     let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
     worker.append_and_trim(snapshot, 50).await.unwrap();
+    worker.delete(entry.id).await.unwrap();
     worker.clear().await.unwrap();
 
     let evidence = evidence.lock().unwrap();
-    assert_eq!(evidence.thread_ids.len(), 4);
+    assert_eq!(evidence.thread_ids.len(), 5);
     assert!(evidence
         .thread_ids
         .iter()
@@ -111,6 +117,12 @@ impl HistoryRepository for FailingRepository {
     fn clear(&mut self) -> Result<(), HistoryRepositoryError> {
         unreachable!()
     }
+
+    fn delete(&mut self, _entry_id: &str) -> Result<(), HistoryRepositoryError> {
+        Err(HistoryRepositoryError::Busy {
+            operation: super::super::HistoryRepositoryOperation::Delete,
+        })
+    }
 }
 
 #[tokio::test]
@@ -120,6 +132,12 @@ async fn typed_repository_errors_cross_the_worker_boundary_unchanged() {
         worker.initialize().await.unwrap_err(),
         HistoryRepositoryError::Busy {
             operation: super::super::HistoryRepositoryOperation::Initialize,
+        }
+    );
+    assert_eq!(
+        worker.delete("entry-id".into()).await.unwrap_err(),
+        HistoryRepositoryError::Busy {
+            operation: super::super::HistoryRepositoryOperation::Delete,
         }
     );
 }

@@ -1,7 +1,7 @@
 use crate::{
     app::{RequestViewModel, WorkspaceViewModel},
     ui::{
-        components::input::body_input::{BodyInput, BodyInputEvent, BodyType},
+        components::input::multiline_input::{MultilineInput, MultilineInputEvent},
         theme::{CODE_BG, CODE_TEXT, FONT_UI, MUTED},
     },
 };
@@ -20,7 +20,7 @@ pub(in crate::app::postman_app::request_workspace) enum ScriptPaneKind {
 pub(in crate::app::postman_app::request_workspace) struct ScriptPane {
     view_model: Entity<WorkspaceViewModel>,
     kind: ScriptPaneKind,
-    input: Entity<BodyInput>,
+    input: Entity<MultilineInput>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -31,7 +31,11 @@ impl ScriptPane {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let input = cx.new(|cx| BodyInput::new(window, cx));
+        let label = match kind {
+            ScriptPaneKind::PreRequest => "Pre-request script",
+            ScriptPaneKind::Tests => "Response tests",
+        };
+        let input = cx.new(|cx| MultilineInput::new(label, "Enter script…", window, cx));
         let subscriptions = vec![cx.subscribe(&input, Self::on_input_event)];
         let mut pane = Self {
             view_model,
@@ -39,7 +43,7 @@ impl ScriptPane {
             input,
             _subscriptions: subscriptions,
         };
-        pane.project_active_request(cx);
+        pane.project_active_request(window, cx);
         pane
     }
 
@@ -59,26 +63,24 @@ impl ScriptPane {
 
     fn on_input_event(
         &mut self,
-        _input: Entity<BodyInput>,
-        event: &BodyInputEvent,
+        _input: Entity<MultilineInput>,
+        event: &MultilineInputEvent,
         cx: &mut Context<Self>,
     ) {
-        if let BodyInputEvent::ValueChanged(script) = event {
-            match self.kind {
-                ScriptPaneKind::PreRequest => {
-                    self.update_active_request(cx, |request| {
-                        request.set_pre_request_script(script)
-                    });
-                }
-                ScriptPaneKind::Tests => {
-                    self.update_active_request(cx, |request| request.set_tests_script(script));
-                }
+        let MultilineInputEvent::ValueChanged(script) = event;
+        match self.kind {
+            ScriptPaneKind::PreRequest => {
+                self.update_active_request(cx, |request| request.set_pre_request_script(script));
+            }
+            ScriptPaneKind::Tests => {
+                self.update_active_request(cx, |request| request.set_tests_script(script));
             }
         }
     }
 
     pub(in crate::app::postman_app::request_workspace) fn project_active_request(
         &mut self,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let content = {
@@ -94,8 +96,7 @@ impl ScriptPane {
                 })
         };
         self.input.update(cx, |input, cx| {
-            input.set_type_silent(BodyType::Raw, cx);
-            input.project_content(content, cx);
+            input.project_content(content, window, cx);
         });
         cx.notify();
     }
@@ -104,7 +105,7 @@ impl ScriptPane {
         &self,
         title: &'static str,
         hint: &'static str,
-        input: Entity<BodyInput>,
+        input: Entity<MultilineInput>,
         selector: &'static str,
         cx: &gpui::App,
     ) -> gpui::AnyElement {

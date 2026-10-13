@@ -428,6 +428,45 @@ fn corrupt_database_file_is_distinct_from_a_corrupt_individual_row() {
 }
 
 #[test]
+fn deleting_one_id_is_durable_and_missing_ids_do_not_affect_other_rows() {
+    let (_temporary, mut repository) = isolated_repository();
+    repository.initialize().unwrap();
+    let entries = (0..3)
+        .map(|n| snapshot(n, BASE_TIMESTAMP_MS + n as i64))
+        .collect::<Vec<_>>();
+    for entry in &entries {
+        repository.append_and_trim(entry, 50).unwrap();
+    }
+    repository.delete(entries[1].as_v1().entry_id()).unwrap();
+    repository.delete(entries[1].as_v1().entry_id()).unwrap();
+    repository.delete("' OR 1=1 --").unwrap();
+    let mut reopened = SqliteHistoryRepository::new(repository.database_path()).unwrap();
+    reopened.initialize().unwrap();
+    assert_eq!(
+        reopened.load_recent(50).unwrap().snapshots(),
+        &[entries[2].clone(), entries[0].clone()]
+    );
+}
+
+#[test]
+fn failed_delete_preserves_the_committed_history() {
+    let (_temporary, mut repository) = isolated_repository();
+    repository.initialize().unwrap();
+    let entry = snapshot(91, BASE_TIMESTAMP_MS);
+    repository.append_and_trim(&entry, 50).unwrap();
+    let connection = Connection::open(repository.database_path()).unwrap();
+    connection.execute_batch("CREATE TRIGGER fail_delete BEFORE DELETE ON history_entries BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+    assert!(matches!(
+        repository.delete(entry.as_v1().entry_id()),
+        Err(HistoryRepositoryError::Database {
+            operation: HistoryRepositoryOperation::Delete,
+            ..
+        })
+    ));
+    assert_eq!(repository.load_recent(50).unwrap().snapshots(), &[entry]);
+}
+
+#[test]
 fn direct_database_inspection_finds_no_denied_credentials() {
     let (_temporary, mut repository) = isolated_repository();
     repository.initialize().unwrap();

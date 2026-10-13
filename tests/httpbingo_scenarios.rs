@@ -1235,7 +1235,15 @@ fn run_keyboard_only_lifecycle(test_cx: &mut TestAppContext) -> Result<(), Strin
         ));
     }
 
-    cx.simulate_keystrokes("ctrl-w");
+    // Replay now opens a new tab so it cannot overwrite unsaved Tab B. Close that replay,
+    // then Tab B, explicitly choosing Discard via the Kit dialog's keyboard tab order.
+    for _ in 0..2 {
+        cx.simulate_keystrokes("ctrl-w");
+        ui::press(cx, "tab"); // Cancel
+        ui::press(cx, "tab"); // Discard changes
+        ui::press(cx, "enter");
+        cx.run_until_parked();
+    }
     let after_close = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),
@@ -1424,7 +1432,7 @@ fn run_multi_tab_workflow(
         )
     });
     assert_response_state(&after_a.0, &workflow.tab_a.expect.response)?;
-    if !matches!(after_a.1, ResponseState::NotSent) || after_a.2 || !after_a.3 || after_a.4 != 1 {
+    if !matches!(after_a.1, ResponseState::NotSent) || !after_a.2 || !after_a.3 || after_a.4 != 1 {
         return Err(format!(
             "Tab A completion changed Tab B or shared History incorrectly: {after_a:#?}"
         ));
@@ -1458,9 +1466,9 @@ fn run_multi_tab_workflow(
         });
     assert_response_state(&response_a, &workflow.tab_a.expect.response)?;
     assert_response_state(&response_b, &workflow.tab_b.expect.response)?;
-    if dirty_a || dirty_b || history_len != 2 {
+    if !dirty_a || !dirty_b || history_len != 2 {
         return Err(format!(
-            "two completed tabs must be clean with two shared History rows: dirty=({dirty_a}, {dirty_b}), history={history_len}"
+            "two completed tabs remain unsaved with two shared History rows: dirty=({dirty_a}, {dirty_b}), history={history_len}"
         ));
     }
 
@@ -1515,6 +1523,8 @@ fn run_multi_tab_workflow(
     )?;
 
     click(cx, "close-tab-1")?;
+    click(cx, "request-save-discard")?;
+    cx.run_until_parked();
     let after_close = workspace.read_with(cx, |workspace, _| {
         (
             workspace.tab_count(),

@@ -10,6 +10,9 @@ actions!(
         SendOrCancel,
         NewRequest,
         CloseRequest,
+        SaveRequest,
+        RenameRequest,
+        Quit,
         FocusUrl,
         FocusHistorySearch,
         FocusGlobalSearch,
@@ -24,6 +27,8 @@ actions!(
 /// selection, clipboard, Undo/Redo, and unmodified navigation keys.
 pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
     vec![
+        KeyBinding::new("cmd-s", SaveRequest, None),
+        KeyBinding::new("ctrl-s", SaveRequest, None),
         KeyBinding::new("enter", ActivateControl, Some("KeyboardButton")),
         KeyBinding::new("space", ActivateControl, Some("KeyboardButton")),
         KeyBinding::new("tab", FocusNextControl, Some("CurlCommandInput > Input")),
@@ -32,6 +37,14 @@ pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
             FocusPreviousControl,
             Some("CurlCommandInput > Input"),
         ),
+        KeyBinding::new("tab", FocusNextControl, Some("RequestTextInput > Input")),
+        KeyBinding::new(
+            "shift-tab",
+            FocusPreviousControl,
+            Some("RequestTextInput > Input"),
+        ),
+        KeyBinding::new("cmd-enter", SendOrCancel, Some("RequestTextInput > Input")),
+        KeyBinding::new("ctrl-enter", SendOrCancel, Some("RequestTextInput > Input")),
         KeyBinding::new("tab", FocusNextControl, Some("PostmanApp")),
         KeyBinding::new("shift-tab", FocusPreviousControl, Some("PostmanApp")),
         KeyBinding::new("cmd-enter", SendOrCancel, None),

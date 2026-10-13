@@ -1,24 +1,16 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use gpui::{
-    actions, px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, TitlebarOptions,
-    WindowBounds, WindowOptions,
+    px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, TitlebarOptions, WindowBounds,
+    WindowOptions,
 };
 use postman_gpui::{
-    app::PostmanApp,
+    app::{PostmanApp, Quit},
     assets::fonts::{
         load_embedded_fonts, runtime_asset_application, schedule_runtime_asset_exit,
         verify_embedded_fonts,
     },
 };
-
-// 定义退出动作
-actions!(postman, [Quit]);
-
-fn quit(_: &Quit, cx: &mut App) {
-    tracing::info!("application exiting");
-    cx.quit();
-}
 
 fn main() {
     let verify_runtime_assets = std::env::args_os()
@@ -65,9 +57,6 @@ fn main() {
         // 激活应用（使菜单栏在前台显示）
         cx.activate(true);
 
-        // 注册退出动作处理函数
-        cx.on_action(quit);
-
         // 绑定快捷键 Cmd-Q (macOS) / Ctrl-Q (其他平台)
         #[cfg(target_os = "macos")]
         cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
@@ -97,9 +86,15 @@ fn main() {
             ..gpui_kit::component::TitleBar::window_options()
         };
 
-        gpui_kit::open_window(option, cx, |window, cx| {
+        let (window_handle, view) = gpui_kit::open_window(option, cx, |window, cx| {
             cx.new(|cx| PostmanApp::new(window, cx))
         })
         .expect("failed to open window");
+        let owner = view.downgrade();
+        cx.on_action(move |_: &Quit, cx| {
+            let _ = window_handle.update(cx, |_, window, cx| {
+                let _ = owner.update(cx, |view, cx| view.request_quit(window, cx));
+            });
+        });
     });
 }

@@ -266,13 +266,13 @@ impl BodyPane {
                     if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
-                    input.project_content("", cx);
+                    input.project_content("", window, cx);
                 }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
                     if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
-                    input.project_content(body, cx)
+                    input.project_content(body, window, cx)
                 }
                 RequestBodyDraft::UrlEncoded(rows) => {
                     let entries = rows

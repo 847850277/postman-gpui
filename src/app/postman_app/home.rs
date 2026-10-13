@@ -185,6 +185,7 @@ impl PostmanApp {
         let content = div().debug_selector(|| "home-inner".into())
             .w_full().max_w(rems(66.25)).mx_auto().flex().flex_col()
             .child(eyebrow).child(heading).child(subtitle).child(cards)
+            .child(self.render_saved_requests(cx))
             .child(recent_heading).child(recent_columns)
             .child(div().mt_7().text_size(rems(11. / 16.)).text_color(MUTED.resolve(cx))
                 .child("Appearance is shared across HTTP and Flows. Drafts remain open while you switch."));
@@ -213,6 +214,43 @@ impl PostmanApp {
                     .py(rems(vertical_inset))
                     .child(content),
             )
+    }
+
+    fn render_saved_requests(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        use gpui_kit::component::{Disableable, Sizable};
+        let model = self.view_model.read(cx);
+        let loading = model.documents_loading();
+        let error = model.documents_error().map(str::to_owned);
+        let rows = model
+            .saved_requests()
+            .iter()
+            .take(3)
+            .map(|document| {
+                (
+                    document.id().to_owned(),
+                    document.draft().method(),
+                    document.name().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let empty = rows.is_empty();
+        div().debug_selector(|| "home-saved-requests".into()).mt_6().flex().flex_col().gap_2()
+            .child(div().flex().items_center().gap_2()
+                .child(div().flex_1().text_size(m::LABEL).font_weight(m::SEMIBOLD).child("Saved requests"))
+                .child(Button::new("saved-requests-reload").debug_selector(|| "saved-requests-reload".into()).small().ghost().label("Reload").disabled(loading || model.saving_request().is_some()).on_click(cx.listener(|this, _, _, cx| this.saved_requests.update(cx, |saved, cx| saved.reload(cx)))))
+                .child(Button::new("saved-requests-browse").debug_selector(|| "saved-requests-browse".into()).small().ghost().label("Browse…").on_click(cx.listener(|this, _, window, cx| this.open_finder(super::FinderKind::Search, window, cx)))))
+            .when(loading, |d| d.child(div().debug_selector(|| "saved-requests-loading".into()).text_color(MUTED.resolve(cx)).child("Loading saved requests…")))
+            .when_some(error, |d, error| d.child(div().debug_selector(|| "saved-requests-error".into()).text_size(m::LABEL).text_color(crate::ui::theme::ERROR.resolve(cx)).child(error)))
+            .when(empty && !loading && model.documents_ready(), |d| d.child(div().debug_selector(|| "saved-requests-empty".into()).py_3().text_size(m::LABEL).text_color(MUTED.resolve(cx)).child("No saved requests. Save a request in the HTTP editor to reopen it here.")))
+            .children(rows.into_iter().map(|(id, method, name)| {
+                let selector = format!("home-saved-{id}");
+                Button::new(format!("home-saved-{id}")).debug_selector(move || selector.clone()).ghost().h_12().px_0().w_full().min_w_0().border_b_1().border_color(LINE.resolve(cx)).accessibility_label(format!("Open saved request {name}"))
+                    .child(div().flex().items_center().w_full().min_w_0().gap_3()
+                        .child(div().w_12().font_family(FONT_MONO).text_size(m::CAPTION).text_color(theme::method_color(method).resolve(cx)).child(method.to_string()))
+                        .child(div().flex_1().min_w_0().truncate().text_size(m::LABEL).child(name))
+                        .child(div().text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child("Open")))
+                    .on_click(cx.listener(move |this, _, window, cx| this.open_saved_request(&id, window, cx)))
+            }))
     }
 
     fn mode_card(

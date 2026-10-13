@@ -14,6 +14,7 @@ pub enum HistoryStorageStage {
     Initialize,
     Load,
     Append,
+    Delete,
     Clear,
 }
 
@@ -23,6 +24,7 @@ impl fmt::Display for HistoryStorageStage {
             Self::Initialize => "initialization",
             Self::Load => "load",
             Self::Append => "append",
+            Self::Delete => "delete",
             Self::Clear => "clear",
         })
     }

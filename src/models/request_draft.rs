@@ -3,7 +3,9 @@ use postman_http::request::{
     HttpMethod, MultipartPart, MultipartValue, RedirectPolicy, Request, RequestBody,
     RequestOptions, DEFAULT_MAX_REDIRECT_HOPS, MAX_REDIRECT_HOPS,
 };
+use serde::{Deserialize, Serialize};
 use std::{fmt, path::PathBuf};
+mod document_codec;
 
 /// Editor-only state captured with a completed request. The effective [`Request`] remains the
 /// transport truth; this snapshot preserves disabled and incomplete multipart rows for replay.
@@ -20,7 +22,7 @@ pub struct MultipartEditorPart {
 }
 
 /// Authentication scheme managed by the request draft.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AuthorizationKind {
     Bearer,
     Basic,
@@ -39,7 +41,7 @@ pub enum BodyKind {
 }
 
 /// The media type of the independent Raw editor draft.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawBodyFormat {
     #[default]
     Text,
@@ -59,7 +61,7 @@ impl RawBodyFormat {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum ManagedHeaderSource {
     Unset,
     Automatic,
@@ -82,7 +84,7 @@ pub struct EffectiveHeader {
 }
 
 /// A row in the params/headers editor.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyValueRow {
     pub enabled: bool,
     pub key: String,
@@ -104,7 +106,7 @@ impl KeyValueRow {
 
 /// Editable value for one multipart row. Unlike the transport [`MultipartValue`], a file value
 /// may intentionally have an empty path while the user is still completing the row.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MultipartDraftValue {
     Text(String),
     File {
@@ -116,7 +118,7 @@ pub enum MultipartDraftValue {
 
 /// One complete multipart editor row, including state that does not participate in the outgoing
 /// request yet.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MultipartDraftPart {
     pub enabled: bool,
     pub name: String,
@@ -155,7 +157,7 @@ impl MultipartDraftPart {
 ///
 /// Form variants intentionally retain disabled, blank, duplicate, ordered, and incomplete rows.
 /// [`RequestBody`] is derived only by the normalized request-construction path.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RequestBodyDraft {
     #[default]
     None,
@@ -319,7 +321,7 @@ impl RequestBodyDraft {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct KeyValueDraft {
     key: String,
     value: String,
@@ -400,8 +402,9 @@ impl std::error::Error for RequestDraftError {}
 ///
 /// This type owns request data and normalization rules but no tab identity, GPUI state,
 /// notifications, response lifecycle, or persistence coordination.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RequestDraft {
+    #[serde(with = "document_codec::Method")]
     method: HttpMethod,
     url: String,
     params: Vec<KeyValueRow>,
@@ -411,6 +414,7 @@ pub struct RequestDraft {
     body: RequestBodyDraft,
     inactive_bodies: Vec<RequestBodyDraft>,
     raw_format: RawBodyFormat,
+    #[serde(skip)]
     binary_size: Option<u64>,
     content_type_source: ManagedHeaderSource,
     accept_source: ManagedHeaderSource,
@@ -418,6 +422,7 @@ pub struct RequestDraft {
     bearer_token: String,
     basic_username: String,
     basic_password: String,
+    #[serde(with = "document_codec::Options")]
     request_options: RequestOptions,
 }
 

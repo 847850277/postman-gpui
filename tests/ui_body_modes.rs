@@ -273,7 +273,10 @@ fn late_binary_picker_does_not_overwrite_a_reloaded_request(cx: &mut TestAppCont
             None,
             "stale metadata must be ignored"
         );
-        assert!(!request.is_dirty(), "reload must remain unmodified");
+        assert!(
+            request.is_dirty(),
+            "loading a transport request does not create a saved document"
+        );
     });
 }
 

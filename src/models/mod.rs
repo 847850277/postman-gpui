@@ -16,3 +16,5 @@ pub use request_draft::{
     MultipartDraftPart, MultipartDraftValue, MultipartEditorPart, RequestBodyDraft,
     RequestConstruction, RequestDraft, RequestDraftError, RequestEditorIntent,
 };
+
+pub mod request_document;

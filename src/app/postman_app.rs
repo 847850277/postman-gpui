@@ -1,3 +1,4 @@
+use crate::app::saved_requests::{CloseIntent, DocumentEvent, SavedRequests};
 use crate::{
     app::{
         environments::{EnvironmentChanged, Environments},
@@ -42,6 +43,7 @@ enum ToolDialog {
 /// entities; this type only wires the shell together.
 pub struct PostmanApp {
     view_model: Entity<WorkspaceViewModel>,
+    saved_requests: Entity<SavedRequests>,
     route: AppRoute,
     flows: Entity<FlowsView>,
     home_scroll: gpui::ScrollHandle,
@@ -61,6 +63,13 @@ pub struct PostmanApp {
 }
 
 impl PostmanApp {
+    /// Native menu/window hosts use the same asynchronous unsaved-document decision flow.
+    pub fn request_quit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.saved_requests.update(cx, |saved, cx| {
+            saved.request_close(CloseIntent::Quit, window, cx)
+        });
+    }
+
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let view_model = cx.new(|_| WorkspaceViewModel::new());
         Self::compose(
@@ -143,6 +152,18 @@ impl PostmanApp {
                 None
             }
         };
+        let documents_path = environment_path
+            .as_ref()
+            .map(|path| path.with_file_name("requests.sqlite3"));
+        let saved_requests =
+            cx.new(|cx| SavedRequests::new(view_model.clone(), documents_path, window, cx));
+        let close_owner = saved_requests.downgrade();
+        window.on_window_should_close(cx, move |window, cx| {
+            let _ = close_owner.update(cx, |owner, cx| {
+                owner.request_close(CloseIntent::Quit, window, cx)
+            });
+            false
+        });
         let environments = cx.new(|cx| Environments::new(environment_path, window, cx));
         let request_workspace = cx
             .new(|cx| RequestWorkspace::new(view_model.clone(), environments.clone(), window, cx));
@@ -165,15 +186,28 @@ impl PostmanApp {
                     }
                 },
             ),
-            cx.subscribe(&request_workspace, Self::on_request_workspace_event),
+            cx.subscribe_in(&request_workspace, window, Self::on_request_workspace_event),
+            cx.subscribe_in(
+                &saved_requests,
+                window,
+                |this, _, event, window, cx| match event {
+                    DocumentEvent::CloseTab(id) => {
+                        this.request_workspace.update(cx, |workspace, cx| {
+                            workspace.close_confirmed(*id, window, cx)
+                        })
+                    }
+                    DocumentEvent::Quit => cx.quit(),
+                },
+            ),
             cx.subscribe_in(&history_list, window, Self::on_finder_event),
-            cx.subscribe(&cookie_pane, Self::on_cookie_pane_event),
+            cx.subscribe_in(&cookie_pane, window, Self::on_cookie_pane_event),
             cx.subscribe_in(&global_search, window, Self::on_finder_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
         ];
 
         let flows = cx.new(|cx| FlowsView::new(environments, cx));
         let app = Self {
+            saved_requests,
             route: AppRoute::Home,
             flows,
             home_scroll: gpui::ScrollHandle::new(),
@@ -218,8 +252,9 @@ impl PostmanApp {
 
     fn on_request_workspace_event(
         &mut self,
-        _workspace: Entity<RequestWorkspace>,
+        _workspace: &Entity<RequestWorkspace>,
         event: &RequestWorkspaceEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -233,14 +268,20 @@ impl PostmanApp {
                 self.request_runner
                     .update(cx, |runner, _| runner.abort(*send_id));
             }
-            RequestWorkspaceEvent::OpenCookieJar => self.open_cookie_jar(cx),
+            RequestWorkspaceEvent::OpenCookieJar => self.open_cookie_jar(window, cx),
+            RequestWorkspaceEvent::CloseRequested(tab) => {
+                self.saved_requests.update(cx, |saved, cx| {
+                    saved.request_close(CloseIntent::Tab(*tab), window, cx)
+                })
+            }
         }
     }
 
     fn on_cookie_pane_event(
         &mut self,
-        _pane: Entity<CookiePane>,
+        _pane: &Entity<CookiePane>,
         event: &CookiePaneEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -255,24 +296,26 @@ impl PostmanApp {
             }
             CookiePaneEvent::CloseRequested => {
                 self.cookie_jar_open = false;
+                self.cookie_trigger_focus.focus(window, cx);
                 cx.notify();
             }
         }
     }
 
     pub(super) fn toggle_cookie_jar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.cookie_jar_open = !self.cookie_jar_open;
         if self.cookie_jar_open {
-            self.cookie_pane
-                .update(cx, |pane, cx| pane.focus_first(window, cx));
-        } else {
+            self.cookie_jar_open = false;
             self.cookie_trigger_focus.focus(window, cx);
+            cx.notify();
+        } else {
+            self.open_cookie_jar(window, cx);
         }
-        cx.notify();
     }
 
-    fn open_cookie_jar(&mut self, cx: &mut Context<Self>) {
+    fn open_cookie_jar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.cookie_jar_open = true;
+        self.cookie_pane
+            .update(cx, |pane, cx| pane.focus_first(window, cx));
         cx.notify();
     }
 
@@ -294,6 +337,11 @@ impl PostmanApp {
                         window.close_dialog(cx);
                         self.active_tool = None;
                         self.resume_request(*id, window, cx);
+                    }
+                    RequestTarget::Saved(id) => {
+                        window.close_dialog(cx);
+                        self.active_tool = None;
+                        self.open_saved_request(id, window, cx);
                     }
                     RequestTarget::History(id) => {
                         let entry = self
@@ -320,6 +368,7 @@ impl PostmanApp {
                 cx.notify();
             }
             RequestFinderEvent::Refresh => self.refresh_history(cx),
+            RequestFinderEvent::Delete(id) => self.delete_history_entry(id, cx),
             RequestFinderEvent::Clear => self.clear_history(cx),
         }
     }
@@ -354,6 +403,38 @@ impl PostmanApp {
         Self::initialize_and_load_history(self.view_model.clone(), worker, cx);
     }
 
+    fn delete_history_entry(&mut self, id: &str, cx: &mut Context<Self>) {
+        if !self
+            .view_model
+            .read(cx)
+            .history()
+            .iter()
+            .any(|entry| entry.id == id)
+        {
+            return;
+        }
+        let Some(worker) = self.history_worker.clone() else {
+            self.view_model.update(cx, |model, cx| {
+                model.set_history_storage_error(
+                    HistoryStorageStage::Delete,
+                    "SQLite History is unavailable",
+                );
+                cx.notify();
+            });
+            return;
+        };
+        let delete = worker.delete(id.to_owned());
+        let load = worker.load_recent(DEFAULT_HISTORY_RETENTION_LIMIT);
+        spawn_history_operation_and_reload(
+            self.view_model.clone(),
+            HistoryStorageStage::Delete,
+            delete,
+            load,
+            None,
+            cx,
+        );
+    }
+
     fn clear_history(&mut self, cx: &mut Context<Self>) {
         let Some(worker) = self.history_worker.clone() else {
             self.view_model.update(cx, |view_model, cx| {
@@ -375,6 +456,21 @@ impl PostmanApp {
             None,
             cx,
         );
+    }
+
+    fn open_saved_request(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let opened = self.view_model.update(cx, |model, cx| {
+            let id = model.open_saved_request(id);
+            cx.notify();
+            id
+        });
+        if opened.is_some() {
+            self.navigate(AppRoute::Http, window, cx);
+            self.request_workspace.update(cx, |workspace, cx| {
+                workspace.project_active_request(window, cx);
+                workspace.focus_url(window, cx);
+            });
+        }
     }
 
     fn new_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -437,6 +533,9 @@ impl Render for PostmanApp {
             .on_action(cx.listener(Self::focus_previous_control))
             .on_action(cx.listener(Self::new_request_command))
             .on_action(cx.listener(Self::close_request_command))
+            .on_action(cx.listener(Self::save_request_command))
+            .on_action(cx.listener(Self::rename_request_command))
+            .on_action(cx.listener(Self::quit_command))
             .on_action(cx.listener(Self::focus_url))
             .on_action(cx.listener(Self::focus_history_search))
             .on_action(cx.listener(Self::focus_global_search))
