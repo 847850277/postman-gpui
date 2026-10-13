@@ -23,6 +23,14 @@ Located under `suites/vaultwarden/`:
   - `organization.http.yml`, `organization_policy.http.yml`, `organization_recovery.http.yml`: Org invites, policy enforcement, recovery keys.
   - `admin.http.yml`, `two_factor.http.yml`, `sso_login.http.yml`, `login_smtp.http.yml`.
 
+The CI service, local script, and Rust harness pin the same Vaultwarden **1.37.3**
+image digest. This is the suite's tested API baseline (228 requests across 15 flows).
+[Vaultwarden 1.37.4](https://github.com/dani-garcia/vaultwarden/releases/tag/1.37.4)
+removed legacy authentication and Send endpoints used by these fixtures. Upgrading
+the image requires migrating those flows and validating the complete suite; do not
+switch it to `latest`. A server supplied through `VAULTWARDEN_URL` or
+`VAULTWARDEN_BIN` must provide the same API contract.
+
 ### 2. Meilisearch (Search & Indexing Engine API)
 Located under `suites/meilisearch/`:
 - **Workflow Specifications** (`.http.yml`):

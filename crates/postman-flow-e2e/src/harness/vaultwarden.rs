@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+// Fixture API baseline; update alongside the CI service and suites/vaultwarden/run.sh.
+const VAULTWARDEN_IMAGE: &str = "vaultwarden/server:1.37.3@sha256:1587c45feaa479f1f5e8af3b00eded36bff77bcf1880cf8dbf0541706dd470e0";
+
 pub struct VaultwardenServer {
     child: Option<Child>,
     docker_container_name: Option<String>,
@@ -14,7 +17,7 @@ pub struct VaultwardenServer {
 impl VaultwardenServer {
     /// Start a Vaultwarden instance:
     /// 1. If VAULTWARDEN_URL is set (e.g. CI service container or remote server), use it directly.
-    /// 2. If docker is available, run official `vaultwarden/server:latest` container.
+    /// 2. If docker is available, run the pinned official Vaultwarden fixture image.
     /// 3. Otherwise, fallback to local binary if present.
     pub async fn start() -> Result<Self, Box<dyn std::error::Error>> {
         // 1. External / CI configured URL
@@ -65,7 +68,7 @@ impl VaultwardenServer {
                     "UNAUTHENTICATED_RATELIMIT_MAX_BURST=1000",
                     "-e",
                     "ADMIN_TOKEN=testadmin1234567890",
-                    "vaultwarden/server:latest",
+                    VAULTWARDEN_IMAGE,
                 ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
