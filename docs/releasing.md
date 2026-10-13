@@ -57,8 +57,8 @@ about SmartScreen.
 ## Prepare a release candidate
 
 1. Confirm CI and HTTPBingo E2E are green on `main`.
-2. Review `docs/autofill-contract.md`; once the listed suite passes on the merged release branch,
-   close #49 as complete.
+2. Confirm the [editor-state regression checks](editor-state.md#regression-checks) pass on
+   the commit being released. Use the installed-app smoke checklist for package-level verification.
 3. Update `CHANGELOG.md` and review Known limitations against the code being released.
 4. Choose an unused candidate tag matching the base version in `Cargo.toml`. In the commands below,
    replace `N` with the new candidate number, then validate release metadata:

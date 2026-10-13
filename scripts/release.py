@@ -631,7 +631,7 @@ def verify_release(tag: str) -> dict[str, str]:
         ROOT / ".github/workflows/release.yml",
         ROOT / "CHANGELOG.md",
         ROOT / "docs/installation.md",
-        ROOT / "docs/autofill-contract.md",
+        ROOT / "docs/editor-state.md",
         ROOT / "docs/releasing.md",
         ROOT / "docs/release-smoke-test.md",
     ]
