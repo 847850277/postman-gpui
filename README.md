@@ -1,5 +1,3 @@
-<img src="image.png" alt="Postman GPUI icon" width="64" height="64">
-
 # Postman GPUI
 
 [![Downloads](https://img.shields.io/github/downloads/847850277/postman-gpui/total)](https://github.com/847850277/postman-gpui/releases)
