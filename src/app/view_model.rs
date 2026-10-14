@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 mod documents;
 use super::request_lifecycle::{
     BeginSendTransition, RequestSendLifecycle, RequestTabValue, RequestTabs,
@@ -95,7 +97,7 @@ pub struct RequestViewModel {
     pre_request_script: String,
     tests_script: String,
     request_pane: RequestPane,
-    response: ResponseState,
+    response: Arc<ResponseState>,
     redirect_chain: Vec<RedirectHop>,
     response_stored_cookies: Vec<CookieJarEntry>,
     send_lifecycle: RequestSendLifecycle,
@@ -115,7 +117,7 @@ impl RequestViewModel {
             pre_request_script: String::new(),
             tests_script: String::new(),
             request_pane: RequestPane::Params,
-            response: ResponseState::NotSent,
+            response: Arc::new(ResponseState::NotSent),
             redirect_chain: Vec::new(),
             response_stored_cookies: Vec::new(),
             send_lifecycle: RequestSendLifecycle::default(),
@@ -288,6 +290,12 @@ impl RequestViewModel {
 
     pub fn response(&self) -> &ResponseState {
         &self.response
+    }
+
+    /// Immutable identity shared by response views and background formatting. Draft edits do
+    /// not replace it; accepted response transitions do, even when the body bytes are equal.
+    pub(crate) fn response_snapshot(&self) -> Arc<ResponseState> {
+        self.response.clone()
     }
 
     /// Redirect responses observed while producing the active response. Followed chains end in
@@ -558,7 +566,7 @@ impl RequestViewModel {
         self.tests_script.clear();
         self.draft_revision = self.draft_revision.wrapping_add(1);
         self.request_pane = RequestPane::Params;
-        self.response = ResponseState::NotSent;
+        self.response = Arc::new(ResponseState::NotSent);
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
         self.saved_document = None;
@@ -575,7 +583,7 @@ impl RequestViewModel {
         } else {
             RequestPane::Body
         };
-        self.response = ResponseState::NotSent;
+        self.response = Arc::new(ResponseState::NotSent);
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
         self.saved_document = None;
@@ -589,7 +597,7 @@ impl RequestViewModel {
             self.request_pane = RequestPane::Body;
             self.saved_document = None;
         }
-        self.response = entry.historical_response.clone().map_or_else(
+        self.response = Arc::new(entry.historical_response.clone().map_or_else(
             || ResponseState::HistoricalUnavailable {
                 entry_id: entry.id.clone(),
             },
@@ -597,7 +605,7 @@ impl RequestViewModel {
                 entry_id: entry.id.clone(),
                 response,
             },
-        );
+        ));
         self.redirect_chain.clear();
         // Persisted History deliberately contains no cookie-jar evidence.
         self.response_stored_cookies.clear();
@@ -623,7 +631,7 @@ impl RequestViewModel {
     }
 
     fn project_send_started(&mut self) {
-        self.response = ResponseState::Loading;
+        self.response = Arc::new(ResponseState::Loading);
         self.redirect_chain.clear();
         self.response_stored_cookies.clear();
     }
@@ -646,20 +654,20 @@ impl RequestViewModel {
         match result {
             Ok(result) => {
                 self.redirect_chain = result.redirect_chain;
-                self.response = ResponseState::Success {
+                self.response = Arc::new(ResponseState::Success {
                     status: result.status,
                     body: result.body,
                     headers: result.headers,
                     elapsed_ms: result.elapsed_ms,
-                };
+                });
                 self.response_stored_cookies = stored_cookies;
             }
             Err(error) => {
                 self.redirect_chain = error.redirect_chain().to_vec();
                 self.response_stored_cookies.clear();
-                self.response = ResponseState::Error {
+                self.response = Arc::new(ResponseState::Error {
                     message: error.to_string(),
-                };
+                });
             }
         }
         transition
@@ -672,7 +680,7 @@ impl RequestViewModel {
     fn cancel_send(&mut self, send_id: SendId) -> SendTransition {
         let transition = self.send_lifecycle.cancel(send_id);
         if transition.is_applied() {
-            self.response = ResponseState::Cancelled;
+            self.response = Arc::new(ResponseState::Cancelled);
             self.redirect_chain.clear();
         }
         transition
@@ -1229,7 +1237,7 @@ impl WorkspaceViewModel {
                 .historical_entry_id()
                 .is_some_and(|entry_id| !output.retains(entry_id))
             {
-                tab.response = ResponseState::NotSent;
+                tab.response = Arc::new(ResponseState::NotSent);
                 tab.redirect_chain.clear();
                 tab.response_stored_cookies.clear();
             }
@@ -1269,6 +1277,10 @@ impl WorkspaceViewModel {
 
     pub fn cookies(&self) -> &[CookieJarEntry] {
         self.projections.cookies.entries()
+    }
+
+    pub(crate) fn cookie_revision(&self) -> u64 {
+        self.projections.cookies.revision()
     }
 
     pub fn cookie_count(&self) -> usize {
@@ -2802,7 +2814,7 @@ mod tests {
         assert!(workspace.cookies().is_empty());
         assert_eq!(workspace.last_cookie_clear_count(), Some(1));
         assert_eq!(workspace.history_len(), 1);
-        assert_eq!(&response_before_clear, &workspace.tabs()[0].response);
+        assert_eq!(&response_before_clear, workspace.tabs()[0].response());
     }
 
     #[test]

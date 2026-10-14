@@ -14,6 +14,11 @@ in [saved requests](saved-requests.md).
   Body, Scripts, and Tests content. Row identity must survive insertion and removal.
 - Projecting model values into controls is silent: it must not emit another domain edit or create
   a feedback loop. IME composition and undo history must not leak between request contexts.
+- Response views share an immutable response snapshot. Draft edits must not copy the response
+  body, reformat it, or reset its selection and scroll position. JSON parsing, Pretty formatting,
+  and syntax scanning run on the background executor; the owning view installs the prepared
+  document into its retained Kit `EditorState`. A newer response or Pretty/Raw change supersedes
+  pending work, and closing a tab releases its editor. Full-response copy uses the original body.
 
 ## Implementation entry points
 
@@ -22,6 +27,7 @@ in [saved requests](saved-requests.md).
 | [Request composer](../src/app/postman_app/request_workspace/composer.rs) and its [panes](../src/app/postman_app/request_workspace/panes) | Route input events to the active draft, restore controls from the model, and dispatch Send. |
 | [TableCellInput](../src/ui/components/input/table_cell_input.rs) | Retain Kit `InputState`, emit changes with stable cell identity, and skip equal-value projections to preserve selection and undo. |
 | [MultilineInput](../src/ui/components/input/multiline_input.rs) | Retain Kit `TextareaState` for JSON/Raw Body, Scripts, and Tests. Forward `InputEvent::Change`; explicit model projection resets undo and composition even when text is equal. |
+| [ResponseViewer](../src/app/postman_app/request_workspace/response_panel.rs) and [ResponseBody](../src/app/postman_app/request_workspace/response_panel/body.rs) | Share response snapshots, retain each tab's Kit `EditorState`, and reject superseded background formatting results. |
 
 Keep Kit entities and subscriptions alive in their owning view. Let Kit handle selection, IME,
 clipboard, and editing history; keep request validation and draft mutations in application code.
@@ -34,12 +40,14 @@ clipboard, and editing history; keep request validation and draft mutations in a
 | Authorization, per-tab drafts, row restoration, Scripts and Tests | [ui_workspace.rs](../tests/ui_workspace.rs) |
 | Cut/paste, deletion, focus traversal and keyboard actions | [ui_keyboard.rs](../tests/ui_keyboard.rs) |
 | Silent projection, IME, selection and undo boundaries | Unit tests in [TableCellInput](../src/ui/components/input/table_cell_input.rs) and [MultilineInput](../src/ui/components/input/multiline_input/tests.rs) |
+| Large response reuse, background completion, Pretty/Raw races, tab lifecycle, readonly copy and scrolling | [Response panel tests](../src/app/postman_app/request_workspace/response_panel/tests.rs) and unit tests in [ResponseBody](../src/app/postman_app/request_workspace/response_panel/body.rs) |
 
 Run from the repository root:
 
 ```bash
 cargo test --locked -p postman-gpui --lib ui::components::input
 cargo test --locked -p postman-gpui --lib send_command_is_built_only_from_the_view_model
+cargo test --locked -p postman-gpui --lib response_panel
 cargo test --locked -p postman-gpui --test ui_send --test ui_workspace --test ui_keyboard
 ```
 

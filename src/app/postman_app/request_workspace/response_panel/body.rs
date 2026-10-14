@@ -5,14 +5,15 @@ use crate::{
     ui::{
         components::common::edit_context_menu::edit_popup_menu,
         theme::{
-            metrics as m, ColorToken, CODE_KEY, CODE_NUMBER, CODE_STRING, FONT_MONO, SIDEBAR, TEXT,
+            metrics as m, ColorToken, CODE_KEY, CODE_NUMBER, CODE_STRING, FONT_MONO, MUTED,
+            SIDEBAR, TEXT,
         },
     },
 };
 use gpui::{
-    div, relative, rems, App, AppContext, Context, Entity, FocusHandle, Focusable, HighlightStyle,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, Render, SharedString, Styled,
-    Subscription, Window,
+    div, prelude::FluentBuilder, relative, rems, App, AppContext, Context, Entity, FocusHandle,
+    Focusable, HighlightStyle, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, Task, Window,
 };
 use gpui_kit::component::{
     input::{
@@ -21,11 +22,13 @@ use gpui_kit::component::{
     menu::ContextMenuExt,
     Theme,
 };
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 pub(super) struct ResponseBody {
     pub(super) editor: Entity<EditorState>,
-    source: Option<SharedString>,
+    response: Option<Arc<ResponseState>>,
+    generation: u64,
+    preparation: Option<Task<()>>,
     pretty: bool,
     has_payload: bool,
     syntax: Vec<(Range<usize>, ColorToken)>,
@@ -51,7 +54,9 @@ impl ResponseBody {
         let subscription = cx.observe_global::<Theme>(|this, cx| this.refresh_syntax(cx));
         Self {
             editor,
-            source: None,
+            response: None,
+            generation: 0,
+            preparation: None,
             pretty: true,
             has_payload: false,
             syntax: Vec::new(),
@@ -62,37 +67,68 @@ impl ResponseBody {
 
     pub(super) fn project(
         &mut self,
-        response: &ResponseState,
+        response: Arc<ResponseState>,
         pretty: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let (source, has_payload) = source(response);
-        if self.source.as_deref() == Some(source)
+        if self
+            .response
+            .as_ref()
+            .is_some_and(|previous| Arc::ptr_eq(previous, &response))
             && self.pretty == pretty
-            && self.has_payload == has_payload
         {
             return;
         }
-        self.source = Some(source.to_owned().into());
+        self.generation = self.generation.wrapping_add(1);
+        self.preparation = None;
         self.pretty = pretty;
-        self.has_payload = has_payload;
-        let json = (pretty && has_payload)
-            .then(|| serde_json::from_str::<serde_json::Value>(source).ok())
-            .flatten();
-        let value = json.as_ref().map_or_else(
-            || source.to_owned(),
-            |value| serde_json::to_string_pretty(value).expect("JSON value serializes"),
-        );
-        self.syntax = if json.is_some() {
-            json_syntax(&value)
-        } else {
-            Vec::new()
-        };
+        self.has_payload = source(&response).1;
+        self.response = Some(response.clone());
+
+        if !self.has_payload {
+            // Empty/loading/error messages are small and do not need a background document.
+            self.install(PreparedBody::plain(source(&response).0), window, cx);
+            return;
+        }
+
+        // Clear the previous document immediately. Never show/copy it under a new response's
+        // metadata while preparation is in flight. The Kit entity (and its focus) stays alive.
+        self.install(PreparedBody::plain(""), window, cx);
+        let generation = self.generation;
+        let preparation = cx
+            .background_executor()
+            .spawn(async move { prepare_body(&response, pretty) });
+        self.preparation = Some(cx.spawn_in(window, async move |this, cx| {
+            let prepared = preparation.await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.complete_preparation(generation, prepared, window, cx);
+            });
+        }));
+    }
+
+    fn complete_preparation(
+        &mut self,
+        generation: u64,
+        prepared: PreparedBody,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        // Dropping the retained task cancels delivery, but work already running on a worker
+        // may finish. Identity also protects against a late result after a new response/mode.
+        if generation != self.generation {
+            return;
+        }
+        self.preparation = None;
+        self.install(prepared, window, cx);
+    }
+
+    fn install(&mut self, prepared: PreparedBody, window: &mut Window, cx: &mut Context<Self>) {
+        self.syntax = prepared.syntax;
         self.editor.update(cx, |editor, cx| {
-            editor.set_value(value, window, cx);
-            editor.set_line_number(pretty && has_payload, window, cx);
-            editor.set_soft_wrap(!pretty, window, cx);
+            editor.set_value(prepared.text, window, cx);
+            editor.set_line_number(self.pretty && self.has_payload, window, cx);
+            editor.set_soft_wrap(!self.pretty, window, cx);
         });
         self.refresh_syntax(cx);
         cx.notify();
@@ -122,6 +158,37 @@ impl ResponseBody {
             editor.set_selected_range(cursor..cursor, cx);
         });
     }
+}
+
+struct PreparedBody {
+    text: SharedString,
+    syntax: Vec<(Range<usize>, ColorToken)>,
+}
+
+impl PreparedBody {
+    fn plain(text: &str) -> Self {
+        Self {
+            text: text.to_owned().into(),
+            syntax: Vec::new(),
+        }
+    }
+}
+
+// Parsing, formatting, UTF-8 token scanning and the editor's owned text allocation all run
+// on a worker. Only installing the finished document/decorations requires the UI thread.
+fn prepare_body(response: &ResponseState, pretty: bool) -> PreparedBody {
+    let (source, has_payload) = source(response);
+    if pretty && has_payload {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(source) {
+            let text = serde_json::to_string_pretty(&json).expect("JSON value serializes");
+            let syntax = json_syntax(&text);
+            return PreparedBody {
+                text: text.into(),
+                syntax,
+            };
+        }
+    }
+    PreparedBody::plain(source)
 }
 
 fn source(response: &ResponseState) -> (&str, bool) {
@@ -157,6 +224,7 @@ impl Render for ResponseBody {
             .id("response-content")
             .debug_selector(|| "response-content".into())
             .key_context("ResponseContent")
+            .relative()
             .size_full()
             .min_w_0()
             .min_h_0()
@@ -189,6 +257,22 @@ impl Render for ResponseBody {
                     .rounded_none()
                     .aria_label("Response body"),
             )
+            .when(self.preparation.is_some(), |root| {
+                root.child(
+                    div()
+                        .id("response-preparing")
+                        .debug_selector(|| "response-preparing".into())
+                        .role(gpui::Role::Status)
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .px_4()
+                        .py_3()
+                        .text_size(m::BODY)
+                        .text_color(MUTED.resolve(cx))
+                        .child("Preparing response…"),
+                )
+            })
             .capture_any_mouse_down(move |event, window, cx| {
                 if event.button == MouseButton::Right {
                     focus.focus(window, cx);
@@ -258,6 +342,122 @@ fn json_syntax(text: &str) -> Vec<(Range<usize>, ColorToken)> {
 mod tests {
     use super::*;
     use crate::models::HistoricalResponse;
+
+    #[gpui::test]
+    fn late_preparation_cannot_replace_a_new_mode_response_or_cancellation(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::ui::kit::init);
+        let (handle, body) = cx
+            .update(|cx| {
+                gpui_kit::open_window(gpui::WindowOptions::default(), cx, |window, cx| {
+                    cx.new(|cx| ResponseBody::new(window, cx))
+                })
+            })
+            .unwrap();
+        let original = Arc::new(ResponseState::Success {
+            status: 200,
+            body: r#"{"message":"中😀","n":1}"#.into(),
+            headers: Vec::new(),
+            elapsed_ms: 1,
+        });
+        let late_generation = cx
+            .update_window(handle, |_, window, cx| {
+                body.update(cx, |body, cx| {
+                    body.project(original.clone(), true, window, cx);
+                    let generation = body.generation;
+                    assert!(body.preparation.is_some());
+                    assert!(
+                        body.editor.read(cx).value().is_empty(),
+                        "formatting must not run inline"
+                    );
+                    body.project(original.clone(), false, window, cx);
+                    // Simulate an already-running worker delivering after it was superseded.
+                    body.complete_preparation(
+                        generation,
+                        prepare_body(&original, true),
+                        window,
+                        cx,
+                    );
+                    assert!(body.editor.read(cx).value().is_empty());
+                    generation
+                })
+            })
+            .unwrap();
+        cx.run_until_parked();
+        body.read_with(cx, |body, cx| {
+            assert!(body.preparation.is_none());
+            assert_eq!(body.editor.read(cx).value().as_ref(), source(&original).0);
+            assert!(body.syntax.is_empty());
+        });
+        cx.update_window(handle, |_, window, cx| {
+            body.update(cx, |body, cx| {
+                // A same-byte response is a new identity and clears the previous document too.
+                body.project(Arc::new((*original).clone()), true, window, cx);
+                assert!(body.preparation.is_some());
+                body.project(Arc::new(ResponseState::Cancelled), true, window, cx);
+                body.complete_preparation(
+                    late_generation,
+                    prepare_body(&original, true),
+                    window,
+                    cx,
+                );
+                assert_eq!(
+                    body.editor.read(cx).value().as_ref(),
+                    "Request cancelled by user"
+                );
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+        body.read_with(cx, |body, cx| {
+            assert!(body.preparation.is_none());
+            assert_eq!(
+                body.editor.read(cx).value().as_ref(),
+                "Request cancelled by user"
+            );
+            assert!(body.syntax.is_empty());
+        });
+    }
+
+    #[test]
+    fn preparation_keeps_raw_invalid_json_and_truncated_history_exact() {
+        for raw in [
+            "",
+            "hello 中😀\r\n",
+            r#"{"incomplete":"#,
+            r#"{ "a":1, "b":"中😀" }"#,
+        ] {
+            let response = ResponseState::Success {
+                status: 200,
+                body: raw.into(),
+                headers: Vec::new(),
+                elapsed_ms: 1,
+            };
+            assert_eq!(prepare_body(&response, false).text.as_ref(), raw);
+            if serde_json::from_str::<serde_json::Value>(raw).is_err() {
+                let pretty = prepare_body(&response, true);
+                assert_eq!(pretty.text.as_ref(), raw);
+                assert!(pretty.syntax.is_empty());
+            }
+        }
+        let response = ResponseState::Historical {
+            entry_id: "history".into(),
+            response: HistoricalResponse {
+                status: 200,
+                headers: Vec::new(),
+                body: HistoricalResponseBody::TruncatedText(r#"{"partial":"#.into()),
+                media_type: Some("application/json".into()),
+                elapsed_ms: 1,
+                original_size: 100,
+                persisted_size: 11,
+            },
+        };
+        assert_eq!(
+            prepare_body(&response, true).text.as_ref(),
+            r#"{"partial":"#
+        );
+    }
 
     #[test]
     fn json_palette_preserves_escaped_unicode_strings_and_scalar_tokens() {

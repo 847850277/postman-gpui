@@ -20,6 +20,7 @@ use gpui_kit::{
 };
 use std::{
     collections::{BTreeMap, HashMap},
+    sync::Arc,
     time::Duration,
 };
 
@@ -127,6 +128,8 @@ pub(super) enum ResponseViewerEvent {
 /// Response surface owned by the request workspace.
 pub struct ResponseViewer {
     view_model: Entity<WorkspaceViewModel>,
+    response: Arc<ResponseState>,
+    cookie_revision: u64,
     pane: ResponsePane,
     pretty: bool,
     stacked: bool,
@@ -167,13 +170,18 @@ impl ResponseViewer {
     ) -> Self {
         let view_model_subscription = cx.observe_in(&view_model, window, |this, _, window, cx| {
             this.sync_presentation(window, cx);
-            this.copied_feedback = false;
-            this.copy_generation = this.copy_generation.wrapping_add(1);
-            cx.notify();
         });
         let active_tab = view_model.read(cx).active_tab_id();
+        let response = view_model
+            .read(cx)
+            .active_request()
+            .map(|request| request.response_snapshot())
+            .unwrap_or_else(|| Arc::new(ResponseState::NotSent));
+        let cookie_revision = view_model.read(cx).cookie_revision();
         let viewer = Self {
             view_model,
+            response,
+            cookie_revision,
             pane: ResponsePane::Body,
             pretty: true,
             stacked: false,
@@ -239,27 +247,38 @@ impl ResponseViewer {
 
     fn sync_presentation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.retain_active_presentation(window, cx);
-        if self.pane == ResponsePane::Cookies
-            && self
-                .view_model
-                .read(cx)
-                .active_request()
-                .is_some_and(|r| matches!(r.response(), ResponseState::Historical { .. }))
-        {
-            self.pane = ResponsePane::Body;
+        let model = self.view_model.read(cx);
+        let response = model
+            .active_request()
+            .map(|request| request.response_snapshot());
+        let response_changed = response
+            .as_ref()
+            .is_some_and(|response| !Arc::ptr_eq(response, &self.response))
+            || (response.is_none() && !matches!(self.response.as_ref(), ResponseState::NotSent));
+        let cookie_revision = model.cookie_revision();
+        let cookies_changed = self.cookie_revision != cookie_revision;
+        self.cookie_revision = cookie_revision;
+        if response_changed {
+            self.response = response.unwrap_or_else(|| Arc::new(ResponseState::NotSent));
+            if self.pane == ResponsePane::Cookies
+                && matches!(self.response.as_ref(), ResponseState::Historical { .. })
+            {
+                self.pane = ResponsePane::Body;
+            }
+            self.project_body(window, cx);
+            self.copied_feedback = false;
+            self.copy_generation = self.copy_generation.wrapping_add(1);
         }
-        self.project_body(window, cx);
+        // URL/Body edits, History reloads and other tabs' sends do not invalidate this document.
+        if response_changed || cookies_changed {
+            cx.notify();
+        }
     }
 
     fn project_body(&self, window: &mut Window, cx: &mut Context<Self>) {
-        let state = self
-            .view_model
-            .read(cx)
-            .active_request()
-            .map(|request| request.response().clone())
-            .unwrap_or(ResponseState::NotSent);
-        self.body
-            .update(cx, |body, cx| body.project(&state, self.pretty, window, cx));
+        self.body.update(cx, |body, cx| {
+            body.project(self.response.clone(), self.pretty, window, cx)
+        });
     }
 
     fn set_pretty(&mut self, pretty: bool, window: &mut Window, cx: &mut Context<Self>) {
@@ -737,13 +756,12 @@ fn response_origin(url: &str) -> String {
 
 impl Render for ResponseViewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (state, redirect_chain, response_cookies, jar_count) = {
+        let snapshot = self.response.clone();
+        let state = snapshot.as_ref();
+        let (redirect_chain, response_cookies, jar_count) = {
             let view_model = self.view_model.read(cx);
             let active = view_model.active_request();
             (
-                active
-                    .map(|request| request.response().clone())
-                    .unwrap_or(ResponseState::NotSent),
                 active
                     .map(|request| request.redirect_chain().to_vec())
                     .unwrap_or_default(),
@@ -1181,14 +1199,14 @@ impl Render for ResponseViewer {
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
-                        .child(render_response_headers(&headers, &self.header_scroll, cx)),
+                        .child(render_response_headers(headers, &self.header_scroll, cx)),
                     ResponsePane::Cookies => div()
                         .flex_1()
                         .min_h_0()
                         .child(self.render_cookie_content(response_cookies, jar_count, cx)),
                 },
                 ResponseState::Historical { response, .. } => match pane {
-                    ResponsePane::Body => match response.body {
+                    ResponsePane::Body => match &response.body {
                         HistoricalResponseBody::Empty => div()
                             .debug_selector(|| "response-historical-empty".into())
                             .flex_1()

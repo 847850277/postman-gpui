@@ -23,6 +23,7 @@ pub(crate) enum CookieProjectionTransition {
 #[derive(Default)]
 pub(crate) struct CookieProjection {
     entries: Vec<CookieJarEntry>,
+    revision: u64,
     last_clear_count: Option<usize>,
 }
 
@@ -43,19 +44,29 @@ impl CookieProjection {
                 if !entries.is_empty() {
                     self.last_clear_count = None;
                 }
-                self.entries = entries;
+                if self.entries != entries {
+                    self.entries = entries;
+                    self.revision = self.revision.wrapping_add(1);
+                }
                 CookieProjectionTransition::SnapshotApplied {
                     cookie_count: self.entries.len(),
                 }
             }
             CookieProjectionEvent::Cleared { count } => {
-                self.entries.clear();
+                if !self.entries.is_empty() {
+                    self.entries.clear();
+                    self.revision = self.revision.wrapping_add(1);
+                }
                 self.last_clear_count = Some(count);
                 CookieProjectionTransition::Reset {
                     cleared_count: count,
                 }
             }
         }
+    }
+
+    pub(crate) fn revision(&self) -> u64 {
+        self.revision
     }
 
     pub(crate) fn entries(&self) -> &[CookieJarEntry] {
