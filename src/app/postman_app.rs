@@ -174,6 +174,7 @@ impl PostmanApp {
         let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
         let global_search =
             cx.new(|cx| RequestFinder::new(FinderKind::Search, view_model.clone(), window, cx));
+        let flows = cx.new(|cx| FlowsView::new(environments.clone(), window, cx));
         let subscriptions = vec![
             cx.subscribe_in(
                 &environments,
@@ -203,9 +204,9 @@ impl PostmanApp {
             cx.subscribe_in(&cookie_pane, window, Self::on_cookie_pane_event),
             cx.subscribe_in(&global_search, window, Self::on_finder_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
+            cx.observe(&flows, |_, _, cx| cx.notify()),
         ];
 
-        let flows = cx.new(|cx| FlowsView::new(environments, cx));
         let app = Self {
             saved_requests,
             route: AppRoute::Home,

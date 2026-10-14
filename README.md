@@ -13,6 +13,6 @@ Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requ
   <img src="assets/readme/tour-en.svg" alt="Interface tour: Home, HTTP, Body, History, Search, Environments, cURL, Save, Cookies, Shortcuts, layouts and Flows">
 </picture>
 
-Illustrated with sample data. Flow DSL runs in the CLI; the native visual flow editor is not available yet.
+Illustrated with sample data. Native Flows supports session drafts and basic HTTP steps; execution uses the CLI.
 
 [User & development guide](docs/guide.md) · [Flow CLI](crates/postman-cli/README.md) · [MCP](crates/postman-flow-mcp/README.md) · [Changelog](CHANGELOG.md) · [MIT license](LICENSE)

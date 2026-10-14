@@ -8,13 +8,13 @@
 
 | 组件 | 当前能力 | 入口 |
 | --- | --- | --- |
-| 原生桌面应用 | HTTP 请求编辑、响应查看、多标签页和本地历史 | `cargo run --locked` |
+| 原生桌面应用 | HTTP 请求编辑、响应查看、本地历史和会话 Flow 草稿 | `cargo run --locked` |
 | Flow DSL 与 CLI | 编译、执行 `.http` 请求和 `.http.yml` 流程 | [postman-g](../crates/postman-cli/README.md) |
 | Flow MCP Server | 为 Agent 提供 Schema、示例、校验、结构检查和 YAML 生成 | [postman-flow-mcp](../crates/postman-flow-mcp/README.md) |
 | HTML UI 原型 | 独立的 Home、HTTP 和 Flows 界面，使用模拟响应 | [预览说明](../prototypes/README.md) |
 
-原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。可视化 Flow 编辑器仍处于 HTML
-原型阶段；实际流程执行通过 CLI 或 Rust API 完成。
+原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。Flows 已支持原生流程库、
+顺序画布和基础 HTTP 步骤编辑；实际流程执行仍通过 CLI 或 Rust API 完成。
 
 应用、HTML 原型及 CLI/Flow 文档中的可运行 HTTP 示例统一使用
 [HTTPBingo](https://httpbingo.org/)。HTML 原型使用对应的本地模拟响应；原生客户端和
@@ -74,11 +74,11 @@ HTTP 和 Flows 共用基于 GPUI Kit 的环境选择器与 **Settings…** 弹�
 地址不能包含凭据、查询参数或片段。取消会放弃编辑；保存或切换环境时，先将配置写入本地
 `postman-gpui/environments.json`，成功后再更新匹配的请求草稿，保留路径、查询参数顺序及重复项。
 其他请求字段、无关地址、正在发送的请求快照和历史记录保持不变。保存失败可以重试；配置损坏时
-可修复后重新加载，原文件不会被自动覆盖。Flows 页面已共享设置，编辑器仍待实现。
+可修复后重新加载，原文件不会被自动覆盖。Flows 共用环境设置；切换环境不会改写流程步骤中的字面量 URL。
 使用 `cargo test --locked --test ui_environments` 验证环境交互、持久化及真实本地 HTTP 行为。
 
 应用默认浅色主题，可在侧栏手动切换暗色并记住选择。首页区分 HTTP 和 Flows；
-切换页面保留当前请求草稿、响应和正在执行的请求。原生窗口最小为 960 × 640。
+切换页面保留当前请求草稿、响应和正在执行的请求。原生窗口最小为 768 × 600。
 
 请求与响应区在可用编辑宽度达到 900 逻辑像素时左右排列，较窄时上下排列。
 工具栏可固定上下布局或恢复自动布局；拖动分隔线调整比例，双击恢复默认 46%。
@@ -108,6 +108,25 @@ python3 scripts/release.py package
 ```bash
 python3 scripts/release.py package --universal-macos
 ```
+
+## 原生 Flow 编辑器（P5.1）
+
+通过 **Flows → New flow** 创建空白会话草稿，Kit 弹窗验证名称；取消或 Esc 不会创建文档。
+可在标题栏重命名、筛选流程库，也可从首页继续真实的会话流程。
+**Add step → New HTTP request** 追加并选中新步骤。详情区即时同步步骤名称、方法和字面量 URL，
+保留未输入完整的内容；步骤 ID 不随名称变化。切换步骤、流程及页面均保留当前草稿与选择。
+
+点击节点后，方向键和 Home/End 可选择其他节点。流程库、详情区和结果区均支持拖拽尺寸，
+方向键及 Shift+方向键调整、双击重置、Enter 打开数值尺寸弹窗；Esc 撤销本次拖拽。
+窗口扩大后恢复偏好尺寸，Flow 布局偏好仅在本次会话有效。窄窗口用 **Choose flow** 替代流程库，
+更窄时通过 **Canvas / Details** 切换画布和详情。
+
+Flow 草稿**不会跨重启保存**。YAML、Check、Export、Run 与高级字段编辑暂不可用；基础编辑会保留
+文档原有的 API 引用、表达式、检查、导出、条件、请求选项、输入输出和布局信息。
+URL 格式提示不等于流程编译成功。后续 P5.2 补充高级编辑，P5.3 接入编译诊断和文件保存，P6 接入执行。
+
+使用 `cargo test --locked -p postman-gpui --lib app::postman_app::flows` 和
+`cargo test --locked --test ui_flows` 验证原生控件、文档保留及布局。
 
 ## Flow DSL 与 CLI
 

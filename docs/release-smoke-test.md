@@ -48,6 +48,19 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Quit and relaunch; completed History remains available and sensitive values remain redacted.
 - [ ] Uninstall succeeds. Existing local History behavior matches `docs/installation.md`.
 
+## Native Flow drafts (P5.1)
+
+- [ ] Create two empty flows; Cancel/Escape a third and confirm no extra document appears.
+- [ ] Append multiple HTTP steps and edit name, method, and URL while the field remains focused.
+      Switch steps, flows, and Home/HTTP/Flows; unfinished text and selection remain isolated.
+- [ ] Rename/filter flows and reopen a real entry from Home. Test Chinese IME and keyboard navigation.
+- [ ] Drag library, inspector, and results dividers; test arrows, Escape, numeric sizing, and reset.
+      Shrink/expand the window and verify preferred sizes return without clipping controls.
+- [ ] Exercise light/dark themes and narrow Canvas/Details mode. Verify Check, YAML, Export,
+      and Run remain unavailable; no simulated result or successful save is reported.
+- [ ] Restart and verify Flow drafts are gone, consistent with the visible session-only notice;
+      saved HTTP requests, environment settings, and history retain their existing behavior.
+
 ## Platform-specific checks
 
 ### macOS

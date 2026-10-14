@@ -95,9 +95,15 @@ impl PostmanApp {
 
     pub(super) fn render_left_rail(
         &self,
-        _window: &Window,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        // Keep every navigation/HTTP tool reachable at the Flow editor's 600px minimum height.
+        let item_height = gpui::rems(if window.viewport_size().height / window.rem_size() < 40. {
+            3.
+        } else {
+            3.5
+        });
         div()
             .id("left-rail")
             .debug_selector(|| "left-rail".into())
@@ -120,9 +126,13 @@ impl PostmanApp {
                 ]
                 .into_iter()
                 .map(|(route, id, label, icon)| {
-                    rail_button(id, label, icon, self.route == route, cx).on_click(
-                        cx.listener(move |this, _, window, cx| this.navigate(route, window, cx)),
-                    )
+                    rail_button(id, label, icon, self.route == route, cx)
+                        .h(item_height)
+                        .on_click(
+                            cx.listener(move |this, _, window, cx| {
+                                this.navigate(route, window, cx)
+                            }),
+                        )
                 }),
             )
             .when(self.route == AppRoute::Http, |rail| {
@@ -146,7 +156,7 @@ impl PostmanApp {
                         .accessibility_label("Import cURL")
                         .track_focus(&self.curl_import_focus)
                         .w_full()
-                        .h(gpui::rems(3.5))
+                        .h(item_height)
                         .p_1()
                         .rounded(m::RADIUS)
                         .bg(SIDEBAR.resolve(cx))
@@ -178,16 +188,17 @@ impl PostmanApp {
                         self.active_tool == Some(super::ToolDialog::History),
                         cx,
                     )
+                    .h(item_height)
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_finder(super::FinderKind::History, window, cx);
                     })),
                 )
                 .child(
-                    rail_button("rail-search", "Search", IconName::Search, false, cx).on_click(
-                        cx.listener(|this, _, window, cx| {
+                    rail_button("rail-search", "Search", IconName::Search, false, cx)
+                        .h(item_height)
+                        .on_click(cx.listener(|this, _, window, cx| {
                             this.begin_global_search_focus(window, cx)
-                        }),
-                    ),
+                        })),
                 )
                 .child(
                     gpui_kit::base::Button::new("cookie-jar-trigger")
@@ -196,7 +207,7 @@ impl PostmanApp {
                         .track_focus(&self.cookie_trigger_focus)
                         .key_context("OverlayTrigger")
                         .w_full()
-                        .h(gpui::rems(3.5))
+                        .h(item_height)
                         .p_1()
                         .rounded(m::RADIUS)
                         .bg(if self.cookie_jar_open {
@@ -266,7 +277,7 @@ impl PostmanApp {
                     Some(r) if r.saved_document_id().is_some() => "All changes saved",
                     _ => "Ready when you are",
                 },
-                AppRoute::Flows => "Flow editing is not available yet",
+                AppRoute::Flows => "Flow drafts · This session only",
             }
             .into()
         };
