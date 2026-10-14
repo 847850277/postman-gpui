@@ -107,7 +107,27 @@ In Flows:
   survive navigation and must be fixed before running or exporting.
 - Run preview (Cmd/Ctrl+Enter) shows sequential step results, checks, extracted
   outputs, failures, and cancellation. Cmd/Ctrl+S exports the active flow.
-- Resize the flow library, step details, and run results using the same dividers.
+- The bottom **Console** has Logs, Steps, and Outputs tabs. Logs show timestamps,
+  levels, requests, checks, polling, and cancellation; filter by level, copy the
+  visible view, or clear logs without removing step results and outputs. Click a
+  step name to locate it on the canvas and in the inspector. Auto-scroll follows
+  new events and pauses when you scroll back; enable it again to return to the
+  latest event. Logs retain up to 500 events per flow, and a new run starts a new
+  log. All events describe local fixtures, not network execution.
+- The fixed `flow ›` command line accepts `help`, `check`, `run`, `stop`, `clear`,
+  `logs`, `steps`, and `outputs`. Enter executes; Up/Down recalls each flow's last
+  50 commands and restores unfinished input; Tab completes an unambiguous command;
+  Escape clears input. Command drafts survive switching flows. A second `run`
+  does not cancel an active preview: use `stop`. Commands and feedback appear in
+  Logs, and `clear` keeps results, outputs, and command history. These are Flow
+  preview commands, not a system shell; arbitrary commands are rejected.
+- Collapse Console to its title bar, maximize it within the editor, or restore
+  its previous height. Tabs support Left/Right and Home/End. Selecting a tab or
+  starting a preview reopens a collapsed Console; locating a step restores the
+  canvas when Console is maximized.
+- Resize the flow library, step details, and Console using the same dividers.
+  Step details can grow beyond 480px, keeping at least 300px for the canvas.
+  Short windows keep Console and its actions visible while panels scroll inside.
   Library/detail dividers disappear when compact navigation replaces their
   panels, and the details divider is hidden in YAML view. The icon navigation
   rail remains fixed.

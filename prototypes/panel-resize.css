@@ -46,13 +46,16 @@ body[data-resizing="y"],body[data-resizing="y"] * { cursor:row-resize!important;
 .split.side-by-side .resize-divider .divider-grip { width:3px; height:30px; }
 .response { container-type:inline-size; }
 @container (max-width:410px) { .response-heading #response-size { display:none; } .response-heading,.response-tabs { padding-inline:12px; gap:9px; } }
-.flow-layout { grid-template-columns:var(--flow-library-width,196px) var(--splitter-size) minmax(0,1fr); }
+.flow-screen { overflow:hidden; }
+.flow-layout { grid-template-columns:var(--flow-library-width,196px) var(--splitter-size) minmax(0,1fr); min-height:0; overflow:hidden; }
 .flow-library,.flow-inspector { border:0; }
-.flow-stage { display:grid; grid-template-rows:minmax(300px,1fr) var(--splitter-size) var(--flow-results-height,192px); flex:1; min-height:441px; min-width:0; }
+.flow-stage { display:grid; grid-template-rows:minmax(0,1fr) var(--splitter-size) var(--flow-results-height,240px); flex:1; min-height:0; min-width:0; }
 .flow-content { grid-template-columns:minmax(0,1fr) var(--splitter-size) var(--flow-inspector-width,300px); min-height:0; }
 .flow-results { display:flex; flex-direction:column; min-height:0; border:0; }
 .flow-results .results-body { height:auto; flex:1; min-height:0; }
 .flow-results .results-heading { flex-shrink:0; }
+.flow-stage.console-collapsed { grid-template-rows:minmax(0,1fr) auto; }
+.flow-stage.console-maximized { grid-template-rows:minmax(0,1fr); }
 @media(max-width:1150px) {
  .flow-layout { grid-template-columns:minmax(0,1fr); }
  #flow-library-divider { display:none; }
@@ -60,7 +63,7 @@ body[data-resizing="y"],body[data-resizing="y"] * { cursor:row-resize!important;
 @media(max-width:800px) {
  .flow-content { grid-template-columns:minmax(0,1fr); min-height:0; }
  #flow-inspector-divider { display:none; }
- .flow-stage { min-height:501px; grid-template-rows:minmax(360px,1fr) var(--splitter-size) var(--flow-results-height,192px); }
+ .flow-stage { min-height:0; }
 }
 @media(pointer:coarse) {
  :root { --splitter-size:16px; }

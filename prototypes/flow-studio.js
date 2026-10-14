@@ -4,7 +4,8 @@
  const $=id=>document.getElementById(id), M=FlowPreview, HTTP=PrototypeHTTP;
  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const icon=name=>'<svg class="icon" aria-hidden="true"><use href="#i-'+name+'"/></svg>';
- let sequence=0, activeFlow='echo-chain', inspectorTab='request', canvasView='canvas', resultView='steps', mobileInspect=false;
+ let sequence=0, activeFlow='echo-chain', inspectorTab='request', canvasView='canvas', resultView='logs', mobileInspect=false;
+ let consoleMode='normal', logLevel='all', followLogs=true, eventSequence=0, commandComposing=false;
  const flows=M.samples().map(item=>({...item,selected:item.document.flow.steps[0]?.id,dirty:false,run:null,inputs:{}}));
  const current=()=>flows.find(flow=>flow.id===activeFlow);
  const selected=()=>current().document.flow.steps.find(step=>step.id===current().selected);
@@ -27,7 +28,29 @@
   <section class="flow-work" aria-label="Flow editor"><div class="flow-toolbar"><select class="flow-select-mobile" id="flow-picker" aria-label="Choose flow"></select><div class="view-switch" aria-label="Flow view"><button data-flow-view="canvas" aria-pressed="true">Canvas</button><button data-flow-view="yaml" aria-pressed="false">YAML</button></div><span class="muted" id="flow-step-count"></span><span class="spacer"></span><button class="studio-button quiet" id="flow-inputs">${icon('settings')}Inputs <span class="count" id="flow-input-count"></span></button><button class="studio-button" id="add-step">${icon('plus')}Add step</button><button class="studio-button flow-toolbar-toggle" id="toggle-inspector" aria-pressed="false">Details</button></div>
   <div class="flow-stage" id="flow-stage"><div class="flow-content" id="flow-content"><div class="flow-canvas" id="flow-canvas" aria-label="Ordered flow steps"></div><div class="resize-divider" id="flow-inspector-divider" aria-controls="flow-inspector" data-testid="flow-inspector-divider"><span class="divider-grip" aria-hidden="true"></span></div><aside class="flow-inspector" id="flow-inspector" aria-label="Step configuration"></aside><div class="yaml-pane" id="yaml-pane" hidden><div class="yaml-heading"><span>Generated from the canvas · Flow v1</span><button class="studio-button" id="copy-yaml">${icon('copy')}Copy YAML</button></div><pre class="yaml-code" id="yaml-code"></pre></div></div>
   <div class="resize-divider" id="flow-results-divider" aria-controls="flow-results" data-testid="flow-results-divider"><span class="divider-grip" aria-hidden="true"></span></div>
-  <section class="flow-results" id="flow-results" aria-label="Flow run results"><div class="results-heading">${icon('terminal')}<strong>Run results</strong><span class="results-note">Local fixtures</span><span class="spacer"></span><div class="view-switch"><button data-result-view="steps" aria-pressed="true">Steps</button><button data-result-view="outputs" aria-pressed="false">Outputs</button></div><span id="flow-run-status" class="run-status" role="status">Not run</span></div><div id="flow-results-body" class="results-body"></div></section>
+  <section class="flow-results" id="flow-results" aria-label="Flow console">
+   <div class="results-heading">
+    <span class="console-title">${icon('terminal')}<strong>Console</strong></span><span class="results-note">Local preview</span>
+    <div class="console-tabs" role="tablist" aria-label="Console view">${['logs','steps','outputs'].map(view=>`<button id="console-tab-${view}" role="tab" data-result-view="${view}" aria-controls="flow-results-panel" aria-selected="${view==='logs'}" tabindex="${view==='logs'?0:-1}">${{logs:'Logs',steps:'Steps',outputs:'Outputs'}[view]}</button>`).join('')}</div>
+    <span id="flow-run-status" class="run-status" role="status">Not run</span>
+    <button class="icon-button" id="maximize-console" aria-label="Maximize console" title="Maximize console" aria-pressed="false">${icon('expand')}</button>
+    <button class="icon-button" id="toggle-console" aria-label="Collapse console" title="Collapse console" aria-controls="flow-results-panel" aria-expanded="true">${icon('down')}</button>
+   </div>
+   <div id="flow-results-panel" class="console-panel" role="tabpanel" aria-labelledby="console-tab-logs">
+    <div class="console-tools">
+     <label id="console-level-field"><span class="resize-help">Log level</span><select id="console-level" aria-label="Log level"><option value="all">All levels</option><option value="command">Commands</option><option value="info">Info</option><option value="success">Success</option><option value="warning">Warnings</option><option value="error">Errors</option></select></label>
+     <span id="console-count" class="console-count"></span><span class="spacer"></span>
+     <button class="console-follow" id="console-follow" aria-pressed="true" title="Follow new log events">${icon('down')}Auto-scroll</button>
+     <button class="icon-button" id="copy-console" aria-label="Copy logs" title="Copy logs">${icon('copy')}</button>
+     <button class="icon-button" id="clear-console" aria-label="Clear logs" title="Clear logs; keep step results and outputs">${icon('trash')}</button>
+    </div>
+    <div id="flow-results-body" class="results-body" tabindex="0" aria-label="Console content"></div>
+    <form id="console-command-form" class="console-command-form" aria-label="Flow command line">
+     <div class="console-command-row"><span class="console-prompt" aria-hidden="true">flow ›</span><input id="console-command" aria-label="Console command" aria-describedby="console-command-hint" placeholder="Type help for commands" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="240"><button id="submit-console-command" type="submit" class="icon-button" aria-label="Execute command" title="Execute command (Enter)" disabled>${icon('arrow')}</button></div>
+     <div class="console-command-footer"><span id="console-command-hint" role="status">Enter to execute · ↑ ↓ history · Tab complete</span><button type="button" id="console-command-help">help</button></div>
+    </form>
+   </div>
+  </section>
   </div></section></div>`;
  document.body.insertAdjacentHTML('beforeend',`
  <dialog class="studio-dialog" id="new-flow-dialog" aria-labelledby="new-flow-title"><form id="new-flow-form"><div class="dialog-head">${icon('flow')}<strong id="new-flow-title">Create a flow</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Close new flow">${icon('x')}</button></div><div class="dialog-content"><p>Give your sequence a name. Add requests and connect their outputs as you go.</p>${field('Flow name',input('new-flow-name','','required maxlength="80" placeholder="e.g. Order checkout"'))}</div><div class="dialog-footer"><span>Saved in this session</span><button type="button" class="studio-button studio-close">Cancel</button><button class="studio-button primary" type="submit">Create flow</button></div></form></dialog>
@@ -57,7 +80,7 @@
  }
  function renderFlow(){
   const flow=current();$('flow-title').value=flow.document.flow.name;$('flow-filename').textContent=filename();$('flow-unsaved').hidden=!flow.dirty;
-  syncEnvironment();renderLibrary();renderCanvas();renderInspector();renderResults();renderView();
+  syncEnvironment();renderLibrary();renderCanvas();renderInspector();renderResults();renderView();syncConsoleCommand();
   $('flow-step-count').textContent=flow.document.flow.steps.length+' steps · Sequential';$('flow-input-count').textContent=flow.document.flow.inputs.length;
   $('run-flow').querySelector('span').textContent=flow.run?.status==='running'?'Stop':'Run preview';
  }
@@ -165,43 +188,179 @@
   $('open-request-options').innerHTML=HTTP.list().map(request=>'<button class="recent-item" data-copy-request="'+esc(request.id)+'"><span class="method '+esc(request.method.toLowerCase())+'">'+esc(request.method)+'</span><div><strong>'+esc(request.title)+'</strong><small>'+esc(request.url||'No URL yet')+'</small></div>'+icon('plus')+'</button>').join('');$('add-step-dialog').showModal();
  }
  function openTransfer(){pendingRequest=HTTP.current();$('add-to-flow-summary').textContent=pendingRequest.method+' · '+(pendingRequest.title||pendingRequest.url);$('destination-flow').innerHTML=flows.map(flow=>choice(flow.id,flow.document.flow.name,activeFlow)).join('')+choice('__new','Create a new flow…',activeFlow);$('transfer-error').hidden=true;$('add-to-flow-dialog').showModal();}
- function renderResults(){
+ const consoleCommands={
+  help:'Show available Flow commands',
+  check:'Check the current flow',
+  run:'Start a local preview',
+  stop:'Cancel the current preview',
+  clear:'Clear logs; keep results and command history',
+  logs:'Show the event log',
+  steps:'Show request results',
+  outputs:'Show flow outputs'
+ };
+ function commandState() { return current().command??={draft:'',history:[],index:0,stash:''}; }
+ function commandHint(message='Enter to execute · ↑ ↓ history · Tab complete') { $('console-command-hint').textContent=message; }
+ function syncConsoleCommand() {
+  $('console-command').value=commandState().draft;
+  $('submit-console-command').disabled=!commandState().draft.trim();
+  commandHint();
+ }
+ function rememberCommandDraft() {
+  const state=commandState();state.draft=$('console-command').value;
+  state.index=state.history.length;state.stash=state.draft;
+  $('submit-console-command').disabled=!state.draft.trim();commandHint();
+ }
+ function clearConsoleLogs() {
+  current().logs=[];current().logsCleared=true;renderResults();
+ }
+ function executeConsoleCommand() {
+  if(commandComposing)return;
+  const source=$('console-command').value.trim();if(!source)return;
+  const flow=current(),state=commandState(),command=source.toLowerCase();
+  if(state.history.at(-1)!==source)state.history.push(source);
+  if(state.history.length>50)state.history.shift();
+  state.index=state.history.length;state.draft='';state.stash='';syncConsoleCommand();
+  logLevel='all';$('console-level').value='all';followLogs=true;selectConsoleView('logs');
+  if(command==='clear'){clearConsoleLogs();commandHint('Logs cleared. Results and command history kept.');return;}
+  if(command==='run'&&flow.run?.status!=='running'){
+   // runFlow starts a fresh log, retaining this command as its first event.
+   void runFlow(source);return;
+  }
+  logEvent(flow,'command','› '+source);
+  if(!Object.hasOwn(consoleCommands,command)){
+   logEvent(flow,'error','Unknown Flow command. Type help for available commands.');commandHint('Unknown command. Type help for available commands.');
+  }else if(command==='help'){
+   logEvent(flow,'info','Flow commands · local preview\n'+Object.entries(consoleCommands).map(([name,description])=>name.padEnd(9)+description).join('\n'));commandHint('Commands apply to the selected flow.');
+  }else if(command==='run')logEvent(flow,'warning','A preview is already running. Use stop to cancel it.');
+  else if(command==='stop'){
+   if(flow.run?.status==='running')cancelRun(flow);else logEvent(flow,'info','No preview is running.');
+  }else if(command==='check'){
+   if(flow.run?.status==='running')logEvent(flow,'warning','Stop the preview before checking the flow.');else checkFlow();
+  }else if(['logs','steps','outputs'].includes(command)){
+   selectConsoleView(command);commandHint('Showing '+command+'.');return;
+  }
+  renderResults();
+ }
+ function consoleLogs(flow=current()) { return flow.logs || []; }
+ function visibleLogs() { return consoleLogs().filter(row=>logLevel==='all'||row.level===logLevel); }
+ function logEvent(flow, level, message, step=null, ownerId=null) {
+  const rows=flow.logs??=[];
+  rows.push({id:++eventSequence,time:new Date().toISOString(),level,message,step:ownerId||step?.id,name:step?.name});
+  // Bound the preview's DOM and memory during long polling runs.
+  if(rows.length>500)rows.splice(0,rows.length-500);
+  flow.logsCleared=false;
+ }
+ function logTime(time) { return new Date(time).toLocaleTimeString('en-GB',{hour12:false})+'.'+time.slice(20,23); }
+ function locateStep(id) {
+  const step=current().document.flow.steps.find(step=>step.id===id||(step.steps||[]).some(child=>child.id===id));
+  if(!step)return;
+  current().selected=step.id;inspectorTab='request';canvasView='canvas';mobileInspect=true;
+  if(consoleMode==='maximized')setConsoleMode('normal');
+  renderCanvas();renderInspector();renderView();
+  const node=[...$('flow-canvas').querySelectorAll('[data-select-step]')].find(node=>node.dataset.selectStep===step.id);
+  node?.scrollIntoView({block:'nearest'});
+  (matchMedia('(max-width:800px)').matches?$('step-name'):node)?.focus({preventScroll:true});
+ }
+ function setConsoleMode(next) {
+  consoleMode=next;
+  $('flow-stage').classList.toggle('console-collapsed',next==='collapsed');
+  $('flow-stage').classList.toggle('console-maximized',next==='maximized');
+  $('flow-content').hidden=next==='maximized';
+  $('flow-results-divider').hidden=next!=='normal';
+  $('flow-results-panel').hidden=next==='collapsed';
+  const toggle=$('toggle-console'),maximize=$('maximize-console');
+  toggle.setAttribute('aria-expanded',next!=='collapsed');
+  toggle.setAttribute('aria-label',next==='collapsed'?'Expand console':'Collapse console');
+  toggle.title=toggle.getAttribute('aria-label');toggle.innerHTML=icon(next==='collapsed'?'up':'down');
+  maximize.setAttribute('aria-pressed',next==='maximized');
+  maximize.setAttribute('aria-label',next==='maximized'?'Restore console size':'Maximize console');
+  maximize.title=maximize.getAttribute('aria-label');maximize.innerHTML=icon(next==='maximized'?'restore':'expand');
+  resultsResize.refresh();inspectorResize.refresh();
+ }
+ function selectConsoleView(view) {
+  resultView=view;
+  if(consoleMode==='collapsed')setConsoleMode('normal');
+  renderResults();
+ }
+ function consoleText() {
   const flow=current(),run=flow.run;
-  document.querySelectorAll('[data-result-view]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.resultView===resultView));
-  $('flow-run-status').className='run-status '+(run?.status||'');$('flow-run-status').textContent=run?(run.stale?'Previous run · ':'')+statuses[run.status]+(run.status==='passed'?' · '+run.rows.length+' requests':''):'Not run';
-  if(flow.errors?.length){$('flow-results-body').innerHTML=flow.errors.map(error=>'<button class="recent-item" data-error-step="'+esc(error.step||'')+'"><span style="color:var(--red)">'+icon('x')+'</span><div><strong>'+esc(error.step||'Flow')+'</strong><small style="white-space:normal;color:var(--red)">'+esc(error.message)+'</small></div></button>').join('');return;}
-  if(!run){$('flow-results-body').innerHTML='<div class="results-empty">'+icon('play')+'<div><strong>Follow your flow, one step at a time.</strong>Run a local preview to inspect checks, timing, and outputs.</div></div>';return;}
-  if(resultView==='outputs'){$('flow-results-body').innerHTML='<pre class="run-outputs">'+esc(JSON.stringify(run.outputs||{},null,2))+'</pre>';return;}
-  $('flow-results-body').innerHTML=run.rows.map(row=>'<div class="run-row">'+icon(row.status==='passed'?'check':row.status==='failed'?'x':'clock')+'<span>'+esc(row.name)+(row.iteration?' <small>· attempt '+row.iteration+'</small>':'')+(row.error?'<br><span style="color:var(--red)">'+esc(row.error)+'</span>':'')+'</span><span class="node-status '+row.status+'">'+(row.code||statuses[row.status])+'</span><small>'+row.elapsed+' ms</small></div>').join('')+(run.error?'<p class="studio-error">'+esc(run.error)+'</p>':'');
-  if(!run.rows.length)$('flow-results-body').innerHTML='<p class="studio-hint">'+esc(run.error||'Preparing the first request…')+'</p>';
+  if(resultView==='logs')return visibleLogs().map(row=>`${row.time} ${row.level.toUpperCase()}${row.name?' ['+row.name+']':''} ${row.message}`).join('\n');
+  if(resultView==='outputs')return run?.status==='passed'?JSON.stringify(run.outputs,null,2):'';
+  return (flow.errors?.length?flow.errors.map(error=>`${error.step||'Flow'}: ${error.message}`):run?.rows.map(row=>`${row.name} · ${statuses[row.status]}${row.code?' · HTTP '+row.code:''} · ${row.elapsed} ms${row.error?' · '+row.error:''}`)||[]).join('\n');
+ }
+ function renderResults(){
+  const flow=current(),run=flow.run,body=$('flow-results-body'),scroll=body.scrollTop;
+  const focused=document.activeElement?.dataset.consoleEvent;
+  document.querySelectorAll('[data-result-view]').forEach(button=>{
+   const active=button.dataset.resultView===resultView;
+   button.setAttribute('aria-selected',active);button.tabIndex=active?0:-1;
+  });
+  $('flow-results-panel').setAttribute('aria-labelledby','console-tab-'+resultView);
+  const errors=flow.errors||[];
+  const status=errors.length?'failed':run?.status||'';
+  $('flow-run-status').className='run-status '+status;
+  $('flow-run-status').textContent=errors.length?`Check failed · ${errors.length} issues`:run?(run.stale?'Previous run · ':'')+statuses[run.status]+(run.elapsed!==undefined?' · '+(run.elapsed/1000).toFixed(2)+' s':''):'Not run';
+  const logs=resultView==='logs';
+  $('console-level-field').hidden=!logs;$('console-follow').hidden=!logs;$('clear-console').hidden=!logs;
+  $('console-follow').setAttribute('aria-pressed',followLogs);
+  $('clear-console').disabled=!consoleLogs().length;
+  $('copy-console').disabled=!consoleText();
+  $('copy-console').setAttribute('aria-label','Copy '+resultView);$('copy-console').title='Copy '+resultView;
+  $('console-count').textContent=logs?`${logLevel==='all'?'':visibleLogs().length+' of '}${consoleLogs().length} events`:resultView==='steps'?`${run?.rows.length||0} completed request${run?.rows.length===1?'':'s'}`:'Flow outputs';
+  const empty=(title,text)=>'<div class="results-empty">'+icon('terminal')+'<div><strong>'+esc(title)+'</strong>'+esc(text)+'</div></div>';
+  if(logs){
+   const rows=visibleLogs();
+   body.innerHTML=rows.length?rows.map(row=>'<div class="console-row"><time datetime="'+row.time+'">'+logTime(row.time)+'</time><span class="console-level '+row.level+'">'+row.level.toUpperCase()+'</span><div class="console-message">'+(row.step?'<button class="console-step" data-error-step="'+esc(row.step)+'" data-console-event="'+row.id+'" title="Show step '+esc(row.name)+'">'+esc(row.name)+icon('arrow')+'</button>':'')+'<span>'+esc(row.message)+'</span></div></div>').join(''):empty(flow.logsCleared?'Logs cleared':consoleLogs().length?'No matching events':'Ready to follow your flow',flow.logsCleared?'New events will appear here. Step results and outputs are kept.':consoleLogs().length?'Choose another log level to see more events.':'Run preview to see requests, checks, and polling events. No network requests are sent.');
+  }else if(resultView==='outputs'){
+   body.innerHTML=run?.status==='passed'?'<pre class="run-outputs">'+esc(JSON.stringify(run.outputs||{},null,2))+'</pre>':empty('No outputs yet',run?.status==='running'?'Outputs appear when the preview completes.':'Complete a successful preview to inspect flow outputs.');
+  }else if(errors.length){
+   body.innerHTML=errors.map(error=>'<button class="recent-item" data-error-step="'+esc(error.step||'')+'"><span class="console-level error">'+icon('x')+'</span><div><strong>'+esc(error.step||'Flow')+'</strong><small class="console-error">'+esc(error.message)+'</small></div></button>').join('');
+  }else if(run?.rows.length){
+   body.innerHTML=run.rows.map(row=>'<button class="run-row '+row.status+'" data-error-step="'+esc(row.step)+'">'+icon(row.status==='passed'?'check':row.status==='failed'?'x':'clock')+'<span>'+esc(row.name)+(row.iteration?' <small>· attempt '+row.iteration+'</small>':'')+(row.error?'<br><span class="console-error">'+esc(row.error)+'</span>':'')+'</span><span class="node-status '+row.status+'">'+(row.code||statuses[row.status])+'</span><small>'+row.elapsed+' ms</small></button>').join('')+(run.error?'<p class="studio-error">'+esc(run.error)+'</p>':'');
+  }else body.innerHTML=empty(run?.status==='running'?'Running first request…':'No step results yet',run?.error||'Run preview to inspect each request and its checks.');
+  if(focused)body.querySelector('[data-console-event="'+focused+'"]')?.focus({preventScroll:true});
+  body.scrollTop=logs&&followLogs?body.scrollHeight:scroll;
  }
  function checkFlow(notify=true){
-  const draftErrors=Object.values(current().fieldDrafts||{}).map(draft=>({step:draft.step,message:draft.message}));
-  const errors=draftErrors.concat(M.validate(current().document));current().errors=errors;renderResults();
-  if(errors.length){if(notify)HTTP.toast(errors.length+' issue'+(errors.length>1?'s':'')+' to resolve');return false;}
-  if(notify)HTTP.toast('Preview checks passed · '+current().document.flow.steps.length+' steps');return true;
+  const flow=current();
+  const draftErrors=Object.values(flow.fieldDrafts||{}).map(draft=>({step:draft.step,message:draft.message}));
+  const errors=draftErrors.concat(M.validate(flow.document));flow.errors=errors;
+  if(errors.length){
+   for(const error of errors)logEvent(flow,'error',error.message,{id:error.step,name:error.step||'Flow'});
+   selectConsoleView('logs');
+   if(notify)HTTP.toast(errors.length+' issue'+(errors.length>1?'s':'')+' to resolve');return false;
+  }
+  if(notify){logEvent(flow,'success','Preview checks passed · '+flow.document.flow.steps.length+' steps');selectConsoleView('logs');HTTP.toast('Preview checks passed');}
+  else renderResults();
+  return true;
  }
  function repaintRun(flow){if(flow.id!==activeFlow)return;renderCanvas();renderResults();$('run-flow').querySelector('span').textContent=flow.run.status==='running'?'Stop':'Run preview';}
- function cancelRun(flow){if(flow.run?.status!=='running')return;flow.run.cancelled=true;flow.run.wake?.();}
- async function runFlow(){
-  const flow=current();if(flow.run?.status==='running'){cancelRun(flow);return;}if(!checkFlow(false))return;
+ function cancelRun(flow){if(flow.run?.status!=='running'||flow.run.cancelled)return;logEvent(flow,'warning','Cancellation requested');flow.run.cancelled=true;flow.run.wake?.();repaintRun(flow);}
+ async function runFlow(command=null){
+  const flow=current();if(flow.run?.status==='running'){cancelRun(flow);return;}
+  const commandLine=typeof command==='string'?command:null;
+  if(commandLine)logEvent(flow,'command','› '+commandLine);
+  if(!checkFlow(false))return;
   const snapshot=M.copy(flow.document.flow),inputs=Object.fromEntries(snapshot.inputs.map(item=>[item.name,item.default]));Object.assign(inputs,flow.inputs);if(!Object.hasOwn(flow.inputs,'base_url'))inputs.base_url=HTTP.environment().baseUrl;
-  const run={status:'running',steps:{},rows:[],outputs:{},cancelled:false};flow.run=run;flow.errors=[];renderInspector();repaintRun(flow);
-  const exports={};
+  const run={status:'running',steps:{},rows:[],outputs:{},cancelled:false,started:Date.now()};flow.run=run;flow.errors=[];flow.logs=[];
+  if(commandLine)logEvent(flow,'command','› '+commandLine);
+  logEvent(flow,'info','Preview started · local fixtures only');selectConsoleView('logs');renderInspector();repaintRun(flow);
+  const exports={};let executing=null;
   const wait=ms=>new Promise(resolve=>{const timer=setTimeout(resolve,ms);run.wake=()=>{clearTimeout(timer);resolve();};});
   const assertActive=()=>{if(run.cancelled)throw new Error('Preview cancelled');};
-  async function execute(step,iteration){
-   assertActive();run.steps[step.id]={status:'running'};repaintRun(flow);
-   if(step.when&&!M.condition(step.when,inputs,exports)){run.steps[step.id]={status:'skipped'};run.rows.push({name:step.name,status:'skipped',elapsed:0,iteration});repaintRun(flow);return;}
+  async function execute(step,iteration,ownerId=step.id){
+   assertActive();executing={step,ownerId};run.steps[step.id]={status:'running'};
+   logEvent(flow,'info',step.kind==='repeat_until'?'Polling started':'Request started'+(iteration?' · attempt '+iteration:''),step,ownerId);repaintRun(flow);
+   if(step.when&&!M.condition(step.when,inputs,exports)){run.steps[step.id]={status:'skipped'};run.rows.push({step:ownerId,name:step.name,status:'skipped',elapsed:0,iteration});logEvent(flow,'warning','Skipped · run condition was false',step,ownerId);repaintRun(flow);return;}
    if(step.kind==='repeat_until'){
     const start=Date.now();let passed=false;
     for(let index=1;index<=step.max_iterations;index++){
-     for(const child of step.steps)await execute(child,index);
+     for(const child of step.steps)await execute(child,index,ownerId);
      if(M.condition(step.until,inputs,exports)){passed=true;break;}
      if(Date.now()-start>=step.timeout_ms)throw new Error('Polling timed out');
-     if(index<step.max_iterations){await wait(Math.min(step.interval_ms,1500));assertActive();}
+     if(index<step.max_iterations){logEvent(flow,'info','Waiting before attempt '+(index+1),step,ownerId);repaintRun(flow);await wait(Math.min(step.interval_ms,1500));assertActive();}
     }
-    if(!passed)throw new Error('Polling reached its attempt limit');run.steps[step.id]={status:'passed'};repaintRun(flow);return;
+    if(!passed)throw new Error('Polling reached its attempt limit');run.steps[step.id]={status:'passed'};logEvent(flow,'success','Polling condition passed',step,ownerId);repaintRun(flow);return;
    }
    const start=Date.now(),address=M.resolve(step.request.url,inputs,exports);if(!/^https?:\/\//.test(address))throw new Error('Invalid request URL');
    await wait(550);assertActive();
@@ -211,18 +370,19 @@
    const bodyFormat=!payload?'none':payload.kind==='json'||payload.kind==='json_template'?'json':contentType==='application/x-www-form-urlencoded'?'urlencoded':'raw';
    if(payload?.kind==='json_template')body=JSON.parse(body);
    const {code,data}=HTTPBingoDemo.response({url:address,method:step.request.method,headers,body,bodyFormat});
+   logEvent(flow,'info',step.request.method+' · HTTP '+code+' · '+(Date.now()-start)+' ms',step,ownerId);
    try{
     for(const check of step.checks){if(check.kind==='status'&&code!==check.equals)throw new Error('Expected status '+check.equals+', received '+code);if(check.kind==='jsonpath'&&JSON.stringify(M.extract(data,check.path))!==JSON.stringify(M.resolve(check.equals,inputs,exports)))throw new Error('Response check failed at '+check.path);}
     const values={};for(const item of step.exports)values[item.name]=M.extract(data,item.path);exports[step.id]=values;
-   }catch(error){run.steps[step.id]={status:'failed'};run.rows.push({name:step.name,status:'failed',code,error:error.message,elapsed:Date.now()-start,iteration});throw error;}
-   run.steps[step.id]={status:'passed'};run.rows.push({name:step.name,status:'passed',code,elapsed:Date.now()-start,iteration});repaintRun(flow);
+   }catch(error){run.steps[step.id]={status:'failed'};run.rows.push({step:ownerId,name:step.name,status:'failed',code,error:error.message,elapsed:Date.now()-start,iteration});logEvent(flow,'error',error.message,step,ownerId);throw error;}
+   run.steps[step.id]={status:'passed'};run.rows.push({step:ownerId,name:step.name,status:'passed',code,elapsed:Date.now()-start,iteration});logEvent(flow,'success',step.checks.length+' check'+(step.checks.length===1?'':'s')+' passed · '+step.exports.length+' value'+(step.exports.length===1?'':'s')+' exported',step,ownerId);repaintRun(flow);
   }
   try{
    for(const step of snapshot.steps)await execute(step);
    for(const item of snapshot.outputs)run.outputs[item.name]=M.resolve(item.value,inputs,exports);
-   run.status='passed';
-  }catch(error){run.status=run.cancelled?'cancelled':'failed';run.error=error.message;run.outputs={};for(const value of Object.values(run.steps))if(value.status==='running')value.status=run.status;}
-  delete run.wake;repaintRun(flow);if(flow.id===activeFlow)renderInspector();
+   run.status='passed';logEvent(flow,'success','Preview completed · '+run.rows.length+' request'+(run.rows.length===1?'':'s'));
+  }catch(error){run.status=run.cancelled?'cancelled':'failed';run.error=error.message;logEvent(flow,run.cancelled?'warning':'error',(run.cancelled?'':'Preview failed · ')+error.message,executing?.step,executing?.ownerId);run.outputs={};for(const value of Object.values(run.steps))if(value.status==='running')value.status=run.status;}
+  run.elapsed=Date.now()-run.started;delete run.wake;repaintRun(flow);if(flow.id===activeFlow)renderInspector();
  }
  function exportFlow(){
   if(Object.keys(current().fieldDrafts||{}).length){HTTP.toast('Fix the invalid expression before exporting');checkFlow(false);return;}
@@ -238,7 +398,47 @@
  $('flow-settings').addEventListener('click',HTTP.openEnvironments);
  $('environment-dialog').addEventListener('close',()=>{syncEnvironment();if(mode()==='flows'&&inspectorTab==='inputs')renderInspector();updateFooter();});
  document.querySelectorAll('[data-flow-view]').forEach(button=>button.addEventListener('click',()=>{canvasView=button.dataset.flowView;renderView();}));
- document.querySelectorAll('[data-result-view]').forEach(button=>button.addEventListener('click',()=>{resultView=button.dataset.resultView;renderResults();}));
+ document.querySelectorAll('[data-result-view]').forEach(button=>button.addEventListener('click',()=>selectConsoleView(button.dataset.resultView)));
+ $('flow-results').querySelector('[role="tablist"]').addEventListener('keydown',event=>{
+  const views=['logs','steps','outputs'],index=views.indexOf(resultView);
+  const next={ArrowLeft:(index+2)%3,ArrowRight:(index+1)%3,Home:0,End:2}[event.key];
+  if(next===undefined)return;event.preventDefault();selectConsoleView(views[next]);$('console-tab-'+views[next]).focus();
+ });
+ $('console-command-form').addEventListener('submit',event=>{event.preventDefault();executeConsoleCommand();$('console-command').focus({preventScroll:true});});
+ $('console-command-help').addEventListener('click',()=>{$('console-command').value='help';executeConsoleCommand();$('console-command').focus({preventScroll:true});});
+ $('console-command').addEventListener('input',rememberCommandDraft);
+ $('console-command').addEventListener('compositionstart',()=>commandComposing=true);
+ $('console-command').addEventListener('compositionend',()=>{commandComposing=false;rememberCommandDraft();});
+ $('console-command').addEventListener('keydown',event=>{
+  if(event.isComposing||commandComposing||event.keyCode===229){event.stopPropagation();return;}
+  const state=commandState(),input=$('console-command');
+  if(event.key==='Enter'){event.preventDefault();event.stopPropagation();$('console-command-form').requestSubmit();return;}
+  if(event.metaKey||event.ctrlKey){if(event.key.toLowerCase()==='s')event.preventDefault();event.stopPropagation();return;}
+  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();input.value='';rememberCommandDraft();return;}
+  if(['ArrowUp','ArrowDown'].includes(event.key)&&state.history.length){
+   event.preventDefault();event.stopPropagation();
+   if(state.index===state.history.length)state.stash=input.value;
+   state.index=Math.max(0,Math.min(state.history.length,state.index+(event.key==='ArrowUp'?-1:1)));
+   state.draft=state.index===state.history.length?state.stash:state.history[state.index];
+   input.value=state.draft;input.setSelectionRange(input.value.length,input.value.length);
+   $('submit-console-command').disabled=!state.draft.trim();return;
+  }
+  if(event.key==='Tab'&&!event.shiftKey&&input.value.trim()){
+   const prefix=input.value.trim().toLowerCase(),matches=Object.keys(consoleCommands).filter(name=>name.startsWith(prefix));
+   if(matches.length===1&&matches[0]!==prefix){event.preventDefault();input.value=matches[0];rememberCommandDraft();commandHint('Completed '+matches[0]+'. Enter to execute; Tab to leave.');}
+   else if(matches.length>1)commandHint('Matches: '+matches.join(', ')+'. Type more to complete.');
+  }
+ });
+ $('console-level').addEventListener('change',()=>{logLevel=$('console-level').value;renderResults();});
+ $('console-follow').addEventListener('click',()=>{followLogs=!followLogs;renderResults();});
+ $('clear-console').addEventListener('click',()=>{clearConsoleLogs();HTTP.toast('Logs cleared; step results and outputs kept');});
+ $('copy-console').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(consoleText());HTTP.toast('Console '+resultView+' copied');}catch(_){HTTP.toast('Select the console text to copy it');}});
+ $('toggle-console').addEventListener('click',()=>setConsoleMode(consoleMode==='collapsed'?'normal':'collapsed'));
+ $('maximize-console').addEventListener('click',()=>setConsoleMode(consoleMode==='maximized'?'normal':'maximized'));
+ $('flow-results-body').addEventListener('scroll',()=>{
+  const body=$('flow-results-body');
+  if(resultView==='logs'&&followLogs&&body.scrollTop+body.clientHeight<body.scrollHeight-4){followLogs=false;$('console-follow').setAttribute('aria-pressed','false');}
+ });
  $('toggle-inspector').addEventListener('click',()=>{mobileInspect=!mobileInspect;renderView();});
  $('flow-inputs').addEventListener('click',()=>{inspectorTab='inputs';canvasView='canvas';mobileInspect=true;renderInspector();renderView();});
  $('flow-canvas').addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.id==='canvas-add-step')openAddStep();else if(button.dataset.selectStep){current().selected=button.dataset.selectStep;inspectorTab='request';mobileInspect=true;renderCanvas();renderInspector();renderView();}});
@@ -259,12 +459,12 @@
  $('open-request-options').addEventListener('click',event=>{const button=event.target.closest('[data-copy-request]');if(!button)return;const previous=HTTP.current().id;HTTP.activate(button.dataset.copyRequest);const request=HTTP.current();HTTP.activate(previous);if(request.curlOptions?.length){HTTP.toast('Remove cURL transport flags before adding this request to a flow');return;}try{addStep(M.fromRequest(request,'request-'+(++sequence)));}catch(error){HTTP.toast(error.message);}});
  $('add-request-to-flow').addEventListener('click',openTransfer);
  $('add-to-flow-form').addEventListener('submit',event=>{event.preventDefault();const id=$('destination-flow').value;let message='';if(pendingRequest.curlOptions?.length)message='This preview cannot transfer cURL transport flags. Remove them before adding this request.';if(flows.find(flow=>flow.id===id)?.run?.status==='running')message='Stop the destination flow preview before adding a step.';if(message){$('transfer-error').textContent=message;$('transfer-error').hidden=false;return;}let step;try{step=M.fromRequest(pendingRequest,'request-'+(++sequence));}catch(error){$('transfer-error').textContent=error.message;$('transfer-error').hidden=false;return;}if(id==='__new')createFlow(pendingRequest.title+' flow');else activeFlow=id;addStep(step);$('add-to-flow-dialog').close();setMode('flows');});
- $('flow-results-body').addEventListener('click',event=>{const button=event.target.closest('[data-error-step]');if(button?.dataset.errorStep){current().selected=button.dataset.errorStep;inspectorTab='request';canvasView='canvas';mobileInspect=true;renderCanvas();renderInspector();renderView();}});
+ $('flow-results-body').addEventListener('click',event=>{const button=event.target.closest('[data-error-step]');if(button?.dataset.errorStep)locateStep(button.dataset.errorStep);});
  $('check-flow').addEventListener('click',()=>checkFlow());$('run-flow').addEventListener('click',runFlow);$('export-flow').addEventListener('click',exportFlow);
  $('copy-yaml').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(M.yaml(current().document)+'\n');HTTP.toast('YAML copied');}catch(_){HTTP.toast('Select the YAML to copy it');}});
  document.querySelectorAll('.studio-close').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
  document.querySelectorAll('.studio-dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}));
- document.addEventListener('keydown',event=>{if(mode()!=='flows'||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
+ document.addEventListener('keydown',event=>{if(mode()!=='flows'||event.isComposing||event.target.closest('#console-command-form')||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
  window.addEventListener('popstate',()=>setMode(location.hash.slice(1),false));
  window.addEventListener('hashchange',()=>{if(['home','http','flows'].includes(location.hash.slice(1)))setMode(location.hash.slice(1),false);});
  PanelResize.attach({
@@ -274,13 +474,16 @@
  });
  const inspectorResize=PanelResize.attach({
   container:$('flow-content'),handle:$('flow-inspector-divider'),axis:'x',key:'flow-inspector',label:'Step details width',initial:300,fromEnd:true,
-  limits:total=>[260,Math.min(480,total-300)],
+  limits:total=>[260,total-300],
   apply:value=>$('flow-content').style.setProperty('--flow-inspector-width',value+'px')
  });
  new MutationObserver(()=>inspectorResize.refresh()).observe($('flow-inspector-divider'),{attributes:true,attributeFilter:['hidden']});
- PanelResize.attach({
-  container:$('flow-stage'),handle:$('flow-results-divider'),axis:'y',key:'flow-results',label:'Run results height',initial:192,fromEnd:true,
-  limits:total=>[132,total-(matchMedia('(max-width:800px)').matches?360:300)],
+ const resultsResize=PanelResize.attach({
+  container:$('flow-stage'),handle:$('flow-results-divider'),axis:'y',key:'flow-results',label:'Console height',initial:240,fromEnd:true,
+  limits:total=>{
+   const chrome=$('flow-results').querySelector('.results-heading').offsetHeight+$('flow-results').querySelector('.console-tools').offsetHeight+$('console-command-form').offsetHeight;
+   return [Math.min(chrome+48,total*.6),total-Math.min(180,total*.4)];
+  },
   apply:value=>$('flow-stage').style.setProperty('--flow-results-height',value+'px')
  });
  setMode(location.hash.slice(1)||'home',false);
