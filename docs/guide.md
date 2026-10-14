@@ -9,13 +9,13 @@ All shell commands below assume the repository root unless noted otherwise.
 
 | Component | Current capabilities | Entry point |
 | --- | --- | --- |
-| Native desktop app | HTTP request editing, response inspection, tabs, and local history | `cargo run --locked` |
+| Native desktop app | HTTP editing, response inspection, local history, and session Flow drafts | `cargo run --locked` |
 | Flow DSL and CLI | Compile and execute `.http` requests and `.http.yml` workflows | [postman-g](../crates/postman-cli/README.md) |
 | Flow MCP server | Schema, examples, validation, inspection, and YAML generation for agents | [postman-flow-mcp](../crates/postman-flow-mcp/README.md) |
 | HTML UI prototype | Separate Home, HTTP, and Flows screens with simulated responses | [Preview guide](../prototypes/README.md) |
 
-The native app now opens Home with separate HTTP and Flows destinations. The visual flow
-editor is still an HTML prototype; executable workflows use the CLI or Rust API.
+The native app opens Home with separate HTTP and Flows destinations. Flows supports a native
+library, sequential canvas, and basic HTTP step editor. Executable workflows use the CLI or Rust API.
 
 Runnable HTTP examples use [HTTPBingo](https://httpbingo.org/) throughout the app,
 prototype, and CLI/Flow guides. The HTML prototype uses local fixtures for these
@@ -66,13 +66,13 @@ Linux needs the GPUI development libraries listed in the
 Normal startup opens **Home**, with separate **HTTP** and **Flows** destinations.
 Home resumes real requests from the current session; changing pages preserves HTTP
 drafts, responses, and running requests. History, search, cookies, and keyboard help
-remain available. The Flows page is an explicit unavailable state until its editor
-and execution UI land. Unsaved drafts are not restored across application restarts;
+remain available. Flows supports session-only documents as described below.
+Unsaved drafts are not restored across application restarts;
 saved requests can be reopened from Home or search.
 
 The shell defaults to light appearance; the rail's theme button switches it manually
 and restores that choice on restart. Home cards stack at compact window widths;
-the native minimum remains 960 × 640.
+the native minimum is 768 × 600.
 
 GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
 The application and native tests pin GPUI Kit **0.7.3** with its matching
@@ -97,7 +97,7 @@ commit to the local `postman-gpui/environments.json` configuration before updati
 request drafts. Paths, query order, repeated parameters, and other request fields are retained;
 unrelated URLs, running request snapshots, and history are unchanged. A failed save retains the
 draft for retry; a damaged configuration offers reload without overwriting the file.
-The Flows page shares these settings while its editor remains unavailable. Run
+Flows shares these settings; environment changes do not rewrite literal URLs in Flow steps. Run
 `cargo test --locked --test ui_environments` for the environment interaction and transport tests.
 
 Use the HTTP rail's **Import** action to preview a literal POSIX cURL command and create a new
@@ -154,6 +154,29 @@ On macOS, build a universal package with:
 ```bash
 python3 scripts/release.py package --universal-macos
 ```
+
+## Native Flow editor (P5.1)
+
+**Flows → New flow** creates an empty session draft. Name validation runs in the Kit dialog;
+Cancel/Escape keeps the library unchanged. Rename the active flow in its heading, filter the
+library, or resume a real session flow from Home. **Add step → New HTTP request** appends and
+selects a new step. The inspector edits its name, method, and literal URL immediately, including
+incomplete drafts; the step ID stays stable. Switching steps, flows, or pages retains these edits.
+
+Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
+inspector, and results dividers support dragging, arrows, Shift+arrows, Home/End, double-click
+reset, and Enter for a numeric size dialog. Escape cancels an active drag. Preferred sizes return
+when the window expands; these Flow panel preferences last for the session. At narrow widths,
+**Choose flow** replaces the library and **Canvas / Details** switches the editing surface.
+
+Flow drafts are **not saved across restart**. YAML, Check, Export, Run, and advanced field editing
+are visibly unavailable. Existing document fields (including API references, expressions, checks,
+exports, conditions, options, inputs/outputs, and layout) are preserved by basic edits. They do not
+become executable merely because a field passes local URL validation. P5.2 adds advanced editing,
+P5.3 adds compiler diagnostics and file persistence, and P6 connects execution.
+
+Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
+`cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.
 
 ## Flow DSL and CLI
 

@@ -82,7 +82,7 @@ fn main() {
                 ..gpui_kit::component::TitleBar::title_bar_options()
             }),
             app_id: Some("postman-gpui".into()),
-            window_min_size: Some(size(px(960.), px(640.))),
+            window_min_size: Some(size(px(768.), px(600.))),
             ..gpui_kit::component::TitleBar::window_options()
         };
 

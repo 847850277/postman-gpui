@@ -5,6 +5,19 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+### Added
+
+- Native session-only Flow library, sequential canvas, and basic HTTP step inspector using
+  GPUI Kit. Create, rename, filter, append steps, and resume drafts from Home without losing edits.
+- Responsive Flow library/inspector/results panels with pointer and keyboard resizing. Compact
+  windows use a flow picker and Canvas/Details switching; the minimum window is now 768 × 600.
+
+### Limitations
+
+- Flow drafts and panel sizes last only for the session. Advanced editing, YAML, compiler
+  diagnostics, export/save, and native execution remain deferred. Basic edits preserve richer
+  Flow DSL document fields without converting expressions to literal URLs.
+
 ## [0.1.0-rc.4] - 2026-10-13
 
 ### Added

@@ -210,7 +210,13 @@ fn shell_geometry_in_both_themes_at_reference_and_minimum_sizes(cx: &mut TestApp
     });
     for scale in [1., 2.] {
         for mode in [ThemeMode::Light, ThemeMode::Dark] {
-            for (width, height) in [(1440., 960.), (1920., 1080.), (1024., 768.), (960., 640.)] {
+            for (width, height) in [
+                (1440., 960.),
+                (1920., 1080.),
+                (1024., 768.),
+                (960., 640.),
+                (768., 600.),
+            ] {
                 let handle = cx.update(|window, cx| {
                     theme::apply(mode, cx);
                     window.window_handle()

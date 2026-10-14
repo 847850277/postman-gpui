@@ -5637,6 +5637,7 @@ dependencies = [
  "gpui-pre-platform",
  "mime_guess",
  "mockito",
+ "postman-flow",
  "postman-http",
  "postman-request",
  "reqwest",
