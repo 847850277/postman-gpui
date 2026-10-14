@@ -164,10 +164,22 @@ selects a new step. The inspector edits its name, method, and literal URL immedi
 incomplete drafts; the step ID stays stable. Switching steps, flows, or pages retains these edits.
 
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
-inspector, and results dividers support dragging, arrows, Shift+arrows, Home/End, double-click
+inspector, and Console dividers support dragging, arrows, Shift+arrows, Home/End, double-click
 reset, and Enter for a numeric size dialog. Escape cancels an active drag. Preferred sizes return
 when the window expands; these Flow panel preferences last for the session. At narrow widths,
 **Choose flow** replaces the library and **Canvas / Details** switches the editing surface.
+
+The inspector can grow beyond 480 logical pixels while preserving space for the canvas.
+The bottom **Console** has Logs, Steps, and Outputs tabs and can collapse to its heading or
+maximize within the editor. Restoring it returns to its preferred height. Logs support level
+filtering, copying visible entries, clearing, and auto-scroll; scrolling back pauses follow mode.
+
+The fixed `flow ›` input accepts `help`, `clear`, `logs`, `steps`, and `outputs`. Enter or
+Cmd/Ctrl+Enter submits; Up/Down recalls history and restores unfinished input; Tab completes a
+unique prefix; Escape clears input. Each flow keeps up to 500 log entries and 50 commands for
+the session. Clearing logs keeps command history and document edits. Commands never invoke a
+system shell. `check`, `run`, and `stop` currently report that their native capability is unavailable;
+Steps and Outputs remain not run. No requests are sent by Console commands.
 
 Flow drafts are **not saved across restart**. YAML, Check, Export, Run, and advanced field editing
 are visibly unavailable. Existing document fields (including API references, expressions, checks,

@@ -1,4 +1,5 @@
 //! Native, session-owned Flow editing. Kit owns input, selection controls and overlays.
+mod console;
 mod controls;
 mod layout;
 mod model;
@@ -52,6 +53,7 @@ impl SearchableListItem for FlowOption {
 
 pub(super) struct FlowsView {
     library: FlowLibrary,
+    console: Entity<console::FlowConsole>,
     environments: Entity<Environments>,
     focus: FocusHandle,
     canvas_focus: FocusHandle,
@@ -111,7 +113,24 @@ impl FlowsView {
                 cx,
             )
         });
+        let console = cx.new(|cx| console::FlowConsole::new(window, cx));
         let mut subscriptions = Vec::new();
+        subscriptions.push(
+            cx.subscribe_in(&console, window, |this, _, event, window, cx| match event {
+                console::ConsoleEvent::LayoutChanged => cx.notify(),
+                console::ConsoleEvent::LocateStep { flow, step } => {
+                    if this.library.active().is_some_and(|d| {
+                        d.id() == *flow && d.document().flow.steps.iter().any(|s| s.id == *step)
+                    }) {
+                        this.select_step(step, window, cx);
+                        this.details = true;
+                        this.reveal_step();
+                        this.step_name.focus_handle(cx).focus(window, cx);
+                        cx.notify();
+                    }
+                }
+            }),
+        );
         subscriptions.push(
             cx.subscribe_in(&title, window, |this, input, event, window, cx| {
                 if matches!(event, InputEvent::Change) {
@@ -172,6 +191,7 @@ impl FlowsView {
         );
         Self {
             library: FlowLibrary::default(),
+            console,
             environments,
             focus: cx.focus_handle(),
             canvas_focus: cx.focus_handle().tab_stop(true),
@@ -245,6 +265,9 @@ impl FlowsView {
     }
     /// Projection occurs only on context changes. Kit clears composition/undo even for equal text.
     fn sync_fields(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let active = self.library.active().map(|d| d.id());
+        self.console
+            .update(cx, |console, cx| console.activate(active, window, cx));
         let Some(draft) = self.library.active() else {
             return;
         };

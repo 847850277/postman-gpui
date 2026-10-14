@@ -51,14 +51,14 @@ impl SplitKind {
         match self {
             Self::Library => "Flow library width",
             Self::Inspector => "Step details width",
-            Self::Results => "Run results height",
+            Self::Results => "Console height",
         }
     }
     fn default_size(self) -> f32 {
         match self {
             Self::Library => 12.25,
             Self::Inspector => 18.75,
-            Self::Results => 12.,
+            Self::Results => 15.,
         }
     }
     fn axis(self) -> Axis {
@@ -121,8 +121,17 @@ impl FlowSplit {
     fn limits(&self) -> (f32, f32) {
         let (min, max, other) = match self.kind {
             SplitKind::Library => (10.5_f32, 21.25_f32, 38.75_f32),
-            SplitKind::Inspector => (16.25, 30., 18.75),
-            SplitKind::Results => (8.25, f32::MAX, 18.75),
+            SplitKind::Inspector => (16.25, f32::MAX, 18.75),
+            SplitKind::Results => {
+                let chrome = super::console::HEADER_HEIGHT
+                    + super::console::TOOLS_HEIGHT
+                    + super::console::COMMAND_HEIGHT;
+                let min = (chrome + 3.).min(self.total() * 0.6);
+                return (
+                    min,
+                    (self.total() - 11.25_f32.min(self.total() * 0.4)).max(min),
+                );
+            }
         };
         let min = min.min(self.total() * 0.4);
         (
