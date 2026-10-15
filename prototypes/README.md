@@ -208,3 +208,20 @@ Left/Right and Home/End; HTTP request tabs also support Up/Down between rows.
 Dialogs support Escape. Reduced-motion preferences
 disable transitions. The preview still uses local fixtures and session-only
 state, so it does not replace end-to-end testing of the native client.
+
+### Inputs reference update (P5.2-3 / #224)
+
+This change extends design baseline `1c10653` using implementation baseline #223 / `bf18919`.
+The implementation PR's commit containing `flow-inputs.js`, `flow-inputs-panel.js`, and the
+Inputs styles is the updated reference for this surface. Other Flow surfaces retain that baseline.
+
+Inputs opens Run inputs; Definitions adds names, optional Text/JSON defaults, and sensitivity.
+Runtime precedence is explicit override, environment for declared base_url, default, then missing.
+Reset removes the override. Null/false/zero/empty string remain explicit values; malformed JSON
+blocks preview preparation. Stable rows preserve declaration/override ownership through renames;
+references remain unchanged. Sensitive values are concealed until revealed, with session-only
+runtime data. The native application uses the same presentation and native codecs; the browser
+preview continues using local fixtures rather than real network execution.
+
+`node --test prototypes/flow-inputs.test.cjs` checks precedence, typed values, malformed drafts,
+name collisions, rename/delete/recreate behavior, and safe handling of prototype-like names.

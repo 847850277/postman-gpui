@@ -14,6 +14,11 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- GPUI Kit Flow Inputs definitions and session run parameters: typed defaults, sensitivity,
+  explicit override/reset, environment inheritance, retained invalid drafts, and live variable
+  hints. Runtime edits remain separate from the document; parameter preparation blocks invalid
+  values. The HTML Inputs prototype now includes both definition and run-parameter views.
+
 - GPUI Kit Flow Checks/Exports tabs and a retained Run condition editor. Edit ordered status
   checks, export names/JSONPaths/sensitivity, and native conditions with local validation and
   last-valid definitions. Stable row identities preserve unfinished text and undo; valid export

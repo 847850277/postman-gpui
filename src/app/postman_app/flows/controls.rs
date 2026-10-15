@@ -109,6 +109,7 @@ impl FlowsView {
                                 cx.notify();
                                 return false;
                             }
+                            this.conceal_inputs(cx);
                             this.sync_fields(window, cx);
                             this.sync_picker(window, cx);
                             this.details = false;

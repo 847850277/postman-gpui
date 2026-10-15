@@ -98,6 +98,19 @@ impl FlowLibrary {
             }
         }
     }
+    pub(super) fn edit_inputs(
+        &mut self,
+        flow: FlowId,
+        values: &[postman_flow::FlowInputSpec],
+        invalid: bool,
+    ) {
+        if let Some(draft) = self.drafts.iter_mut().find(|d| d.id == flow) {
+            if draft.document.flow.inputs != values || invalid {
+                draft.document.flow.inputs = values.to_vec();
+                draft.revision += 1;
+            }
+        }
+    }
     pub(super) fn append_step(&mut self) {
         let Some(draft) = self.active_mut() else {
             return;

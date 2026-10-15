@@ -201,6 +201,29 @@ All native condition operators and typed operands are preserved; blank removes t
 invalid nonempty source retains the last valid value. The editor checks syntax/shape only, without
 resolving references, evaluating conditions, or sending requests. API/loop configuration stays readonly.
 
+**Inputs** opens flow-level **Run inputs / Definitions**, including an empty flow. Definitions
+supports ordered input declarations, names, optional defaults, and sensitivity. No default means
+required; a JSON `null` default is present. Text mode preserves literal strings (including `00123`
+and `{{name}}`); JSON mode preserves numbers, booleans, null, arrays, and objects. Switching back
+to Text requires a JSON string. Invalid names, duplicate names, and malformed values retain their
+drafts and last valid definitions. Rename/remove updates variable-name hints without rewriting
+references. Input definitions do not change step requests, checks, conditions, or outputs.
+
+Run values use **explicit override → selected environment base URL (only declared `base_url`)
+→ default → missing required input**. Enable Override to supply a session value; Reset removes
+it and resumes inheritance. An enabled empty Text value is an empty string; JSON `null`, `false`,
+and `0` are present values. Empty/malformed JSON is an error and blocks parameter preparation;
+it never silently falls back to a stale value. Environment changes update inherited values while
+preserving explicit overrides and unfinished JSON. Run values do not modify document revisions,
+defaults, or environment storage, and are not saved across restart.
+
+Sensitive values are concealed until explicitly revealed for editing. Leaving the editing context
+conceals them again without discarding the draft. A sensitive **default** still belongs to the
+document; the sensitivity flag is a redaction annotation, not encryption. Session overrides are
+never written into the document. Input editing prepares parameters only: it does not enable
+Check, save/export, or Run. Return with Step details or select a canvas node to resume its retained
+Request / Checks / Exports state.
+
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
 inspector, and Console dividers support dragging, arrows, Shift+arrows, Home/End, double-click
 reset, and Enter for a numeric size dialog. Escape cancels an active drag. Preferred sizes return
@@ -222,7 +245,7 @@ Steps and Outputs remain not run. No requests are sent by Console commands.
 Flow drafts are **not saved across restart**. YAML, toolbar Check, file Export, and Run remain unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Later P5.2 slices add Inputs, other check editors, and step management; P5.3 adds compiler
+Later P5.2 slices add other check editors, step management, and HTTP Add to flow; P5.3 adds compiler
 diagnostics and file persistence, and P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and

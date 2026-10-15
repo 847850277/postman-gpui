@@ -76,3 +76,23 @@ requests received by local HTTP fixtures. The composer unit test separately veri
 uses the model. For release artifacts, also complete the installed-app
 [smoke checklist](release-smoke-test.md#request-workflow); automated tests do not establish
 package-level behavior on every operating system.
+
+### Flow inputs and run parameters
+
+A retained Inputs inspector per FlowId owns stable declaration-row IDs, name/default source,
+Text/JSON modes, errors, sensitivity revelation, runtime overrides, focus and scroll state.
+Only definition events update `FlowDefinition.inputs`; malformed definitions keep the last valid
+row and mark the session dirty. Runtime edits and committed environment changes do not change
+the document revision. Renames move an override with its row; deletion removes that binding and
+new rows never reuse its identity. Existing expressions are not rewritten.
+
+The explicit parameter-preparation boundary returns native `FlowInputs` or local errors. An
+invalid enabled override or definition draft blocks preparation. Precedence is override, then
+environment for declared `base_url`, then default, then missing. Null/false/zero/empty string are
+present values; absence and invalid JSON are different states. JSON parsing reuses the bounded
+Flow document field codec. Preparation does not compile or execute requests.
+
+Sensitive editors are omitted from the rendered/accessibility surface until revealed. Leaving
+Inputs, its view, a flow, or the Flow page conceals them while retaining source. Debug formatting
+of `FlowInputs` lists names only. Defaults remain intentional document data; run overrides never
+enter serialization, history, Console, or environment storage.

@@ -6,7 +6,7 @@
  const icon=name=>'<svg class="icon" aria-hidden="true"><use href="#i-'+name+'"/></svg>';
  let sequence=0, activeFlow='echo-chain', inspectorTab='request', canvasView='canvas', resultView='logs', mobileInspect=false;
  let consoleMode='normal', logLevel='all', followLogs=true, eventSequence=0, commandComposing=false;
- const flows=M.samples().map(item=>({...item,selected:item.document.flow.steps[0]?.id,dirty:false,run:null,inputs:{}}));
+ const flows=M.samples().map(item=>({...item,selected:item.document.flow.steps[0]?.id,dirty:false,run:null}));
  const current=()=>flows.find(flow=>flow.id===activeFlow);
  const selected=()=>current().document.flow.steps.find(step=>step.id===current().selected);
  const mode=()=>document.body.dataset.view;
@@ -57,7 +57,7 @@
  <dialog class="studio-dialog" id="add-step-dialog" aria-labelledby="add-step-title"><div class="dialog-head">${icon('plus')}<strong id="add-step-title">Add a step</strong><span class="spacer"></span><button class="icon-button studio-close" aria-label="Close add step">${icon('x')}</button></div><div class="dialog-content"><button class="recent-item" id="add-blank-step">${icon('terminal')}<div><strong>New HTTP request</strong><small>Configure a method, URL, and response checks</small></div>${icon('arrow')}</button><p class="inspector-section">FROM OPEN HTTP REQUESTS</p><div id="open-request-options"></div></div></dialog>
  <dialog class="studio-dialog" id="add-to-flow-dialog" aria-labelledby="add-to-flow-title"><form id="add-to-flow-form"><div class="dialog-head">${icon('flow')}<strong id="add-to-flow-title">Add to flow</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Close add to flow">${icon('x')}</button></div><div class="dialog-content"><p id="add-to-flow-summary"></p>${field('Destination flow','<select id="destination-flow" class="studio-input"></select>')}<p class="studio-hint">Creates an editable copy at the end of the flow.</p><p class="studio-error" id="transfer-error" role="alert" hidden></p></div><div class="dialog-footer"><span></span><button type="button" class="studio-button studio-close">Cancel</button><button class="studio-button primary" type="submit">Add and open flow</button></div></form></dialog>`);
  let pendingRequest=null;
- function setMode(view,updateHash=true) {
+ function setMode(view,updateHash=true) { flows.forEach(f=>f.inputDrafts?.conceal());
   if(!['home','http','flows'].includes(view))view='home';
   document.body.dataset.view=view;
   $('home-screen').hidden=view!=='home';$('request-editor').hidden=view!=='http';$('flow-screen').hidden=view!=='flows';
@@ -70,7 +70,7 @@
   if(updateHash && location.hash!=='#'+view)history.pushState(null,'','#'+view);
  }
  function updateFooter(){if(mode()!=='http')$('footer-status').textContent=mode()==='home'?'Ready when you are':current().dirty?'Flow has unsaved edits · Export to keep':'Flow editor';}
- function switchFlow(id){if(!flows.some(f=>f.id===id))return;activeFlow=id;inspectorTab='request';mobileInspect=false;renderFlow();updateFooter();}
+ function switchFlow(id){flows.forEach(f=>f.inputDrafts?.conceal());if(!flows.some(f=>f.id===id))return;activeFlow=id;inspectorTab='request';mobileInspect=false;renderFlow();updateFooter();}
  function syncEnvironment(){const env=HTTP.environment();$('flow-environment').innerHTML=env.items.map(item=>choice(item.id,item.name,env.id)).join('');}
  function filename(){return (current().document.flow.name.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-|-$/g,'')||'untitled-flow')+'.http.yml';}
  function renderLibrary(){
@@ -111,10 +111,11 @@
  function renderInspector(){
   const step=selected(),flow=current();
   $('flow-inspector').scrollTop=0;
+  $('flow-inspector').oninput=$('flow-inspector').onchange=$('flow-inspector').onclick=null;
   if(inspectorTab==='inputs'){
-   const env=HTTP.environment();
-   $('flow-inspector').innerHTML='<div class="inspector-heading">'+icon('settings')+'Run inputs</div><div class="inspector-form"><p class="studio-hint" style="margin-top:0;margin-bottom:18px">Values for the next preview run. The selected environment supplies base_url.</p>'+flow.document.flow.inputs.map((item,i)=>field(esc(item.name),input('run-input-'+i,flow.inputs[item.name]??(item.name==='base_url'?env.baseUrl:item.default??''),'data-run-input="'+esc(item.name)+'"'))).join('')+'<p class="studio-hint">Runtime values are separate from the defaults in your YAML.</p></div>';return;
+   new FlowInputsPanel($('flow-inspector'),flow,()=>HTTP.environment().baseUrl,()=>{markEdited();$('flow-input-count').textContent=flow.document.flow.inputs.length;},()=>{inspectorTab='request';renderInspector();});return;
   }
+  flow.inputDrafts?.conceal();
   if(!step){$('flow-inspector').innerHTML='<div class="flow-empty">'+icon('flow')+'Add a request to start your flow.</div>';return;}
   const loop=step.kind==='repeat_until';
   $('flow-inspector').innerHTML='<div class="inspector-heading">'+icon(loop?'repeat':'terminal')+'<span>'+esc(loop?'Loop configuration':'Step configuration')+'</span></div><div class="inspector-tabs">'+['request','checks','exports'].map(tab=>'<button data-inspector-tab="'+tab+'" aria-pressed="'+(tab===inspectorTab)+'">'+{request:loop?'Loop':'Request',checks:'Checks',exports:'Exports'}[tab]+'</button>').join('')+'</div><div class="inspector-form" id="inspector-fields"></div>';
@@ -181,7 +182,7 @@
   }
  }
  function newFlowDialog(){ $('new-flow-name').value='';$('new-flow-dialog').showModal();$('new-flow-name').focus(); }
- function createFlow(name){const id='flow-'+(++sequence);flows.push({id,description:'Your custom HTTP sequence.',document:{schema_version:1,flow:{name,inputs:[{name:'base_url',default:HTTP.environment().baseUrl}],steps:[],outputs:[]}},selected:null,dirty:true,run:null,inputs:{}});activeFlow=id;return current();}
+ function createFlow(name){const id='flow-'+(++sequence);flows.push({id,description:'Your custom HTTP sequence.',document:{schema_version:1,flow:{name,inputs:[{name:'base_url',default:HTTP.environment().baseUrl}],steps:[],outputs:[]}},selected:null,dirty:true,run:null});activeFlow=id;return current();}
  function addStep(step){const flow=current();if(flow.run?.status==='running'){HTTP.toast('Stop the preview before changing its steps');return;}flow.document.flow.steps.push(step);flow.selected=step.id;inspectorTab='request';canvasView='canvas';mobileInspect=false;flow.dirty=true;flow.run=null;renderFlow();updateFooter();$('add-step-dialog').close();}
  function openAddStep(){
   if(current().run?.status==='running'){HTTP.toast('Stop the preview before adding a step');return;}
@@ -324,6 +325,7 @@
  function checkFlow(notify=true){
   const flow=current();
   const draftErrors=Object.values(flow.fieldDrafts||{}).map(draft=>({step:draft.step,message:draft.message}));
+  for(const row of flow.inputDrafts?.rows||[])if(row.error)draftErrors.push({message:'Input definition: '+row.error});
   const errors=draftErrors.concat(M.validate(flow.document));flow.errors=errors;
   if(errors.length){
    for(const error of errors)logEvent(flow,'error',error.message,{id:error.step,name:error.step||'Flow'});
@@ -341,7 +343,7 @@
   const commandLine=typeof command==='string'?command:null;
   if(commandLine)logEvent(flow,'command','› '+commandLine);
   if(!checkFlow(false))return;
-  const snapshot=M.copy(flow.document.flow),inputs=Object.fromEntries(snapshot.inputs.map(item=>[item.name,item.default]));Object.assign(inputs,flow.inputs);if(!Object.hasOwn(flow.inputs,'base_url'))inputs.base_url=HTTP.environment().baseUrl;
+  const snapshot=M.copy(flow.document.flow);let inputs;try{inputs=(flow.inputDrafts??=new FlowInputDrafts.Inputs(snapshot.inputs)).prepare(HTTP.environment().baseUrl);}catch(error){logEvent(flow,'error',error.message);inspectorTab='inputs';mobileInspect=true;renderInspector();renderView();renderResults();return;}
   const run={status:'running',steps:{},rows:[],outputs:{},cancelled:false,started:Date.now()};flow.run=run;flow.errors=[];flow.logs=[];
   if(commandLine)logEvent(flow,'command','› '+commandLine);
   logEvent(flow,'info','Preview started · local fixtures only');selectConsoleView('logs');renderInspector();repaintRun(flow);
@@ -394,7 +396,7 @@
  $('flow-filter').addEventListener('input',renderLibrary);
  $('flow-picker').addEventListener('change',()=>{if($('flow-picker').value==='__new'){renderLibrary();newFlowDialog();}else switchFlow($('flow-picker').value);});
  $('flow-title').addEventListener('input',()=>{current().document.flow.name=$('flow-title').value;markEdited();});
- $('flow-environment').addEventListener('change',()=>{HTTP.setEnvironment($('flow-environment').value);for(const flow of flows)delete flow.inputs.base_url;if(inspectorTab==='inputs')renderInspector();updateFooter();});
+ $('flow-environment').addEventListener('change',()=>{HTTP.setEnvironment($('flow-environment').value);if(inspectorTab==='inputs')renderInspector();updateFooter();});
  $('flow-settings').addEventListener('click',HTTP.openEnvironments);
  $('environment-dialog').addEventListener('close',()=>{syncEnvironment();if(mode()==='flows'&&inspectorTab==='inputs')renderInspector();updateFooter();});
  document.querySelectorAll('[data-flow-view]').forEach(button=>button.addEventListener('click',()=>{canvasView=button.dataset.flowView;renderView();}));
@@ -442,7 +444,7 @@
  $('toggle-inspector').addEventListener('click',()=>{mobileInspect=!mobileInspect;renderView();});
  $('flow-inputs').addEventListener('click',()=>{inspectorTab='inputs';canvasView='canvas';mobileInspect=true;renderInspector();renderView();});
  $('flow-canvas').addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.id==='canvas-add-step')openAddStep();else if(button.dataset.selectStep){current().selected=button.dataset.selectStep;inspectorTab='request';mobileInspect=true;renderCanvas();renderInspector();renderView();}});
- $('flow-inspector').addEventListener('change',event=>{if(event.target.dataset.runInput!==undefined){current().inputs[event.target.dataset.runInput]=event.target.value;return;}applyInspector(event.target);});
+ $('flow-inspector').addEventListener('change',event=>{if(inspectorTab==='inputs')return;applyInspector(event.target);});
  $('flow-inspector').addEventListener('click',event=>{
   const button=event.target.closest('button');if(!button)return;
   if(button.dataset.inspectorTab){inspectorTab=button.dataset.inspectorTab;renderInspector();return;}
@@ -464,7 +466,7 @@
  $('copy-yaml').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(M.yaml(current().document)+'\n');HTTP.toast('YAML copied');}catch(_){HTTP.toast('Select the YAML to copy it');}});
  document.querySelectorAll('.studio-close').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
  document.querySelectorAll('.studio-dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}));
- document.addEventListener('keydown',event=>{if(mode()!=='flows'||event.isComposing||event.target.closest('#console-command-form')||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
+ document.addEventListener('keydown',event=>{if(mode()!=='flows'||event.isComposing||event.target.closest('#console-command-form')||event.target.closest('.input-fields')||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
  window.addEventListener('popstate',()=>setMode(location.hash.slice(1),false));
  window.addEventListener('hashchange',()=>{if(['home','http','flows'].includes(location.hash.slice(1)))setMode(location.hash.slice(1),false);});
  PanelResize.attach({

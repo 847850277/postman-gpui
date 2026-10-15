@@ -36,9 +36,17 @@ impl FlowInputSpec {
 }
 
 /// Immutable values supplied when one Flow run starts.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct FlowInputs {
     pub(crate) values: BTreeMap<String, Value>,
+}
+
+impl fmt::Debug for FlowInputs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlowInputs")
+            .field("names", &self.values.keys().collect::<Vec<_>>())
+            .finish_non_exhaustive()
+    }
 }
 
 impl FlowInputs {
@@ -53,6 +61,11 @@ impl FlowInputs {
     pub fn with(mut self, name: impl Into<String>, value: impl Into<Value>) -> Self {
         self.insert(name, value);
         self
+    }
+
+    /// Read a supplied value without applying defaults or evaluating expressions.
+    pub fn get(&self, name: &str) -> Option<&Value> {
+        self.values.get(name)
     }
 
     /// Drop bindings the plan did not declare so a mixed suite can share CLI flags.

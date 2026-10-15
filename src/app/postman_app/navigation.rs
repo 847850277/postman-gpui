@@ -28,6 +28,9 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route == AppRoute::Flows && route != AppRoute::Flows {
+            self.flows.update(cx, |view, cx| view.conceal_inputs(cx));
+        }
         self.route = route;
         self.cookie_jar_open = false;
         match route {

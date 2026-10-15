@@ -95,3 +95,19 @@ body:not([data-view="http"]) [data-http-tool],body:not([data-view="http"]) .http
  .console-command-row { gap:7px; }
  .console-command-footer { font-size:9px; }
 }
+
+/* P5.2-3: Inputs keeps the existing inspector, typography and control tokens. */
+.input-definition-row { display:flex; flex-direction:column; gap:10px; min-width:0; padding:16px 0; border-bottom:1px solid var(--line); }
+.input-row-title,.input-options,.input-value-modes { display:flex; align-items:center; gap:8px; min-width:0; }
+.input-row-title > input { flex:1; min-width:0; }
+.input-row-title > strong { overflow-wrap:anywhere; }
+.input-options { flex-wrap:wrap; font-size:12px; }
+.input-options label { display:flex; align-items:center; gap:6px; }
+.input-value-source { min-height:96px; width:100%; box-sizing:border-box; }
+.input-inherited { margin:0; padding:12px; background:var(--subtle); border:1px solid var(--line); border-radius:6px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; }
+.input-fields .studio-error:empty { display:none; }
+.input-value-modes [aria-pressed="true"],.input-view-tabs [aria-pressed="true"] { background:var(--subtle); color:var(--text); }
+
+#flow-inspector:has(.input-fields) { display:flex; flex-direction:column; overflow:hidden; }
+#flow-inspector:has(.input-fields) > .inspector-heading, #flow-inspector:has(.input-fields) > .inspector-tabs { flex-shrink:0; }
+.input-fields { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
