@@ -121,31 +121,34 @@ impl FlowLibrary {
         draft.selected = Some(id);
         draft.revision += 1;
     }
-    pub(super) fn edit_step(&mut self, edit: StepEdit) {
-        let Some(draft) = self.active_mut() else {
+    /// Target identity travels with the editor event, including an invalid raw-source edit.
+    pub(super) fn edit_step(&mut self, flow: FlowId, id: &str, edit: &StepEdit) {
+        let Some(draft) = self.drafts.iter_mut().find(|d| d.id == flow) else {
             return;
         };
-        let Some(step) = draft
-            .document
-            .flow
-            .steps
-            .iter_mut()
-            .find(|s| Some(&s.id) == draft.selected.as_ref())
-        else {
+        let Some(step) = draft.document.flow.steps.iter_mut().find(|s| s.id == id) else {
             return;
         };
         let changed = match edit {
-            StepEdit::Name(value) => replace_if_changed(&mut step.name, value),
-            StepEdit::Method(method) => match &mut step.request {
-                HttpRequestSource::Inline(request) => {
-                    replace_if_changed(&mut request.method, method)
-                }
-                _ => false,
-            },
-            StepEdit::Url(value) => match &mut step.request {
-                HttpRequestSource::Inline(request) if literal_url(&request.url).is_some() => {
-                    replace_if_changed(&mut request.url, TextTemplate::literal(value))
-                }
+            StepEdit::Name(value) => replace_if_changed(&mut step.name, value.clone()),
+            _ => match &mut step.request {
+                HttpRequestSource::Inline(request) => match edit {
+                    StepEdit::Method(value) => replace_if_changed(&mut request.method, *value),
+                    StepEdit::Url(value) => {
+                        request.url = value.clone();
+                        true
+                    }
+                    StepEdit::Headers(value) => {
+                        request.headers = value.clone();
+                        true
+                    }
+                    StepEdit::Body(value) => {
+                        request.body = value.clone();
+                        true
+                    }
+                    StepEdit::Invalid => true,
+                    StepEdit::Name(_) => unreachable!(),
+                },
                 _ => false,
             },
         };
@@ -158,7 +161,10 @@ impl FlowLibrary {
 pub(super) enum StepEdit {
     Name(String),
     Method(HttpMethod),
-    Url(String),
+    Url(TextTemplate),
+    Headers(Vec<(TextTemplate, TextTemplate)>),
+    Body(postman_flow::BodyTemplate),
+    Invalid,
 }
 
 fn replace_if_changed<T: PartialEq>(target: &mut T, value: T) -> bool {
@@ -208,29 +214,6 @@ pub(super) fn request_summary(step: &HttpStepDefinition) -> (Option<HttpMethod>,
         HttpRequestSource::ForEach(_) => (None, "For each · preserved".into()),
         HttpRequestSource::RepeatUntil(_) => (None, "Repeat until · preserved".into()),
     }
-}
-
-/// Display a preserved URL template without resolving inputs or exposing runtime secrets.
-pub(super) fn url_expression(url: &TextTemplate) -> String {
-    url.parts
-        .iter()
-        .map(|part| match part {
-            TemplatePart::Literal(value) => value.clone(),
-            TemplatePart::Input(name) => format!("{{{{ inputs.{name} }}}}"),
-            TemplatePart::StepOutput { step_id, name } => {
-                format!("{{{{ steps.{step_id}.{name} }}}}")
-            }
-            TemplatePart::Calc(expression) => format!("{{{{ calc: {expression} }}}}"),
-            TemplatePart::Coalesce(candidates) => format!(
-                "{{{{ first available: {} }}}}",
-                candidates
-                    .iter()
-                    .map(url_expression)
-                    .collect::<Vec<_>>()
-                    .join(" | ")
-            ),
-        })
-        .collect()
 }
 
 #[cfg(test)]

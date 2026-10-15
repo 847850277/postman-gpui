@@ -20,6 +20,13 @@ in [saved requests](saved-requests.md).
   document into its retained Kit `EditorState`. A newer response or Pretty/Raw change supersedes
   pending work, and closing a tab releases its editor. Full-response copy uses the original body.
 
+Flow Request details follow the same live-edit rule, with a separate typed/source boundary:
+`FlowLibrary` owns `FlowDocument`; a retained `RequestInspector` per `(FlowId, step ID)` owns
+raw URL/header/body buffers, errors, disclosure state, and scroll. Valid source edits replace only
+the corresponding native field. Invalid edits advance the session revision but leave its last valid
+value intact. Context switches reuse the existing entities; rendering never projects source text.
+Representation switches are allowed only when lossless and preserve an equivalent alternate buffer.
+
 ## Implementation entry points
 
 | Owner | Responsibility |
@@ -27,6 +34,7 @@ in [saved requests](saved-requests.md).
 | [Request composer](../src/app/postman_app/request_workspace/composer.rs) and its [panes](../src/app/postman_app/request_workspace/panes) | Route input events to the active draft, restore controls from the model, and dispatch Send. |
 | [TableCellInput](../src/ui/components/input/table_cell_input.rs) | Retain Kit `InputState`, emit changes with stable cell identity, and skip equal-value projections to preserve selection and undo. |
 | [MultilineInput](../src/ui/components/input/multiline_input.rs) | Retain Kit `TextareaState` for JSON/Raw Body, Scripts, and Tests. Forward `InputEvent::Change`; explicit model projection resets undo and composition even when text is equal. |
+| [Flow Request inspector](../src/app/postman_app/flows/request_inspector.rs) | Retain per-step Kit inputs and multiline sources; emit identity-scoped edits using the shared Flow field codec, without cloning or parsing the entire document. |
 | [ResponseViewer](../src/app/postman_app/request_workspace/response_panel.rs) and [ResponseBody](../src/app/postman_app/request_workspace/response_panel/body.rs) | Share response snapshots, retain each tab's Kit `EditorState`, and reject superseded background formatting results. |
 
 Keep Kit entities and subscriptions alive in their owning view. Let Kit handle selection, IME,

@@ -3,12 +3,13 @@ mod console;
 mod controls;
 mod layout;
 mod model;
+mod request_inspector;
+mod request_source;
 #[cfg(test)]
 mod tests;
 mod view;
 
 use crate::app::environments::Environments;
-use crate::ui::components::kit_controls::MethodState;
 use gpui::{
     actions, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, SharedString,
     Subscription, UniformListScrollHandle, Window,
@@ -20,10 +21,10 @@ use gpui_kit::component::{
 };
 use layout::{FlowSplit, SplitKind};
 pub(super) use model::FlowId;
-use model::{FlowLibrary, StepEdit};
+use model::FlowLibrary;
+use request_inspector::RequestInspector;
 use std::collections::HashMap;
 
-const METHODS: [&str; 7] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 actions!(
     flow_editor,
     [
@@ -59,9 +60,7 @@ pub(super) struct FlowsView {
     canvas_focus: FocusHandle,
     library_focus: FocusHandle,
     title: Entity<InputState>,
-    step_name: Entity<InputState>,
-    url: Entity<InputState>,
-    method: Entity<MethodState>,
+    inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
     filter: Entity<InputState>,
     picker: Entity<SelectState<SearchableVec<FlowOption>>>,
     create_name: Entity<InputState>,
@@ -70,7 +69,6 @@ pub(super) struct FlowsView {
     details: bool,
     library_scroll: UniformListScrollHandle,
     canvas_scroll: HashMap<FlowId, gpui::ListState>,
-    inspector_scroll: gpui::ScrollHandle,
     canvas_rem: gpui::Pixels,
     splits: [FlowSplit; 3],
     _subscriptions: Vec<Subscription>,
@@ -92,19 +90,9 @@ impl FlowsView {
         ]);
         layout::bind_keys(cx);
         let title = cx.new(|cx| InputState::new(window, cx).placeholder("Flow name"));
-        let step_name = cx.new(|cx| InputState::new(window, cx).placeholder("Step name"));
-        let url = cx.new(|cx| InputState::new(window, cx).placeholder("https://httpbingo.org/get"));
         let filter = cx.new(|cx| InputState::new(window, cx).placeholder("Find a flow…"));
         let create_name =
             cx.new(|cx| InputState::new(window, cx).placeholder("e.g. API smoke checks"));
-        let method = cx.new(|cx| {
-            SelectState::new(
-                SearchableVec::new(METHODS.to_vec()),
-                Some(gpui_kit::component::IndexPath::new(0)),
-                window,
-                cx,
-            )
-        });
         let picker = cx.new(|cx| {
             SelectState::new(
                 SearchableVec::new(Vec::<FlowOption>::new()),
@@ -125,7 +113,7 @@ impl FlowsView {
                         this.select_step(step, window, cx);
                         this.details = true;
                         this.reveal_step();
-                        this.step_name.focus_handle(cx).focus(window, cx);
+                        this.focus_inspector(window, cx);
                         cx.notify();
                     }
                 }
@@ -140,27 +128,6 @@ impl FlowsView {
                 }
             }),
         );
-        for (input, is_url) in [(&step_name, false), (&url, true)] {
-            subscriptions.push(
-                cx.subscribe_in(input, window, move |this, input, event, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        let value = input.read(cx).value().to_string();
-                        this.library.edit_step(if is_url {
-                            StepEdit::Url(value)
-                        } else {
-                            StepEdit::Name(value)
-                        });
-                        cx.notify();
-                    }
-                }),
-            );
-        }
-        subscriptions.push(cx.subscribe_in(&method, window, |this, _, event, _, cx| {
-            if let SelectEvent::Confirm(Some(method)) = event {
-                this.library.edit_step(StepEdit::Method((*method).into()));
-                cx.notify();
-            }
-        }));
         subscriptions.push(cx.subscribe_in(&filter, window, |this, _, event, _, cx| {
             if matches!(event, InputEvent::Change) {
                 this.library_scroll
@@ -197,9 +164,7 @@ impl FlowsView {
             canvas_focus: cx.focus_handle().tab_stop(true),
             library_focus: cx.focus_handle().tab_stop(true),
             title,
-            step_name,
-            url,
-            method,
+            inspectors: HashMap::new(),
             filter,
             picker,
             create_name,
@@ -208,7 +173,6 @@ impl FlowsView {
             details: false,
             library_scroll: UniformListScrollHandle::new(),
             canvas_scroll: HashMap::new(),
-            inspector_scroll: gpui::ScrollHandle::new(),
             canvas_rem: window.rem_size(),
             splits: [
                 FlowSplit::new(SplitKind::Library, cx),
@@ -278,30 +242,36 @@ impl FlowsView {
                 window.rem_size() * 3.,
             )
         });
-        let step = draft.selected();
-        let name = step.map_or("", |s| s.name.as_str());
-        let request = step.and_then(|s| match &s.request {
-            postman_flow::HttpRequestSource::Inline(r) => Some(r),
-            _ => None,
-        });
-        let url = request
-            .and_then(|r| model::literal_url(&r.url))
-            .unwrap_or("");
         self.title.update(cx, |input, cx| {
             input.set_value(draft.document().flow.name.clone(), window, cx)
         });
-        self.step_name
-            .update(cx, |input, cx| input.set_value(name.to_owned(), window, cx));
-        self.url
-            .update(cx, |input, cx| input.set_value(url.to_owned(), window, cx));
-        self.method.update(cx, |state, cx| {
-            let index =
-                request.and_then(|r| METHODS.iter().position(|m| *m == r.method.to_string()));
-            state.set_selected_index(index.map(gpui_kit::component::IndexPath::new), window, cx);
-        });
-        self.inspector_scroll
-            .set_offset(gpui::point(gpui::px(0.), gpui::px(0.)));
+        if let Some(step) = draft.selected() {
+            let flow = draft.id();
+            let id = step.id.clone();
+            let key = (flow, id.clone());
+            if !self.inspectors.contains_key(&key) {
+                let variables = request_source::variables(&draft.document().flow, &id);
+                let inspector = cx.new(|cx| RequestInspector::new(step, variables, window, cx));
+                self._subscriptions
+                    .push(cx.subscribe(&inspector, move |this, _, edit, cx| {
+                        this.library.edit_step(flow, &id, edit);
+                        cx.notify();
+                    }));
+                self.inspectors.insert(key, inspector);
+            }
+        }
     }
+    fn inspector(&self) -> Option<&Entity<RequestInspector>> {
+        let draft = self.library.active()?;
+        self.inspectors
+            .get(&(draft.id(), draft.selected()?.id.clone()))
+    }
+    fn focus_inspector(&self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(inspector) = self.inspector() {
+            inspector.focus_handle(cx).focus(window, cx);
+        }
+    }
+
     fn select_step(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         if self
             .library
@@ -326,7 +296,7 @@ impl FlowsView {
         self.sync_fields(window, cx);
         self.details = true;
         self.reveal_step();
-        self.step_name.focus_handle(cx).focus(window, cx);
+        self.focus_inspector(window, cx);
         cx.notify();
     }
     fn reveal_step(&self) {

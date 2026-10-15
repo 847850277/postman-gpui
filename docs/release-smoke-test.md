@@ -61,6 +61,25 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Restart and verify Flow drafts are gone, consistent with the visible session-only notice;
       saved HTTP requests, environment settings, and history retain their existing behavior.
 
+## Flow Request details (#218)
+
+- [ ] Edit name, method, literal URL (including literal `{{...}}`), and URL expression without blur.
+      Test `concat`, `coalesce`, `calc`, input/output references and invalid JSON. Complex expressions
+      must not switch to Literal mode. Do not mistake shape feedback for successful compilation.
+- [ ] Expand Headers; test duplicate names, empty values, embedded colons, Unicode, and missing
+      separators. Switch literal/expression modes without losing semantics. Clear explicitly.
+- [ ] Edit Body `none`, typed `json`, `json_template`, `raw`, `url_encoded`, and `file`; keep typed
+      booleans/numbers/null/literal objects intact. File paths must not trigger filesystem access.
+      Unknown kinds/fields and malformed JSON stay visible while the last valid body is retained.
+- [ ] Leave different invalid drafts in two steps and two flows. Switch Home/HTTP/Flows, themes,
+      and Console sizes; return, correct, undo/redo, select/copy/paste, enter newlines, and use Chinese
+      IME and Tab/Shift+Tab. No editor keystroke submits Console commands or sends HTTP requests.
+- [ ] Check available-variable names against declared inputs and preceding exports; no default,
+      runtime, secret values, or later-step exports appear. API/loop request sources remain read-only.
+- [ ] Compare HTML/native Request details at 1440 × 960 in light/dark; exercise 1920 × 1080,
+      1024 × 768, 768 × 720, and 1024 × 600 at 1×/2×. Scroll long headers/body/errors independently
+      of Console. Verify narrow Details mode, visible focus, mode hit areas, and clipboard/undo.
+
 ## Flow Console (#215)
 
 - [ ] At 1440 × 960, grow the inspector beyond 480px. Verify canvas space and restore sizes after

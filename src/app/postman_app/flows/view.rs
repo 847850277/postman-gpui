@@ -7,13 +7,12 @@ use crate::ui::{
     components::kit_controls,
     theme::{
         self, metrics as m, ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, INFO, LINE, LINE_STRONG, MUTED,
-        PANEL, PANEL_ALT, SIDEBAR, SUBTEXT, TEXT,
+        PANEL, PANEL_ALT, SIDEBAR, TEXT,
     },
 };
-use gpui::Focusable;
 use gpui::{
     div, list, prelude::FluentBuilder, rems, uniform_list, AnyElement, Context, InteractiveElement,
-    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    IntoElement, ParentElement, Render, Styled, Window,
 };
 use gpui_kit::{
     assets::IconName,
@@ -24,7 +23,6 @@ use gpui_kit::{
         Disableable, Icon, Selectable, Sizable,
     },
 };
-use postman_flow::HttpRequestSource;
 
 impl FlowsView {
     fn render_topbar(&self, compact: bool, cx: &mut Context<Self>) -> AnyElement {
@@ -394,7 +392,7 @@ impl FlowsView {
                         this.select_step(&id, w, c);
                         this.details = true;
                         if w.viewport_size().width / w.rem_size() <= 50. {
-                            this.step_name.focus_handle(c).focus(w, c);
+                            this.focus_inspector(w, c);
                         } else {
                             this.canvas_focus.focus(w, c);
                         }
@@ -518,138 +516,24 @@ impl FlowsView {
             .into_any_element()
     }
     fn render_inspector(&self, cx: &mut Context<Self>) -> AnyElement {
-        let step = self.library.active().and_then(|d| d.selected());
-        let root = div()
+        if let Some(inspector) = self.inspector() {
+            return inspector.clone().into_any_element();
+        }
+        div()
             .id("flow-inspector")
             .debug_selector(|| "flow-inspector".into())
             .size_full()
             .min_w_0()
             .min_h_0()
-            .overflow_y_scroll()
-            .track_scroll(&self.inspector_scroll)
-            .bg(PANEL.resolve(cx));
-        let Some(step) = step else {
-            return root
-                .child(
-                    div()
-                        .p_4()
-                        .text_size(m::LABEL)
-                        .text_color(MUTED.resolve(cx))
-                        .child("Add a request to start your flow."),
-                )
-                .into_any_element();
-        };
-        let request = match &step.request {
-            HttpRequestSource::Inline(r) => Some(r),
-            _ => None,
-        };
-        let literal = request.and_then(|r| model::literal_url(&r.url));
-        let url_error = literal.filter(|url| !url.is_empty()).and_then(|url| {
-            let valid = reqwest::Url::parse(url).is_ok_and(|url| {
-                matches!(url.scheme(), "http" | "https") && url.host_str().is_some()
-            });
-            (!valid).then_some("Enter a complete HTTP or HTTPS URL. This draft is kept as typed.")
-        });
-        let method = div().w(rems(5.75)).flex_none().child(field(
-            "Method",
-            div()
-                .debug_selector(|| "flow-step-method".into())
-                .child(
-                    Select::new(&self.method)
-                        .id("flow-step-method")
-                        .accessibility_label("Step HTTP method")
-                        .disabled(request.is_none())
-                        .w_full(),
-                )
-                .into_any_element(),
-            cx,
-        ));
-        let source = if literal.is_some() {
-            div()
-                .flex_1()
-                .min_w_0()
-                .child(field(
-                    "URL",
-                    div()
-                        .debug_selector(|| "flow-step-url".into())
-                        .child(
-                            Input::new(&self.url)
-                                .id("flow-step-url")
-                                .aria_label("Step URL")
-                                .font_family(FONT_MONO)
-                                .text_size(m::CODE)
-                                .w_full(),
-                        )
-                        .into_any_element(),
-                    cx,
-                ))
-                .into_any_element()
-        } else {
-            div()
-                .flex_1()
-                .min_w_0()
-                .debug_selector(|| "flow-step-readonly".into())
-                .child(field(
-                    "Request source",
-                    div()
-                        .font_family(FONT_MONO)
-                        .text_size(m::CAPTION)
-                        .child(
-                            request
-                                .map(|r| model::url_expression(&r.url))
-                                .unwrap_or_else(|| request_summary(step).1),
-                        )
-                        .into_any_element(),
-                    cx,
-                ))
-                .into_any_element()
-        };
-        let request_fields = div().p_4().flex().flex_col().gap_4()
-            .child(field("Step name",
-                div().debug_selector(|| "flow-step-name".into()).child(
-                    Input::new(&self.step_name).id("flow-step-name").aria_label("Step name").w_full()
-                ).into_any_element(), cx,
-            ))
-            .child(div().debug_selector(|| "flow-step-id".into()).font_family(FONT_MONO)
-                .text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child(step.id.clone()))
-            .when(step.name.trim().is_empty(), |d| d.child(hint("Enter a step name. The unfinished draft is retained.", true, cx)))
-            .child(div().flex().items_start().gap_3().min_w_0().child(method).child(source))
-            .when_some(url_error, |d,e| d.child(hint(e, true, cx)))
-            .when(literal.is_none(), |d| d.child(hint("This request source is preserved. Expression and advanced request editing are not available yet.", false, cx)))
-            .child(hint("Body, headers, conditions, checks and exports are preserved. Their editors are not available yet.", false, cx));
-        root.child(
-            div()
-                .px_4()
-                .pt_4()
-                .pb_3()
-                .flex()
-                .gap_2()
-                .text_size(m::LABEL)
-                .font_weight(m::SEMIBOLD)
-                .child(Icon::new(IconName::Terminal).size(m::SMALL_ICON))
-                .child("Step configuration"),
-        )
-        .child(
-            div()
-                .px_4()
-                .flex()
-                .border_b_1()
-                .border_color(LINE.resolve(cx))
-                .child(
-                    gpui_kit::base::Tab::new("flow-request-tab")
-                        .selected(true)
-                        .h_10()
-                        .flex()
-                        .items_center()
-                        .border_b_2()
-                        .border_color(ACCENT.resolve(cx))
-                        .text_color(ACCENT.resolve(cx))
-                        .text_size(m::LABEL)
-                        .child("Request"),
-                ),
-        )
-        .child(request_fields)
-        .into_any_element()
+            .bg(PANEL.resolve(cx))
+            .child(
+                div()
+                    .p_4()
+                    .text_size(m::LABEL)
+                    .text_color(MUTED.resolve(cx))
+                    .child("Add a request to start your flow."),
+            )
+            .into_any_element()
     }
 }
 impl Render for FlowsView {
@@ -726,28 +610,6 @@ impl Render for FlowsView {
             .child(self.render_topbar(compact, cx))
             .child(div().flex_1().min_w_0().min_h_0().child(layout))
     }
-}
-fn field(label: &'static str, control: AnyElement, cx: &gpui::App) -> AnyElement {
-    div()
-        .flex()
-        .flex_col()
-        .gap_2()
-        .min_w_0()
-        .child(
-            div()
-                .text_size(m::COMPACT_LABEL)
-                .text_color(SUBTEXT.resolve(cx))
-                .child(label),
-        )
-        .child(control)
-        .into_any_element()
-}
-fn hint(text: &'static str, error: bool, cx: &gpui::App) -> AnyElement {
-    div()
-        .text_size(m::COMPACT_LABEL)
-        .text_color(if error { ERROR } else { MUTED }.resolve(cx))
-        .child(text)
-        .into_any_element()
 }
 fn connector(cx: &gpui::App) -> AnyElement {
     div()

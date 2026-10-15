@@ -15,7 +15,8 @@ All shell commands below assume the repository root unless noted otherwise.
 | HTML UI prototype | Separate Home, HTTP, and Flows screens with simulated responses | [Preview guide](../prototypes/README.md) |
 
 The native app opens Home with separate HTTP and Flows destinations. Flows supports a native
-library, sequential canvas, and basic HTTP step editor. Executable workflows use the CLI or Rust API.
+library, sequential canvas, and HTTP Request details with native expressions. Executable workflows
+use the CLI or Rust API.
 
 Runnable HTTP examples use [HTTPBingo](https://httpbingo.org/) throughout the app,
 prototype, and CLI/Flow guides. The HTML prototype uses local fixtures for these
@@ -155,13 +156,30 @@ On macOS, build a universal package with:
 python3 scripts/release.py package --universal-macos
 ```
 
-## Native Flow editor (P5.1)
+## Native Flow editor (P5.2 — Request details)
 
 **Flows → New flow** creates an empty session draft. Name validation runs in the Kit dialog;
 Cancel/Escape keeps the library unchanged. Rename the active flow in its heading, filter the
 library, or resume a real session flow from Home. **Add step → New HTTP request** appends and
-selects a new step. The inspector edits its name, method, and literal URL immediately, including
-incomplete drafts; the step ID stays stable. Switching steps, flows, or pages retains these edits.
+selects a new step. The Kit inspector edits its name, method, URL, headers, and body immediately;
+the step ID stays stable. Each step retains its own text, errors, selection, and undo history across
+step/flow/page switches, theme changes, and resizing.
+
+URL and **Headers · N** offer **Literal / Expression** modes. Literal URLs keep `{{...}}` as text.
+Expression mode uses native JSON notation, for example
+`{"concat":[{"input":"base_url"},{"literal":"/post"}]}`. Headers preserve ordered duplicates and
+empty values; literal lines split at the first colon, while expression mode accepts an ordered
+array of `{name, value}` text expressions. Switching back is available only for lossless literal
+representations. Available variables show declared input names and exports of preceding steps,
+using stable step IDs and never exposing runtime/default values.
+
+**Body expression** accepts the native body JSON object: `none`, `json` (typed JSON expressions),
+`json_template`, `raw`, `url_encoded`, or `file` (text expressions). For example,
+`{"kind":"json","value":{"literal":{"enabled":true,"count":3}}}` keeps types intact.
+Empty source clears a body or headers. File expressions edit only a path expression; no file is read.
+Invalid source stays in its editor with a local error and counts as a session edit; the typed document
+keeps the last valid field until corrected. Other fields remain editable. API references and loop
+request configuration remain read-only; their names can still be edited.
 
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
 inspector, and Console dividers support dragging, arrows, Shift+arrows, Home/End, double-click
@@ -181,11 +199,11 @@ the session. Clearing logs keeps command history and document edits. Commands ne
 system shell. `check`, `run`, and `stop` currently report that their native capability is unavailable;
 Steps and Outputs remain not run. No requests are sent by Console commands.
 
-Flow drafts are **not saved across restart**. YAML, Check, Export, Run, and advanced field editing
-are visibly unavailable. Existing document fields (including API references, expressions, checks,
-exports, conditions, options, inputs/outputs, and layout) are preserved by basic edits. They do not
-become executable merely because a field passes local URL validation. P5.2 adds advanced editing,
-P5.3 adds compiler diagnostics and file persistence, and P6 connects execution.
+Flow drafts are **not saved across restart**. YAML, Check, Export, and Run remain unavailable.
+Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
+inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
+Later P5.2 slices add Inputs/Checks/Exports/conditions and step management; P5.3 adds compiler
+diagnostics and file persistence, and P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
 `cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.
@@ -282,7 +300,7 @@ a normal workspace test run alone does not establish that these suites ran.
 
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
-- The visual Flow editor remains a prototype; see the CLI for actual Flow execution.
+- The native Flow editor supports session Request drafts; use the CLI for actual Flow execution.
 - Request saving is explicit; unsaved drafts are not recovered after a crash or force quit.
 - Native cURL import supports the documented inline subset; file-based and multipart commands
   are export-only.

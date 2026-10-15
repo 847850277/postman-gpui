@@ -101,16 +101,27 @@ fn kit_fields_sync_before_blur_and_documents_survive_navigation(cx: &mut TestApp
     click(cx, "flow-row-1");
     settle(cx);
     flows.read_with(cx, |v, cx| {
-        assert_eq!(v.step_name.read(cx).value(), "");
-        assert_eq!(v.url.read(cx).value(), "https://httpbingo.org/status/200");
+        assert_eq!(v.inspector().unwrap().read(cx).name().read(cx).value(), "");
+        assert_eq!(
+            v.inspector().unwrap().read(cx).url().read(cx).value(),
+            "https://httpbingo.org/status/200"
+        );
     });
     click(cx, "flow-node-1-request-1");
-    flows.read_with(cx, |v, cx| assert_eq!(v.url.read(cx).value(), "https://"));
+    flows.read_with(cx, |v, cx| {
+        assert_eq!(
+            v.inspector().unwrap().read(cx).url().read(cx).value(),
+            "https://"
+        )
+    });
     replace(cx, "flow-title", "重命名流程");
     click(cx, "nav-home");
     click(cx, "recent-flow-2");
     flows.read_with(cx, |v, cx| {
-        assert_eq!(v.step_name.read(cx).value(), "Second document")
+        assert_eq!(
+            v.inspector().unwrap().read(cx).name().read(cx).value(),
+            "Second document"
+        )
     });
     click(cx, "nav-http");
     app.read_with(cx, |app, cx| {
@@ -127,7 +138,10 @@ fn kit_fields_sync_before_blur_and_documents_survive_navigation(cx: &mut TestApp
     });
     cx.update(|w, cx| assert!(!w.has_active_dialog(cx)));
     flows.read_with(cx, |v, cx| {
-        assert_eq!(v.step_name.read(cx).value(), "Second document")
+        assert_eq!(
+            v.inspector().unwrap().read(cx).name().read(cx).value(),
+            "Second document"
+        )
     });
 }
 
@@ -183,7 +197,7 @@ fn ime_commit_and_undo_do_not_cross_selected_steps(cx: &mut TestAppContext) {
     cx.update(|w, cx| {
         let mut handler = ElementInputHandler::new(
             w.find("flow-step-name").bounds(),
-            flows.read(cx).step_name.clone(),
+            flows.read(cx).inspector().unwrap().read(cx).name().clone(),
         );
         handler.replace_and_mark_text_in_range(None, "ni", Some(2..2), w, cx);
         assert_eq!(handler.marked_text_range(w, cx), Some(3..5));
@@ -195,16 +209,22 @@ fn ime_commit_and_undo_do_not_cross_selected_steps(cx: &mut TestAppContext) {
     click(cx, "flow-step-name");
     press(cx, "secondary-z");
     flows.read_with(cx, |v, cx| {
-        assert_eq!(v.step_name.read(cx).value(), "Request 2")
+        assert_eq!(
+            v.inspector().unwrap().read(cx).name().read(cx).value(),
+            "Request 2"
+        )
     });
     click(cx, "flow-node-1-request-1");
     flows.read_with(cx, |v, cx| {
-        assert_eq!(v.step_name.read(cx).value(), "A🦀你好")
+        assert_eq!(
+            v.inspector().unwrap().read(cx).name().read(cx).value(),
+            "A🦀你好"
+        )
     });
 }
 
 #[gpui_kit::test]
-fn preserved_expression_sources_are_readonly_in_the_actual_inspector(cx: &mut TestAppContext) {
+fn api_sources_are_readonly_and_inline_expressions_are_editable(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |app, _| app.flows.clone());
     cx.update(|w, cx| {
@@ -214,7 +234,7 @@ fn preserved_expression_sources_are_readonly_in_the_actual_inspector(cx: &mut Te
             ))
             .unwrap();
             view.library.insert(document);
-            view.library.select_step("echo");
+            view.library.select_step("seed");
             view.sync_fields(w, cx);
             view.sync_picker(w, cx);
             cx.notify();
@@ -224,6 +244,8 @@ fn preserved_expression_sources_are_readonly_in_the_actual_inspector(cx: &mut Te
     settle(cx);
     assert!(cx.debug_bounds("flow-step-readonly").is_some());
     assert!(cx.debug_bounds("flow-step-url").is_none());
+    click(cx, "flow-node-1-echo");
+    assert!(cx.debug_bounds("flow-url-source").is_some());
     replace(cx, "flow-step-name", "Preserved echo");
     let doc = current(&flows, cx);
     assert!(model::request_summary(&doc.flow.steps[1])
