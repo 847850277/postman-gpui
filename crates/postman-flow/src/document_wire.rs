@@ -296,36 +296,31 @@ enum Method {
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Header {
-    name: Text,
-    value: Text,
+pub(super) struct Header {
+    pub(super) name: Text,
+    pub(super) value: Text,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Body {
-    #[default]
-    None,
-    Json {
-        value: Json,
-    },
-    JsonTemplate {
-        value: Text,
-    },
-    Raw {
-        value: Text,
-    },
-    UrlEncoded {
-        value: Text,
-    },
-    File {
-        value: Text,
-    },
+pub(super) enum Body {
+    None {},
+    Json { value: Json },
+    JsonTemplate { value: Text },
+    Raw { value: Text },
+    UrlEncoded { value: Text },
+    File { value: Text },
+}
+
+impl Default for Body {
+    fn default() -> Self {
+        Self::None {}
+    }
 }
 
 impl Body {
     fn is_none(&self) -> bool {
-        matches!(self, Self::None)
+        matches!(self, Self::None {})
     }
 }
 
@@ -346,7 +341,7 @@ enum ConditionWire {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum Text {
+pub(super) enum Text {
     Literal(String),
     Input(String),
     Output(Ref),
@@ -357,7 +352,7 @@ enum Text {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum Json {
+pub(super) enum Json {
     Literal(Value),
     String(Text),
     Input(String),
@@ -370,7 +365,7 @@ enum Json {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
-struct Ref {
+pub(super) struct Ref {
     step: String,
     name: String,
 }
@@ -1032,7 +1027,7 @@ impl From<&JsonTemplate> for Json {
 impl From<Body> for BodyTemplate {
     fn from(value: Body) -> Self {
         match value {
-            Body::None => Self::None,
+            Body::None {} => Self::None,
             Body::Json { value } => Self::JsonValue(value.into()),
             Body::JsonTemplate { value } => Self::Json(value.into()),
             Body::Raw { value } => Self::Raw(value.into()),
@@ -1045,7 +1040,7 @@ impl From<Body> for BodyTemplate {
 impl From<&BodyTemplate> for Body {
     fn from(value: &BodyTemplate) -> Self {
         match value {
-            BodyTemplate::None => Self::None,
+            BodyTemplate::None => Self::None {},
             BodyTemplate::JsonValue(value) => Self::Json {
                 value: value.into(),
             },

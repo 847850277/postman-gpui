@@ -62,6 +62,10 @@ impl MultilineInput {
         }
     }
 
+    pub(crate) fn value(&self) -> SharedString {
+        self.last_value.clone()
+    }
+
     /// Silent projection always clears undo/composition, even for equal-valued request tabs.
     pub(crate) fn project_content(
         &mut self,
@@ -73,6 +77,11 @@ impl MultilineInput {
             input.set_value(content.into(), window, cx);
             input.value()
         });
+    }
+
+    #[cfg(test)]
+    pub(crate) fn input_state(&self) -> Entity<TextareaState> {
+        self.input.clone()
     }
 
     #[cfg(test)]

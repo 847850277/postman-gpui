@@ -14,7 +14,7 @@
 | HTML UI 原型 | 独立的 Home、HTTP 和 Flows 界面，使用模拟响应 | [预览说明](../prototypes/README.md) |
 
 原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。Flows 已支持原生流程库、
-顺序画布和基础 HTTP 步骤编辑；实际流程执行仍通过 CLI 或 Rust API 完成。
+顺序画布和支持原生表达式的 HTTP Request 详情编辑；实际流程执行仍通过 CLI 或 Rust API 完成。
 
 应用、HTML 原型及 CLI/Flow 文档中的可运行 HTTP 示例统一使用
 [HTTPBingo](https://httpbingo.org/)。HTML 原型使用对应的本地模拟响应；原生客户端和
@@ -109,12 +109,26 @@ python3 scripts/release.py package
 python3 scripts/release.py package --universal-macos
 ```
 
-## 原生 Flow 编辑器（P5.1）
+## 原生 Flow 编辑器（P5.2 — Request 详情）
 
 通过 **Flows → New flow** 创建空白会话草稿，Kit 弹窗验证名称；取消或 Esc 不会创建文档。
 可在标题栏重命名、筛选流程库，也可从首页继续真实的会话流程。
-**Add step → New HTTP request** 追加并选中新步骤。详情区即时同步步骤名称、方法和字面量 URL，
-保留未输入完整的内容；步骤 ID 不随名称变化。切换步骤、流程及页面均保留当前草稿与选择。
+**Add step → New HTTP request** 追加并选中新步骤。Kit 详情区即时同步步骤名称、方法、URL、Headers
+和 Body；步骤 ID 不随名称变化。每个步骤独立保留文本、错误、选择和撤销历史，切换步骤、流程、页面、
+主题及拖拽布局均不会重新初始化编辑器。
+
+URL 和 **Headers · N** 提供 **Literal / Expression** 切换。字面量中的 `{{...}}` 始终是普通文本。
+表达式使用原生 JSON 格式，例如 `{"concat":[{"input":"base_url"},{"literal":"/post"}]}`。
+字面量 Headers 每行按第一个冒号分隔名称和值，保留顺序、重复项和空值；表达式模式接受有序的
+`{name, value}` 文本表达式数组。只有能够无损表示时才允许切回字面量。
+可用变量仅展示已声明的输入名称及前面步骤的导出，使用稳定步骤 ID，不显示默认值或运行时敏感值。
+
+**Body expression** 编辑原生 Body JSON 对象：`none`、`json`（带类型的 JSON 表达式）、
+`json_template`、`raw`、`url_encoded` 或 `file`（文本表达式）。例如
+`{"kind":"json","value":{"literal":{"enabled":true,"count":3}}}` 会保留布尔和数字类型。
+清空 Body 或 Headers 会移除对应内容；编辑 `file` 仅修改路径表达式，不读取文件。
+无效输入保留原文并在字段旁提示错误，计入会话编辑；文档暂时保留该字段最后的有效值，修正后即时更新。
+其他字段仍可编辑。API 引用和循环步骤的请求配置保持只读，名称仍可修改。
 
 点击节点后，方向键和 Home/End 可选择其他节点。流程库、详情区和 Console 均支持拖拽尺寸，
 方向键及 Shift+方向键调整、双击重置、Enter 打开数值尺寸弹窗；Esc 撤销本次拖拽。
@@ -131,9 +145,10 @@ Logs、Steps、Outputs 页签，可折叠到标题栏或在编辑区内最大化
 此处不执行系统 Shell；`check`、`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行，
 Console 命令不会发送网络请求。
 
-Flow 草稿**不会跨重启保存**。YAML、Check、Export、Run 与高级字段编辑暂不可用；基础编辑会保留
-文档原有的 API 引用、表达式、检查、导出、条件、请求选项、输入输出和布局信息。
-URL 格式提示不等于流程编译成功。后续 P5.2 补充高级编辑，P5.3 接入编译诊断和文件保存，P6 接入执行。
+Flow 草稿**不会跨重启保存**。YAML、Check、Export、Run 暂不可用。Request 编辑保留文档原有的
+条件、检查、导出、请求选项/认证、API 目录、嵌套步骤、输入输出和布局信息。
+JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充 Inputs/Checks/Exports/条件和步骤管理，
+P5.3 接入编译诊断与文件保存，P6 接入执行。
 
 使用 `cargo test --locked -p postman-gpui --lib app::postman_app::flows` 和
 `cargo test --locked --test ui_flows` 验证原生控件、文档保留及布局。
@@ -221,7 +236,7 @@ node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
 ## 当前限制
 
 - 响应体仍使用缓冲后的文本模型，尚未提供原始字节响应查看、响应原子保存和流式响应的增量进度。
-- 可视化 Flow 编辑器仍属于原型能力；实际 Flow 执行请使用 CLI。
+- 原生 Flow 编辑器支持会话内 Request 草稿；实际 Flow 执行请使用 CLI。
 - 请求需要显式保存；崩溃或强制退出后不会恢复未保存的草稿。
 - 原生 cURL 导入支持文档列出的内联请求；文件与 multipart 命令只支持导出，详见 [cURL 说明](curl.md)。
 

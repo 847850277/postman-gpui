@@ -12,18 +12,24 @@ fn documents_keep_identity_selection_and_unfinished_edits() {
     assert!(library.drafts().is_empty());
     let first = library.create("第一个流程").unwrap();
     library.append_step();
-    library.edit_step(StepEdit::Name("请求用户".into()));
-    library.edit_step(StepEdit::Url("https://".into()));
-    library.edit_step(StepEdit::Method(HttpMethod::POST));
+    edit(&mut library, StepEdit::Name("请求用户".into()));
+    edit(
+        &mut library,
+        StepEdit::Url(TextTemplate::literal("https://")),
+    );
+    edit(&mut library, StepEdit::Method(HttpMethod::POST));
     library.append_step();
-    library.edit_step(StepEdit::Name(String::new()));
+    edit(&mut library, StepEdit::Name(String::new()));
     library.select_step("request-1");
     let original = library.active().unwrap().document().clone();
     let revision = library.active().unwrap().revision();
     let second = library.create("第一个流程").unwrap();
     assert_ne!(first, second, "names do not identify documents");
     library.append_step();
-    library.edit_step(StepEdit::Url("https://httpbingo.org/get".into()));
+    edit(
+        &mut library,
+        StepEdit::Url(TextTemplate::literal("https://httpbingo.org/get")),
+    );
     library.select(first);
     assert_eq!(library.active().unwrap().document(), &original);
     assert_eq!(
@@ -37,7 +43,7 @@ fn documents_keep_identity_selection_and_unfinished_edits() {
     library.select_step("request-2");
     assert_eq!(library.active().unwrap().selected().unwrap().name, "");
     let revision = library.active().unwrap().revision();
-    library.edit_step(StepEdit::Name(String::new()));
+    edit(&mut library, StepEdit::Name(String::new()));
     assert_eq!(library.active().unwrap().revision(), revision);
     assert!(!library.select(FlowId(999)));
     assert_eq!(library.active().unwrap().id(), first);
@@ -62,14 +68,16 @@ fn basic_edits_preserve_catalog_expressions_conditions_options_and_layout() {
     let original = document.clone();
     let mut library = FlowLibrary::default();
     library.insert(document);
-    library.edit_step(StepEdit::Method(HttpMethod::DELETE)); // API reference is not an inline request.
-    library.edit_step(StepEdit::Url("https://httpbingo.org/get".into()));
+    edit(&mut library, StepEdit::Method(HttpMethod::DELETE)); // API reference is not an inline request.
+    edit(
+        &mut library,
+        StepEdit::Url(TextTemplate::literal("https://httpbingo.org/get")),
+    );
     assert_eq!(library.active().unwrap().document(), &original);
     library.select_step("echo");
-    library.edit_step(StepEdit::Url("https://httpbingo.org/anything".into())); // Never flatten an expression.
     assert_eq!(library.active().unwrap().document(), &original);
-    library.edit_step(StepEdit::Name("Updated echo".into()));
-    library.edit_step(StepEdit::Method(HttpMethod::PATCH));
+    edit(&mut library, StepEdit::Name("Updated echo".into()));
+    edit(&mut library, StepEdit::Method(HttpMethod::PATCH));
     let mut expected = original;
     expected.flow.steps[1].name = "Updated echo".into();
     if let HttpRequestSource::Inline(request) = &mut expected.flow.steps[1].request {
@@ -87,4 +95,74 @@ fn basic_edits_preserve_catalog_expressions_conditions_options_and_layout() {
     assert_eq!(draft.document().editor, expected.editor);
     assert_eq!(draft.document().flow.inputs, expected.flow.inputs);
     assert_eq!(draft.document().flow.outputs, expected.flow.outputs);
+}
+
+fn edit(library: &mut FlowLibrary, edit: StepEdit) {
+    let draft = library.active().unwrap();
+    let flow = draft.id();
+    let id = draft.selected().unwrap().id.clone();
+    library.edit_step(flow, &id, &edit);
+}
+
+#[test]
+fn request_field_edits_and_invalid_revisions_preserve_every_other_field() {
+    let mut doc = parse_flow_yaml(include_str!(
+        "../../../../../crates/postman-flow/examples/flows/httpbingo_catalog.http.yml"
+    ))
+    .unwrap();
+    doc.flow.steps[1].when = Some(ConditionExpr::eq(
+        JsonTemplate::input("client"),
+        JsonTemplate::literal("test"),
+    ));
+    if let HttpRequestSource::Inline(r) = &mut doc.flow.steps[1].request {
+        r.options.timeout_ms = Some(1379);
+        r.auth = Some(postman_flow::AuthTemplate::HmacSha256 {
+            secret: TextTemplate::parts([postman_flow::TemplatePart::Input("token".into())]),
+            param: "sig".into(),
+        });
+    }
+    let mut expected = doc.clone();
+    let mut library = FlowLibrary::default();
+    let id = library.insert(doc);
+    let url = postman_flow::parse_text_expression(
+        r#"{"coalesce":[{"input":"base_url"},{"calc":"inputs.fallback"}]}"#,
+    )
+    .unwrap();
+    let headers = vec![(
+        TextTemplate::literal("X-A"),
+        TextTemplate::parts([postman_flow::TemplatePart::Input("token".into())]),
+    )];
+    let body = postman_flow::BodyTemplate::JsonValue(JsonTemplate::literal(serde_json::json!([
+        true, 1, null
+    ])));
+    library.edit_step(id, "echo", &StepEdit::Url(url.clone()));
+    library.edit_step(id, "echo", &StepEdit::Headers(headers.clone()));
+    library.edit_step(id, "echo", &StepEdit::Body(body.clone()));
+    if let HttpRequestSource::Inline(r) = &mut expected.flow.steps[1].request {
+        r.url = url;
+        r.headers = headers;
+        r.body = body;
+    }
+    assert_eq!(library.active().unwrap().document(), &expected);
+    let revision = library.active().unwrap().revision();
+    library.edit_step(id, "echo", &StepEdit::Invalid);
+    assert_eq!(library.active().unwrap().revision(), revision + 1);
+    assert_eq!(library.active().unwrap().document(), &expected);
+    library.edit_step(
+        id,
+        "seed",
+        &StepEdit::Body(postman_flow::BodyTemplate::None),
+    );
+    assert_eq!(library.active().unwrap().revision(), revision + 1);
+    let second = library.create("Other flow").unwrap();
+    library.append_step();
+    library.edit_step(id, "echo", &StepEdit::Name("Target identity".into()));
+    assert_eq!(library.active().unwrap().id(), second);
+    assert_eq!(
+        library.active().unwrap().selected().unwrap().name,
+        "Request 1"
+    );
+    library.select(id);
+    expected.flow.steps[1].name = "Target identity".into();
+    assert_eq!(library.active().unwrap().document(), &expected);
 }

@@ -7,6 +7,12 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- GPUI Kit Flow Request details with literal/expression URLs, collapsible ordered headers,
+  available-variable hints, and native body JSON editing. Per-step buffers retain invalid drafts,
+  local errors, focus, and undo while the document keeps the last valid field.
+- Shared field-expression codecs reuse Flow v1 wire types, including strict unknown-field
+  rejection for explicit `none` bodies.
+
 - Native session-only Flow library, sequential canvas, and basic HTTP step inspector using
   GPUI Kit. Create, rename, filter, append steps, and resume drafts from Home without losing edits.
 - Responsive Flow library/inspector/results panels with pointer and keyboard resizing. Compact
@@ -18,8 +24,8 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Limitations
 
-- Flow drafts and panel sizes last only for the session. Advanced editing, YAML, compiler
-  diagnostics, export/save, and native execution remain deferred. Basic edits preserve richer
+- Flow drafts and panel sizes last only for the session. Inputs/Checks/Exports/conditions, step management, YAML, compiler
+  diagnostics, export/save, and native execution remain deferred. Request edits preserve richer
   Flow DSL document fields without converting expressions to literal URLs.
 
 ## [0.1.0-rc.4] - 2026-10-13
