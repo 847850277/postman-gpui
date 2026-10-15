@@ -116,10 +116,20 @@ python3 scripts/release.py package --universal-macos
 **Add step → New HTTP request** 追加并选中新步骤。详情区即时同步步骤名称、方法和字面量 URL，
 保留未输入完整的内容；步骤 ID 不随名称变化。切换步骤、流程及页面均保留当前草稿与选择。
 
-点击节点后，方向键和 Home/End 可选择其他节点。流程库、详情区和结果区均支持拖拽尺寸，
+点击节点后，方向键和 Home/End 可选择其他节点。流程库、详情区和 Console 均支持拖拽尺寸，
 方向键及 Shift+方向键调整、双击重置、Enter 打开数值尺寸弹窗；Esc 撤销本次拖拽。
 窗口扩大后恢复偏好尺寸，Flow 布局偏好仅在本次会话有效。窄窗口用 **Choose flow** 替代流程库，
 更窄时通过 **Canvas / Details** 切换画布和详情。
+
+详情栏可以继续扩大至超过原先的 480 逻辑像素上限，同时为画布保留空间。底部 **Console** 提供
+Logs、Steps、Outputs 页签，可折叠到标题栏或在编辑区内最大化，恢复时保留原有高度。
+日志支持级别筛选、复制可见内容、清空和自动滚动；向上回看时暂停自动跟随。
+
+固定的 `flow ›` 输入栏支持 `help`、`clear`、`logs`、`steps`、`outputs`。Enter 或 Cmd/Ctrl+Enter 执行，
+上下键浏览历史并恢复未提交的输入，Tab 补全唯一前缀，Esc 清空输入。每个 Flow 独立保留最多 500 条
+日志和 50 条命令，均仅在本次会话有效。清空日志不会删除命令历史或文档编辑。
+此处不执行系统 Shell；`check`、`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行，
+Console 命令不会发送网络请求。
 
 Flow 草稿**不会跨重启保存**。YAML、Check、Export、Run 与高级字段编辑暂不可用；基础编辑会保留
 文档原有的 API 引用、表达式、检查、导出、条件、请求选项、输入输出和布局信息。

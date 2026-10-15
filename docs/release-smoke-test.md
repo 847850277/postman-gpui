@@ -54,12 +54,27 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Append multiple HTTP steps and edit name, method, and URL while the field remains focused.
       Switch steps, flows, and Home/HTTP/Flows; unfinished text and selection remain isolated.
 - [ ] Rename/filter flows and reopen a real entry from Home. Test Chinese IME and keyboard navigation.
-- [ ] Drag library, inspector, and results dividers; test arrows, Escape, numeric sizing, and reset.
+- [ ] Drag library, inspector, and Console dividers; test arrows, Escape, numeric sizing, and reset.
       Shrink/expand the window and verify preferred sizes return without clipping controls.
 - [ ] Exercise light/dark themes and narrow Canvas/Details mode. Verify Check, YAML, Export,
       and Run remain unavailable; no simulated result or successful save is reported.
 - [ ] Restart and verify Flow drafts are gone, consistent with the visible session-only notice;
       saved HTTP requests, environment settings, and history retain their existing behavior.
+
+## Flow Console (#215)
+
+- [ ] At 1440 × 960, grow the inspector beyond 480px. Verify canvas space and restore sizes after
+      shrinking to 1024 × 600 and expanding again. Test light/dark and compact Canvas/Details.
+- [ ] Collapse/maximize/restore Console; selecting a tab reopens it. The command bar remains
+      reachable, and its content scrolls within its own region without covering adjacent panels.
+- [ ] Enter `help`, `logs`, `steps`, `outputs`, and `clear`; use both Enter and Cmd/Ctrl+Enter.
+      Check command history, draft restoration, unique-prefix Tab completion, Shift+Tab, and Escape.
+- [ ] Switch between two flows and Home/HTTP; logs and unfinished commands remain isolated.
+      Clearing logs keeps history and document edits; copying includes only visible filtered logs.
+- [ ] Verify Chinese IME does not submit while composing. `check`, `run`, `stop`, unknown commands,
+      and unsupported arguments must never send requests or report successful execution.
+- [ ] Scroll back through enough log entries to pause auto-scroll; re-enable it to follow the end.
+      Steps/Outputs show not-run states and a fresh session has no fabricated logs or runs.
 
 ## Platform-specific checks
 

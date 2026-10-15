@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_kit::{component::WindowExt, test::TestWindowExt};
 
-fn setup(cx: &mut TestAppContext) -> (Entity<PostmanApp>, &mut VisualTestContext) {
+pub(super) fn setup(cx: &mut TestAppContext) -> (Entity<PostmanApp>, &mut VisualTestContext) {
     cx.update(|cx| {
         crate::assets::fonts::load_embedded_fonts(cx).unwrap();
         crate::ui::kit::init(cx);
@@ -30,19 +30,19 @@ fn setup(cx: &mut TestAppContext) -> (Entity<PostmanApp>, &mut VisualTestContext
         .unwrap();
     (app, VisualTestContext::from_window(handle, cx).into_mut())
 }
-fn click(cx: &mut VisualTestContext, id: &'static str) {
+pub(super) fn click(cx: &mut VisualTestContext, id: &'static str) {
     cx.update(|w, cx| w.click(id, cx));
 }
-fn press(cx: &mut VisualTestContext, key: &str) {
+pub(super) fn press(cx: &mut VisualTestContext, key: &str) {
     cx.update(|w, cx| w.press(key, cx));
 }
-fn settle(cx: &mut VisualTestContext) {
+pub(super) fn settle(cx: &mut VisualTestContext) {
     cx.run_until_parked();
     for _ in 0..6 {
         cx.update(|w, cx| w.render_frame(cx));
     }
 }
-fn replace(cx: &mut VisualTestContext, id: &'static str, text: &str) {
+pub(super) fn replace(cx: &mut VisualTestContext, id: &'static str, text: &str) {
     click(cx, id);
     press(cx, "secondary-a");
     if text.is_empty() {
@@ -51,13 +51,13 @@ fn replace(cx: &mut VisualTestContext, id: &'static str, text: &str) {
         cx.simulate_input(text);
     }
 }
-fn create(cx: &mut VisualTestContext, name: &str) {
+pub(super) fn create(cx: &mut VisualTestContext, name: &str) {
     click(cx, "new-flow");
     cx.simulate_input(name);
     click(cx, "flow-create-submit");
     settle(cx);
 }
-fn add(cx: &mut VisualTestContext) {
+pub(super) fn add(cx: &mut VisualTestContext) {
     click(cx, "add-step");
     click(cx, "flow-add-http");
     settle(cx);

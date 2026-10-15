@@ -11,6 +11,10 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   GPUI Kit. Create, rename, filter, append steps, and resume drafts from Home without losing edits.
 - Responsive Flow library/inspector/results panels with pointer and keyboard resizing. Compact
   windows use a flow picker and Canvas/Details switching; the minimum window is now 768 × 600.
+- Native Flow Console with Logs/Steps/Outputs, bounded per-flow command history, level filtering,
+  copy/clear, auto-scroll, and collapse/maximize/restore. Local commands use retained GPUI Kit
+  controls; compilation and execution commands report their unavailable state.
+- Flow inspectors can expand beyond the former 480px cap while keeping the canvas usable.
 
 ### Limitations
 

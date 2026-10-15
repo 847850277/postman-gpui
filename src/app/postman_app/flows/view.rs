@@ -651,45 +651,6 @@ impl FlowsView {
         .child(request_fields)
         .into_any_element()
     }
-    fn render_results(&self, cx: &mut Context<Self>) -> AnyElement {
-        div()
-            .debug_selector(|| "flow-results".into())
-            .size_full()
-            .min_h_0()
-            .min_w_0()
-            .flex()
-            .flex_col()
-            .bg(PANEL.resolve(cx))
-            .child(
-                div()
-                    .h(rems(43. / 16.))
-                    .flex_none()
-                    .px_4()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .text_size(m::COMPACT_LABEL)
-                    .child(Icon::new(IconName::Terminal).size(m::SMALL_ICON))
-                    .child(div().font_weight(m::SEMIBOLD).child("Run results"))
-                    .child(div().flex_1())
-                    .child(div().text_color(MUTED.resolve(cx)).child("Not run")),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .p_4()
-                    .text_size(m::LABEL)
-                    .text_color(MUTED.resolve(cx))
-                    .child("Flow execution is not available yet."),
-            )
-            .into_any_element()
-    }
 }
 impl Render for FlowsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -715,8 +676,26 @@ impl Render for FlowsView {
         } else {
             self.render_panel_split(SplitKind::Inspector, canvas, inspector, cx)
         };
-        let results = self.render_results(cx);
-        let stage = self.render_panel_split(SplitKind::Results, center, results, cx);
+        let results = self.console.clone().into_any_element();
+        let stage = match self.console.read(cx).mode() {
+            super::console::ConsoleMode::Normal => {
+                self.render_panel_split(SplitKind::Results, center, results, cx)
+            }
+            super::console::ConsoleMode::Maximized => results,
+            super::console::ConsoleMode::Collapsed => div()
+                .size_full()
+                .min_h_0()
+                .flex()
+                .flex_col()
+                .child(div().flex_1().min_h_0().child(center))
+                .child(
+                    div()
+                        .h(rems(super::console::HEADER_HEIGHT))
+                        .flex_none()
+                        .child(results),
+                )
+                .into_any_element(),
+        };
         let work = div()
             .size_full()
             .min_w_0()

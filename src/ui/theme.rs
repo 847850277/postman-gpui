@@ -45,6 +45,7 @@ pub const ACCENT_SOFT: ColorToken = ColorToken::new(0xfbede6, 0x382a25);
 pub const ON_ACCENT: ColorToken = ColorToken::new(0xffffff, 0x311809);
 pub const OK: ColorToken = ColorToken::new(0x237246, 0x83d5a1);
 pub const OK_SOFT: ColorToken = ColorToken::new(0xeaf5ed, 0x23352c);
+pub const WARNING: ColorToken = ColorToken::new(0x946c10, 0xe5c36b);
 pub const INFO: ColorToken = ColorToken::new(0x386bc1, 0x91b7f3);
 pub const INFO_SOFT: ColorToken = ColorToken::new(0xeaf0fc, 0x252f40);
 pub const ERROR: ColorToken = ColorToken::new(0xba3b43, 0xf5939b);

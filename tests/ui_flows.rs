@@ -121,6 +121,10 @@ fn flow_layout_keeps_fields_actions_and_dividers_inside_each_panel(cx: &mut Test
                     "flow-step-method",
                     "flow-step-url",
                     "flow-results",
+                    "console-heading",
+                    "console-tools",
+                    "console-command-bar",
+                    "console-command",
                 ] {
                     let b = cx
                         .debug_bounds(id)
@@ -138,6 +142,11 @@ fn flow_layout_keeps_fields_actions_and_dividers_inside_each_panel(cx: &mut Test
                     );
                 }
                 let results = cx.debug_bounds("flow-results").unwrap();
+                let command = cx.debug_bounds("console-command-bar").unwrap();
+                let content = cx.debug_bounds("console-content").unwrap();
+                assert!(command.bottom() <= results.bottom() + px(1.));
+                assert!(content.bottom() <= command.top() + px(1.));
+                assert!(content.size.height > px(10.));
                 let inspector = cx.debug_bounds("flow-inspector").unwrap();
                 assert!(inspector.bottom() <= results.top() + px(1.));
                 if w <= 800. {
@@ -209,4 +218,61 @@ fn flow_splitters_drag_cancel_keyboard_and_restore_preferred_sizes(cx: &mut Test
             extent(cx)
         );
     }
+}
+
+#[gpui_kit::test]
+fn console_modes_and_wide_inspector_preserve_normal_sizes(cx: &mut TestAppContext) {
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let (_, cx) = cx.add_window_view(move |w, cx| {
+        ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(model, w, cx))
+    });
+    click(cx, "nav-flows").unwrap();
+    resize(cx, 1440., 960.);
+    // A new session must not fabricate flows or command results.
+    click(cx, "console-execute").unwrap();
+    click(cx, "console-help").unwrap();
+    create(cx, "Console geometry");
+    add(cx);
+    drag(cx, "flow-inspector-divider", -400., 0., false);
+    let width = cx.debug_bounds("flow-inspector").unwrap().size.width;
+    assert!(
+        width > px(600.),
+        "inspector should expand past its old limit: {width:?}"
+    );
+    assert!(cx.debug_bounds("flow-canvas").unwrap().size.width >= px(299.));
+    let normal = cx.debug_bounds("flow-results").unwrap();
+    assert!((normal.size.height - px(240.)).abs() < px(2.));
+    for _ in 0..2 {
+        click(cx, "console-maximize").unwrap();
+        settle(cx);
+        assert!(cx.debug_bounds("flow-canvas").is_none());
+        assert!(cx.debug_bounds("flow-inspector-divider").is_none());
+        assert!(cx.debug_bounds("flow-results-divider").is_none());
+        assert!(cx.debug_bounds("flow-results").unwrap().size.height > normal.size.height);
+        click(cx, "console-maximize").unwrap();
+        settle(cx);
+        assert!(
+            (cx.debug_bounds("flow-results").unwrap().size.height - normal.size.height).abs()
+                < px(2.)
+        );
+        assert!((cx.debug_bounds("flow-inspector").unwrap().size.width - width).abs() < px(2.));
+        click(cx, "console-toggle").unwrap();
+        settle(cx);
+        assert!(cx.debug_bounds("console-command-bar").is_none());
+        assert!(cx.debug_bounds("flow-results-divider").is_none());
+        assert!((cx.debug_bounds("flow-results").unwrap().size.height - px(44.)).abs() < px(2.));
+        click(cx, "console-tab-steps").unwrap();
+        settle(cx);
+        assert!(cx.debug_bounds("console-command-bar").is_some());
+        assert!(
+            (cx.debug_bounds("flow-results").unwrap().size.height - normal.size.height).abs()
+                < px(2.)
+        );
+    }
+    resize(cx, 1024., 600.);
+    resize(cx, 1440., 960.);
+    assert!((cx.debug_bounds("flow-inspector").unwrap().size.width - width).abs() < px(2.));
+    assert!(
+        (cx.debug_bounds("flow-results").unwrap().size.height - normal.size.height).abs() < px(2.)
+    );
 }
