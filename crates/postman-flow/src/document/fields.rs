@@ -108,3 +108,9 @@ pub fn write_condition_expression(value: &ConditionExpr) -> Result<String, Docum
 pub fn write_response_check(value: &ResponseCheck) -> Result<String, DocumentError> {
     write(wire::Check::from(value))
 }
+
+/// Parse a typed input default or run value using the document JSON limits.
+/// This parses literal JSON data, without resolving expressions or references.
+pub fn parse_input_value(source: &str) -> Result<serde_json::Value, DocumentError> {
+    parse(source)
+}

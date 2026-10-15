@@ -59,6 +59,9 @@ pub(crate) struct Environments {
 impl EventEmitter<EnvironmentChanged> for Environments {}
 
 impl Environments {
+    pub(crate) fn active_base(&self) -> Option<&str> {
+        self.current.active_base()
+    }
     pub(crate) fn new(path: Option<PathBuf>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let selector = cx.new(|cx| {
             SelectState::new(

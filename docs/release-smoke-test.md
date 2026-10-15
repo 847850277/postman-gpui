@@ -80,6 +80,22 @@ SHA-256, signing status, and pass/fail result in issue #148.
       1024 × 768, 768 × 720, and 1024 × 600 at 1×/2×. Scroll long headers/body/errors independently
       of Console. Verify narrow Details mode, visible focus, mode hit areas, and clipboard/undo.
 
+## Flow Inputs (#224)
+
+- [ ] Open Inputs in an empty flow and at compact width. Add definitions, toggle optional defaults,
+  edit Text/JSON including absent vs null defaults, and check duplicate/blank-name errors.
+- [ ] Set run overrides to empty Text, JSON null/false/0/object, then invalid JSON. Reset to inheritance.
+  Verify invalid visible drafts never produce a usable prepared snapshot. No request is sent.
+- [ ] Select/edit/cancel environments: only inherited declared base_url follows committed changes.
+  Overrides survive, defaults and literal URLs stay unchanged, and runtime edits do not dirty YAML.
+- [ ] Rename/delete/recreate declarations; confirm override ownership, no stale reused values, cached
+  step hints, and preserved step expressions/drafts/undo. Switch flows and modes with Chinese IME.
+- [ ] Mark synthetic values sensitive, reveal/edit, leave the context and return. Values are concealed;
+  errors, Console, debug output and screenshots must not include the synthetic secret.
+- [ ] Compare HTML/native Run inputs and Definitions in light/dark at the existing viewport/scale
+  matrix, including many rows, long values, errors, reachable Add/Remove, and preserved Console.
+
+
 ## Flow Checks, Exports, and conditions (#222)
 
 - [ ] In Step configuration, switch Request/Checks/Exports using pointer and focused-tab arrows,

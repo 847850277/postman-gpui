@@ -96,6 +96,10 @@ fn multiline(
 
 impl RequestInspector {
     #[cfg(test)]
+    pub(super) fn variables(&self) -> &[String] {
+        &self.variables
+    }
+    #[cfg(test)]
     pub(super) fn name(&self) -> &Entity<InputState> {
         &self.name
     }

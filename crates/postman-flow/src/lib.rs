@@ -21,10 +21,10 @@ pub use compiler::{
 };
 pub use document::{
     parse_body_expression, parse_condition_expression, parse_flow_yaml, parse_header_expressions,
-    parse_text_expression, write_body_expression, write_condition_expression, write_flow_yaml,
-    write_header_expressions, write_response_check, write_text_expression, DocumentError,
-    DocumentErrorCode, EditorLayout, FlowDocument, NodePosition, FLOW_DOCUMENT_SCHEMA_JSON,
-    FLOW_DOCUMENT_VERSION,
+    parse_input_value, parse_text_expression, write_body_expression, write_condition_expression,
+    write_flow_yaml, write_header_expressions, write_response_check, write_text_expression,
+    DocumentError, DocumentErrorCode, EditorLayout, FlowDocument, NodePosition,
+    FLOW_DOCUMENT_SCHEMA_JSON, FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
     ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent,

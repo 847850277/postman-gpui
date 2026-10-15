@@ -1,6 +1,7 @@
 //! Native, session-owned Flow editing. Kit owns input, selection controls and overlays.
 mod console;
 mod controls;
+mod inputs;
 mod layout;
 mod model;
 mod request_inspector;
@@ -60,6 +61,8 @@ pub(super) struct FlowsView {
     canvas_focus: FocusHandle,
     library_focus: FocusHandle,
     title: Entity<InputState>,
+    inputs: HashMap<FlowId, Entity<inputs::InputsInspector>>,
+    inputs_open: bool,
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
     filter: Entity<InputState>,
     picker: Entity<SelectState<SearchableVec<FlowOption>>>,
@@ -105,7 +108,10 @@ impl FlowsView {
         let mut subscriptions = Vec::new();
         subscriptions.push(
             cx.subscribe_in(&console, window, |this, _, event, window, cx| match event {
-                console::ConsoleEvent::LayoutChanged => cx.notify(),
+                console::ConsoleEvent::LayoutChanged => {
+                    this.conceal_inputs(cx);
+                    cx.notify();
+                }
                 console::ConsoleEvent::LocateStep { flow, step } => {
                     if this.library.active().is_some_and(|d| {
                         d.id() == *flow && d.document().flow.steps.iter().any(|s| s.id == *step)
@@ -164,6 +170,8 @@ impl FlowsView {
             canvas_focus: cx.focus_handle().tab_stop(true),
             library_focus: cx.focus_handle().tab_stop(true),
             title,
+            inputs: HashMap::new(),
+            inputs_open: false,
             inspectors: HashMap::new(),
             filter,
             picker,
@@ -204,6 +212,7 @@ impl FlowsView {
         if self.library.active().is_some_and(|d| d.id() == id) {
             return;
         }
+        self.conceal_inputs(cx);
         if self.library.select(id) {
             self.sync_fields(window, cx);
             self.sync_picker(window, cx);
@@ -235,6 +244,46 @@ impl FlowsView {
         let Some(draft) = self.library.active() else {
             return;
         };
+        let flow = draft.id();
+        if !self.inputs.contains_key(&flow) {
+            let editor = cx.new(|cx| {
+                inputs::InputsInspector::new(
+                    &draft.document().flow.inputs,
+                    self.environments.clone(),
+                    window,
+                    cx,
+                )
+            });
+            self._subscriptions.push(cx.subscribe_in(
+                &editor,
+                window,
+                move |this, _, event, window, cx| {
+                    match event {
+                        inputs::InputsEvent::Definitions { values, invalid } => {
+                            this.library.edit_inputs(flow, values, *invalid);
+                            if let Some(draft) =
+                                this.library.drafts().iter().find(|d| d.id() == flow)
+                            {
+                                for ((owner, step), inspector) in &this.inspectors {
+                                    if *owner == flow {
+                                        let variables =
+                                            request_source::variables(&draft.document().flow, step);
+                                        inspector
+                                            .update(cx, |i, cx| i.set_variables(variables, cx));
+                                    }
+                                }
+                            }
+                        }
+                        inputs::InputsEvent::Back => {
+                            this.inputs_open = false;
+                            this.focus_inspector(window, cx);
+                        }
+                    }
+                    cx.notify();
+                },
+            ));
+            self.inputs.insert(flow, editor);
+        }
         self.canvas_scroll.entry(draft.id()).or_insert_with(|| {
             gpui::ListState::new(
                 draft.document().flow.steps.len() + 3,
@@ -281,6 +330,19 @@ impl FlowsView {
         self.inspectors
             .get(&(draft.id(), draft.selected()?.id.clone()))
     }
+    pub(super) fn conceal_inputs(&self, cx: &mut Context<Self>) {
+        for editor in self.inputs.values() {
+            editor.update(cx, |v, cx| v.conceal(cx));
+        }
+    }
+    fn open_inputs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.inputs_open = true;
+        self.details = true;
+        if let Some(editor) = self.library.active().and_then(|d| self.inputs.get(&d.id())) {
+            editor.focus_handle(cx).focus(window, cx);
+        }
+        cx.notify();
+    }
     fn focus_inspector(&self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(inspector) = self.inspector() {
             inspector.focus_handle(cx).focus(window, cx);
@@ -288,6 +350,9 @@ impl FlowsView {
     }
 
     fn select_step(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.conceal_inputs(cx);
+        self.inputs_open = false;
+        cx.notify();
         if self
             .library
             .active()
@@ -301,6 +366,8 @@ impl FlowsView {
         cx.notify();
     }
     fn append_step(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.conceal_inputs(cx);
+        self.inputs_open = false;
         self.library.append_step();
         if let Some(draft) = self.library.active() {
             if let Some(scroll) = self.canvas_scroll.get(&draft.id()) {

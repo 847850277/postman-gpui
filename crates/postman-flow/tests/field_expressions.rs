@@ -188,3 +188,38 @@ fn editor_validation_uses_the_engine_subset() {
         assert!(validate_json_path(path).is_err(), "{path}");
     }
 }
+
+#[test]
+fn input_values_share_document_limits_and_preserve_literal_types() {
+    for value in [
+        json!(null),
+        json!(false),
+        json!(0),
+        json!("00123"),
+        json!("{{name}}"),
+        json!([1, null]),
+        json!({"input":"literal"}),
+    ] {
+        let parsed = parse_input_value(&value.to_string()).unwrap();
+        assert_eq!(parsed, value);
+        let mut flow = FlowDefinition::new("Input values");
+        flow.inputs = vec![
+            FlowInputSpec::required("required"),
+            FlowInputSpec::with_default("value", parsed).sensitive(),
+        ];
+        let document = FlowDocument::new(flow);
+        assert_eq!(
+            parse_flow_yaml(&write_flow_yaml(&document).unwrap()).unwrap(),
+            document
+        );
+    }
+    for source in ["", "null false", "{", &"[".repeat(200)] {
+        assert!(parse_input_value(source).is_err());
+    }
+    assert_eq!(
+        parse_input_value(&" ".repeat(2 * 1024 * 1024 + 1))
+            .unwrap_err()
+            .code,
+        DocumentErrorCode::LimitExceeded
+    );
+}

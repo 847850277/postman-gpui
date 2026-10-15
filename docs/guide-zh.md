@@ -161,11 +161,26 @@ Console 命令不会发送网络请求。
 
 Flow 草稿**不会跨重启保存**。YAML、工具栏 Check、文件 Export、Run 暂不可用。Request 编辑保留文档原有的
 条件、检查、导出、请求选项/认证、API 目录、嵌套步骤、输入输出和布局信息。
-JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充 Inputs、其他检查类型编辑和步骤管理，
+JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充其他检查类型编辑、步骤管理和 HTTP Add to flow，
 P5.3 接入编译诊断与文件保存，P6 接入执行。
 
 使用 `cargo test --locked -p postman-gpui --lib app::postman_app::flows` 和
 `cargo test --locked --test ui_flows` 验证原生控件、文档保留及布局。
+
+**Inputs** 提供 **Run inputs / Definitions** 两个视图，空流程也可使用。Definitions 可新增、
+重命名、删除输入，设置默认值和敏感标记。没有默认值表示必填；JSON `null` 是明确的默认值。
+Text 模式保留字符串原样，JSON 模式保留数字、布尔值、null、数组和对象；只有 JSON 字符串
+能无损切回 Text。非法名称、重复名称和错误 JSON 会保留草稿及上一次有效定义。重命名或删除
+更新变量提示，但不会改写已有引用。
+
+运行参数优先级是：**显式 Override → 所选环境的 base_url（仅同名已声明输入）→ 默认值 → 必填缺失**。
+Reset 移除运行覆盖值并恢复继承。Text 的空文本是空字符串，JSON `null`、`false`、`0` 都是有效值；
+空白或错误 JSON 会阻止参数准备，不会偷偷回退到旧值。切换环境保留显式覆盖值及错误草稿。
+运行参数与文档默认值分开，不改变文档修订，不写入环境、历史或文件，重启后不保留。
+
+敏感值默认隐藏，可显式揭示后编辑；离开编辑上下文会再次隐藏。敏感默认值仍属于文档，
+敏感标记用于脱敏，并非加密。返回 Step details 或点击节点可继续原有 Request / Checks / Exports
+草稿。本批仅准备输入参数，Check、保存/导出和真实运行仍属后续阶段。
 
 ## Flow DSL 与 CLI
 

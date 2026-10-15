@@ -223,16 +223,18 @@ impl FlowsView {
                 )
             })
             .child(div().flex_1())
-            .when(!compact, |d| {
-                d.child(
-                    Button::new("flow-inputs")
-                        .small()
-                        .ghost()
-                        .label("Inputs")
-                        .disabled(true)
-                        .tooltip("Input configuration is not available yet"),
-                )
-            })
+            .child(
+                Button::new("flow-inputs")
+                    .small()
+                    .ghost()
+                    .label(format!(
+                        "Inputs {}",
+                        active.map_or(0, |d| d.document().flow.inputs.len())
+                    ))
+                    .selected(self.inputs_open)
+                    .disabled(active.is_none())
+                    .on_click(cx.listener(|this, _, w, cx| this.open_inputs(w, cx))),
+            )
             .child(
                 Button::new("add-step")
                     .small()
@@ -248,6 +250,7 @@ impl FlowsView {
                         .label(if self.details { "Canvas" } else { "Details" })
                         .disabled(active.is_none())
                         .on_click(cx.listener(|this, _, _, cx| {
+                            this.conceal_inputs(cx);
                             this.details = !this.details;
                             cx.notify();
                         })),
@@ -540,6 +543,11 @@ impl FlowsView {
             .into_any_element()
     }
     fn render_inspector(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.inputs_open {
+            if let Some(editor) = self.library.active().and_then(|d| self.inputs.get(&d.id())) {
+                return editor.clone().into_any_element();
+            }
+        }
         if let Some(inspector) = self.inspector() {
             return inspector.clone().into_any_element();
         }
