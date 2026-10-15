@@ -468,18 +468,42 @@ impl FlowsView {
                             )
                             .child(
                                 div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_1()
+                                    .min_w_0()
+                                    .overflow_hidden()
                                     .text_size(m::CAPTION)
                                     .text_color(MUTED.resolve(cx))
-                                    .child(format!(
-                                        "{} checks · {} exports{}",
-                                        step.checks.len(),
-                                        step.exports.len(),
-                                        if step.when.is_some() {
-                                            " · Conditional"
-                                        } else {
-                                            ""
-                                        }
-                                    )),
+                                    .child(
+                                        div()
+                                            .flex_none()
+                                            .px_1()
+                                            .rounded(m::RADIUS)
+                                            .bg(PANEL_ALT.resolve(cx))
+                                            .child(format!("{} checks", step.checks.len())),
+                                    )
+                                    .children(step.exports.iter().take(2).map(|export| {
+                                        div()
+                                            .min_w_0()
+                                            .max_w(rems(6.))
+                                            .px_1()
+                                            .rounded(m::RADIUS)
+                                            .bg(ACCENT_SOFT.resolve(cx))
+                                            .text_color(INFO.resolve(cx))
+                                            .truncate()
+                                            .child(format!("↗ {}", export.name))
+                                    }))
+                                    .when(step.exports.len() > 2, |d| {
+                                        d.child(
+                                            div()
+                                                .flex_none()
+                                                .child(format!("+{}", step.exports.len() - 2)),
+                                        )
+                                    })
+                                    .when(step.when.is_some(), |d| {
+                                        d.child(div().min_w_0().truncate().child("Conditional"))
+                                    }),
                             ),
                     ),
                 )

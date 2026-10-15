@@ -80,6 +80,25 @@ SHA-256, signing status, and pass/fail result in issue #148.
       1024 × 768, 768 × 720, and 1024 × 600 at 1×/2×. Scroll long headers/body/errors independently
       of Console. Verify narrow Details mode, visible focus, mode hit areas, and clipboard/undo.
 
+## Flow Checks, Exports, and conditions (#222)
+
+- [ ] In Step configuration, switch Request/Checks/Exports using pointer and focused-tab arrows,
+      Home/End. Preserve drafts, independent scroll, and visible tab focus.
+- [ ] Add two status checks; edit 100/599, clear one, enter 99/600/fraction/text, then undo/correct.
+      Check counts follow valid definitions; readonly native check kinds retain order/content.
+- [ ] Add/remove export rows; try blank/duplicate names and invalid JSONPaths, then correct them.
+      Toggle Sensitive. Removing an earlier row preserves later input/undo and moves focus safely.
+- [ ] Instantiate a later inspector before editing earlier exports; valid rename/removal updates
+      its variable hints without resetting text/undo or rewriting references. Incomplete rows persist.
+- [ ] Expand Run condition, paste native nested JSON, malformed shapes, then blank. Valid fields
+      apply immediately, errors keep their last valid value. Verify clipboard, Chinese IME, multiline
+      Enter, Tab/Shift+Tab and undo; no HTTP send or Console submission occurs.
+- [ ] Keep different drafts in two steps/two flows, switch pages/themes/Console modes and resize.
+      API/loop configuration remains readonly. No success state appears for Check or Run.
+- [ ] Compare light/dark inspector states to the HTML at 1440×960; check 1920×1080, 1024×768,
+      768×720, 1024×600 at 1×/2×. Long error/export content scrolls independently; actions remain
+      reachable and the Console retains its bounds. Multiple checks and Sensitive are native additions.
+
 ## Flow Console (#215)
 
 - [ ] At 1440 × 960, grow the inspector beyond 480px. Verify canvas space and restore sizes after

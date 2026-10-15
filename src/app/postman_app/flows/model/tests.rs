@@ -166,3 +166,62 @@ fn request_field_edits_and_invalid_revisions_preserve_every_other_field() {
     expected.flow.steps[1].name = "Target identity".into();
     assert_eq!(library.active().unwrap().document(), &expected);
 }
+
+#[test]
+fn definition_edits_preserve_requests_references_catalog_and_other_flows() {
+    use postman_flow::{ResponseCheck, ResponseExport};
+    let mut expected = parse_flow_yaml(include_str!(
+        "../../../../../crates/postman-flow/examples/flows/httpbingo_catalog.http.yml"
+    ))
+    .unwrap();
+    if let HttpRequestSource::Inline(r) = &mut expected.flow.steps[1].request {
+        r.options.timeout_ms = Some(1379);
+        r.auth = Some(postman_flow::AuthTemplate::HmacSha256 {
+            secret: TextTemplate::literal("fixture"),
+            param: "sig".into(),
+        });
+    }
+    let mut library = FlowLibrary::default();
+    let first = library.insert(expected.clone());
+    let checks = vec![
+        ResponseCheck::StatusEquals(201),
+        ResponseCheck::JsonValueEquals {
+            path: "$.json".into(),
+            expected: JsonTemplate::literal(serde_json::json!({"key":[true,1,null]})),
+        },
+    ];
+    let exports = vec![ResponseExport::json("renamed", "$.json.id").sensitive()];
+    let condition = Some(ConditionExpr::eq(
+        JsonTemplate::input("client"),
+        JsonTemplate::literal("test"),
+    ));
+    for edit in [
+        StepEdit::Checks(checks.clone()),
+        StepEdit::Exports(exports.clone()),
+        StepEdit::Condition(condition.clone()),
+    ] {
+        library.edit_step(first, "seed", &edit); // API is readonly, including delayed events.
+    }
+    assert_eq!(library.active().unwrap().document(), &expected);
+    let second = library.create("Other flow").unwrap();
+    library.append_step();
+    let other = library.active().unwrap().document().clone();
+    for edit in [
+        StepEdit::Checks(checks.clone()),
+        StepEdit::Exports(exports.clone()),
+        StepEdit::Condition(condition.clone()),
+    ] {
+        library.edit_step(first, "echo", &edit);
+    }
+    assert_eq!(library.active().unwrap().id(), second);
+    assert_eq!(library.active().unwrap().document(), &other);
+    library.select(first);
+    expected.flow.steps[1].checks = checks;
+    expected.flow.steps[1].exports = exports;
+    expected.flow.steps[1].when = condition;
+    assert_eq!(library.active().unwrap().document(), &expected);
+    assert_eq!(
+        parse_flow_yaml(&write_flow_yaml(&expected).unwrap()).unwrap(),
+        expected
+    );
+}

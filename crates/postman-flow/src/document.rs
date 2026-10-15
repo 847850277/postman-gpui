@@ -10,8 +10,9 @@ mod fields;
 #[path = "document_wire.rs"]
 mod wire;
 pub use fields::{
-    parse_body_expression, parse_header_expressions, parse_text_expression, write_body_expression,
-    write_header_expressions, write_text_expression,
+    parse_body_expression, parse_condition_expression, parse_header_expressions,
+    parse_text_expression, write_body_expression, write_condition_expression,
+    write_header_expressions, write_response_check, write_text_expression,
 };
 
 pub const FLOW_DOCUMENT_VERSION: u64 = 1;

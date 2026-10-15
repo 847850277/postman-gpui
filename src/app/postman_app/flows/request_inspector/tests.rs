@@ -1,3 +1,4 @@
+mod definitions;
 use super::super::{
     tests::{add, click, create, press, replace, settle, setup},
     FlowsView,
@@ -26,7 +27,7 @@ fn revision(flows: &Entity<FlowsView>, cx: &mut VisualTestContext) -> u64 {
 /// Scroll the actual inspector before sending pointer/keyboard events into its retained Kit textarea.
 fn edit_source(cx: &mut VisualTestContext, id: &'static str, text: &str) {
     for _ in 0..3 {
-        let panel = cx.debug_bounds("flow-inspector").unwrap();
+        let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
         let field = cx.debug_bounds(id).unwrap();
         if field.top() >= panel.top() && field.bottom() <= panel.bottom() {
             break;
@@ -47,7 +48,7 @@ fn edit_source(cx: &mut VisualTestContext, id: &'static str, text: &str) {
     settle(cx);
 }
 fn top(cx: &mut VisualTestContext) {
-    let panel = cx.debug_bounds("flow-inspector").unwrap();
+    let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
     scroll(cx, panel.origin + point(px(5.), px(5.)), px(5000.));
     settle(cx);
 }
@@ -295,7 +296,7 @@ fn long_source_errors_fit_the_inspector_at_all_supported_sizes(cx: &mut TestAppC
                 cx.simulate_window_resize(handle, gpui::size(px(width), px(height)));
                 settle(cx);
                 top(cx);
-                let panel = cx.debug_bounds("flow-inspector").unwrap();
+                let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
                 let console = cx.debug_bounds("flow-results").unwrap();
                 assert!(panel.bottom() <= console.top() + px(1.));
                 for id in [
@@ -313,7 +314,7 @@ fn long_source_errors_fit_the_inspector_at_all_supported_sizes(cx: &mut TestAppC
                 let panel_height = panel.size.height;
                 scroll(cx, panel.origin + point(px(5.), px(5.)), -panel_height);
                 settle(cx);
-                assert!(owner.read_with(cx, |v, _| v.scroll.offset().y < px(0.)));
+                assert!(owner.read_with(cx, |v, _| v.tab_scroll[0].offset().y < px(0.)));
                 assert_eq!(cx.debug_bounds("flow-results").unwrap(), console);
                 assert_eq!(revision(&flows, cx), before);
                 assert!(owner.read_with(cx, |v, _| v.body_error.is_some()

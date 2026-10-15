@@ -20,12 +20,23 @@ in [saved requests](saved-requests.md).
   document into its retained Kit `EditorState`. A newer response or Pretty/Raw change supersedes
   pending work, and closing a tab releases its editor. Full-response copy uses the original body.
 
-Flow Request details follow the same live-edit rule, with a separate typed/source boundary:
+Flow step configuration follows the same live-edit rule, with a separate typed/source boundary:
 `FlowLibrary` owns `FlowDocument`; a retained `RequestInspector` per `(FlowId, step ID)` owns
-raw URL/header/body buffers, errors, disclosure state, and scroll. Valid source edits replace only
+raw URL/header/body/condition buffers, stable check/export row IDs, errors, tabs, disclosures, and per-pane scroll. Valid source edits replace only
 the corresponding native field. Invalid edits advance the session revision but leave its last valid
 value intact. Context switches reuse the existing entities; rendering never projects source text.
 Representation switches are allowed only when lossless and preserve an equivalent alternate buffer.
+
+Status checks retain their ordered native list, including readonly kinds. Blank status removes only
+that typed check; invalid source retains it. Export rows keep separate last-valid projections; native
+name/JSONPath validation and duplicate reconciliation prevent another edit from claiming an invalid
+row's reserved name. Row removal chooses a surviving input (or Add action) for focus. Runtime values
+are never read. Export changes refresh only derived hints in cached later inspectors; their text,
+composition and undo entities stay untouched, and references are never rewritten. `when` shares the
+native condition wire codec and its source/depth protections. Blank removes it; invalid nonempty
+source advances revision without replacing its last-valid typed expression. Only top-level inline
+HTTP definitions are editable; API/loop configuration stays readonly. Whole-flow compilation is not
+part of keystroke processing.
 
 ## Implementation entry points
 
@@ -44,6 +55,7 @@ clipboard, and editing history; keep request validation and draft mutations in a
 
 | Coverage | Tests |
 | --- | --- |
+| Flow checks/exports/conditions, stable rows, cached hints, source isolation, and native codecs | [Inspector tests](../src/app/postman_app/flows/request_inspector/tests/definitions.rs) and [field codec tests](../crates/postman-flow/tests/field_expressions.rs) |
 | Active URL, Params, Headers, JSON/Raw, URL-encoded and multipart edits reach the outgoing request | [ui_send.rs](../tests/ui_send.rs) |
 | Authorization, per-tab drafts, row restoration, Scripts and Tests | [ui_workspace.rs](../tests/ui_workspace.rs) |
 | Cut/paste, deletion, focus traversal and keyboard actions | [ui_keyboard.rs](../tests/ui_keyboard.rs) |

@@ -1,6 +1,6 @@
 //! JSON field editing uses exactly the document's wire types and domain conversions.
 use super::{wire, DocumentError, DocumentErrorCode, MAX_DOCUMENT_BYTES};
-use crate::{BodyTemplate, TextTemplate};
+use crate::{BodyTemplate, ConditionExpr, ResponseCheck, TextTemplate};
 use serde::{de::DeserializeOwned, Serialize};
 
 fn parse<T: DeserializeOwned>(source: &str) -> Result<T, DocumentError> {
@@ -89,4 +89,22 @@ pub fn parse_body_expression(source: &str) -> Result<BodyTemplate, DocumentError
 /// Encode a body using the same typed JSON/text distinction as the document codec.
 pub fn write_body_expression(value: &BodyTemplate) -> Result<String, DocumentError> {
     write(wire::Body::from(value))
+}
+
+/// Parse an optional native condition. Only blank source removes the condition.
+pub fn parse_condition_expression(source: &str) -> Result<Option<ConditionExpr>, DocumentError> {
+    if source.trim().is_empty() {
+        return Ok(None);
+    }
+    parse::<wire::ConditionWire>(source).map(|value| Some(value.into()))
+}
+
+/// Encode a condition using the document's typed JSON operands, without evaluation.
+pub fn write_condition_expression(value: &ConditionExpr) -> Result<String, DocumentError> {
+    write(wire::ConditionWire::from(value))
+}
+
+/// Encode a response-check definition for lossless readonly inspection.
+pub fn write_response_check(value: &ResponseCheck) -> Result<String, DocumentError> {
+    write(wire::Check::from(value))
 }

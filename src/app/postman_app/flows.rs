@@ -255,6 +255,21 @@ impl FlowsView {
                 self._subscriptions
                     .push(cx.subscribe(&inspector, move |this, _, edit, cx| {
                         this.library.edit_step(flow, &id, edit);
+                        if matches!(edit, model::StepEdit::Exports(_)) {
+                            if let Some(draft) =
+                                this.library.drafts().iter().find(|d| d.id() == flow)
+                            {
+                                for ((owner, step), inspector) in &this.inspectors {
+                                    if *owner == flow && step != &id {
+                                        let variables =
+                                            request_source::variables(&draft.document().flow, step);
+                                        inspector.update(cx, |inspector, cx| {
+                                            inspector.set_variables(variables, cx)
+                                        });
+                                    }
+                                }
+                            }
+                        }
                         cx.notify();
                     }));
                 self.inspectors.insert(key, inspector);
