@@ -193,6 +193,9 @@ fn prepare_body(response: &ResponseState, pretty: bool) -> PreparedBody {
 
 fn source(response: &ResponseState) -> (&str, bool) {
     match response {
+        ResponseState::Success {
+            is_binary: true, ..
+        } => ("", false),
         ResponseState::Success { body, .. } => (body, !body.is_empty()),
         ResponseState::Historical { response, .. } => match &response.body {
             HistoricalResponseBody::Empty => ("Empty response body", false),
@@ -358,6 +361,8 @@ mod tests {
         let original = Arc::new(ResponseState::Success {
             status: 200,
             body: r#"{"message":"中😀","n":1}"#.into(),
+            body_bytes: r#"{"message":"中😀","n":1}"#.as_bytes().into(),
+            is_binary: false,
             headers: Vec::new(),
             elapsed_ms: 1,
         });
@@ -431,6 +436,8 @@ mod tests {
             let response = ResponseState::Success {
                 status: 200,
                 body: raw.into(),
+                body_bytes: raw.as_bytes().into(),
+                is_binary: false,
                 headers: Vec::new(),
                 elapsed_ms: 1,
             };

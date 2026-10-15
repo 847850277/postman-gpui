@@ -409,6 +409,44 @@ fn entry_with_response(
 }
 
 #[test]
+fn received_size_survives_history_for_binary_and_reencoded_text() {
+    let cases = [
+        (vec![0xff; 102_400], None, "application/octet-stream"),
+        (vec![0xff; 32], None, "text/plain"),
+        (
+            b"caf\xe9".to_vec(),
+            Some("café".to_owned()),
+            "text/plain; charset=windows-1252",
+        ),
+        (vec![0xef, 0xbb, 0xbf], Some(String::new()), "text/plain"),
+    ];
+    for (bytes, text, mime) in cases {
+        let response = postman_http::HttpResponse::from_bytes(
+            200,
+            vec![("content-type".into(), mime.into())],
+            bytes.clone(),
+            text.clone(),
+        );
+        let mut entry = completed_entry(HttpMethod::GET, RequestBody::None);
+        entry.status = Some(200);
+        entry.elapsed_ms = Some(0);
+        entry.response_size = Some(bytes.len());
+        entry.historical_response = Some(HistoricalResponse::from_response(&response));
+        let restored = round_trip(&entry);
+        assert_eq!(restored.response_size, Some(bytes.len()));
+        let historical = restored.historical_response.unwrap();
+        assert_eq!(historical.original_size, bytes.len());
+        if let Some(text) = text.filter(|text| !text.is_empty()) {
+            assert_eq!(historical.body.preview(), Some(text.as_str()));
+            assert_eq!(historical.persisted_size, text.len());
+        } else {
+            assert_eq!(historical.body, HistoricalResponseBody::Unsupported);
+            assert_eq!(historical.persisted_size, 0);
+        }
+    }
+}
+
+#[test]
 fn v2_json_response_round_trip_sanitizes_headers_and_structured_secret_fields() {
     let entry = entry_with_response(
         418,

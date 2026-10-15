@@ -14,6 +14,17 @@ fn open(
     Entity<ResponseViewer>,
     Entity<WorkspaceViewModel>,
 ) {
+    open_response(HttpResponse::success(text.into()), cx)
+}
+
+fn open_response(
+    response: HttpResponse,
+    cx: &mut TestAppContext,
+) -> (
+    AnyWindowHandle,
+    Entity<ResponseViewer>,
+    Entity<WorkspaceViewModel>,
+) {
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();
         model
@@ -21,7 +32,7 @@ fn open(
             .unwrap()
             .set_url("https://httpbingo.org/anything");
         let pending = model.begin_send().unwrap();
-        assert!(model.complete_send(pending, Ok(HttpResponse::success(text.into()))));
+        assert!(model.complete_send(pending, Ok(response)));
         model
     });
     let observed = model.clone();
@@ -63,6 +74,75 @@ fn set_pretty(
 
 fn editor(viewer: &Entity<ResponseViewer>, cx: &App) -> Entity<EditorState> {
     viewer.read(cx).body.read(cx).editor.clone()
+}
+
+#[gpui_kit::test]
+fn binary_response_hides_text_controls_and_saves_original_snapshot(cx: &mut TestAppContext) {
+    let bytes = (0..102_400).map(|i| (i % 256) as u8).collect::<Vec<_>>();
+    let (handle, viewer, model) = open_response(
+        HttpResponse::from_bytes(
+            200,
+            vec![("content-type".into(), "application/octet-stream".into())],
+            bytes.clone(),
+            None,
+        ),
+        cx,
+    );
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(editor(&viewer, cx).read(cx).value().is_empty(), "binary bytes never enter the editor");
+        assert!(window.try_find("response-copy-button").is_none());
+        assert!(window.try_find("response-pretty").is_none());
+        assert!(window.try_find("response-raw").is_none());
+        let response = model.read(cx).active_request().unwrap().response();
+        assert!(matches!(response, ResponseState::Success { body_bytes, is_binary: true, .. } if body_bytes.len() == 102_400));
+        window.click("response-save", cx);
+    }).unwrap();
+    assert!(cx.did_prompt_for_new_path());
+    // A different response arriving while the picker is open must not replace the saved bytes.
+    model.update(cx, |model, cx| {
+        let pending = model.begin_send().unwrap();
+        assert!(model.complete_send(pending, Ok(HttpResponse::success("later text".into()))));
+        cx.notify();
+    });
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("response.bin");
+    cx.simulate_new_path_selection(|_| Some(path.clone()));
+    cx.run_until_parked();
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
+}
+
+#[gpui_kit::test]
+fn save_text_preserves_original_charset_and_cancel_writes_nothing(cx: &mut TestAppContext) {
+    let bytes = b"caf\xe9".to_vec();
+    let (handle, viewer, _) = open_response(
+        HttpResponse::from_bytes(
+            200,
+            vec![(
+                "content-type".into(),
+                "text/plain; charset=windows-1252".into(),
+            )],
+            bytes.clone(),
+            Some("café".into()),
+        ),
+        cx,
+    );
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert_eq!(editor(&viewer, cx).read(cx).value().as_ref(), "café");
+        window.click("response-save", cx);
+    })
+    .unwrap();
+    assert!(cx.did_prompt_for_new_path());
+    cx.simulate_new_path_selection(|_| None);
+    cx.run_until_parked();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("response.txt");
+    cx.update_window(handle, |_, window, cx| window.click("response-save", cx))
+        .unwrap();
+    cx.simulate_new_path_selection(|_| Some(path.clone()));
+    cx.run_until_parked();
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
 }
 
 #[test]
@@ -241,6 +321,8 @@ fn kit_response_scrollbars_stay_in_viewport_and_raw_wraps_without_horizontal_ove
                     Arc::new(ResponseState::Success {
                         status: 200,
                         body: "short".into(),
+                        body_bytes: b"short".as_slice().into(),
+                        is_binary: false,
                         headers: Vec::new(),
                         elapsed_ms: 1,
                     }),

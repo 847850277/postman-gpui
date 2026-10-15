@@ -48,6 +48,21 @@ pub struct HistoricalResponse {
 }
 
 impl HistoricalResponse {
+    pub fn from_response(response: &postman_http::HttpResponse) -> Self {
+        let mut history = Self::completed(
+            response.status,
+            response.headers.clone(),
+            response.body.clone(),
+            response.elapsed_ms,
+        );
+        history.original_size = response.body_bytes().len();
+        if response.is_binary() || (history.original_size > 0 && response.body.is_empty()) {
+            history.body = HistoricalResponseBody::Unsupported;
+            history.persisted_size = 0;
+        }
+        history
+    }
+
     /// Build the unsanitized runtime candidate produced by a completed send. The persistence
     /// snapshot boundary owns sanitization, body classification, and truncation.
     pub fn completed(

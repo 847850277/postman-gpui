@@ -54,6 +54,8 @@ pub enum ResponseState {
     Success {
         status: u16,
         body: String,
+        body_bytes: Arc<[u8]>,
+        is_binary: bool,
         headers: Vec<(String, String)>,
         elapsed_ms: u128,
     },
@@ -653,10 +655,14 @@ impl RequestViewModel {
         }
         match result {
             Ok(result) => {
+                let body_bytes = result.shared_body_bytes();
+                let is_binary = result.is_binary();
                 self.redirect_chain = result.redirect_chain;
                 self.response = Arc::new(ResponseState::Success {
                     status: result.status,
                     body: result.body,
+                    body_bytes,
+                    is_binary,
                     headers: result.headers,
                     elapsed_ms: result.elapsed_ms,
                 });
@@ -1113,14 +1119,7 @@ impl WorkspaceViewModel {
         stored_cookies: Vec<(String, String)>,
     ) -> SendCompletion {
         let was_cancelled = pending.was_cancelled();
-        let completed_response = result.as_ref().ok().map(|response| {
-            HistoricalResponse::completed(
-                response.status,
-                response.headers.clone(),
-                response.body.clone(),
-                response.elapsed_ms,
-            )
-        });
+        let completed_response = result.as_ref().ok().map(HistoricalResponse::from_response);
         let successful_log = result
             .as_ref()
             .ok()
@@ -1709,14 +1708,12 @@ mod tests {
             .any(|(key, value)| key == "X-Trace" && value == "abc"));
         assert!(workspace.complete_send(
             pending,
-            Ok(HttpResponse {
-                status: 201,
-                headers: vec![("x-test".into(), "yes".into())],
-                body: r#"{"ok":true}"#.into(),
-                elapsed_ms: 7,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(
+                201,
+                vec![("x-test".into(), "yes".into())],
+                r#"{"ok":true}"#.into()
+            )
+            .with_elapsed_ms(7))
         ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),
@@ -2618,14 +2615,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 204,
-                headers: Vec::new(),
-                body: String::new(),
-                elapsed_ms: 2,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(204, Vec::new(), String::new()).with_elapsed_ms(2))
         ));
 
         assert_eq!(workspace.history_len(), 1);
@@ -2650,14 +2640,12 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 418,
-                headers: vec![("content-type".into(), "text/plain".into())],
-                body: "I'm a teapot!".into(),
-                elapsed_ms: 7,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(
+                418,
+                vec![("content-type".into(), "text/plain".into())],
+                "I'm a teapot!".into()
+            )
+            .with_elapsed_ms(7))
         ));
 
         assert!(matches!(
@@ -2691,14 +2679,12 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 200,
-                headers: vec![("content-type".into(), "application/json".into())],
-                body: final_body.into(),
-                elapsed_ms: 11,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(
+                200,
+                vec![("content-type".into(), "application/json".into())],
+                final_body.into()
+            )
+            .with_elapsed_ms(11))
         ));
 
         assert!(matches!(
@@ -2729,14 +2715,12 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 200,
-                headers: vec![("content-type".into(), "application/json".into())],
-                body: body.into(),
-                elapsed_ms: 13,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(
+                200,
+                vec![("content-type".into(), "application/json".into())],
+                body.into()
+            )
+            .with_elapsed_ms(13))
         ));
 
         let ResponseState::Success {
@@ -2744,6 +2728,7 @@ mod tests {
             headers,
             body: actual_body,
             elapsed_ms,
+            ..
         } = workspace.active_request().unwrap().response()
         else {
             panic!("JSON request should complete as an HTTP response");
@@ -2783,14 +2768,12 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 200,
-                headers: vec![("content-type".into(), "application/json".into())],
-                body: r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into(),
-                elapsed_ms: 8,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(
+                200,
+                vec![("content-type".into(), "application/json".into())],
+                r#"{"cookies":{"session":"cookie-e2e-demo"}}"#.into()
+            )
+            .with_elapsed_ms(8))
         ));
         let response_before_clear = workspace.active_request().unwrap().response().clone();
 
@@ -2834,14 +2817,10 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             first,
-            Ok(HttpResponse {
-                status: 200,
-                headers: Vec::new(),
-                body: "first response".to_string(),
-                elapsed_ms: 10,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(
+                HttpResponse::new(200, Vec::new(), "first response".to_string())
+                    .with_elapsed_ms(10)
+            )
         ));
 
         assert!(matches!(
@@ -3466,14 +3445,7 @@ mod tests {
         assert!(complete_and_confirm_history(
             &mut workspace,
             pending,
-            Ok(HttpResponse {
-                status: 200,
-                headers: Vec::new(),
-                body: "new response".into(),
-                elapsed_ms: 5,
-                stored_cookies: Vec::new(),
-                redirect_chain: Vec::new(),
-            })
+            Ok(HttpResponse::new(200, Vec::new(), "new response".into()).with_elapsed_ms(5))
         ));
         assert!(matches!(
             workspace.active_request().unwrap().response(),

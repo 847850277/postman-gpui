@@ -15,7 +15,8 @@ use gpui_kit::{
     base::Tab,
     component::{
         input::{Copy, SelectAll},
-        Icon,
+        notification::Notification,
+        Icon, Sizable, WindowExt,
     },
 };
 use std::{
@@ -291,7 +292,11 @@ impl ResponseViewer {
 
     fn raw_response_body(&self, cx: &App) -> Option<String> {
         match self.view_model.read(cx).active_request()?.response() {
-            ResponseState::Success { body, .. } if !body.is_empty() => Some(body.clone()),
+            ResponseState::Success {
+                body,
+                is_binary: false,
+                ..
+            } if !body.is_empty() => Some(body.clone()),
             ResponseState::Historical { response, .. } => response
                 .body
                 .preview()
@@ -333,6 +338,57 @@ impl ResponseViewer {
         cx: &mut Context<Self>,
     ) {
         self.copy_raw_response_body(cx);
+    }
+
+    fn save_response_body(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let ResponseState::Success {
+            body_bytes,
+            is_binary,
+            ..
+        } = self.response.as_ref()
+        else {
+            return;
+        };
+        // Capture this response before opening the picker: switching tabs or sending again
+        // must not change the bytes written by an already-started save.
+        let bytes = body_bytes.clone();
+        let directory = directories::UserDirs::new()
+            .map(|dirs| dirs.download_dir().unwrap_or(dirs.home_dir()).to_path_buf())
+            .unwrap_or_default();
+        let selection = cx.prompt_for_new_path(
+            &directory,
+            Some(if *is_binary {
+                "response.bin"
+            } else {
+                "response.txt"
+            }),
+        );
+        cx.spawn_in(window, async move |_, cx| {
+            let result = match selection.await {
+                Ok(Ok(Some(path))) => {
+                    cx.background_executor()
+                        .spawn(async move {
+                            std::fs::write(&path, &bytes).map_err(|error| {
+                                format!("Couldn’t save {}: {error}", path.display())
+                            })
+                        })
+                        .await
+                }
+                Ok(Ok(None)) => return,
+                Ok(Err(error)) => Err(format!("Couldn’t open the save dialog: {error}")),
+                Err(_) => return,
+            };
+            let _ = cx.update(|window, cx| {
+                window.push_notification(
+                    match result {
+                        Ok(()) => Notification::success("Response saved"),
+                        Err(message) => Notification::error(message),
+                    },
+                    cx,
+                );
+            });
+        })
+        .detach();
     }
 
     fn pane_tab(
@@ -793,7 +849,9 @@ impl Render for ResponseViewer {
             ResponseState::Success { .. } | ResponseState::Historical { .. }
         );
         let has_copyable_body = match &state {
-            ResponseState::Success { body, .. } => !body.is_empty(),
+            ResponseState::Success {
+                body, is_binary, ..
+            } => !is_binary && !body.is_empty(),
             ResponseState::Historical { response, .. } => response
                 .body
                 .preview()
@@ -826,13 +884,13 @@ impl Render for ResponseViewer {
         let (status, elapsed, size, status_color) = match &state {
             ResponseState::Success {
                 status,
-                body,
+                body_bytes,
                 elapsed_ms,
                 ..
             } => (
                 status_label(*status),
                 format!("{elapsed_ms} ms"),
-                format_bytes(body.len()),
+                format_bytes(body_bytes.len()),
                 if *status < 400 { OK } else { ERROR },
             ),
             ResponseState::Historical { response, .. } => (
@@ -871,7 +929,17 @@ impl Render for ResponseViewer {
             ResponseState::Historical { response, .. } => response.media_type.clone(),
             _ => None,
         };
-        let empty_body = matches!(&state, ResponseState::Success { body, .. } if body.is_empty());
+        let empty_body =
+            matches!(&state, ResponseState::Success { body_bytes, .. } if body_bytes.is_empty());
+        let binary_body = matches!(
+            &state,
+            ResponseState::Success {
+                is_binary: true,
+                ..
+            }
+        );
+        let can_save_body =
+            matches!(&state, ResponseState::Success { body_bytes, .. } if !body_bytes.is_empty());
         let body_format = if media_type.as_deref().is_some_and(|m| m.contains("json")) {
             "JSON"
         } else {
@@ -1064,6 +1132,15 @@ impl Render for ResponseViewer {
                             )
                         })
                         .child(div().flex_1())
+                        .when(pane == ResponsePane::Body && can_save_body, |d| {
+                            d.child(gpui_kit::component::button::Button::new("response-save")
+                                .label("Save as…")
+                                .small()
+                                .debug_selector(|| "response-save".into())
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.save_response_body(window, cx)
+                                })))
+                        })
                         .when(pane == ResponsePane::Body && has_copyable_body, |d| {
                             d.child(
                                 div()
@@ -1195,7 +1272,15 @@ impl Render for ResponseViewer {
                                     .child("Empty response body"),
                             )
                         })
-                        .when(!empty_body, |d| d.child(self.body.clone())),
+                        .when(binary_body, |d| {
+                            d.child(div()
+                                .debug_selector(|| "response-binary-body".into())
+                                .p_4()
+                                .text_size(m::BODY)
+                                .text_color(MUTED.resolve(cx))
+                                .child("Binary content. Save the response to view it in another application."))
+                        })
+                        .when(!empty_body && !binary_body, |d| d.child(self.body.clone())),
                     ResponsePane::Headers => div()
                         .flex_1()
                         .min_h_0()
@@ -1273,7 +1358,10 @@ impl Render for ResponseViewer {
                     .text_size(m::CAPTION)
                     .text_color(MUTED.resolve(cx))
                     .child(div().min_w_0().overflow_hidden().text_ellipsis().child(
-                        media_type.map_or_else(|| "UTF-8".into(), |t| format!("UTF-8 · {t}")),
+                        {
+                            let format = if binary_body { "Binary" } else { "UTF-8" };
+                            media_type.map_or_else(|| format.into(), |t| format!("{format} · {t}"))
+                        },
                     ))
                     .child("Read only"),
             )

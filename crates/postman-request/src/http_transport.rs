@@ -125,7 +125,11 @@ async fn finish_response(
     max_response_body_bytes: u64,
 ) -> Result<HttpResponse, HttpError> {
     let status = response.status().as_u16();
-    let encoding = response_encoding(&response);
+    let media_type = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<Mime>().ok());
     let content_length = response.content_length();
     // Size hints provide an early rejection when available, but are absent for chunked and
     // transparently decoded responses. The streaming check below remains authoritative.
@@ -153,9 +157,9 @@ async fn finish_response(
         ensure_response_body_size(max_response_body_bytes, size_bytes)?;
         body_bytes.extend_from_slice(&chunk);
     }
-    let (body, _, _) = encoding.decode(&body_bytes);
-
-    Ok(HttpResponse::new(status, headers, body.into_owned()).with_redirect_chain(redirect_chain))
+    let text = decode_text_body(&body_bytes, media_type.as_ref());
+    Ok(HttpResponse::from_bytes(status, headers, body_bytes, text)
+        .with_redirect_chain(redirect_chain))
 }
 
 fn ensure_response_body_size(limit_bytes: u64, size_bytes: u64) -> Result<(), HttpError> {
@@ -169,17 +173,48 @@ fn ensure_response_body_size(limit_bytes: u64, size_bytes: u64) -> Result<(), Ht
     }
 }
 
-fn response_encoding(response: &Response) -> &'static Encoding {
-    response
-        .headers()
-        .get(CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<Mime>().ok())
+fn decode_text_body(bytes: &[u8], media_type: Option<&Mime>) -> Option<String> {
+    if bytes.is_empty() {
+        return Some(String::new());
+    }
+    if media_type.is_some_and(|mime| {
+        mime.type_() != mime::TEXT
+            && !matches!(
+                mime.subtype().as_str(),
+                "json"
+                    | "xml"
+                    | "javascript"
+                    | "ecmascript"
+                    | "x-javascript"
+                    | "x-www-form-urlencoded"
+                    | "graphql"
+                    | "sql"
+                    | "x-ndjson"
+                    | "json-seq"
+            )
+            && !mime
+                .suffix()
+                .is_some_and(|suffix| suffix == mime::JSON || suffix == mime::XML)
+    }) {
+        return None;
+    }
+    let encoding = media_type
         .and_then(|mime| {
             mime.get_param("charset")
                 .and_then(|charset| Encoding::for_label(charset.as_str().as_bytes()))
         })
-        .unwrap_or(UTF_8)
+        .unwrap_or(UTF_8);
+    let (text, _, had_errors) = encoding.decode(bytes);
+    // Respect declared legacy charsets, but never display lossy decoding or binary controls.
+    if had_errors
+        || text
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        None
+    } else {
+        Some(text.into_owned())
+    }
 }
 
 #[cfg(test)]
@@ -198,6 +233,78 @@ mod tests {
                 Request::new(HttpMethod::GET, url),
                 RequestOptions::default(),
             ))
+    }
+
+    #[test]
+    fn response_bytes_survive_binary_detection_and_character_decoding() {
+        let cases = [
+            (Some("application/octet-stream"), vec![0xff; 102_400], None),
+            (
+                Some("application/octet-stream"),
+                b"ASCII binary".to_vec(),
+                None,
+            ),
+            (Some("image/png"), b"\x89PNG\r\n\x1a\n".to_vec(), None),
+            (None, vec![0xff, 0xfe, 0x00], None),
+            (None, b"embedded\0nul".to_vec(), None),
+            (Some("text/plain"), vec![0xff], None),
+            (
+                Some("text/plain; charset=windows-1252"),
+                b"caf\xe9".to_vec(),
+                Some("café"),
+            ),
+            (
+                Some("text/plain; charset=utf-16le"),
+                vec![0xff, 0xfe, 0x2d, 0x4e],
+                Some("中"),
+            ),
+            (
+                Some("application/problem+json"),
+                b"{\"ok\":true}".to_vec(),
+                Some("{\"ok\":true}"),
+            ),
+            (Some("image/svg+xml"), b"<svg/>".to_vec(), Some("<svg/>")),
+            (None, "hello 中\n".as_bytes().to_vec(), Some("hello 中\n")),
+            (Some("application/octet-stream"), Vec::new(), Some("")),
+        ];
+        let mut server = mockito::Server::new();
+        let client = RequestClient::try_new("postman-request-test/0.1.0").unwrap();
+        for (i, (content_type, raw, text)) in cases.into_iter().enumerate() {
+            let path = format!("/body-{i}");
+            let mut mock = server
+                .mock("GET", path.as_str())
+                .with_status(200)
+                .with_body(raw.clone());
+            if let Some(content_type) = content_type {
+                mock = mock.with_header("content-type", content_type);
+            }
+            let mock = mock.create();
+            let response = execute_get(&client, format!("{}{path}", server.url())).unwrap();
+            mock.assert();
+            assert_eq!(response.body_bytes(), raw, "case {i}");
+            assert_eq!(response.shared_body_bytes().as_ref(), raw, "case {i}");
+            assert_eq!(response.is_binary(), text.is_none(), "case {i}");
+            assert_eq!(response.body, text.unwrap_or_default(), "case {i}");
+        }
+    }
+
+    #[test]
+    fn compressed_binary_retains_decompressed_bytes_for_size_and_save() {
+        let raw = vec![0xff; 102_400];
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&raw).unwrap();
+        let mut server = mockito::Server::new();
+        let mock = server
+            .mock("GET", "/compressed-binary")
+            .with_header("content-type", "application/octet-stream")
+            .with_header("content-encoding", "gzip")
+            .with_body(encoder.finish().unwrap())
+            .create();
+        let client = RequestClient::try_new("postman-request-test/0.1.0").unwrap();
+        let response = execute_get(&client, format!("{}/compressed-binary", server.url())).unwrap();
+        mock.assert();
+        assert!(response.is_binary());
+        assert_eq!(response.body_bytes(), raw);
     }
 
     #[test]

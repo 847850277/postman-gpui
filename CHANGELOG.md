@@ -5,6 +5,13 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve response bytes before character decoding so binary and non-UTF-8 response sizes
+  remain accurate in the response panel and History. Binary responses show a placeholder;
+  Save as writes the original body bytes, including when the active response changes.
+- Keep the full OPTIONS method visible in Flow request selectors and their dropdown menus.
+
 ### Added
 
 - GPUI Kit Flow Request details with literal/expression URLs, collapsible ordered headers,

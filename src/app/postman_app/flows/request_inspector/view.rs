@@ -75,7 +75,8 @@ impl RequestInspector {
                     .selected(self.expression_url)
                     .on_click(cx.listener(|this, _, w, cx| this.switch_url(true, w, cx))),
             );
-        let method = div().w(rems(5.75)).flex_none().child(field(
+        // Leave room for OPTIONS, the caret/checkmark, and Kit's control/menu padding.
+        let method = div().w(rems(7.5)).flex_none().child(field(
             "Method",
             div().debug_selector(|| "flow-step-method".into()).child(
                 Select::new(&self.method)
