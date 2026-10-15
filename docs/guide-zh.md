@@ -109,7 +109,7 @@ python3 scripts/release.py package
 python3 scripts/release.py package --universal-macos
 ```
 
-## 原生 Flow 编辑器（P5.2 — Request 详情）
+## 原生 Flow 编辑器（P5.2 — 步骤配置）
 
 通过 **Flows → New flow** 创建空白会话草稿，Kit 弹窗验证名称；取消或 Esc 不会创建文档。
 可在标题栏重命名、筛选流程库，也可从首页继续真实的会话流程。
@@ -130,6 +130,20 @@ URL 和 **Headers · N** 提供 **Literal / Expression** 切换。字面量中�
 无效输入保留原文并在字段旁提示错误，计入会话编辑；文档暂时保留该字段最后的有效值，修正后即时更新。
 其他字段仍可编辑。API 引用和循环步骤的请求配置保持只读，名称仍可修改。
 
+固定的 **Request / Checks / Exports** 标签保留各页滚动位置，聚焦标签后可用方向键和 Home/End 切换。
+**Checks** 支持多个独立的状态码卡片（100–599），清空只移除该项，无效输入保留最后的有效定义。
+其他原生检查以只读定义展示，保持顺序和表达式。多状态码卡片是对原型单卡片的无损扩展。
+
+**Exports** 支持有序的 Name/JSONPath 行、添加/删除和原生 **Sensitive** 复选框。
+名称不能为空、步骤内不能重复；路径复用引擎规则，支持 `$`、`$.json.id`、`$.items[0].id`，不支持通配符和过滤器。
+未完成或无效的行保留输入和最后有效定义，其他行可继续编辑。有效变更会刷新节点徽标及已打开的后续步骤变量提示，
+不重置其文本、撤销记录。重命名或删除导出不会改写已有引用；Sensitive 仅保存敏感标志，不提取或显示响应值。
+
+**Request → Run condition** 编辑原生 `when` JSON，例如
+`{"eq":[{"output":{"step":"query-status","name":"status"}},{"literal":2}]}`。
+支持全部原生条件运算符和带类型操作数，空白移除条件，无效非空文本保留最后有效条件。
+这里只验证语法和结构，不解析引用、不计算条件、不发送请求；API 引用和循环配置仍只读。
+
 点击节点后，方向键和 Home/End 可选择其他节点。流程库、详情区和 Console 均支持拖拽尺寸，
 方向键及 Shift+方向键调整、双击重置、Enter 打开数值尺寸弹窗；Esc 撤销本次拖拽。
 窗口扩大后恢复偏好尺寸，Flow 布局偏好仅在本次会话有效。窄窗口用 **Choose flow** 替代流程库，
@@ -145,9 +159,9 @@ Logs、Steps、Outputs 页签，可折叠到标题栏或在编辑区内最大化
 此处不执行系统 Shell；`check`、`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行，
 Console 命令不会发送网络请求。
 
-Flow 草稿**不会跨重启保存**。YAML、Check、Export、Run 暂不可用。Request 编辑保留文档原有的
+Flow 草稿**不会跨重启保存**。YAML、工具栏 Check、文件 Export、Run 暂不可用。Request 编辑保留文档原有的
 条件、检查、导出、请求选项/认证、API 目录、嵌套步骤、输入输出和布局信息。
-JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充 Inputs/Checks/Exports/条件和步骤管理，
+JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充 Inputs、其他检查类型编辑和步骤管理，
 P5.3 接入编译诊断与文件保存，P6 接入执行。
 
 使用 `cargo test --locked -p postman-gpui --lib app::postman_app::flows` 和

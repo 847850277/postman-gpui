@@ -1,6 +1,6 @@
 use super::*;
 use crate::ui::theme::{
-    metrics as m, ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, LINE, MUTED, PANEL, SUBTEXT,
+    metrics as m, ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, MUTED, PANEL, SUBTEXT,
 };
 use gpui::{
     div, prelude::FluentBuilder, rems, AnyElement, InteractiveElement, IntoElement, ParentElement,
@@ -17,7 +17,7 @@ use gpui_kit::{
     },
 };
 
-fn field(label: &'static str, control: impl IntoElement, cx: &App) -> AnyElement {
+pub(super) fn field(label: &'static str, control: impl IntoElement, cx: &App) -> AnyElement {
     div()
         .flex()
         .flex_col()
@@ -32,7 +32,7 @@ fn field(label: &'static str, control: impl IntoElement, cx: &App) -> AnyElement
         .child(control)
         .into_any_element()
 }
-fn hint(text: impl Into<gpui::SharedString>, error: bool, cx: &App) -> AnyElement {
+pub(super) fn hint(text: impl Into<gpui::SharedString>, error: bool, cx: &App) -> AnyElement {
     div()
         .w_full()
         .min_w_0()
@@ -266,14 +266,14 @@ impl RequestInspector {
     }
 }
 
-impl Render for RequestInspector {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let fields = div().p_4().flex().flex_col().gap_5().min_w_0()
+impl RequestInspector {
+    fn request_content(&self, cx: &mut Context<Self>) -> AnyElement {
+        div().flex().flex_col().gap_5().min_w_0()
             .child(field("Step name", div().debug_selector(|| "flow-step-name".into()).child(Input::new(&self.name).id("flow-step-name").aria_label("Step name").w_full()), cx))
             .when(self.name.read(cx).value().trim().is_empty(), |d| d.child(hint("Enter a step name. The unfinished draft is retained.", true, cx)))
             .child(div().debug_selector(|| "flow-step-id".into()).text_size(m::CAPTION).font_family(FONT_MONO).text_color(MUTED.resolve(cx)).child(self.step_id.clone()))
             .when_some(self.readonly.clone(), |d, description| d.child(div().debug_selector(|| "flow-step-readonly".into()).child(field("Request source", hint(description, false, cx), cx)))
-                .child(hint("Request configuration is read-only for API references and loop steps. Their contents are preserved.", false, cx)))
+                .child(hint("Configuration is read-only for API references and loop steps. Their contents are preserved.", false, cx)))
             .when(self.readonly.is_none(), |d| d
                 .child(self.url_control(cx))
                 .child(div().flex().flex_col().gap_2().child(hint("AVAILABLE VARIABLES", false, cx))
@@ -282,18 +282,45 @@ impl Render for RequestInspector {
                 .child(self.headers_control(cx))
                 .child(field("BODY EXPRESSION", source("flow-body-source", &self.body, 11.), cx))
                 .when_some(self.body_error.clone(), |d, error| d.child(hint(format!("{error} Draft retained; body not applied."), true, cx)))
-                .child(hint("JSON expressions preserve types and references. Empty means no body. Shape checks do not compile or run the flow.", false, cx)));
+                .child(hint("JSON expressions preserve types and references. Empty means no body. Shape checks do not compile or run the flow.", false, cx)))
+            .child(self.condition_control(cx)).into_any_element()
+    }
+    fn condition_control(&self, cx: &mut Context<Self>) -> AnyElement {
+        Collapsible::new().open(self.condition_open)
+            .child(div().flex().items_start().child(Button::new("flow-condition-toggle")
+                .label(format!("Run condition · {}{}", if self.condition_enabled { "Enabled" } else { "Optional" }, if self.condition_error.is_some() { " · Draft error" } else { "" }))
+                .icon(if self.condition_open { IconName::ChevronDown } else { IconName::ChevronRight })
+                .ghost().xsmall().accessibility_label("Run condition")
+                .on_click(cx.listener(|this, _, _, cx| { this.condition_open = !this.condition_open; cx.notify(); }))))
+            .content(div().pt_2().flex().flex_col().gap_2().min_w_0()
+                .when(self.readonly.is_none(), |d| d.child(source("flow-condition-source", &self.condition, 9.)))
+                .when(self.readonly.is_some(), |d| d.child(hint(self.condition.read(cx).value(), false, cx)))
+                .when_some(self.condition_error.clone(), |d, error| d.child(hint(format!("{error} Draft retained; condition not applied."), true, cx)))
+                .child(hint("Native condition expression. Blank always runs the step. References and operand types are checked when compiling the flow.", false, cx)))
+            .into_any_element()
+    }
+}
+
+impl Render for RequestInspector {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let fields = match self.tab {
+            1 => self.checks_content(cx),
+            2 => self.exports_content(cx),
+            _ => self.request_content(cx),
+        };
         div()
             .id("flow-inspector")
             .debug_selector(|| "flow-inspector".into())
             .size_full()
             .min_w_0()
             .min_h_0()
-            .overflow_y_scroll()
-            .track_scroll(&self.scroll)
+            .flex()
+            .flex_col()
+            .overflow_hidden()
             .bg(PANEL.resolve(cx))
             .child(
                 div()
+                    .flex_none()
                     .px_4()
                     .pt_4()
                     .pb_3()
@@ -304,26 +331,17 @@ impl Render for RequestInspector {
                     .child(Icon::new(IconName::Terminal).size(m::SMALL_ICON))
                     .child("Step configuration"),
             )
+            .child(self.tabs(cx))
             .child(
                 div()
-                    .mx_4()
-                    .flex()
-                    .border_b_1()
-                    .border_color(LINE.resolve(cx))
-                    .child(
-                        gpui_kit::base::Tab::new("flow-request-tab")
-                            .accessibility_label("Request details")
-                            .selected(true)
-                            .h_10()
-                            .flex()
-                            .items_center()
-                            .border_b_2()
-                            .border_color(ACCENT.resolve(cx))
-                            .text_color(ACCENT.resolve(cx))
-                            .text_size(m::LABEL)
-                            .child("Request"),
-                    ),
+                    .id(("flow-inspector-fields", self.tab))
+                    .debug_selector(|| "flow-inspector-scroll".into())
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.tab_scroll[self.tab])
+                    .child(div().p_4().child(fields)),
             )
-            .child(fields)
     }
 }

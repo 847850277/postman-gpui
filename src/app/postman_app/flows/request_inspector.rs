@@ -1,5 +1,8 @@
 //! One retained inspector per (flow, stable step ID). The library owns the typed document;
 //! these Kit buffers own unfinished source, selection, composition and undo history.
+mod checks;
+mod exports;
+mod tabs;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -23,7 +26,8 @@ use gpui_kit::component::{
     IndexPath,
 };
 use postman_flow::{
-    parse_body_expression, parse_header_expressions, parse_text_expression, write_body_expression,
+    parse_body_expression, parse_condition_expression, parse_header_expressions,
+    parse_text_expression, write_body_expression, write_condition_expression,
     write_header_expressions, write_text_expression, BodyTemplate, HttpRequestSource,
     HttpStepDefinition, TextTemplate,
 };
@@ -39,6 +43,18 @@ pub(super) struct RequestInspector {
     headers: Entity<MultilineInput>,
     header_expression: Entity<MultilineInput>,
     body: Entity<MultilineInput>,
+    condition: Entity<MultilineInput>,
+    condition_error: Option<String>,
+    condition_open: bool,
+    condition_enabled: bool,
+    checks: Vec<checks::CheckRow>,
+    exports: Vec<exports::ExportRow>,
+    next_row_id: u64,
+    add_check_focus: FocusHandle,
+    add_export_focus: FocusHandle,
+    tab: usize,
+    tab_focus: [FocusHandle; 3],
+    tab_scroll: [ScrollHandle; 3],
     expression_url: bool,
     expression_headers: bool,
     simple_url_available: bool,
@@ -50,14 +66,17 @@ pub(super) struct RequestInspector {
     header_count: usize,
     variables: Vec<String>,
     readonly: Option<String>,
-    scroll: ScrollHandle,
     _subscriptions: Vec<Subscription>,
 }
 
 impl EventEmitter<StepEdit> for RequestInspector {}
 impl Focusable for RequestInspector {
     fn focus_handle(&self, cx: &App) -> FocusHandle {
-        self.name.focus_handle(cx)
+        if self.tab == 0 {
+            self.name.focus_handle(cx)
+        } else {
+            self.tab_focus[self.tab].clone()
+        }
     }
 }
 
@@ -90,6 +109,7 @@ impl RequestInspector {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        tabs::bind_keys(cx);
         let request = match &step.request {
             HttpRequestSource::Inline(request) => Some(request),
             _ => None,
@@ -153,7 +173,65 @@ impl RequestInspector {
             window,
             cx,
         );
+        let condition = multiline(
+            "Run condition",
+            "Native condition expression (JSON)",
+            step.when
+                .as_ref()
+                .map(|v| write_condition_expression(v).expect("serializable condition"))
+                .unwrap_or_default(),
+            window,
+            cx,
+        );
+        let tab_scroll = std::array::from_fn(|_| ScrollHandle::new());
+        let mut next_row_id = 0;
+        let mut checks: Vec<_> = step
+            .checks
+            .iter()
+            .map(|value| {
+                let id = next_row_id;
+                next_row_id += 1;
+                Self::check_row(id, Some(value.clone()), &tab_scroll[1], window, cx)
+            })
+            .collect();
+        if request.is_some()
+            && !step
+                .checks
+                .iter()
+                .any(|v| matches!(v, postman_flow::ResponseCheck::StatusEquals(_)))
+        {
+            checks.push(Self::check_row(
+                next_row_id,
+                None,
+                &tab_scroll[1],
+                window,
+                cx,
+            ));
+            next_row_id += 1;
+        }
+        let exports = step
+            .exports
+            .iter()
+            .map(|value| {
+                let id = next_row_id;
+                next_row_id += 1;
+                Self::export_row(id, Some(value.clone()), &tab_scroll[2], window, cx)
+            })
+            .collect();
         let mut subscriptions = Vec::new();
+        subscriptions.push(cx.subscribe(&condition, |this, _, event, cx| {
+            if this.readonly.is_some() {
+                return;
+            }
+            let MultilineInputEvent::ValueChanged(source) = event;
+            let parsed = parse_condition_expression(source);
+            this.condition_error = parsed.as_ref().err().map(ToString::to_string);
+            if let Ok(value) = &parsed {
+                this.condition_enabled = value.is_some();
+            }
+            cx.emit(parsed.map(StepEdit::Condition).unwrap_or(StepEdit::Invalid));
+            cx.notify();
+        }));
         subscriptions.push(cx.subscribe(&name, |_, input, event, cx| {
             if matches!(event, InputEvent::Change) {
                 cx.emit(StepEdit::Name(input.read(cx).value().to_string()));
@@ -237,6 +315,18 @@ impl RequestInspector {
             headers,
             header_expression,
             body,
+            condition,
+            condition_error: None,
+            condition_open: step.when.is_some(),
+            condition_enabled: step.when.is_some(),
+            checks,
+            exports,
+            next_row_id,
+            add_check_focus: cx.focus_handle().tab_stop(true),
+            add_export_focus: cx.focus_handle().tab_stop(true),
+            tab: 0,
+            tab_focus: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            tab_scroll,
             expression_url: literal.is_none_or(|s| s.contains(['\r', '\n'])),
             expression_headers: simple_headers.is_none(),
             simple_url_available: literal.is_some_and(|s| !s.contains(['\r', '\n'])),
@@ -248,8 +338,20 @@ impl RequestInspector {
             header_count: request.map_or(0, |r| r.headers.len()),
             variables,
             readonly: request.is_none().then(|| request_summary(step).1),
-            scroll: ScrollHandle::new(),
             _subscriptions: subscriptions,
+        }
+    }
+
+    fn allocate_row(&mut self) -> u64 {
+        let id = self.next_row_id;
+        self.next_row_id += 1;
+        id
+    }
+
+    pub(super) fn set_variables(&mut self, variables: Vec<String>, cx: &mut Context<Self>) {
+        if self.variables != variables {
+            self.variables = variables;
+            cx.notify();
         }
     }
 

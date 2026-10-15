@@ -146,6 +146,18 @@ impl FlowLibrary {
                         request.body = value.clone();
                         true
                     }
+                    StepEdit::Checks(value) => {
+                        step.checks = value.clone();
+                        true
+                    }
+                    StepEdit::Exports(value) => {
+                        step.exports = value.clone();
+                        true
+                    }
+                    StepEdit::Condition(value) => {
+                        step.when = value.clone();
+                        true
+                    }
                     StepEdit::Invalid => true,
                     StepEdit::Name(_) => unreachable!(),
                 },
@@ -164,6 +176,9 @@ pub(super) enum StepEdit {
     Url(TextTemplate),
     Headers(Vec<(TextTemplate, TextTemplate)>),
     Body(postman_flow::BodyTemplate),
+    Checks(Vec<postman_flow::ResponseCheck>),
+    Exports(Vec<postman_flow::ResponseExport>),
+    Condition(Option<postman_flow::ConditionExpr>),
     Invalid,
 }
 

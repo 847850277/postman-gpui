@@ -13,16 +13,18 @@ mod json_path;
 mod model;
 mod plan;
 mod runtime;
+mod validation;
 
 pub use catalog::{ApiCatalog, ApiDefinition};
 pub use compiler::{
     compile_flow, CompileEnvironment, Diagnostic, DiagnosticCode, DiagnosticLocation,
 };
 pub use document::{
-    parse_body_expression, parse_flow_yaml, parse_header_expressions, parse_text_expression,
-    write_body_expression, write_flow_yaml, write_header_expressions, write_text_expression,
-    DocumentError, DocumentErrorCode, EditorLayout, FlowDocument, NodePosition,
-    FLOW_DOCUMENT_SCHEMA_JSON, FLOW_DOCUMENT_VERSION,
+    parse_body_expression, parse_condition_expression, parse_flow_yaml, parse_header_expressions,
+    parse_text_expression, write_body_expression, write_condition_expression, write_flow_yaml,
+    write_header_expressions, write_response_check, write_text_expression, DocumentError,
+    DocumentErrorCode, EditorLayout, FlowDocument, NodePosition, FLOW_DOCUMENT_SCHEMA_JSON,
+    FLOW_DOCUMENT_VERSION,
 };
 pub use model::{
     ApiCall, AuthTemplate, BodyTemplate, ConditionExpr, ExpectedError, FlowDefinition, FlowEvent,
@@ -34,3 +36,4 @@ pub use model::{
 };
 pub use plan::FlowPlan;
 pub use runtime::{execute_flow, is_builtin_variable, FlowError, FlowSessionEnvironment};
+pub use validation::{validate_definition_name, validate_json_path, validate_response_status};

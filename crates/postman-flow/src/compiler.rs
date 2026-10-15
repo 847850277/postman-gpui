@@ -421,12 +421,8 @@ impl Compiler {
             let at = location.child(format!("checks[{index}]"));
             match check {
                 ResponseCheck::StatusEquals(value) => {
-                    if !(100..=599).contains(value) {
-                        self.error(
-                            DiagnosticCode::InvalidRequest,
-                            &at.child("equals"),
-                            "HTTP status must be between 100 and 599",
-                        );
+                    if let Err(message) = crate::validate_response_status(*value) {
+                        self.error(DiagnosticCode::InvalidRequest, &at.child("equals"), message);
                     }
                     checks.push(CompiledCheck::Status(*value));
                 }
@@ -513,8 +509,8 @@ impl Compiler {
         });
     }
     fn name(&mut self, value: &str, at: &DiagnosticLocation) {
-        if value.trim().is_empty() {
-            self.error(DiagnosticCode::InvalidName, at, "name cannot be empty");
+        if let Err(message) = crate::validate_definition_name(value) {
+            self.error(DiagnosticCode::InvalidName, at, message);
         }
     }
     fn unique(&mut self, value: &str, names: &mut HashSet<String>, at: &DiagnosticLocation) {

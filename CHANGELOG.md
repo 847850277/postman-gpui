@@ -14,6 +14,12 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- GPUI Kit Flow Checks/Exports tabs and a retained Run condition editor. Edit ordered status
+  checks, export names/JSONPaths/sensitivity, and native conditions with local validation and
+  last-valid definitions. Stable row identities preserve unfinished text and undo; valid export
+  changes refresh cached later-step hints without rewriting references. Other check kinds and
+  API/loop configuration remain readonly. Inspector tabs stay visible while content scrolls.
+
 - GPUI Kit Flow Request details with literal/expression URLs, collapsible ordered headers,
   available-variable hints, and native body JSON editing. Per-step buffers retain invalid drafts,
   local errors, focus, and undo while the document keeps the last valid field.
@@ -31,7 +37,7 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Limitations
 
-- Flow drafts and panel sizes last only for the session. Inputs/Checks/Exports/conditions, step management, YAML, compiler
+- Flow drafts and panel sizes last only for the session. Inputs, other check editors, step management, YAML, compiler
   diagnostics, export/save, and native execution remain deferred. Request edits preserve richer
   Flow DSL document fields without converting expressions to literal URLs.
 

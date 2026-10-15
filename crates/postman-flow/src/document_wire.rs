@@ -326,7 +326,7 @@ impl Body {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
-enum ConditionWire {
+pub(super) enum ConditionWire {
     Eq(Json, Json),
     Ne(Json, Json),
     Gt(Json, Json),
@@ -372,7 +372,7 @@ pub(super) struct Ref {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Check {
+pub(super) enum Check {
     Status { equals: u16 },
     Jsonpath { path: String, equals: Json },
     HeaderExists { name: String },

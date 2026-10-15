@@ -93,3 +93,98 @@ fn malformed_shapes_and_unknown_fields_are_errors_not_empty_values() {
     ))
     .is_err());
 }
+
+#[test]
+fn condition_fields_preserve_all_operators_and_typed_operands() {
+    let operands = [
+        json!({"literal":"{{literal}}"}),
+        json!({"literal":null}),
+        json!({"literal":true}),
+        json!({"literal":2}),
+        json!({"literal":[1,false,{"input":"literal data"}]}),
+        json!({"array":[{"input":"name"},{"literal":null}]}),
+        json!({"object":{"v":{"output":{"step":"query-status","name":"status"}}}}),
+        json!({"coalesce":[{"input":"name"},{"calc":"inputs.count + 1"}]}),
+    ];
+    for operand in operands {
+        for operator in ["eq", "ne", "gt", "gte", "lt", "lte", "in"] {
+            let source = json!({"and":[{operator:[operand,{"literal":2}]},{"or":[{"not":{"eq":[{"literal":false},{"literal":null}]}}]}]});
+            let condition = parse_condition_expression(&source.to_string())
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                parse_condition_expression(&write_condition_expression(&condition).unwrap())
+                    .unwrap(),
+                Some(condition.clone())
+            );
+            let mut flow = FlowDefinition::new("Condition codec");
+            flow.steps.push(
+                HttpStepDefinition::new(
+                    "request",
+                    "Request",
+                    HttpRequestTemplate::new(
+                        HttpMethod::GET,
+                        TextTemplate::literal("https://httpbingo.org/get"),
+                    ),
+                )
+                .when(condition),
+            );
+            let doc = FlowDocument::new(flow);
+            assert_eq!(
+                parse_flow_yaml(&write_flow_yaml(&doc).unwrap()).unwrap(),
+                doc
+            );
+        }
+    }
+    assert_eq!(parse_condition_expression(" \n").unwrap(), None);
+    for source in [
+        "{",
+        "null",
+        r#"{"eq":[1,2]}"#,
+        r#"{"eq":[{"literal":2}]}"#,
+        r#"{"and":{}}"#,
+        r#"{"not":[]}"#,
+        r#"{"eq":[{"literal":1},{"literal":1}],"extra":true}"#,
+        r#"{"unknown":[]}"#,
+        r#"{"eq":[{"literal":1},{"literal":1}]} false"#,
+    ] {
+        assert!(parse_condition_expression(source).is_err(), "{source}");
+    }
+    assert!(parse_condition_expression(&format!(
+        r#"{{"eq":[{{"literal":"{}"}},{{"literal":0}}]}}"#,
+        "x".repeat(2 * 1024 * 1024)
+    ))
+    .is_err());
+    assert!(parse_condition_expression(&format!(
+        "{}{}{}",
+        "{\"not\":".repeat(150),
+        r#"{"eq":[{"literal":1},{"literal":1}]}"#,
+        "}".repeat(150)
+    ))
+    .is_err());
+}
+
+#[test]
+fn editor_validation_uses_the_engine_subset() {
+    for status in [100, 200, 599] {
+        assert!(validate_response_status(status).is_ok());
+    }
+    for status in [0, 99, 600, u16::MAX] {
+        assert!(validate_response_status(status).is_err());
+    }
+    assert!(validate_definition_name(" ").is_err());
+    assert!(validate_definition_name("中文.id").is_ok());
+    for path in ["$", "$.json.id", "$.items[0].id"] {
+        assert!(validate_json_path(path).is_ok(), "{path}");
+    }
+    for path in [
+        "",
+        "json.id",
+        "$.items[*]",
+        "$..id",
+        "$.items[?(@.id)]",
+        "$[\"id\"]",
+    ] {
+        assert!(validate_json_path(path).is_err(), "{path}");
+    }
+}

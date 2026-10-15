@@ -156,7 +156,7 @@ On macOS, build a universal package with:
 python3 scripts/release.py package --universal-macos
 ```
 
-## Native Flow editor (P5.2 — Request details)
+## Native Flow editor (P5.2 — Step configuration)
 
 **Flows → New flow** creates an empty session draft. Name validation runs in the Kit dialog;
 Cancel/Escape keeps the library unchanged. Rename the active flow in its heading, filter the
@@ -181,6 +181,26 @@ Invalid source stays in its editor with a local error and counts as a session ed
 keeps the last valid field until corrected. Other fields remain editable. API references and loop
 request configuration remain read-only; their names can still be edited.
 
+The fixed **Request / Checks / Exports** tabs retain each pane's scroll position; arrows and
+Home/End navigate a focused tab. **Checks** edits independent response-status cards (100–599).
+Blank clears that check; malformed input keeps its last valid definition. Other native check kinds
+are visible as readonly definitions in their original order. Multiple cards extend the HTML preview's
+single status card to preserve native documents.
+
+**Exports** edits ordered Name/JSONPath rows with Add/Remove and a native **Sensitive** checkbox.
+Names must be nonempty and unique within the step; paths use the engine's subset, including `$`,
+`$.json.id`, and `$.items[0].id`. Wildcards and filters are unsupported. Incomplete/invalid rows keep
+their exact input and previous valid definition; other rows stay editable. Valid changes refresh
+node badges and already-open later-step variable hints without resetting their source or undo.
+Renaming/removing exports leaves existing references unchanged. Sensitivity is a definition flag;
+editing does not extract or reveal response values.
+
+**Request → Run condition** edits native `when` JSON, for example
+`{"eq":[{"output":{"step":"query-status","name":"status"}},{"literal":2}]}`.
+All native condition operators and typed operands are preserved; blank removes the condition and
+invalid nonempty source retains the last valid value. The editor checks syntax/shape only, without
+resolving references, evaluating conditions, or sending requests. API/loop configuration stays readonly.
+
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
 inspector, and Console dividers support dragging, arrows, Shift+arrows, Home/End, double-click
 reset, and Enter for a numeric size dialog. Escape cancels an active drag. Preferred sizes return
@@ -199,10 +219,10 @@ the session. Clearing logs keeps command history and document edits. Commands ne
 system shell. `check`, `run`, and `stop` currently report that their native capability is unavailable;
 Steps and Outputs remain not run. No requests are sent by Console commands.
 
-Flow drafts are **not saved across restart**. YAML, Check, Export, and Run remain unavailable.
+Flow drafts are **not saved across restart**. YAML, toolbar Check, file Export, and Run remain unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Later P5.2 slices add Inputs/Checks/Exports/conditions and step management; P5.3 adds compiler
+Later P5.2 slices add Inputs, other check editors, and step management; P5.3 adds compiler
 diagnostics and file persistence, and P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
