@@ -111,3 +111,12 @@ body:not([data-view="http"]) [data-http-tool],body:not([data-view="http"]) .http
 #flow-inspector:has(.input-fields) { display:flex; flex-direction:column; overflow:hidden; }
 #flow-inspector:has(.input-fields) > .inspector-heading, #flow-inspector:has(.input-fields) > .inspector-tabs { flex-shrink:0; }
 .input-fields { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+/* Step actions remain reachable while the details fields scroll independently. */
+.flow-content .flow-inspector.step-details{display:flex;flex-direction:column;overflow:hidden}
+.step-details>.inspector-heading,.step-details>.inspector-tabs{flex:none}
+.step-details>.inspector-form{flex:1;min-height:0;overflow:auto}
+@media(max-width:800px){.flow-content:not(.inspect-mode)>.flow-inspector.step-details{display:none}}
+.step-actions-footer{flex:none;padding:8px 16px;border-top:1px solid var(--line);background:var(--surface)}
+.step-actions-footer .inspector-actions{margin:0;padding:0;border:0}
+.studio-button.danger{background:var(--red-soft);border-color:var(--red-soft);color:var(--red)}
+#remove-step-name,#remove-step-id{overflow-wrap:anywhere}

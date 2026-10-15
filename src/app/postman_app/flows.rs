@@ -6,6 +6,7 @@ mod layout;
 mod model;
 mod request_inspector;
 mod request_source;
+mod step_actions;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -17,8 +18,10 @@ use gpui::{
 };
 use gpui_kit::component::{
     input::{InputEvent, InputState},
+    notification::Notification,
     searchable_list::{SearchableListItem, SearchableVec},
     select::{SelectEvent, SelectState},
+    WindowExt,
 };
 use layout::{FlowSplit, SplitKind};
 pub(super) use model::FlowId;
@@ -64,6 +67,9 @@ pub(super) struct FlowsView {
     inputs: HashMap<FlowId, Entity<inputs::InputsInspector>>,
     inputs_open: bool,
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
+    step_subscriptions: HashMap<(FlowId, String), Subscription>,
+    add_step_focus: FocusHandle,
+    remove_step_focus: FocusHandle,
     filter: Entity<InputState>,
     picker: Entity<SelectState<SearchableVec<FlowOption>>>,
     create_name: Entity<InputState>,
@@ -121,6 +127,13 @@ impl FlowsView {
                         this.reveal_step();
                         this.focus_inspector(window, cx);
                         cx.notify();
+                    } else {
+                        window.push_notification(
+                            Notification::info(
+                                "This step is no longer available in the active flow.",
+                            ),
+                            cx,
+                        );
                     }
                 }
             }),
@@ -173,6 +186,9 @@ impl FlowsView {
             inputs: HashMap::new(),
             inputs_open: false,
             inspectors: HashMap::new(),
+            step_subscriptions: HashMap::new(),
+            add_step_focus: cx.focus_handle().tab_stop(true),
+            remove_step_focus: cx.focus_handle().tab_stop(true),
             filter,
             picker,
             create_name,
@@ -301,26 +317,24 @@ impl FlowsView {
             if !self.inspectors.contains_key(&key) {
                 let variables = request_source::variables(&draft.document().flow, &id);
                 let inspector = cx.new(|cx| RequestInspector::new(step, variables, window, cx));
-                self._subscriptions
-                    .push(cx.subscribe(&inspector, move |this, _, edit, cx| {
-                        this.library.edit_step(flow, &id, edit);
-                        if matches!(edit, model::StepEdit::Exports(_)) {
-                            if let Some(draft) =
-                                this.library.drafts().iter().find(|d| d.id() == flow)
-                            {
-                                for ((owner, step), inspector) in &this.inspectors {
-                                    if *owner == flow && step != &id {
-                                        let variables =
-                                            request_source::variables(&draft.document().flow, step);
-                                        inspector.update(cx, |inspector, cx| {
-                                            inspector.set_variables(variables, cx)
-                                        });
-                                    }
+                let subscription = cx.subscribe(&inspector, move |this, _, edit, cx| {
+                    this.library.edit_step(flow, &id, edit);
+                    if matches!(edit, model::StepEdit::Exports(_)) {
+                        if let Some(draft) = this.library.drafts().iter().find(|d| d.id() == flow) {
+                            for ((owner, step), inspector) in &this.inspectors {
+                                if *owner == flow && step != &id {
+                                    let variables =
+                                        request_source::variables(&draft.document().flow, step);
+                                    inspector.update(cx, |inspector, cx| {
+                                        inspector.set_variables(variables, cx)
+                                    });
                                 }
                             }
                         }
-                        cx.notify();
-                    }));
+                    }
+                    cx.notify();
+                });
+                self.step_subscriptions.insert(key.clone(), subscription);
                 self.inspectors.insert(key, inspector);
             }
         }
@@ -405,7 +419,7 @@ impl FlowsView {
             }
         }
     }
-    fn move_step(&mut self, delta: isize, window: &mut Window, cx: &mut Context<Self>) {
+    fn navigate_step(&mut self, delta: isize, window: &mut Window, cx: &mut Context<Self>) {
         let Some(draft) = self.library.active() else {
             return;
         };

@@ -237,6 +237,7 @@ impl FlowsView {
             )
             .child(
                 Button::new("add-step")
+                    .track_focus(&self.add_step_focus)
                     .small()
                     .label("Add step…")
                     .icon(IconName::Plus)
@@ -294,10 +295,14 @@ impl FlowsView {
                 .inset_0()
                 .size_full(),
             )
-            .on_action(cx.listener(|this, _: &PreviousStep, w, c| this.move_step(-1, w, c)))
-            .on_action(cx.listener(|this, _: &NextStep, w, c| this.move_step(1, w, c)))
-            .on_action(cx.listener(|this, _: &FirstStep, w, c| this.move_step(isize::MIN, w, c)))
-            .on_action(cx.listener(|this, _: &LastStep, w, c| this.move_step(isize::MAX, w, c)));
+            .on_action(cx.listener(|this, _: &PreviousStep, w, c| this.navigate_step(-1, w, c)))
+            .on_action(cx.listener(|this, _: &NextStep, w, c| this.navigate_step(1, w, c)))
+            .on_action(
+                cx.listener(|this, _: &FirstStep, w, c| this.navigate_step(isize::MIN, w, c)),
+            )
+            .on_action(
+                cx.listener(|this, _: &LastStep, w, c| this.navigate_step(isize::MAX, w, c)),
+            );
         let Some(draft) = self.library.active() else {
             return root
                 .child(
@@ -549,7 +554,15 @@ impl FlowsView {
             }
         }
         if let Some(inspector) = self.inspector() {
-            return inspector.clone().into_any_element();
+            return div()
+                .size_full()
+                .min_w_0()
+                .min_h_0()
+                .flex()
+                .flex_col()
+                .child(div().flex_1().min_h_0().child(inspector.clone()))
+                .child(self.render_step_actions(cx))
+                .into_any_element();
         }
         div()
             .id("flow-inspector")

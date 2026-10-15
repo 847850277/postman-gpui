@@ -2,6 +2,41 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('./flow-model.js');
 
+test('step mutations retain payloads, references, session drafts, and non-recycled identities', () => {
+  const flow=M.samples()[0];flow.selected='echo-json';
+  flow.fieldDrafts={keep:{step:'echo-json',value:'{'},remove:{step:'generate-id',value:'['}};
+  flow.runtimeInputs={user_name:'session override'};flow.logs=[{step:'generate-id'}];
+  const before=structuredClone(flow.document), consumer=flow.document.flow.steps[1];
+  assert.equal(M.moveStep(flow,'generate-id',-1),false);
+  assert.equal(M.moveStep(flow,'echo-json',-1),true);
+  assert.equal(flow.document.flow.steps[0],consumer);
+  assert.equal(flow.selected,'echo-json');
+  assert.equal(M.removeStep(flow,'generate-id'),true);
+  assert.equal(M.removeStep(flow,'generate-id'),false);
+  assert.deepEqual(flow.document.flow.steps[0],before.flow.steps[1]);
+  assert.deepEqual(flow.document.flow.outputs,before.flow.outputs);
+  assert.deepEqual(flow.fieldDrafts,{keep:{step:'echo-json',value:'{'}});
+  assert.deepEqual(flow.runtimeInputs,{user_name:'session override'});
+  assert.deepEqual(flow.logs,[{step:'generate-id'}]);
+  const id=M.nextStepId(flow);flow.document.flow.steps.push(M.http(id,'Temp','GET','/get'));
+  M.removeStep(flow,id);assert.notEqual(M.nextStepId(flow),id);
+});
+
+test('removal handles last/only steps and nested identities without mutating another flow', () => {
+  const [other,flow]=M.samples(),before=structuredClone(other);
+  flow.selected=flow.document.flow.steps[0].id;
+  flow.document.flow.steps[0].steps[0].id='request-1';
+  flow.document.editor={nodes:{'request-1':{x:1,y:2},unrelated:{x:3,y:4}}};
+  assert.equal(M.removeStep(flow,flow.selected),true);
+  assert.equal(flow.selected,undefined);
+  assert.deepEqual(flow.document.editor.nodes,{unrelated:{x:3,y:4}});
+  assert.equal(M.nextStepId(flow),'request-2');
+  assert.deepEqual(other,before);
+  other.run={status:'running'};
+  assert.equal(M.moveStep(other,'echo-json',-1),false);
+  assert.equal(M.removeStep(other,'echo-json'),false);
+});
+
 test('both shipped examples pass the local reference checks', () => {
   for (const item of M.samples()) assert.deepEqual(M.validate(item.document), []);
 });

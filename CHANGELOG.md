@@ -14,6 +14,11 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- GPUI Kit Flow step ordering and removal: adjacent up/down controls, explicit removal
+  confirmation, neighbor selection and focus restoration, and non-recycled session step IDs.
+  Surviving editors retain drafts and undo; variable hints refresh without rewriting references.
+  The HTML prototype includes the matching confirmation and compact inspector action bar.
+
 - GPUI Kit Flow Inputs definitions and session run parameters: typed defaults, sensitivity,
   explicit override/reset, environment inheritance, retained invalid drafts, and live variable
   hints. Runtime edits remain separate from the document; parameter preparation blocks invalid
@@ -42,7 +47,7 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Limitations
 
-- Flow drafts and panel sizes last only for the session. Inputs, other check editors, step management, YAML, compiler
+- Flow drafts and panel sizes last only for the session. Other check editors, HTTP Add to flow, YAML, compiler
   diagnostics, export/save, and native execution remain deferred. Request edits preserve richer
   Flow DSL document fields without converting expressions to literal URLs.
 

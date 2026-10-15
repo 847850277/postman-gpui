@@ -153,3 +153,18 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] The AppImage starts from an executable file on a supported Wayland session.
 - [ ] The AppImage starts from an executable file on a supported X11 session.
 - [ ] The Debian package installs dependencies and creates a desktop entry with the correct icon.
+
+## Flow step management (#226)
+
+- [ ] In Request/Checks/Exports, move a middle step up/down. Check node numbers, stable selection,
+  IDs, updated variable hints, and unchanged field text/undo. Canvas arrows still navigate.
+- [ ] Check first/last/single-step boundaries. Remove shows name/ID; Cancel and Escape preserve
+  drafts and focus. Confirm selects next/previous; removing the final step focuses Add step.
+- [ ] Recreate after deletion: the new step has a new ID and no old editor state. Try two flows
+  with identical step IDs; one flow's operations must not change the other or its Inputs overrides.
+- [ ] Keep an invalid body/condition draft while reordering another step. Verify retained errors,
+  clipboard, undo/redo and Chinese IME; Console typing must not reorder/delete steps.
+- [ ] Check light/dark and compact/short windows at 1×/2×. Actions remain reachable, inspector
+  fields scroll independently, and resizing/collapsing the Console preserves the editor.
+- [ ] API/loop nodes move as complete units. Removing a producer does not rewrite downstream
+  expressions or outputs; no compile/run success is claimed. Session drafts remain unsaved.

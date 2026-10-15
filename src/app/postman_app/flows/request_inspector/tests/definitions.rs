@@ -392,6 +392,22 @@ fn definition_panes_scroll_at_all_sizes_without_moving_console_or_tabs(cx: &mut 
                     let console = cx.debug_bounds("flow-results").unwrap();
                     let tabs = cx.update(|w, _| w.find("flow-exports-tab").bounds());
                     assert!(panel.bottom() <= console.top() + px(1.));
+                    assert!(
+                        panel.size.height >= px(32.),
+                        "editable field fits at {width}x{height}"
+                    );
+                    cx.update(|w, _| {
+                        for action in [
+                            "flow-move-step-up",
+                            "flow-move-step-down",
+                            "flow-remove-step",
+                        ] {
+                            let control = w.find(action);
+                            assert!(control.visible(), "{action} at {width}x{height}");
+                            let b = control.bounds();
+                            assert!(b.top() >= panel.bottom() && b.bottom() <= console.top());
+                        }
+                    });
                     if tab == "flow-exports-tab" {
                         for name in [
                             "flow-export-name",
@@ -444,7 +460,9 @@ fn definition_panes_scroll_at_all_sizes_without_moving_console_or_tabs(cx: &mut 
     cx.update(|w, _| {
         assert!(
             w.find(("flow-export-name", last)).visible(),
-            "new row scrolls into view"
+            "new row scrolls into view: input {:?}, panel {:?}",
+            w.find(("flow-export-name", last)).bounds(),
+            panel
         )
     });
     // A new row has its own input, even after long-list scrolling and every resize mode.

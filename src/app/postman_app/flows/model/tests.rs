@@ -4,6 +4,176 @@ use postman_flow::{
 };
 
 #[test]
+fn structural_edits_preserve_ids_references_and_opaque_definitions() {
+    for source in [
+        include_str!(
+            "../../../../../crates/postman-flow/examples/flows/httpbingo_catalog.http.yml"
+        ),
+        include_str!("../../../../../crates/postman-flow/examples/flows/httpbingo_loops.http.yml"),
+    ] {
+        let document = parse_flow_yaml(source).unwrap();
+        let mut library = FlowLibrary::default();
+        let flow = library.insert(document.clone());
+        let first = document.flow.steps[0].id.clone();
+        assert!(library
+            .reorder_step(flow, &first, StepDirection::Up)
+            .is_none());
+        assert_eq!(library.active().unwrap().revision(), 0);
+        if document.flow.steps.len() > 1 {
+            library
+                .reorder_step(flow, &first, StepDirection::Down)
+                .unwrap();
+            let mut expected = document.clone();
+            expected.flow.steps.swap(0, 1);
+            assert_eq!(library.active().unwrap().document(), &expected);
+            assert_eq!(library.active().unwrap().selected().unwrap().id, first);
+            assert_eq!(
+                parse_flow_yaml(&write_flow_yaml(&expected).unwrap()).unwrap(),
+                expected
+            );
+            library
+                .reorder_step(flow, &first, StepDirection::Up)
+                .unwrap();
+            assert_eq!(library.active().unwrap().document(), &document);
+        }
+        let before = library.active().unwrap().revision();
+        let removed = library.remove_step(flow, &first).unwrap();
+        let mut expected = document.clone();
+        expected.flow.steps.remove(0);
+        let surviving = step_ids(&expected.flow.steps);
+        expected
+            .editor
+            .nodes
+            .retain(|id, _| !removed.ids.contains(id) || surviving.contains(id));
+        assert_eq!(library.active().unwrap().document(), &expected);
+        assert_eq!(library.active().unwrap().revision(), before + 1);
+        assert_eq!(
+            parse_flow_yaml(&write_flow_yaml(&expected).unwrap()).unwrap(),
+            expected
+        );
+        assert!(library.remove_step(flow, &first).is_none());
+        library.edit_step(flow, &first, &StepEdit::Invalid);
+        assert_eq!(library.active().unwrap().revision(), before + 1);
+    }
+}
+
+#[test]
+fn removal_selection_tombstones_and_flow_isolation() {
+    let mut library = FlowLibrary::default();
+    let first = library.create("First").unwrap();
+    for _ in 0..3 {
+        library.append_step();
+    }
+    library.select_step("request-2");
+    library.remove_step(first, "request-2").unwrap();
+    assert_eq!(
+        library.active().unwrap().selected().unwrap().id,
+        "request-3"
+    );
+    library.remove_step(first, "request-3").unwrap();
+    assert_eq!(
+        library.active().unwrap().selected().unwrap().id,
+        "request-1"
+    );
+    let second = library.create("Second").unwrap();
+    library.append_step();
+    let other = library.active().unwrap().document().clone();
+    library.remove_step(first, "request-1").unwrap();
+    assert_eq!(library.active().unwrap().id(), second);
+    assert_eq!(library.active().unwrap().document(), &other);
+    library.select(first);
+    assert!(library.active().unwrap().selected().is_none());
+    library.append_step();
+    assert_eq!(
+        library.active().unwrap().selected().unwrap().id,
+        "request-4"
+    );
+    assert!(library
+        .reorder_step(first, "request-4", StepDirection::Down)
+        .is_none());
+    assert!(library
+        .reorder_step(first, "request-4", StepDirection::Up)
+        .is_none());
+    assert!(library.remove_step(FlowId(999), "request-4").is_none());
+}
+
+#[test]
+fn imported_nested_ids_are_reserved_after_removal() {
+    let mut document = parse_flow_yaml(include_str!(
+        "../../../../../crates/postman-flow/examples/flows/httpbingo_loops.http.yml"
+    ))
+    .unwrap();
+    let loop_step = document
+        .flow
+        .steps
+        .iter_mut()
+        .find(|s| {
+            matches!(
+                s.request,
+                HttpRequestSource::ForEach(_) | HttpRequestSource::RepeatUntil(_)
+            )
+        })
+        .unwrap();
+    match &mut loop_step.request {
+        HttpRequestSource::ForEach(v) => v.steps[0].id = "request-1".into(),
+        HttpRequestSource::RepeatUntil(v) => v.steps[0].id = "request-1".into(),
+        _ => unreachable!(),
+    }
+    let ids: Vec<_> = document.flow.steps.iter().map(|s| s.id.clone()).collect();
+    let mut library = FlowLibrary::default();
+    let flow = library.insert(document);
+    for id in ids {
+        library.remove_step(flow, &id).unwrap();
+    }
+    library.append_step();
+    assert_eq!(
+        library.active().unwrap().selected().unwrap().id,
+        "request-2"
+    );
+}
+
+#[test]
+fn structural_edits_leave_dependency_errors_for_the_compiler() {
+    use postman_flow::{compile_flow, CompileEnvironment, ResponseExport};
+    let mut library = FlowLibrary::default();
+    let flow = library.create("References").unwrap();
+    library.append_step();
+    library.edit_step(
+        flow,
+        "request-1",
+        &StepEdit::Url(TextTemplate::literal("https://httpbingo.org/uuid")),
+    );
+    library.edit_step(
+        flow,
+        "request-1",
+        &StepEdit::Exports(vec![ResponseExport::json("uuid", "$.uuid")]),
+    );
+    library.append_step();
+    library.edit_step(
+        flow,
+        "request-2",
+        &StepEdit::Url(
+            postman_flow::parse_text_expression(r#"{"output":{"step":"request-1","name":"uuid"}}"#)
+                .unwrap(),
+        ),
+    );
+    let valid = library.active().unwrap().document().clone();
+    assert!(compile_flow(&valid.flow, &valid.apis, &CompileEnvironment::default()).is_ok());
+    library
+        .reorder_step(flow, "request-2", StepDirection::Up)
+        .unwrap();
+    let draft = library.active().unwrap().document();
+    assert!(compile_flow(&draft.flow, &draft.apis, &CompileEnvironment::default()).is_err());
+    library
+        .reorder_step(flow, "request-2", StepDirection::Down)
+        .unwrap();
+    library.remove_step(flow, "request-1").unwrap();
+    let draft = library.active().unwrap().document();
+    assert_eq!(draft.flow.steps[0], valid.flow.steps[1]);
+    assert!(compile_flow(&draft.flow, &draft.apis, &CompileEnvironment::default()).is_err());
+}
+
+#[test]
 fn documents_keep_identity_selection_and_unfinished_edits() {
     let mut library = FlowLibrary::default();
     assert!(library.create("   ").is_err());
