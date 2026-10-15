@@ -129,6 +129,26 @@
    return pad+label+':'+(v!==null&&typeof v==='object'&&Object.keys(v).length?'\n'+yaml(v,depth+1):' '+scalar(v));
   }).join('\n');
  }
- const api={copy,literal,output,http,samples,expressionLabel,textExpression,resolve,condition,extract,validate,fromRequest,yaml};
+ // Session-only step identities and structural edits; references are deliberately untouched.
+ function stepIds(steps) {const ids=new Set();for(const step of steps){ids.add(step.id);for(const id of stepIds(step.steps||[]))ids.add(id);}return ids;}
+ function reserveStepIds(flow){const used=flow.usedStepIds??=new Set();for(const id of stepIds(flow.document.flow.steps))used.add(id);return used;}
+ function nextStepId(flow){const used=reserveStepIds(flow);let n=flow.document.flow.steps.length+1;while(used.has('request-'+n))n++;const id='request-'+n;used.add(id);return id;}
+ function moveStep(flow,id,direction){
+  if(flow.run?.status==='running'||![1,-1].includes(direction))return false;
+  const steps=flow.document.flow.steps,index=steps.findIndex(s=>s.id===id),next=index+direction;
+  if(index<0||next<0||next>=steps.length)return false;
+  [steps[index],steps[next]]=[steps[next],steps[index]];return true;
+ }
+ function removeStep(flow,id){
+  if(flow.run?.status==='running')return false;
+  const steps=flow.document.flow.steps,index=steps.findIndex(s=>s.id===id);if(index<0)return false;
+  reserveStepIds(flow);const ids=stepIds([steps[index]]);steps.splice(index,1);
+  const surviving=stepIds(steps);
+  for(const [key,draft] of Object.entries(flow.fieldDrafts||{}))if(ids.has(draft.step)&&!surviving.has(draft.step))delete flow.fieldDrafts[key];
+  for(const key of Object.keys(flow.document.editor?.nodes||{}))if(ids.has(key)&&!surviving.has(key))delete flow.document.editor.nodes[key];
+  if(flow.selected===id)flow.selected=steps[Math.min(index,steps.length-1)]?.id;
+  return true;
+ }
+ const api={stepIds,nextStepId,moveStep,removeStep,copy,literal,output,http,samples,expressionLabel,textExpression,resolve,condition,extract,validate,fromRequest,yaml};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FlowPreview=api;
 })(globalThis);

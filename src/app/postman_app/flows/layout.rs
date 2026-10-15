@@ -126,10 +126,12 @@ impl FlowSplit {
                 let chrome = super::console::HEADER_HEIGHT
                     + super::console::TOOLS_HEIGHT
                     + super::console::COMMAND_HEIGHT;
-                let min = (chrome + 3.).min(self.total() * 0.6);
+                // Keep room for the inspector heading, tabs, actions, and an editable field.
+                // Short windows share the available height instead of starving the editor.
+                let min = (chrome + 3.).min(self.total() * 0.5);
                 return (
                     min,
-                    (self.total() - 11.25_f32.min(self.total() * 0.4)).max(min),
+                    (self.total() - 13.75_f32.min(self.total() * 0.5)).max(min),
                 );
             }
         };

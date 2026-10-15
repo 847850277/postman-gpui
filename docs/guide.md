@@ -242,10 +242,24 @@ the session. Clearing logs keeps command history and document edits. Commands ne
 system shell. `check`, `run`, and `stop` currently report that their native capability is unavailable;
 Steps and Outputs remain not run. No requests are sent by Console commands.
 
+Step details include **Move step up**, **Move step down**, and **Remove step** across all
+three tabs. Moves change execution order and keep the selected step, its ID, exact unfinished
+fields, and text undo history. Canvas arrow keys still navigate without reordering. First/last
+move buttons are disabled at their boundaries.
+
+Remove opens a confirmation naming the step and its ID. Cancel/Escape keeps all edits. Confirming
+removes the step (and any contained loop steps), then selects the next or previous step; removing
+the last step focuses Add step. Only the deleted step's editors/subscriptions/layout are discarded.
+Inputs overrides and Console history are retained. IDs are not recycled within the session.
+API-reference and loop nodes move as complete units; their configuration remains read-only.
+References are never rewritten: moving a consumer before its producer or removing a producer can
+leave invalid references. Variable hints update immediately; full compiler diagnostics remain P5.3.
+Structural undo/redo and drag-and-drop ordering are not implemented; text undo/redo is preserved.
+
 Flow drafts are **not saved across restart**. YAML, toolbar Check, file Export, and Run remain unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Later P5.2 slices add other check editors, step management, and HTTP Add to flow; P5.3 adds compiler
+Later P5.2 slices add other check editors and HTTP Add to flow; P5.3 adds compiler
 diagnostics and file persistence, and P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and

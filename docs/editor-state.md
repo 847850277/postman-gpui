@@ -96,3 +96,20 @@ Sensitive editors are omitted from the rendered/accessibility surface until reve
 Inputs, its view, a flow, or the Flow page conceals them while retaining source. Debug formatting
 of `FlowInputs` lists names only. Defaults remain intentional document data; run overrides never
 enter serialization, history, Console, or environment storage.
+
+### Flow step structure
+
+The Flow library owns adjacent reordering and removal by `(FlowId, step ID)`, separately from
+canvas selection navigation. Successful mutations increment revision once; boundary moves,
+missing targets, and cancelled dialogs do not. Reordering keeps every typed definition and
+retained Kit editor intact, including invalid source, tab, scroll, composition and undo history.
+All cached inspectors refresh available-variable names without modifying references.
+
+Removal confirmation captures both IDs and revalidates the active flow before applying. Only
+deleted inspectors and their owner subscriptions are released; delayed events cannot change a
+replacement node. Nested loop definitions are removed as a unit. Owned layout entries are
+removed while entries still used by surviving scoped IDs remain. Selection falls to the next
+step, then previous, or Add step for an empty flow. Inputs overrides and Console state survive.
+Session-only reserved IDs include imported/nested IDs and deleted IDs, preventing reuse by Add
+step. These reservations are not DSL fields or restart persistence. Reference repair and
+structural undo are outside this slice; compiler diagnostics remain P5.3.

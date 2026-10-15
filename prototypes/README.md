@@ -225,3 +225,18 @@ preview continues using local fixtures rather than real network execution.
 
 `node --test prototypes/flow-inputs.test.cjs` checks precedence, typed values, malformed drafts,
 name collisions, rename/delete/recreate behavior, and safe handling of prototype-like names.
+
+### Step management reference update (P5.2-4 / #226)
+
+This extends the merged #225 / `b3d1c1a` baseline. The implementation PR's changes to
+`flow-studio.js`, `flow-studio.css`, and `flow-model.js` are the updated step-action reference.
+The compact action bar stays below independently scrolling fields across Request/Checks/Exports.
+Up/down changes execution order and keeps the selected ID; first/last boundaries disable the
+corresponding action. Tooltips explain that existing references remain unchanged.
+
+Remove opens a dialog showing the step name/ID and the effect on unfinished edits and references.
+Cancel/Escape preserves the document; confirmation selects next/previous, or Add step when empty.
+Loop removal includes nested steps; new IDs do not reuse deleted/imported IDs within the session.
+Inputs overrides and Console history stay intact. The native controls use GPUI Kit; the browser
+continues using fixture execution. Run `node --test prototypes/*.test.cjs` and manually verify
+dialog focus, keyboard activation, cancel/confirm, empty state, and light/dark compact layouts.

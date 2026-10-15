@@ -5,6 +5,7 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const icon=name=>'<svg class="icon" aria-hidden="true"><use href="#i-'+name+'"/></svg>';
  let sequence=0, activeFlow='echo-chain', inspectorTab='request', canvasView='canvas', resultView='logs', mobileInspect=false;
+ let pendingRemoval=null;
  let consoleMode='normal', logLevel='all', followLogs=true, eventSequence=0, commandComposing=false;
  const flows=M.samples().map(item=>({...item,selected:item.document.flow.steps[0]?.id,dirty:false,run:null}));
  const current=()=>flows.find(flow=>flow.id===activeFlow);
@@ -55,6 +56,7 @@
  document.body.insertAdjacentHTML('beforeend',`
  <dialog class="studio-dialog" id="new-flow-dialog" aria-labelledby="new-flow-title"><form id="new-flow-form"><div class="dialog-head">${icon('flow')}<strong id="new-flow-title">Create a flow</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Close new flow">${icon('x')}</button></div><div class="dialog-content"><p>Give your sequence a name. Add requests and connect their outputs as you go.</p>${field('Flow name',input('new-flow-name','','required maxlength="80" placeholder="e.g. Order checkout"'))}</div><div class="dialog-footer"><span>Saved in this session</span><button type="button" class="studio-button studio-close">Cancel</button><button class="studio-button primary" type="submit">Create flow</button></div></form></dialog>
  <dialog class="studio-dialog" id="add-step-dialog" aria-labelledby="add-step-title"><div class="dialog-head">${icon('plus')}<strong id="add-step-title">Add a step</strong><span class="spacer"></span><button class="icon-button studio-close" aria-label="Close add step">${icon('x')}</button></div><div class="dialog-content"><button class="recent-item" id="add-blank-step">${icon('terminal')}<div><strong>New HTTP request</strong><small>Configure a method, URL, and response checks</small></div>${icon('arrow')}</button><p class="inspector-section">FROM OPEN HTTP REQUESTS</p><div id="open-request-options"></div></div></dialog>
+ <dialog class="studio-dialog" id="remove-step-dialog" aria-labelledby="remove-step-title" aria-describedby="remove-step-description"><div class="dialog-head">${icon('trash')}<strong id="remove-step-title">Remove step?</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Cancel removal">${icon('x')}</button></div><div class="dialog-content"><strong id="remove-step-name"></strong><p class="studio-hint mono" id="remove-step-id"></p><p id="remove-step-description"></p></div><div class="dialog-footer"><span></span><button type="button" class="studio-button studio-close" id="remove-step-cancel" autofocus>Cancel</button><button type="button" class="studio-button danger" id="remove-step-confirm">Remove step</button></div></dialog>
  <dialog class="studio-dialog" id="add-to-flow-dialog" aria-labelledby="add-to-flow-title"><form id="add-to-flow-form"><div class="dialog-head">${icon('flow')}<strong id="add-to-flow-title">Add to flow</strong><span class="spacer"></span><button type="button" class="icon-button studio-close" aria-label="Close add to flow">${icon('x')}</button></div><div class="dialog-content"><p id="add-to-flow-summary"></p>${field('Destination flow','<select id="destination-flow" class="studio-input"></select>')}<p class="studio-hint">Creates an editable copy at the end of the flow.</p><p class="studio-error" id="transfer-error" role="alert" hidden></p></div><div class="dialog-footer"><span></span><button type="button" class="studio-button studio-close">Cancel</button><button class="studio-button primary" type="submit">Add and open flow</button></div></form></dialog>`);
  let pendingRequest=null;
  function setMode(view,updateHash=true) { flows.forEach(f=>f.inputDrafts?.conceal());
@@ -111,6 +113,7 @@
  function renderInspector(){
   const step=selected(),flow=current();
   $('flow-inspector').scrollTop=0;
+  $('flow-inspector').classList.toggle('step-details',inspectorTab!=='inputs'&&!!step);
   $('flow-inspector').oninput=$('flow-inspector').onchange=$('flow-inspector').onclick=null;
   if(inspectorTab==='inputs'){
    new FlowInputsPanel($('flow-inspector'),flow,()=>HTTP.environment().baseUrl,()=>{markEdited();$('flow-input-count').textContent=flow.document.flow.inputs.length;},()=>{inspectorTab='request';renderInspector();});return;
@@ -139,7 +142,8 @@
    const target=loop?step.steps[0]:step;
    area.innerHTML='<p class="studio-hint" style="margin-top:0;margin-bottom:16px">'+(loop?'Values from the polling request are available to its stop condition.':'Extract values from the JSON response for later steps.')+'</p><div id="step-export-rows">'+target.exports.map((item,i)=>'<div class="export-row">'+input('export-name-'+i,item.name,'data-export-name="'+i+'" aria-label="Export name '+(i+1)+'" placeholder="Name"')+input('export-path-'+i,item.path,'data-export-path="'+i+'" aria-label="Export path '+(i+1)+'" placeholder="$.json.id"')+'<button class="icon-button" data-remove-export="'+i+'" aria-label="Remove export '+(i+1)+'">'+icon('x')+'</button></div>').join('')+'</div><button class="studio-button quiet" id="add-export">'+icon('plus')+'Add export</button>';
   }
-  area.innerHTML+='<p class="studio-error" id="step-error" role="alert" hidden></p><div class="inspector-actions"><button class="icon-button" id="move-step-up" aria-label="Move step up" title="Move step up"'+(flow.document.flow.steps[0]===step?' disabled':'')+'>'+icon('up')+'</button><button class="icon-button" id="move-step-down" aria-label="Move step down" title="Move step down"'+(flow.document.flow.steps.at(-1)===step?' disabled':'')+'>'+icon('down')+'</button><span class="studio-hint" style="margin:0 0 0 3px">Execution order</span><button class="icon-button danger" id="remove-step" aria-label="Remove step" title="Remove step">'+icon('trash')+'</button></div>';
+  area.innerHTML+='<p class="studio-error" id="step-error" role="alert" hidden></p>';
+  $('flow-inspector').insertAdjacentHTML('beforeend','<div class="step-actions-footer"><div class="inspector-actions"><button class="icon-button" id="move-step-up" aria-label="Move step up" title="Move step up. References stay unchanged; check them after editing the order."'+(flow.document.flow.steps[0]===step?' disabled':'')+'>'+icon('up')+'</button><button class="icon-button" id="move-step-down" aria-label="Move step down" title="Move step down. References stay unchanged; check them after editing the order."'+(flow.document.flow.steps.at(-1)===step?' disabled':'')+'>'+icon('down')+'</button><span class="studio-hint" style="margin:0 0 0 3px">Execution order</span><button class="icon-button danger" id="remove-step" aria-label="Remove step" title="Remove step">'+icon('trash')+'</button></div></div>');
   area.querySelectorAll('input,select,textarea').forEach(control=>control.setAttribute('aria-describedby','step-error'));
   for(const [key,draft] of Object.entries(flow.fieldDrafts||{})) {
    if(draft.step!==step.id)continue;
@@ -448,19 +452,32 @@
  $('flow-inspector').addEventListener('click',event=>{
   const button=event.target.closest('button');if(!button)return;
   if(button.dataset.inspectorTab){inspectorTab=button.dataset.inspectorTab;renderInspector();return;}
-  const flow=current(),step=selected();if(!step||flow.run?.status==='running')return;const list=flow.document.flow.steps,index=list.indexOf(step),target=step.kind==='repeat_until'?step.steps[0]:step;
-  if(button.id==='move-step-up'||button.id==='move-step-down'){const next=index+(button.id==='move-step-up'?-1:1);if(next<0||next>=list.length)return;[list[index],list[next]]=[list[next],list[index]];}
-  else if(button.id==='remove-step'){for(const [key,draft] of Object.entries(flow.fieldDrafts||{}))if(draft.step===step.id)delete flow.fieldDrafts[key];list.splice(index,1);flow.selected=list[Math.min(index,list.length-1)]?.id;HTTP.toast('Step removed');}
+  const flow=current(),step=selected();if(!step||flow.run?.status==='running')return;const list=flow.document.flow.steps,target=step.kind==='repeat_until'?step.steps[0]:step;
+  if(button.id==='move-step-up'||button.id==='move-step-down'){if(!M.moveStep(flow,step.id,button.id==='move-step-up'?-1:1))return;}
+  else if(button.id==='remove-step'){
+   pendingRemoval={flow:flow.id,step:step.id};$('remove-step-name').textContent=step.name||'Untitled step';$('remove-step-id').textContent=step.id;
+   $('remove-step-description').textContent=step.steps?'This step, its contained steps, and their unfinished edits will be removed. References to them will remain unchanged.':'This step and its unfinished edits will be removed. References to it will remain unchanged.';
+   $('remove-step-dialog').showModal();$('remove-step-cancel').focus();return;
+  }
   else if(button.id==='add-export')target.exports.push({name:'value_'+(target.exports.length+1),path:'$.json.id'});
   else if(button.dataset.removeExport!==undefined)target.exports.splice(Number(button.dataset.removeExport),1);else return;
   markEdited();renderInspector();$('flow-step-count').textContent=list.length+' steps · Sequential';
+  if(button.id.startsWith('move-step-')){const action=$(button.id);(action?.disabled?$(button.id==='move-step-up'?'move-step-down':'move-step-up'):action)?.focus();}
+ });
+ $('remove-step-dialog').addEventListener('close',()=>{pendingRemoval=null;});
+ $('remove-step-confirm').addEventListener('click',()=>{
+  const target=pendingRemoval;pendingRemoval=null;const flow=current();
+  const removed=target&&flow.id===target.flow&&M.removeStep(flow,target.step);
+  $('remove-step-dialog').close();if(!removed)return;
+  markEdited();renderFlow();updateFooter();HTTP.toast('Step removed');
+  (flow.selected?$('remove-step'):$('add-step'))?.focus();
  });
  $('new-flow').addEventListener('click',newFlowDialog);$('add-step').addEventListener('click',openAddStep);
  $('new-flow-form').addEventListener('submit',event=>{event.preventDefault();const name=$('new-flow-name').value.trim();if(!name)return;createFlow(name);$('new-flow-dialog').close();setMode('flows');});
- $('add-blank-step').addEventListener('click',()=>addStep(M.http('request-'+(++sequence),'New request','GET','/get')));
- $('open-request-options').addEventListener('click',event=>{const button=event.target.closest('[data-copy-request]');if(!button)return;const previous=HTTP.current().id;HTTP.activate(button.dataset.copyRequest);const request=HTTP.current();HTTP.activate(previous);if(request.curlOptions?.length){HTTP.toast('Remove cURL transport flags before adding this request to a flow');return;}try{addStep(M.fromRequest(request,'request-'+(++sequence)));}catch(error){HTTP.toast(error.message);}});
+ $('add-blank-step').addEventListener('click',()=>addStep(M.http(M.nextStepId(current()),'New request','GET','/get')));
+ $('open-request-options').addEventListener('click',event=>{const button=event.target.closest('[data-copy-request]');if(!button)return;const previous=HTTP.current().id;HTTP.activate(button.dataset.copyRequest);const request=HTTP.current();HTTP.activate(previous);if(request.curlOptions?.length){HTTP.toast('Remove cURL transport flags before adding this request to a flow');return;}try{addStep(M.fromRequest(request,M.nextStepId(current())));}catch(error){HTTP.toast(error.message);}});
  $('add-request-to-flow').addEventListener('click',openTransfer);
- $('add-to-flow-form').addEventListener('submit',event=>{event.preventDefault();const id=$('destination-flow').value;let message='';if(pendingRequest.curlOptions?.length)message='This preview cannot transfer cURL transport flags. Remove them before adding this request.';if(flows.find(flow=>flow.id===id)?.run?.status==='running')message='Stop the destination flow preview before adding a step.';if(message){$('transfer-error').textContent=message;$('transfer-error').hidden=false;return;}let step;try{step=M.fromRequest(pendingRequest,'request-'+(++sequence));}catch(error){$('transfer-error').textContent=error.message;$('transfer-error').hidden=false;return;}if(id==='__new')createFlow(pendingRequest.title+' flow');else activeFlow=id;addStep(step);$('add-to-flow-dialog').close();setMode('flows');});
+ $('add-to-flow-form').addEventListener('submit',event=>{event.preventDefault();const id=$('destination-flow').value;let message='';if(pendingRequest.curlOptions?.length)message='This preview cannot transfer cURL transport flags. Remove them before adding this request.';if(flows.find(flow=>flow.id===id)?.run?.status==='running')message='Stop the destination flow preview before adding a step.';if(message){$('transfer-error').textContent=message;$('transfer-error').hidden=false;return;}let step;try{step=M.fromRequest(pendingRequest,'pending-step');}catch(error){$('transfer-error').textContent=error.message;$('transfer-error').hidden=false;return;}if(id==='__new')createFlow(pendingRequest.title+' flow');else activeFlow=id;step.id=M.nextStepId(current());addStep(step);$('add-to-flow-dialog').close();setMode('flows');});
  $('flow-results-body').addEventListener('click',event=>{const button=event.target.closest('[data-error-step]');if(button?.dataset.errorStep)locateStep(button.dataset.errorStep);});
  $('check-flow').addEventListener('click',()=>checkFlow());$('run-flow').addEventListener('click',runFlow);$('export-flow').addEventListener('click',exportFlow);
  $('copy-yaml').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(M.yaml(current().document)+'\n');HTTP.toast('YAML copied');}catch(_){HTTP.toast('Select the YAML to copy it');}});
@@ -484,7 +501,7 @@
   container:$('flow-stage'),handle:$('flow-results-divider'),axis:'y',key:'flow-results',label:'Console height',initial:240,fromEnd:true,
   limits:total=>{
    const chrome=$('flow-results').querySelector('.results-heading').offsetHeight+$('flow-results').querySelector('.console-tools').offsetHeight+$('console-command-form').offsetHeight;
-   return [Math.min(chrome+48,total*.6),total-Math.min(180,total*.4)];
+   return [Math.min(chrome+48,total*.5),total-Math.min(220,total*.5)];
   },
   apply:value=>$('flow-stage').style.setProperty('--flow-results-height',value+'px')
  });

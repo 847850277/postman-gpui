@@ -4,6 +4,7 @@ use postman_flow::{
     FlowDefinition, FlowDocument, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
     TemplatePart, TextTemplate,
 };
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct FlowId(pub u64);
@@ -13,6 +14,8 @@ pub(super) struct FlowDraft {
     document: FlowDocument,
     selected: Option<String>,
     revision: u64,
+    // Tombstones are session-only: old references must never bind to a replacement step.
+    used_step_ids: HashSet<String>,
 }
 
 impl FlowDraft {
@@ -66,11 +69,13 @@ impl FlowLibrary {
         self.next_id += 1;
         let id = FlowId(self.next_id);
         let selected = document.flow.steps.first().map(|s| s.id.clone());
+        let used_step_ids = step_ids(&document.flow.steps);
         self.drafts.push(FlowDraft {
             id,
             document,
             selected,
             revision: 0,
+            used_step_ids,
         });
         self.active = Some(id);
         id
@@ -116,16 +121,11 @@ impl FlowLibrary {
             return;
         };
         let mut number = draft.document.flow.steps.len() + 1;
-        while draft
-            .document
-            .flow
-            .steps
-            .iter()
-            .any(|s| s.id == format!("request-{number}"))
-        {
+        while draft.used_step_ids.contains(&format!("request-{number}")) {
             number += 1;
         }
         let id = format!("request-{number}");
+        draft.used_step_ids.insert(id.clone());
         draft.document.flow.steps.push(HttpStepDefinition::new(
             &id,
             format!("Request {number}"),
@@ -133,6 +133,46 @@ impl FlowLibrary {
         ));
         draft.selected = Some(id);
         draft.revision += 1;
+    }
+    pub(super) fn reorder_step(
+        &mut self,
+        flow: FlowId,
+        id: &str,
+        direction: StepDirection,
+    ) -> Option<std::ops::Range<usize>> {
+        let draft = self.drafts.iter_mut().find(|d| d.id == flow)?;
+        let steps = &mut draft.document.flow.steps;
+        let index = steps.iter().position(|s| s.id == id)?;
+        let next = match direction {
+            StepDirection::Up => index.checked_sub(1)?,
+            StepDirection::Down if index + 1 < steps.len() => index + 1,
+            StepDirection::Down => return None,
+        };
+        steps.swap(index, next);
+        draft.revision += 1;
+        Some(index.min(next)..index.max(next) + 1)
+    }
+
+    pub(super) fn remove_step(&mut self, flow: FlowId, id: &str) -> Option<RemovedStep> {
+        let draft = self.drafts.iter_mut().find(|d| d.id == flow)?;
+        let steps = &mut draft.document.flow.steps;
+        let index = steps.iter().position(|s| s.id == id)?;
+        let removed = steps.remove(index);
+        let ids = step_ids(std::slice::from_ref(&removed));
+        if draft.selected.as_deref() == Some(id) {
+            draft.selected = steps
+                .get(index.min(steps.len().saturating_sub(1)))
+                .map(|s| s.id.clone());
+        }
+        // Nested IDs are scoped by the DSL. A surviving node with the same ID still owns layout.
+        let surviving = step_ids(steps);
+        draft
+            .document
+            .editor
+            .nodes
+            .retain(|id, _| !ids.contains(id) || surviving.contains(id));
+        draft.revision += 1;
+        Some(RemovedStep { index, ids })
     }
     /// Target identity travels with the editor event, including an invalid raw-source edit.
     pub(super) fn edit_step(&mut self, flow: FlowId, id: &str, edit: &StepEdit) {
@@ -181,6 +221,33 @@ impl FlowLibrary {
             draft.revision += 1;
         }
     }
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum StepDirection {
+    Up,
+    Down,
+}
+
+pub(super) struct RemovedStep {
+    pub(super) index: usize,
+    pub(super) ids: HashSet<String>,
+}
+
+fn step_ids(steps: &[HttpStepDefinition]) -> HashSet<String> {
+    let mut ids = HashSet::new();
+    fn visit(steps: &[HttpStepDefinition], ids: &mut HashSet<String>) {
+        for step in steps {
+            ids.insert(step.id.clone());
+            match &step.request {
+                HttpRequestSource::ForEach(value) => visit(&value.steps, ids),
+                HttpRequestSource::RepeatUntil(value) => visit(&value.steps, ids),
+                _ => {}
+            }
+        }
+    }
+    visit(steps, &mut ids);
+    ids
 }
 
 pub(super) enum StepEdit {

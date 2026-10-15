@@ -141,7 +141,6 @@ impl RequestInspector {
                 let id = row.id;
                 div()
                     .id(("flow-check-row", id))
-                    .anchor_scroll(Some(row.anchor.clone()))
                     .flex()
                     .flex_col()
                     .gap_2()
@@ -181,10 +180,15 @@ impl RequestInspector {
                         |d, input| {
                             d.child(field(
                                 "Expected status code",
-                                Input::new(input)
-                                    .id(("flow-check-status", id))
-                                    .aria_label("Expected status code")
-                                    .w_full(),
+                                div()
+                                    .id(("flow-check-input-anchor", id))
+                                    .anchor_scroll(Some(row.anchor.clone()))
+                                    .child(
+                                        Input::new(input)
+                                            .id(("flow-check-status", id))
+                                            .aria_label("Expected status code")
+                                            .w_full(),
+                                    ),
                                 cx,
                             ))
                         },

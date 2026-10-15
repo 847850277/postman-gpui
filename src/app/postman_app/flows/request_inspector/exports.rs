@@ -149,9 +149,9 @@ impl RequestInspector {
             .when(self.exports.is_empty(), |d| d.child(hint("No exports. Add a name and a JSONPath to declare a value.", false, cx)))
             .children(self.exports.iter().map(|row| {
                 let id = row.id;
-                div().id(("flow-export-row", id)).anchor_scroll(Some(row.anchor.clone())).flex().flex_col().gap_2().min_w_0().pb_3().border_b_1().border_color(LINE.resolve(cx))
+                div().id(("flow-export-row", id)).flex().flex_col().gap_2().min_w_0().pb_3().border_b_1().border_color(LINE.resolve(cx))
                     .child(div().flex().items_start().gap_2().min_w_0()
-                        .child(div().flex_1().min_w_0().child(field("Name", Input::new(&row.name).id(("flow-export-name", id)).aria_label("Export name").readonly(self.readonly.is_some()).w_full(), cx)))
+                        .child(div().flex_1().min_w_0().child(field("Name", div().id(("flow-export-input-anchor", id)).anchor_scroll(Some(row.anchor.clone())).child(Input::new(&row.name).id(("flow-export-name", id)).aria_label("Export name").readonly(self.readonly.is_some()).w_full()), cx)))
                         .child(div().flex_1().min_w_0().child(field("JSONPath", Input::new(&row.path).id(("flow-export-path", id)).aria_label("Export JSONPath").readonly(self.readonly.is_some()).w_full(), cx)))
                         .when(self.readonly.is_none(), |d| d.child(div().pt_5().child(Button::new(("flow-remove-export", id)).icon(IconName::Trash).ghost().small().accessibility_label("Remove export")
                             .on_click(cx.listener(move |this, _, w, cx| this.remove_export(id, w, cx)))))))
