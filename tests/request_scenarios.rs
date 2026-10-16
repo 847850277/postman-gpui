@@ -3,10 +3,11 @@
 mod common;
 
 use common::scenario::{
-    expected_editor_intent, expected_request, expected_request_options, load_suite, load_suites,
-    resolve_scenario_fixture_path, response_redirect_chain, run_scenario,
+    assert_response_state, expected_editor_intent, expected_request, expected_request_options,
+    load_suite, load_suites, resolve_scenario_fixture_path, response_redirect_chain, run_scenario,
     validate_body_row_contract, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
+use postman_gpui::app::ResponseState;
 use postman_gpui::models::{
     HttpMethod, MultipartEditorPart, MultipartPart, MultipartValue, RedirectPolicy, RequestBody,
     RequestEditorIntent,
@@ -188,7 +189,7 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
         status,
         body_contains,
         body_json_contains,
-        headers_contain,
+        header_tokens_contain,
         ..
     } = &options.expect.response
     else {
@@ -196,9 +197,103 @@ fn head_and_options_scenarios_require_exact_bodyless_methods_and_stable_headers(
     };
     assert_eq!(*status, 200);
     assert!(body_contains.is_none() && body_json_contains.is_none());
-    assert!(headers_contain.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("access-control-allow-methods") && value.contains("OPTIONS")
+    assert!(header_tokens_contain.iter().any(|(name, tokens)| {
+        name.eq_ignore_ascii_case("access-control-allow-methods")
+            && tokens == &["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"]
     }));
+}
+
+fn success_with_headers(headers: &[(&str, &str)]) -> ResponseState {
+    ResponseState::Success {
+        status: 200,
+        body: String::new(),
+        body_bytes: std::sync::Arc::from([]),
+        is_binary: false,
+        headers: headers
+            .iter()
+            .map(|(name, value)| (name.to_string(), value.to_string()))
+            .collect(),
+        elapsed_ms: 0,
+    }
+}
+
+#[test]
+fn options_contract_accepts_extended_method_lists_but_requires_each_exact_token() {
+    let files = scenario_files();
+    let scenario = files
+        .iter()
+        .flat_map(|file| &file.suite.cases)
+        .find(|scenario| scenario.name == "HTTPBingo receives OPTIONS without rewriting it to GET")
+        .expect("OPTIONS scenario must exist");
+    for headers in [
+        vec![(
+            "Access-Control-Allow-Methods",
+            "GET, POST, HEAD, PUT, DELETE, PATCH, QUERY, OPTIONS",
+        )],
+        vec![(
+            "access-control-allow-methods",
+            "OPTIONS, PATCH, DELETE, PUT, HEAD, POST, GET",
+        )],
+        vec![
+            (
+                "access-control-allow-methods",
+                "GET, POST, HEAD, PUT, DELETE, PATCH",
+            ),
+            ("Access-Control-Allow-Methods", " \tOPTIONS \t, QUERY"),
+        ],
+    ] {
+        assert_response_state(&success_with_headers(&headers), &scenario.expect.response)
+            .unwrap_or_else(|error| panic!("valid method list rejected: {error}"));
+    }
+    for headers in [
+        vec![],
+        vec![(
+            "access-control-allow-methods",
+            "GET, POST, HEAD, PUT, DELETE, PATCH",
+        )],
+        vec![(
+            "access-control-allow-methods",
+            "GET, POST, HEAD, PUT, DELETE, PATCH, XOPTIONS",
+        )],
+        vec![(
+            "access-control-allow-methods",
+            "GET, POST, HEAD, PUT, DELETE, PATCH, options",
+        )],
+        vec![(
+            "access-control-allow-methods",
+            "GET, POST, HEAD, PUT, DELETE, OPTIONS",
+        )],
+        vec![(
+            "unrelated-header",
+            "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
+        )],
+    ] {
+        assert!(
+            assert_response_state(&success_with_headers(&headers), &scenario.expect.response)
+                .is_err(),
+            "invalid method list accepted: {headers:?}"
+        );
+    }
+}
+
+#[test]
+fn exact_response_header_checks_do_not_become_token_or_substring_checks() {
+    let expected: ResponseSpec = serde_json::from_value(serde_json::json!({
+        "kind": "success", "status": 200, "headers_contain": [["X-E2E-Header", "visible"]]
+    }))
+    .unwrap();
+    assert_response_state(
+        &success_with_headers(&[("x-e2e-header", "visible")]),
+        &expected,
+    )
+    .unwrap();
+    for value in ["not-visible", "visible, extra", "VISIBLE"] {
+        assert!(assert_response_state(
+            &success_with_headers(&[("X-E2E-Header", value)]),
+            &expected
+        )
+        .is_err());
+    }
 }
 
 #[test]
