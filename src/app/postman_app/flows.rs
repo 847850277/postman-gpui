@@ -8,6 +8,8 @@ mod request_inspector;
 mod request_source;
 mod step_actions;
 mod transfer;
+mod validation;
+mod yaml;
 pub(super) use transfer::open as open_transfer;
 #[cfg(test)]
 mod tests;
@@ -75,6 +77,8 @@ pub(super) struct FlowsView {
     projected_title_flow: Option<FlowId>,
     inputs: HashMap<FlowId, Entity<inputs::InputsInspector>>,
     inputs_open: bool,
+    yaml_open: bool,
+    previews: HashMap<FlowId, Entity<yaml::YamlPreview>>,
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
     step_subscriptions: HashMap<(FlowId, String), Subscription>,
     add_step_focus: FocusHandle,
@@ -124,6 +128,10 @@ impl FlowsView {
         let mut subscriptions = Vec::new();
         subscriptions.push(
             cx.subscribe_in(&console, window, |this, _, event, window, cx| match event {
+                console::ConsoleEvent::Check => this.check_flow(window, cx),
+                console::ConsoleEvent::LocateDiagnostic(target) => {
+                    this.locate_diagnostic(target, window, cx)
+                }
                 console::ConsoleEvent::LayoutChanged => {
                     this.conceal_inputs(cx);
                     cx.notify();
@@ -132,6 +140,7 @@ impl FlowsView {
                     if this.library.active().is_some_and(|d| {
                         d.id() == *flow && d.document().flow.steps.iter().any(|s| s.id == *step)
                     }) {
+                        this.yaml_open = false;
                         this.select_step(step, window, cx);
                         this.details = true;
                         this.reveal_step();
@@ -153,6 +162,7 @@ impl FlowsView {
                 if matches!(event, InputEvent::Change) {
                     this.library.rename(input.read(cx).value().to_string());
                     this.sync_picker(window, cx);
+                    this.document_changed(window, cx);
                     cx.notify();
                 }
             }),
@@ -196,6 +206,8 @@ impl FlowsView {
             projected_title_flow: None,
             inputs: HashMap::new(),
             inputs_open: false,
+            yaml_open: false,
+            previews: HashMap::new(),
             inspectors: HashMap::new(),
             step_subscriptions: HashMap::new(),
             add_step_focus: cx.focus_handle().tab_stop(true),
@@ -266,6 +278,7 @@ impl FlowsView {
     }
     /// Retain title editing state within a Flow; rebind it when the Flow identity changes.
     fn sync_fields(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.document_changed(window, cx);
         let active = self.library.active().map(|d| d.id());
         let flow_changed = self.projected_title_flow != active;
         self.projected_title_flow = active;
@@ -291,6 +304,7 @@ impl FlowsView {
                     match event {
                         inputs::InputsEvent::Definitions { values, invalid } => {
                             this.library.edit_inputs(flow, values, *invalid);
+                            this.document_changed(window, cx);
                             if let Some(draft) =
                                 this.library.drafts().iter().find(|d| d.id() == flow)
                             {
@@ -334,23 +348,27 @@ impl FlowsView {
             if !self.inspectors.contains_key(&key) {
                 let variables = request_source::variables(&draft.document().flow, &id);
                 let inspector = cx.new(|cx| RequestInspector::new(step, variables, window, cx));
-                let subscription = cx.subscribe(&inspector, move |this, _, edit, cx| {
-                    this.library.edit_step(flow, &id, edit);
-                    if matches!(edit, model::StepEdit::Exports(_)) {
-                        if let Some(draft) = this.library.drafts().iter().find(|d| d.id() == flow) {
-                            for ((owner, step), inspector) in &this.inspectors {
-                                if *owner == flow && step != &id {
-                                    let variables =
-                                        request_source::variables(&draft.document().flow, step);
-                                    inspector.update(cx, |inspector, cx| {
-                                        inspector.set_variables(variables, cx)
-                                    });
+                let subscription =
+                    cx.subscribe_in(&inspector, window, move |this, _, edit, window, cx| {
+                        this.library.edit_step(flow, &id, edit);
+                        this.document_changed(window, cx);
+                        if matches!(edit, model::StepEdit::Exports(_)) {
+                            if let Some(draft) =
+                                this.library.drafts().iter().find(|d| d.id() == flow)
+                            {
+                                for ((owner, step), inspector) in &this.inspectors {
+                                    if *owner == flow && step != &id {
+                                        let variables =
+                                            request_source::variables(&draft.document().flow, step);
+                                        inspector.update(cx, |inspector, cx| {
+                                            inspector.set_variables(variables, cx)
+                                        });
+                                    }
                                 }
                             }
                         }
-                    }
-                    cx.notify();
-                });
+                        cx.notify();
+                    });
                 self.step_subscriptions.insert(key.clone(), subscription);
                 self.inspectors.insert(key, inspector);
             }
@@ -367,6 +385,7 @@ impl FlowsView {
         }
     }
     fn open_inputs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.yaml_open = false;
         self.inputs_open = true;
         self.details = true;
         if let Some(editor) = self.library.active().and_then(|d| self.inputs.get(&d.id())) {
@@ -401,6 +420,7 @@ impl FlowsView {
         self.finish_append(window, cx);
     }
     fn finish_append(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.yaml_open = false;
         self.conceal_inputs(cx);
         self.inputs_open = false;
         if let Some(draft) = self.library.active() {

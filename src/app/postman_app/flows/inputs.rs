@@ -327,3 +327,42 @@ fn reconcile(
         }
     }
 }
+
+impl InputsInspector {
+    pub(super) fn draft_issues(&self) -> Vec<super::validation::Issue> {
+        self.rows
+            .iter()
+            .filter(|r| r.error.is_some() || r.applied.is_none())
+            .map(|r| super::validation::Issue {
+                message: format!(
+                    "UnappliedDraft · flow.inputs · row {}: {}",
+                    r.id,
+                    r.error
+                        .as_deref()
+                        .unwrap_or("Complete or remove this input definition.")
+                ),
+                target: super::validation::Target::Input(r.id),
+            })
+            .collect()
+    }
+    pub(super) fn definition_row_id(&self, index: usize) -> Option<u64> {
+        self.rows
+            .iter()
+            .filter(|r| r.applied.is_some())
+            .nth(index)
+            .map(|r| r.id)
+    }
+    pub(super) fn locate_definition(
+        &mut self,
+        id: u64,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_definitions(true, cx);
+        if let Some(row) = self.rows.iter().find(|r| r.id == id) {
+            row.name.focus_handle(cx).focus(window, cx);
+            row.anchor.scroll_to(window, cx);
+        }
+        cx.notify();
+    }
+}

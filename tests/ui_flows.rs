@@ -276,3 +276,76 @@ fn console_modes_and_wide_inspector_preserve_normal_sizes(cx: &mut TestAppContex
         (cx.debug_bounds("flow-results").unwrap().size.height - normal.size.height).abs() < px(2.)
     );
 }
+
+#[gpui_kit::test]
+fn yaml_and_check_diagnostics_fit_the_native_theme_scale_and_size_matrix(cx: &mut TestAppContext) {
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let (_, cx) = cx.add_window_view(move |w, cx| {
+        ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(model, w, cx))
+    });
+    click(cx, "nav-flows").unwrap();
+    resize(cx, 1440., 960.);
+    create(cx, "Check and readonly YAML");
+    add(cx);
+    ui::replace_text(cx, "flow-step-name", "").unwrap();
+    click(cx, "flow-check").unwrap();
+    for theme in [
+        gpui_kit::component::ThemeMode::Light,
+        gpui_kit::component::ThemeMode::Dark,
+    ] {
+        cx.update(|_, cx| postman_gpui::ui::theme::apply(theme, cx));
+        for scale in [1., 2.] {
+            let handle = cx.update(|w, _| w.window_handle());
+            cx.simulate_window_scale_factor_change(handle, scale);
+            for (width, height) in [
+                (1440., 960.),
+                (1920., 1080.),
+                (1024., 768.),
+                (768., 720.),
+                (1024., 600.),
+            ] {
+                resize(cx, width, height);
+                click(cx, "flow-yaml-tab").unwrap();
+                settle(cx);
+                for id in [
+                    "flow-topbar",
+                    "flow-toolbar",
+                    "flow-yaml",
+                    "flow-yaml-editor",
+                    "flow-results",
+                    "console-command",
+                ] {
+                    let b = cx
+                        .debug_bounds(id)
+                        .unwrap_or_else(|| panic!("{id} absent at {width}×{height}"));
+                    assert!(
+                        b.left() >= px(0.)
+                            && b.right() <= px(width + 1.)
+                            && b.top() >= px(0.)
+                            && b.bottom() <= px(height + 1.)
+                            && b.size.height > px(0.),
+                        "{id} at {width}×{height}: {b:?}"
+                    );
+                }
+                for id in [
+                    "flow-check",
+                    "flow-canvas-tab",
+                    "flow-yaml-tab",
+                    "flow-yaml-copy",
+                ] {
+                    let b = cx.update(|w, _| w.find(id).bounds());
+                    assert!(
+                        b.right() <= px(width + 1.) && b.bottom() <= px(height + 1.),
+                        "{id}: {b:?}"
+                    );
+                }
+                click(cx, "console-maximize").unwrap();
+                click(cx, "console-diagnostic-2").unwrap();
+                settle(cx);
+                assert!(cx.debug_bounds("flow-yaml").is_none());
+                assert!(cx.debug_bounds("flow-step-name").is_some());
+                click(cx, "flow-canvas-tab").unwrap();
+            }
+        }
+    }
+}

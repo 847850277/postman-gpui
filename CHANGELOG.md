@@ -14,6 +14,14 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- Native Flow Check through the toolbar and Console, using the real compiler and all retained
+  document draft errors. Per-Flow results become stale after edits; keyboard/pointer diagnostic
+  links restore the owning editor and reject outdated locations.
+- Retained GPUI Kit readonly YAML preview and Copy YAML, including compact windows. Native
+  serialization preserves the complete document; pending edits and codec failures disable Copy,
+  and runtime/environment values stay outside the preview.
+
+
 - GPUI Kit HTTP Add to flow and Add step from open requests, with searchable destinations,
   inline new-flow naming, immutable source validation, and independent step copies. Conversion
   preserves effective request bytes, auth and options, including native file references; unsupported
@@ -47,13 +55,13 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   windows use a flow picker and Canvas/Details switching; the minimum window is now 768 × 600.
 - Native Flow Console with Logs/Steps/Outputs, bounded per-flow command history, level filtering,
   copy/clear, auto-scroll, and collapse/maximize/restore. Local commands use retained GPUI Kit
-  controls; compilation and execution commands report their unavailable state.
+  controls; execution commands report their unavailable state.
 - Flow inspectors can expand beyond the former 480px cap while keeping the canvas usable.
 
 ### Limitations
 
-- Flow drafts and panel sizes last only for the session. Other check editors, HTTP Add to flow, YAML, compiler
-  diagnostics, export/save, and native execution remain deferred. Request edits preserve richer
+- Flow drafts and panel sizes last only for the session. Other check editors, export/save,
+  and native execution remain deferred. Request edits preserve richer
   Flow DSL document fields without converting expressions to literal URLs.
 
 ## [0.1.0-rc.4] - 2026-10-13

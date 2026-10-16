@@ -221,7 +221,7 @@ Sensitive values are concealed until explicitly revealed for editing. Leaving th
 conceals them again without discarding the draft. A sensitive **default** still belongs to the
 document; the sensitivity flag is a redaction annotation, not encryption. Session overrides are
 never written into the document. Input editing prepares parameters only: it does not enable
-Check, save/export, or Run. Return with Step details or select a canvas node to resume its retained
+save/export or Run. Return with Step details or select a canvas node to resume its retained
 Request / Checks / Exports state.
 
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
@@ -253,7 +253,7 @@ the last step focuses Add step. Only the deleted step's editors/subscriptions/la
 Inputs overrides and Console history are retained. IDs are not recycled within the session.
 API-reference and loop nodes move as complete units; their configuration remains read-only.
 References are never rewritten: moving a consumer before its producer or removing a producer can
-leave invalid references. Variable hints update immediately; full compiler diagnostics remain P5.3.
+leave invalid references. Variable hints update immediately; use Check to locate compiler diagnostics.
 Structural undo/redo and drag-and-drop ordering are not implemented; text undo/redo is preserved.
 
 ### Copy HTTP requests into a flow (#228)
@@ -280,14 +280,40 @@ rejected with inline feedback. Descriptions, disabled/incomplete rows, inactive 
 runtime cookies are editor/session data, retained in HTTP but not copied into the step. New checks,
 exports and conditions start empty. This conversion is not a whole-flow Check or Run.
 
-Flow drafts are **not saved across restart**. YAML, toolbar Check, file Export, and Run remain unavailable.
+Flow drafts are **not saved across restart**. File Export, Save, and Run remain unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Other check kinds remain read-only. P5.3 adds compiler diagnostics and file persistence,
-and P6 connects execution.
+Other check kinds remain readonly. The next P5.3 slice adds file persistence; P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
 `cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.
+
+### Check and readonly YAML
+
+Toolbar **Check** and Console `check` compile the same current Flow document, including its API
+catalog. They never send requests, read binary files, or resolve environment values. Missing run
+inputs and invalid runtime overrides do not block document validation. Unapplied Request, Checks,
+Exports, and Inputs definition edits do block it, including drafts in hidden steps or tabs.
+
+The Console shows **Not checked / Check passed / Check failed / Check stale** independently of
+execution. Editing a document invalidates its result; navigation, resizing, theme changes, and
+runtime overrides do not. Each Check adds a summary and every compiler/draft diagnostic to Logs. Logs retain codes, fields, and step/API locations. Activate **Locate**
+with the pointer or keyboard to restore the corresponding editor, including from YAML or a
+maximized Console. Nested/API diagnostics reveal their readonly owner; document-level diagnostics
+show their location. Old diagnostics require a new Check after edits, so they cannot target a
+reordered or deleted row. Command history remains available.
+
+**Canvas / YAML** is also available in compact windows. The retained Kit editor supports selection,
+copy, and scrolling, but cannot modify the document. **Copy YAML** copies the exact current
+`write_flow_yaml` output, preserving richer DSL fields and layout. It excludes runtime overrides,
+resolved environment values, logs, and results. Explicit sensitive defaults are document content
+and remain in YAML; the sensitive flag is not encryption.
+
+Compiler-invalid documents can still have valid YAML. Unapplied editor drafts instead show the
+**last applied document** with a stale notice and disable Copy YAML; with no prior preview, no
+source is shown. Serialization errors also disable Copy. Fix the draft to refresh the preview.
+Switching views/flows retains per-Flow editor selection and scroll when the source is unchanged.
+Preview and Copy never write a file or mark the session draft saved.
 
 ## Flow DSL and CLI
 

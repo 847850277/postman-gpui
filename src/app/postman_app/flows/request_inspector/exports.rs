@@ -20,13 +20,13 @@ use std::collections::HashMap;
 
 pub(super) struct ExportRow {
     pub(super) id: u64,
-    anchor: gpui::ScrollAnchor,
-    name: Entity<InputState>,
-    path: Entity<InputState>,
+    pub(super) anchor: gpui::ScrollAnchor,
+    pub(super) name: Entity<InputState>,
+    pub(super) path: Entity<InputState>,
     sensitive: bool,
     // A typed projection of this row's last applied draft, never a runtime value.
-    value: Option<ResponseExport>,
-    error: Option<String>,
+    pub(super) value: Option<ResponseExport>,
+    pub(super) error: Option<String>,
     _subscriptions: Vec<Subscription>,
 }
 

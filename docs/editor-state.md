@@ -112,7 +112,7 @@ removed while entries still used by surviving scoped IDs remain. Selection falls
 step, then previous, or Add step for an empty flow. Inputs overrides and Console state survive.
 Session-only reserved IDs include imported/nested IDs and deleted IDs, preventing reuse by Add
 step. These reservations are not DSL fields or restart persistence. Reference repair and
-structural undo are outside this slice; compiler diagnostics remain P5.3.
+structural undo are outside this slice; compiler diagnostics are available through Check.
 
 ### HTTP → Flow transfer
 
@@ -134,3 +134,25 @@ does not steal it. Runtime execution, persistence and HTTP history are untouched
 Regression coverage: `models::flow_request`, `flows::transfer`, Flow model tests, and
 `transfer_captures_committed_ime_and_preserves_http_undo` use real codecs/runtime recording transport
 and Kit controls, including a source copied during an in-flight Send.
+
+
+### P5.3-1: document validation and YAML
+
+`flows/validation.rs` is the document-only boundary. Check snapshots the active FlowId/revision,
+collects every retained document draft error, then calls `compile_flow` with the document catalog
+and default `CompileEnvironment`. Runtime input preparation is deliberately separate. Console
+owns per-Flow transient check outcome/revision and structured navigation targets. An edit makes
+its outcome stale; a revision mismatch refuses navigation. Native field indices are interpreted
+only against that checked revision; local draft errors use stable row IDs. Nested diagnostics
+reveal their top-level readonly owner.
+
+`flows/yaml.rs` owns one retained Kit EditorState per Flow. Serialization happens on opening YAML
+or a visible document revision change, never in render. Hidden previews refresh lazily. Identical
+source does not reset editor selection/scroll. Unapplied drafts preserve the last generated text
+with a stale label and disable Copy YAML; serialization failures retain an error and disable Copy.
+Only FlowDocument enters `write_flow_yaml`; no runtime/environment/session state is serialized.
+Both operations are synchronous document-only work, so no late asynchronous result can cross flows.
+
+Regression coverage: `flows::validation::tests`, native Console command tests, and `ui_flows`
+responsive/theme/scale matrix. Input definition recovery to the same last valid value still advances
+revision, because resolving a pending draft invalidates a previous failure.

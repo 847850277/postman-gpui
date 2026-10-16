@@ -48,6 +48,8 @@ pub(super) enum ConsoleMode {
 }
 pub(super) enum ConsoleEvent {
     LayoutChanged,
+    Check,
+    LocateDiagnostic(super::validation::DiagnosticTarget),
     LocateStep { flow: FlowId, step: String },
 }
 actions!(
@@ -272,6 +274,9 @@ impl FlowConsole {
             return;
         }
         self.current_mut().unwrap().execute(&source);
+        if source.trim().eq_ignore_ascii_case("check") {
+            cx.emit(ConsoleEvent::Check);
+        }
         self.input
             .update(cx, |input, cx| input.set_value("", window, cx));
         self.sync_filter(window, cx);
@@ -311,7 +316,7 @@ impl FlowConsole {
             gpui::FollowMode::Normal
         });
     }
-    fn set_mode(&mut self, mode: ConsoleMode, cx: &mut Context<Self>) {
+    pub(super) fn set_mode(&mut self, mode: ConsoleMode, cx: &mut Context<Self>) {
         if self.mode != mode {
             self.mode = mode;
             cx.emit(ConsoleEvent::LayoutChanged);
@@ -366,5 +371,105 @@ impl FlowConsole {
                 gpui::FollowMode::Normal
             });
         cx.notify();
+    }
+}
+
+impl FlowConsole {
+    pub(super) fn document_changed(&mut self, flow: FlowId, revision: u64, cx: &mut Context<Self>) {
+        let session = self.sessions.entry(flow).or_default();
+        if session.revision != revision {
+            session.revision = revision;
+            cx.notify();
+        }
+    }
+    pub(super) fn check_label(&self) -> &'static str {
+        match self.current().and_then(|s| {
+            s.check
+                .map(|(revision, passed)| (revision == s.revision, passed))
+        }) {
+            None => "Not checked",
+            Some((false, _)) => "Check stale",
+            Some((true, true)) => "Check passed",
+            Some((true, false)) => "Check failed",
+        }
+    }
+    pub(super) fn report(
+        &mut self,
+        flow: FlowId,
+        revision: u64,
+        issues: Vec<super::validation::Issue>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let session = self.sessions.entry(flow).or_default();
+        session.revision = revision;
+        session.check = Some((revision, issues.is_empty()));
+        session.view = View::Logs;
+        session.filter = None;
+        session.follow = false;
+        // Assemble atomically so the history cap cannot truncate a single large report.
+        let mut previous = std::mem::take(&mut session.logs);
+        let (level, summary) = if issues.is_empty() {
+            (Level::Success, format!("Check passed · revision {revision}. Document validation only; no requests sent."))
+        } else {
+            (
+                Level::Error,
+                format!(
+                    "Check failed · {} diagnostic(s) · revision {revision}. No requests sent.",
+                    issues.len()
+                ),
+            )
+        };
+        session.push(level, summary, None);
+        let mut entries = std::collections::VecDeque::new();
+        entries.append(&mut session.logs);
+        for issue in issues {
+            session.push(Level::Error, issue.message, None);
+            session.logs.back_mut().unwrap().diagnostic =
+                Some(super::validation::DiagnosticTarget {
+                    flow,
+                    revision,
+                    target: issue.target,
+                });
+            entries.append(&mut session.logs);
+        }
+        while !previous.is_empty() && previous.len() + entries.len() > 500 {
+            previous.pop_front();
+        }
+        let report_start = previous.len();
+        previous.append(&mut entries);
+        session.logs = previous;
+        if self.mode == ConsoleMode::Collapsed {
+            self.set_mode(ConsoleMode::Normal, cx);
+        }
+        self.sync_filter(window, cx);
+        self.refresh_logs(true);
+        self.scroll.scroll_to(gpui::ListOffset {
+            item_ix: report_start,
+            offset_in_item: gpui::px(0.),
+        });
+        cx.notify();
+    }
+}
+
+#[cfg(test)]
+impl FlowConsole {
+    pub(super) fn diagnostics(&self) -> Vec<(u64, super::validation::DiagnosticTarget)> {
+        self.current()
+            .unwrap()
+            .logs
+            .iter()
+            .filter_map(|e| {
+                e.diagnostic
+                    .clone()
+                    .filter(|d| {
+                        self.current()
+                            .unwrap()
+                            .check
+                            .is_some_and(|(revision, _)| d.revision == revision)
+                    })
+                    .map(|d| (e.id, d))
+            })
+            .collect()
     }
 }

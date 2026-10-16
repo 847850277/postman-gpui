@@ -255,4 +255,18 @@ URL-encoded BodyTemplate and exact bytes, Basic/Bearer/manual auth precedence, e
 options, and absolute Unicode `BodyTemplate::File` references without reading files. The browser
 still rejects Binary (only metadata is available), multipart and generic cURL flags. These are
 intentional preview limitations, not additional native restrictions. Native Scripts/Tests are also
-explicitly rejected; copying does not enable P5.3 Check/persistence or P6 execution.
+explicitly rejected; copying does not run Check, persist the document, or execute it.
+
+
+### Native P5.3-1 Check/YAML parity
+
+Native Check now uses the real Flow compiler (the browser remains a partial local validator).
+Both entry points share the current document plus hidden editor errors. The Console adds a
+separate check status, complete diagnostic locations and keyboard-accessible Locate links;
+edits make results stale and old links require another Check. This is separate from Not run.
+Native YAML uses a retained readonly GPUI Kit editor with selection/scroll and exact native
+serialization. Unapplied drafts label the retained source Last applied document and disable Copy;
+codec errors disable Copy too. Runtime overrides/environment values are excluded, while explicit
+sensitive defaults remain document content. Canvas/YAML stay reachable at compact widths.
+Save/export/reopen and real Run/Cancel remain later slices. The browser reference includes the
+stale YAML/check presentation; it does not replace native compiler regression coverage.
