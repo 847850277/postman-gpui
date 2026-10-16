@@ -235,12 +235,14 @@ The bottom **Console** has Logs, Steps, and Outputs tabs and can collapse to its
 maximize within the editor. Restoring it returns to its preferred height. Logs support level
 filtering, copying visible entries, clearing, and auto-scroll; scrolling back pauses follow mode.
 
-The fixed `flow ›` input accepts `help`, `clear`, `logs`, `steps`, and `outputs`. Enter or
+The fixed `flow ›` input accepts `help`, `clear`, `logs`, `steps`, `outputs`, and `check`. Enter or
 Cmd/Ctrl+Enter submits; Up/Down recalls history and restores unfinished input; Tab completes a
-unique prefix; Escape clears input. Each flow keeps up to 500 log entries and 50 commands for
-the session. Clearing logs keeps command history and document edits. Commands never invoke a
-system shell. `check`, `run`, and `stop` currently report that their native capability is unavailable;
-Steps and Outputs remain not run. No requests are sent by Console commands.
+unique prefix; Escape clears input. Each flow normally keeps up to 500 log entries and 50 commands
+for the session; a complete Check report can exceed the log limit so no diagnostics are lost.
+Clearing logs keeps command history and document edits. Commands never invoke a system shell.
+`check` validates the current document and pending edits. `run` and `stop` currently report that
+their native capability is unavailable; Steps and Outputs remain not run. No requests are sent by
+Console commands.
 
 Step details include **Move step up**, **Move step down**, and **Remove step** across all
 three tabs. Moves change execution order and keep the selected step, its ID, exact unfinished

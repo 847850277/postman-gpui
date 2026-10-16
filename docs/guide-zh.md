@@ -153,11 +153,11 @@ URL 和 **Headers · N** 提供 **Literal / Expression** 切换。字面量中�
 Logs、Steps、Outputs 页签，可折叠到标题栏或在编辑区内最大化，恢复时保留原有高度。
 日志支持级别筛选、复制可见内容、清空和自动滚动；向上回看时暂停自动跟随。
 
-固定的 `flow ›` 输入栏支持 `help`、`clear`、`logs`、`steps`、`outputs`。Enter 或 Cmd/Ctrl+Enter 执行，
-上下键浏览历史并恢复未提交的输入，Tab 补全唯一前缀，Esc 清空输入。每个 Flow 独立保留最多 500 条
-日志和 50 条命令，均仅在本次会话有效。清空日志不会删除命令历史或文档编辑。
-此处不执行系统 Shell；`check`、`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行，
-Console 命令不会发送网络请求。
+固定的 `flow ›` 输入栏支持 `help`、`clear`、`logs`、`steps`、`outputs`、`check`。Enter 或 Cmd/Ctrl+Enter 执行，
+上下键浏览历史并恢复未提交的输入，Tab 补全唯一前缀，Esc 清空输入。每个 Flow 通常独立保留最多 500 条
+日志和 50 条命令，均仅在本次会话有效；完整的 Check 报告可以超过日志上限，以保留所有诊断。
+清空日志不会删除命令历史或文档编辑。此处不执行系统 Shell；`check` 校验当前文档及待应用的编辑，
+`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行。Console 命令不会发送网络请求。
 
 步骤详情的 Request / Checks / Exports 都提供**上移、下移、删除步骤**。上移下移改变执行顺序，
 保留选中的步骤 ID、未完成草稿和文本撤销历史；画布方向键仍只用于选择步骤。首尾步骤的对应移动按钮禁用。
