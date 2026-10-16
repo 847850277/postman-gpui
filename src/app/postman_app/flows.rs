@@ -1,5 +1,7 @@
 //! Native, session-owned Flow editing. Kit owns input, selection controls and overlays.
 mod console;
+mod files;
+pub(super) use files::SaveKind;
 mod controls;
 mod inputs;
 mod layout;
@@ -63,11 +65,14 @@ impl SearchableListItem for FlowOption {
 pub(super) enum FlowsEvent {
     AddStep,
     RequestAdded,
+    QuitReady,
 }
 impl gpui::EventEmitter<FlowsEvent> for FlowsView {}
 
 pub(super) struct FlowsView {
     library: FlowLibrary,
+    files: files::Files,
+    input_subscriptions: HashMap<FlowId, Subscription>,
     console: Entity<console::FlowConsole>,
     environments: Entity<Environments>,
     focus: FocusHandle,
@@ -197,6 +202,8 @@ impl FlowsView {
         );
         Self {
             library: FlowLibrary::default(),
+            files: files::Files::default(),
+            input_subscriptions: HashMap::new(),
             console,
             environments,
             focus: cx.focus_handle(),
@@ -297,10 +304,9 @@ impl FlowsView {
                     cx,
                 )
             });
-            self._subscriptions.push(cx.subscribe_in(
-                &editor,
-                window,
-                move |this, _, event, window, cx| {
+            self.input_subscriptions.insert(
+                flow,
+                cx.subscribe_in(&editor, window, move |this, _, event, window, cx| {
                     match event {
                         inputs::InputsEvent::Definitions { values, invalid } => {
                             this.library.edit_inputs(flow, values, *invalid);
@@ -324,8 +330,8 @@ impl FlowsView {
                         }
                     }
                     cx.notify();
-                },
-            ));
+                }),
+            );
             self.inputs.insert(flow, editor);
         }
         self.canvas_scroll.entry(draft.id()).or_insert_with(|| {

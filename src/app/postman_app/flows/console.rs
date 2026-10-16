@@ -72,6 +72,14 @@ pub(super) struct FlowConsole {
 }
 impl EventEmitter<ConsoleEvent> for FlowConsole {}
 impl FlowConsole {
+    pub(super) fn forget(&mut self, flow: FlowId, cx: &mut Context<Self>) {
+        self.sessions.remove(&flow);
+        if self.active == Some(flow) {
+            self.visible.clear();
+            self.scroll.reset(0);
+        }
+        cx.notify();
+    }
     pub(super) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         cx.bind_keys([
             KeyBinding::new("left", PreviousTab, Some("FlowConsoleTabs")),

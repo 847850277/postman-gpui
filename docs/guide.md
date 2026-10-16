@@ -9,7 +9,7 @@ All shell commands below assume the repository root unless noted otherwise.
 
 | Component | Current capabilities | Entry point |
 | --- | --- | --- |
-| Native desktop app | HTTP editing, response inspection, local history, and session Flow drafts | `cargo run --locked` |
+| Native desktop app | HTTP editing, response inspection, local history, and saved Flow files | `cargo run --locked` |
 | Flow DSL and CLI | Compile and execute `.http` requests and `.http.yml` workflows | [postman-g](../crates/postman-cli/README.md) |
 | Flow MCP server | Schema, examples, validation, inspection, and YAML generation for agents | [postman-flow-mcp](../crates/postman-flow-mcp/README.md) |
 | HTML UI prototype | Separate Home, HTTP, and Flows screens with simulated responses | [Preview guide](../prototypes/README.md) |
@@ -67,7 +67,7 @@ Linux needs the GPUI development libraries listed in the
 Normal startup opens **Home**, with separate **HTTP** and **Flows** destinations.
 Home resumes real requests from the current session; changing pages preserves HTTP
 drafts, responses, and running requests. History, search, cookies, and keyboard help
-remain available. Flows supports session-only documents as described below.
+remain available. Flows supports file-backed documents and unsaved session drafts as described below.
 Unsaved drafts are not restored across application restarts;
 saved requests can be reopened from Home or search.
 
@@ -221,8 +221,8 @@ Sensitive values are concealed until explicitly revealed for editing. Leaving th
 conceals them again without discarding the draft. A sensitive **default** still belongs to the
 document; the sensitivity flag is a redaction annotation, not encryption. Session overrides are
 never written into the document. Input editing prepares parameters only: it does not enable
-save/export or Run. Return with Step details or select a canvas node to resume its retained
-Request / Checks / Exports state.
+Run. File saving/exporting preserves definitions and excludes these runtime overrides. Return with
+Step details or select a canvas node to resume its retained Request / Checks / Exports state.
 
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
 inspector, and Console dividers support dragging, arrows, Shift+arrows, Home/End, double-click
@@ -282,10 +282,53 @@ rejected with inline feedback. Descriptions, disabled/incomplete rows, inactive 
 runtime cookies are editor/session data, retained in HTTP but not copied into the step. New checks,
 exports and conditions start empty. This conversion is not a whole-flow Check or Run.
 
-Flow drafts are **not saved across restart**. File Export, Save, and Run remain unavailable.
+Flow documents support **Save, Save as…, Export…, Open…, and Recent flows…**. Unsaved drafts are not recovered after restart. Native Run remains unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Other check kinds remain readonly. The next P5.3 slice adds file persistence; P6 connects execution.
+Other check kinds remain readonly. P6 connects execution.
+
+### Flow files and unsaved changes
+
+**Open… / Cmd+O / Ctrl+O** opens a native `.http.yml` file. **Save / Cmd+S / Ctrl+S**
+writes the associated file, asking for a destination on first save. **Save as…** in the file
+menu (Cmd/Ctrl+Shift+S) writes another file and associates the open Flow with it. **Export…**
+writes a copy and keeps the original association and unsaved state. Save and Open do not execute
+requests. The file menu and library's **Recent flows…** reopen saved locations after restarting;
+opening an already-open file focuses its retained draft. Removing a recent entry does not delete
+its file. The app still starts on Home.
+
+Saving preserves the complete native document, including readonly API/loop/check fields and
+explicit defaults. YAML formatting is canonical; comments and original formatting are not retained.
+Serializable unfinished documents can be saved even when Check reports compiler diagnostics.
+Unapplied invalid edits in hidden steps or Inputs block file operations; use Check to locate them.
+The native codec rejects malformed, unsupported, or oversized files before they enter the editor.
+
+The title area shows the associated path and saved/unsaved/saving state. Closing a Flow through the
+file menu or Cmd/Ctrl+W, normal window closing, and Quit offer **Save / Discard changes / Cancel**
+for modified documents, including HTTP requests. Save waits for completion; cancelled pickers or
+failed writes keep the draft open. Edits made during a save remain unsaved. Discard leaves the last
+saved file unchanged. Switching modes or Flows retains edits without prompting.
+
+File replacement uses a temporary file in the destination directory and checks the previously read
+bytes before replacement. External changes require an explicit **Replace file** decision; cancel and
+use Save as to retain both versions. A file changing again requires another decision. This is conflict
+detection, not a filesystem lock against simultaneous external writers. Readonly/unwritable files
+and failed replacements preserve the old version and edits. Export cannot overwrite a file owned by
+an open Flow; use Save or choose another destination.
+
+YAML files contain entered credentials and sensitive defaults as **unencrypted plaintext**. The
+sensitivity flag does not encrypt them. Runtime input overrides, environment values, cookies,
+responses and Console logs are excluded. Body-file expressions stay references and are never read
+by file operations. Relative body references retain the existing CLI/runtime meaning: relative to
+the process working directory, not the YAML file's directory. Save as/Export do not rebase them;
+use an absolute expression or the same working directory when running elsewhere.
+
+`recent-flows.json` in the app's local data directory stores up to 40 recent paths/names; the YAML
+files remain the source of truth. A missing recent file leaves other drafts intact. If the index is
+unavailable or damaged, document files still work; restore the index and use **Recent flows → Reload**.
+A successful document write stays saved even if updating this separate index fails. There is no
+autosave or crash recovery; force termination and OS shutdown paths bypassing normal close/Quit
+cannot preserve unsaved edits.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
 `cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.

@@ -246,7 +246,7 @@ impl Render for InputsInspector {
         let footer = if definitions {
             "Renaming or removing inputs leaves existing references unchanged. Sensitive defaults remain in the document; the flag does not encrypt them."
         } else {
-            "Session only. Saving and execution are not available yet."
+            "Session only. Run inputs are excluded from saved YAML. Execution is not available yet."
         };
         let fields = div()
             .p_4()

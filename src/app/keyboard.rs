@@ -11,6 +11,8 @@ actions!(
         NewRequest,
         CloseRequest,
         SaveRequest,
+        OpenFlow,
+        SaveFlowAs,
         RenameRequest,
         Quit,
         FocusUrl,
@@ -27,6 +29,10 @@ actions!(
 /// selection, clipboard, Undo/Redo, and unmodified navigation keys.
 pub(crate) fn setup_application_key_bindings() -> Vec<KeyBinding> {
     vec![
+        KeyBinding::new("cmd-o", OpenFlow, None),
+        KeyBinding::new("ctrl-o", OpenFlow, None),
+        KeyBinding::new("cmd-shift-s", SaveFlowAs, None),
+        KeyBinding::new("ctrl-shift-s", SaveFlowAs, None),
         KeyBinding::new("cmd-s", SaveRequest, None),
         KeyBinding::new("ctrl-s", SaveRequest, None),
         KeyBinding::new("enter", ActivateControl, Some("KeyboardButton")),

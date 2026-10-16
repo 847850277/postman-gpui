@@ -17,7 +17,11 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.route == AppRoute::Http {
+        if self.route == AppRoute::Flows {
+            self.flows.update(cx, |flows, cx| {
+                flows.save_flow(super::flows::SaveKind::Save, window, cx)
+            });
+        } else if self.route == AppRoute::Http {
             self.saved_requests
                 .update(cx, |saved, cx| saved.save_active(false, window, cx));
         }
@@ -39,9 +43,7 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.saved_requests.update(cx, |saved, cx| {
-            saved.request_close(super::CloseIntent::Quit, window, cx)
-        });
+        self.request_quit(window, cx);
     }
 
     pub(super) fn focus_next_control(
@@ -88,12 +90,40 @@ impl PostmanApp {
         });
     }
 
+    pub(super) fn open_flow_command(
+        &mut self,
+        _: &crate::app::keyboard::OpenFlow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.route == AppRoute::Flows {
+            self.flows
+                .update(cx, |flows, cx| flows.open_flow(window, cx));
+        }
+    }
+    pub(super) fn save_flow_as_command(
+        &mut self,
+        _: &crate::app::keyboard::SaveFlowAs,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.route == AppRoute::Flows {
+            self.flows.update(cx, |flows, cx| {
+                flows.save_flow(super::flows::SaveKind::SaveAs, window, cx)
+            });
+        }
+    }
     pub(super) fn close_request_command(
         &mut self,
         _: &CloseRequest,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.route == AppRoute::Flows {
+            self.flows
+                .update(cx, |flows, cx| flows.close_flow(window, cx));
+            return;
+        }
         if self.route != AppRoute::Http {
             return;
         }
@@ -163,9 +193,11 @@ impl PostmanApp {
             let modifier = if cfg!(target_os = "macos") { "⌘" } else { "Ctrl" };
             let shortcuts = [
                 ("Send / cancel active request (HTTP)", format!("{modifier} + Enter")),
-                ("Save request (HTTP)", format!("{modifier} + S")),
+                ("Save active HTTP request or Flow", format!("{modifier} + S")),
+                ("Open Flow file (Flows)", format!("{modifier} + O")),
+                ("Save Flow as (Flows)", format!("{modifier} + Shift + S")),
                 ("New request tab", format!("{modifier} + T")),
-                ("Close active request tab (HTTP)", format!("{modifier} + W")),
+                ("Close active HTTP request or Flow", format!("{modifier} + W")),
                 ("Focus request URL (HTTP)", format!("{modifier} + L")),
                 ("History", format!("{modifier} + Shift + F")),
                 ("Search requests and history", format!("{modifier} + K")),

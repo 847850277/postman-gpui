@@ -4,7 +4,7 @@ use postman_flow::{
     FlowDefinition, FlowDocument, HttpRequestSource, HttpRequestTemplate, HttpStepDefinition,
     TemplatePart, TextTemplate,
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct FlowId(pub u64);
@@ -14,11 +14,26 @@ pub(super) struct FlowDraft {
     document: FlowDocument,
     selected: Option<String>,
     revision: u64,
+    saved: Option<SavedFlow>,
     // Tombstones are session-only: old references must never bind to a replacement step.
     used_step_ids: HashSet<String>,
 }
 
+pub(super) struct SavedFlow {
+    pub(super) path: PathBuf,
+    pub(super) bytes: Vec<u8>,
+    document: FlowDocument,
+}
+
 impl FlowDraft {
+    pub(super) fn saved(&self) -> Option<&SavedFlow> {
+        self.saved.as_ref()
+    }
+    pub(super) fn is_dirty(&self) -> bool {
+        self.saved
+            .as_ref()
+            .is_none_or(|s| s.document != self.document)
+    }
     pub(super) fn id(&self) -> FlowId {
         self.id
     }
@@ -57,6 +72,34 @@ pub(super) struct FlowLibrary {
 }
 
 impl FlowLibrary {
+    pub(super) fn get(&self, id: FlowId) -> Option<&FlowDraft> {
+        self.drafts.iter().find(|d| d.id == id)
+    }
+    pub(super) fn associate(
+        &mut self,
+        id: FlowId,
+        path: PathBuf,
+        bytes: Vec<u8>,
+        document: FlowDocument,
+    ) {
+        if let Some(draft) = self.drafts.iter_mut().find(|d| d.id == id) {
+            draft.saved = Some(SavedFlow {
+                path,
+                bytes,
+                document,
+            });
+        }
+    }
+    pub(super) fn close(&mut self, id: FlowId) {
+        let index = self.drafts.iter().position(|d| d.id == id).unwrap_or(0);
+        self.drafts.retain(|d| d.id != id);
+        if self.active == Some(id) {
+            self.active = self
+                .drafts
+                .get(index.min(self.drafts.len().saturating_sub(1)))
+                .map(|d| d.id);
+        }
+    }
     pub(super) fn drafts(&self) -> &[FlowDraft] {
         &self.drafts
     }
@@ -80,6 +123,7 @@ impl FlowLibrary {
             document,
             selected,
             revision: 0,
+            saved: None,
             used_step_ids,
         });
         self.active = Some(id);

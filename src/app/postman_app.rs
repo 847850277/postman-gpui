@@ -45,6 +45,7 @@ pub struct PostmanApp {
     view_model: Entity<WorkspaceViewModel>,
     saved_requests: Entity<SavedRequests>,
     route: AppRoute,
+    quit_snapshot: Vec<(crate::app::RequestTabId, u64)>,
     flows: Entity<FlowsView>,
     home_scroll: gpui::ScrollHandle,
     active_tool: Option<ToolDialog>,
@@ -65,6 +66,9 @@ pub struct PostmanApp {
 impl PostmanApp {
     /// Native menu/window hosts use the same asynchronous unsaved-document decision flow.
     pub fn request_quit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.flows.read(cx).file_operation_pending() {
+            return;
+        }
         self.saved_requests.update(cx, |saved, cx| {
             saved.request_close(CloseIntent::Quit, window, cx)
         });
@@ -157,13 +161,14 @@ impl PostmanApp {
             .map(|path| path.with_file_name("requests.sqlite3"));
         let saved_requests =
             cx.new(|cx| SavedRequests::new(view_model.clone(), documents_path, window, cx));
-        let close_owner = saved_requests.downgrade();
+        let close_owner = cx.weak_entity();
         window.on_window_should_close(cx, move |window, cx| {
-            let _ = close_owner.update(cx, |owner, cx| {
-                owner.request_close(CloseIntent::Quit, window, cx)
-            });
+            let _ = close_owner.update(cx, |owner, cx| owner.request_quit(window, cx));
             false
         });
+        let flow_index = environment_path
+            .as_ref()
+            .map(|p| p.with_file_name("recent-flows.json"));
         let environments = cx.new(|cx| Environments::new(environment_path, window, cx));
         let request_workspace = cx
             .new(|cx| RequestWorkspace::new(view_model.clone(), environments.clone(), window, cx));
@@ -175,6 +180,7 @@ impl PostmanApp {
         let global_search =
             cx.new(|cx| RequestFinder::new(FinderKind::Search, view_model.clone(), window, cx));
         let flows = cx.new(|cx| FlowsView::new(environments.clone(), window, cx));
+        flows.update(cx, |view, cx| view.configure_files(flow_index, cx));
         let subscriptions = vec![
             cx.subscribe_in(
                 &environments,
@@ -197,7 +203,17 @@ impl PostmanApp {
                             workspace.close_confirmed(*id, window, cx)
                         })
                     }
-                    DocumentEvent::Quit => cx.quit(),
+                    DocumentEvent::Quit => {
+                        this.quit_snapshot = this
+                            .view_model
+                            .read(cx)
+                            .tabs()
+                            .iter()
+                            .map(|r| (r.tab_id(), r.draft_revision()))
+                            .collect();
+                        this.flows
+                            .update(cx, |flows, cx| flows.confirm_flow_quit(window, cx));
+                    }
                 },
             ),
             cx.subscribe_in(&history_list, window, Self::on_finder_event),
@@ -216,6 +232,20 @@ impl PostmanApp {
                         window,
                         cx,
                     ),
+                    flows::FlowsEvent::QuitReady => {
+                        let current: Vec<_> = this
+                            .view_model
+                            .read(cx)
+                            .tabs()
+                            .iter()
+                            .map(|r| (r.tab_id(), r.draft_revision()))
+                            .collect();
+                        if this.quit_snapshot == current {
+                            cx.quit();
+                        } else {
+                            this.request_quit(window, cx);
+                        }
+                    }
                     flows::FlowsEvent::RequestAdded => {
                         this.route = AppRoute::Flows;
                         this.cookie_jar_open = false;
@@ -228,6 +258,7 @@ impl PostmanApp {
         let app = Self {
             saved_requests,
             route: AppRoute::Home,
+            quit_snapshot: Vec::new(),
             flows,
             home_scroll: gpui::ScrollHandle::new(),
             active_tool: None,
@@ -560,6 +591,8 @@ impl Render for PostmanApp {
             .on_action(cx.listener(Self::new_request_command))
             .on_action(cx.listener(Self::close_request_command))
             .on_action(cx.listener(Self::save_request_command))
+            .on_action(cx.listener(Self::open_flow_command))
+            .on_action(cx.listener(Self::save_flow_as_command))
             .on_action(cx.listener(Self::rename_request_command))
             .on_action(cx.listener(Self::quit_command))
             .on_action(cx.listener(Self::focus_url))

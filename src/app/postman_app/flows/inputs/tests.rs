@@ -613,3 +613,48 @@ fn check_ignores_runtime_errors_but_tracks_hidden_definition_errors_and_recovery
     click(cx, "flow-check");
     assert_eq!(status(cx), "Check passed");
 }
+
+#[gpui_kit::test]
+fn file_save_excludes_runtime_values_and_blocks_hidden_invalid_defaults(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("inputs.http.yml");
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |a, _| a.flows.clone());
+    click(cx, "nav-flows");
+    settle(cx);
+    install(
+        &flows,
+        vec![FlowInputSpec::with_default("arg", json!(42))],
+        cx,
+    );
+    let original = document(&flows, cx);
+    click(cx, "flow-save");
+    assert!(cx.did_prompt_for_new_path());
+    cx.simulate_new_path_selection(|_| Some(path.clone()));
+    settle(cx);
+    let saved = std::fs::read(&path).unwrap();
+    row_click(cx, "flow-input-override", 0);
+    source(cx, "runtime", 0, "\"runtime-secret-not-in-yaml\"");
+    click(cx, "flow-save");
+    settle(cx);
+    assert_eq!(std::fs::read(&path).unwrap(), saved);
+    assert_eq!(document(&flows, cx), original);
+    click(cx, "flow-inputs-definitions-tab");
+    source(cx, "default", 0, "{broken-default");
+    click(cx, "flow-canvas-tab");
+    add(cx);
+    click(cx, "flow-save");
+    settle(cx);
+    assert!(cx.debug_bounds("flow-file-error").is_some());
+    assert_eq!(std::fs::read(&path).unwrap(), saved);
+    click(cx, "flow-inputs");
+    click(cx, "flow-inputs-definitions-tab");
+    source(cx, "default", 0, "42");
+    click(cx, "flow-save");
+    settle(cx);
+    let stored = postman_flow::parse_flow_yaml(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(stored.flow.inputs, original.flow.inputs);
+    assert!(!std::fs::read_to_string(&path)
+        .unwrap()
+        .contains("runtime-secret-not-in-yaml"));
+}
