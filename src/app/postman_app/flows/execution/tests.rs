@@ -262,7 +262,9 @@ fn native_toolbar_reports_check_failure_timeout_and_network_failure(cx: &mut Tes
         else {
             unreachable!()
         };
-        request.options.timeout_ms = Some(100);
+        if url == held.url {
+            request.options.timeout_ms = Some(100);
+        }
         let id = install(&flows, doc, cx);
         click(cx, "flow-run");
         settle(cx);
@@ -474,52 +476,109 @@ async fn skipped_steps_and_sensitive_outputs_have_no_false_success_or_value_proj
     assert!(next.steps.iter().all(|s| s.status == Status::NotExecuted));
 }
 
-// Hold the real request open without running the GPUI executor. This lets controls act on a
-// live session before the deterministic harness drains background work.
+// Hold the real request open without running the GPUI executor. Only the test's release
+// or teardown may finish this server; CI setup/rendering must not consume a wall-clock lease.
 struct HeldServer {
     url: String,
-    release: Option<std::sync::mpsc::Sender<()>>,
+    release: Option<oneshot::Sender<()>>,
+    started: std::sync::mpsc::Receiver<()>,
+    shutdown: Option<oneshot::Sender<()>>,
+    worker: Option<std::thread::JoinHandle<()>>,
 }
 impl HeldServer {
     fn new() -> Self {
-        use std::io::{Read, Write};
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}/held", listener.local_addr().unwrap());
         listener.set_nonblocking(true).unwrap();
-        let (release, receiver) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let deadline = std::time::Instant::now() + Duration::from_secs(4);
-            loop {
-                if receiver.try_recv().is_ok() || std::time::Instant::now() >= deadline {
-                    break;
+        let (release, released) = oneshot::channel();
+        let (shutdown, shutdown_requested) = oneshot::channel();
+        let (started, request_started) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            runtime.block_on(async move {
+                let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+                let serve = async move {
+                    let (mut stream, _) = listener.accept().await.unwrap();
+                    let mut request = Vec::new();
+                    loop {
+                        let mut bytes = [0; 4096];
+                        let count = stream.read(&mut bytes).await.unwrap_or(0);
+                        if count == 0 {
+                            return;
+                        }
+                        request.extend_from_slice(&bytes[..count]);
+                        if request.windows(4).any(|chunk| chunk == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                    let _ = started.send(());
+                    if released.await.is_ok() {
+                        let _ = stream.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        ).await;
+                    }
+                };
+                tokio::select! {
+                    biased;
+                    _ = shutdown_requested => {},
+                    _ = serve => {},
                 }
-                if let Ok((mut stream, _)) = listener.accept() {
-                    stream
-                        .set_read_timeout(Some(Duration::from_secs(1)))
-                        .unwrap();
-                    let mut bytes = [0; 4096];
-                    let _ = stream.read(&mut bytes);
-                    let _ = receiver.recv_timeout(Duration::from_secs(4));
-                    let _ = stream.write_all(
-                        b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                    );
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
+            });
         });
         Self {
             url,
             release: Some(release),
+            started: request_started,
+            shutdown: Some(shutdown),
+            worker: Some(worker),
         }
+    }
+    fn wait_for_request(&self) {
+        self.started
+            .recv_timeout(Duration::from_secs(10))
+            .expect("the real request should reach the held server before UI interactions");
+    }
+    fn release(&mut self) {
+        self.release.take().unwrap().send(()).unwrap();
     }
 }
 impl Drop for HeldServer {
     fn drop(&mut self) {
-        if let Some(release) = self.release.take() {
-            let _ = release.send(());
+        if let Some(shutdown) = self.shutdown.take() {
+            let _ = shutdown.send(());
+        }
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
         }
     }
+}
+
+#[test]
+fn held_server_can_be_released_before_the_request_arrives() {
+    use std::io::{Read, Write};
+    let mut server = HeldServer::new();
+    server.release();
+    let address = server
+        .url
+        .strip_prefix("http://")
+        .unwrap()
+        .strip_suffix("/held")
+        .unwrap();
+    let mut stream = std::net::TcpStream::connect(address).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    stream
+        .write_all(b"GET /held HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .unwrap();
+    server.wait_for_request();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
 }
 
 #[gpui_kit::test]
@@ -540,6 +599,7 @@ fn clean_running_close_cancel_preserves_session_then_confirm_waits_for_shutdown(
         })
     });
     click(cx, "flow-run");
+    server.wait_for_request();
     press(cx, "secondary-w");
     assert!(cx.debug_bounds("flow-stop-close-dialog").is_some());
     click(cx, "flow-stop-close-cancel");
@@ -565,6 +625,7 @@ fn dirty_running_close_cancel_and_save_failure_keep_execution(cx: &mut TestAppCo
     click(cx, "nav-flows");
     let id = install(&flows, document(&server.url), cx);
     click(cx, "flow-run");
+    server.wait_for_request();
     press(cx, "secondary-w");
     assert!(cx.debug_bounds("flow-close-dialog").is_some());
     click(cx, "flow-close-cancel");
@@ -694,6 +755,7 @@ fn repeated_console_run_and_quit_cancel_preserve_one_owned_run(cx: &mut TestAppC
     click(cx, "nav-flows");
     let id = install(&flows, document(&server.url), cx);
     click(cx, "flow-run");
+    server.wait_for_request();
     cx.update(|w, cx| {
         w.click("console-command", cx);
         w.input("run", cx);
@@ -744,13 +806,14 @@ fn editing_a_later_step_does_not_change_the_running_plan(cx: &mut TestAppContext
     click(cx, "nav-flows");
     let id = install(&flows, doc, cx);
     click(cx, "flow-run");
+    held.wait_for_request();
     cx.update(|w, cx| {
         w.click("flow-node-1-second", cx);
         w.click("flow-step-url", cx);
         w.press("secondary-a", cx);
         w.input(&format!("{}/edited", server.url()), cx);
     });
-    held.release.take().unwrap().send(()).unwrap();
+    held.release();
     settle(cx);
     assert_eq!(status(&flows, id, cx), Some(Status::Succeeded));
     flows.read_with(cx, |v, _| {
