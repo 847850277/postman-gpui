@@ -5,6 +5,64 @@ mod ui;
 use gpui::{AppContext, TestAppContext};
 use postman_gpui::app::{PostmanApp, RequestViewModel, WorkspaceViewModel};
 
+#[gpui_kit::test]
+fn same_request_pane_switch_preserves_caret_and_undo(cx: &mut TestAppContext) {
+    let workspace = cx.new(|_| WorkspaceViewModel::new());
+    let observed = workspace.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    for (pane, kind, field) in [
+        ("request-pane-body", Some("body-kind-json"), "body-input"),
+        ("request-pane-body", Some("body-kind-raw"), "body-input"),
+        ("request-pane-scripts", None, "script-editor"),
+        ("request-pane-tests", None, "tests-editor"),
+    ] {
+        let value = |cx: &gpui::VisualTestContext| {
+            workspace.read_with(cx, |m, _| {
+                let r = m.active_request().unwrap();
+                match pane {
+                    "request-pane-scripts" => r.pre_request_script().to_owned(),
+                    "request-pane-tests" => r.tests_script().to_owned(),
+                    _ => r.body(),
+                }
+            })
+        };
+        ui::click(cx, pane).unwrap();
+        if let Some(kind) = kind {
+            ui::choose_body_kind(cx, kind).unwrap();
+        }
+        ui::replace_text(cx, field, "base").unwrap();
+        ui::press(cx, "end enter");
+        cx.simulate_input("delta");
+        ui::press(cx, "ctrl-z");
+        assert_eq!(value(cx), "base\n");
+        ui::press(cx, "ctrl-y");
+        let focus = cx.update(|w, cx| w.focused(cx).unwrap());
+        ui::click(cx, "request-pane-headers").unwrap();
+        ui::click(cx, pane).unwrap();
+        // Reselecting the active pane must also preserve its editing state.
+        ui::click(cx, pane).unwrap();
+        cx.update(|w, cx| focus.focus(w, cx));
+        ui::press(cx, "ctrl-z");
+        assert_eq!(value(cx), "base\n", "{pane}: undo survives pane navigation");
+        ui::press(cx, "ctrl-y");
+        ui::press(cx, "left");
+        ui::click(cx, "request-pane-headers").unwrap();
+        ui::click(cx, pane).unwrap();
+        cx.update(|w, cx| focus.focus(w, cx));
+        cx.simulate_input("!");
+        assert_eq!(
+            value(cx),
+            "base\ndelt!a",
+            "{pane}: caret survives pane navigation"
+        );
+    }
+}
+
 #[gpui::test]
 fn body_scripts_and_tests_keep_newlines_focus_and_equal_valued_request_boundaries(
     cx: &mut TestAppContext,

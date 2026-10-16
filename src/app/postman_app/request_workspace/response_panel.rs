@@ -9,7 +9,7 @@ use gpui::{
     KeyBinding, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
     Subscription, Window,
 };
-use gpui_kit::base::ElementExt;
+use gpui_kit::base::{ElementExt, TestSupportExt};
 use gpui_kit::{
     assets::IconName,
     base::Tab,
@@ -469,6 +469,9 @@ impl ResponseViewer {
     }
 
     fn select_pane(&mut self, pane: ResponsePane, cx: &mut Context<Self>) {
+        if self.pane == pane {
+            return;
+        }
         self.pane = pane;
         self.body.update(cx, |body, cx| body.clear_selection(cx));
         cx.notify();
@@ -938,6 +941,14 @@ impl Render for ResponseViewer {
                 ..
             }
         );
+        // The editor contains Unicode while Save retains the original response bytes.
+        // Describe the content without claiming that those bytes are always UTF-8.
+        let body_metadata = {
+            let format = if binary_body { "Binary" } else { "Text" };
+            media_type
+                .as_deref()
+                .map_or_else(|| format.to_owned(), |t| format!("{format} · {t}"))
+        };
         let can_save_body =
             matches!(&state, ResponseState::Success { body_bytes, .. } if !body_bytes.is_empty());
         let body_format = if media_type.as_deref().is_some_and(|m| m.contains("json")) {
@@ -1357,12 +1368,15 @@ impl Render for ResponseViewer {
                     .font_family(FONT_MONO)
                     .text_size(m::CAPTION)
                     .text_color(MUTED.resolve(cx))
-                    .child(div().min_w_0().overflow_hidden().text_ellipsis().child(
-                        {
-                            let format = if binary_body { "Binary" } else { "UTF-8" };
-                            media_type.map_or_else(|| format.into(), |t| format!("{format} · {t}"))
-                        },
-                    ))
+                    .child(div()
+                        .id("response-body-metadata")
+                        .role(gpui::Role::Status)
+                        .test_support()
+                        .aria_label(body_metadata.clone())
+                        .min_w_0()
+                        .overflow_hidden()
+                        .text_ellipsis()
+                        .child(body_metadata))
                     .child("Read only"),
             )
     }

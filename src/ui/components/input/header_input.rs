@@ -124,6 +124,10 @@ impl HeaderInput {
             input.value()
         });
     }
+
+    pub(crate) fn value(&self) -> SharedString {
+        self.last_value.clone()
+    }
 }
 
 impl EventEmitter<HeaderInputEvent> for HeaderInput {}

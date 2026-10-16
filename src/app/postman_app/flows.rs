@@ -72,6 +72,7 @@ pub(super) struct FlowsView {
     canvas_focus: FocusHandle,
     library_focus: FocusHandle,
     title: Entity<InputState>,
+    projected_title_flow: Option<FlowId>,
     inputs: HashMap<FlowId, Entity<inputs::InputsInspector>>,
     inputs_open: bool,
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
@@ -192,6 +193,7 @@ impl FlowsView {
             canvas_focus: cx.focus_handle().tab_stop(true),
             library_focus: cx.focus_handle().tab_stop(true),
             title,
+            projected_title_flow: None,
             inputs: HashMap::new(),
             inputs_open: false,
             inspectors: HashMap::new(),
@@ -262,9 +264,11 @@ impl FlowsView {
             }
         });
     }
-    /// Projection occurs only on context changes. Kit clears composition/undo even for equal text.
+    /// Retain title editing state within a Flow; rebind it when the Flow identity changes.
     fn sync_fields(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let active = self.library.active().map(|d| d.id());
+        let flow_changed = self.projected_title_flow != active;
+        self.projected_title_flow = active;
         self.console
             .update(cx, |console, cx| console.activate(active, window, cx));
         let Some(draft) = self.library.active() else {
@@ -318,7 +322,10 @@ impl FlowsView {
             )
         });
         self.title.update(cx, |input, cx| {
-            input.set_value(draft.document().flow.name.clone(), window, cx)
+            let name = &draft.document().flow.name;
+            if flow_changed || input.value().as_ref() != name {
+                input.set_value(name.clone(), window, cx);
+            }
         });
         if let Some(step) = draft.selected() {
             let flow = draft.id();

@@ -1,5 +1,5 @@
 use crate::{
-    app::{AuthorizationKind, RequestViewModel, WorkspaceViewModel},
+    app::{AuthorizationKind, RequestTabId, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::header_input::{HeaderInput, HeaderInputEvent},
         theme::{LINE, MUTED, PANEL_ALT},
@@ -26,6 +26,7 @@ pub(in crate::app::postman_app::request_workspace) struct AuthorizationPane {
     basic_password_input: Entity<HeaderInput>,
     kind_selector: Entity<MethodState>,
     projected_basic: Option<bool>,
+    projected_tab_id: Option<RequestTabId>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -78,6 +79,7 @@ impl AuthorizationPane {
             basic_password_input,
             kind_selector,
             projected_basic: None,
+            projected_tab_id: None,
             _subscriptions: subscriptions,
         };
         pane.project_active_request(window, cx);
@@ -153,15 +155,20 @@ impl AuthorizationPane {
                 },
             )
         };
-        self.authorization_input.update(cx, |input, cx| {
-            input.project_content(bearer_token, window, cx)
-        });
-        self.basic_username_input.update(cx, |input, cx| {
-            input.project_content(basic_username, window, cx)
-        });
-        self.basic_password_input.update(cx, |input, cx| {
-            input.project_content(basic_password, window, cx)
-        });
+        let tab_id = self.view_model.read(cx).active_tab_id();
+        let tab_changed = self.projected_tab_id != tab_id;
+        for (input, content) in [
+            (&self.authorization_input, bearer_token),
+            (&self.basic_username_input, basic_username),
+            (&self.basic_password_input, basic_password),
+        ] {
+            input.update(cx, |input, cx| {
+                if tab_changed || input.value().as_ref() != content {
+                    input.project_content(content, window, cx);
+                }
+            });
+        }
+        self.projected_tab_id = tab_id;
         cx.notify();
     }
 

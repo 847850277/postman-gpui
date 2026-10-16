@@ -1,5 +1,5 @@
 use crate::{
-    app::{RequestViewModel, WorkspaceViewModel},
+    app::{RequestTabId, RequestViewModel, WorkspaceViewModel},
     ui::{
         components::input::multiline_input::{MultilineInput, MultilineInputEvent},
         theme::{CODE_BG, CODE_TEXT, FONT_UI, MUTED},
@@ -21,6 +21,7 @@ pub(in crate::app::postman_app::request_workspace) struct ScriptPane {
     view_model: Entity<WorkspaceViewModel>,
     kind: ScriptPaneKind,
     input: Entity<MultilineInput>,
+    projected_tab_id: Option<RequestTabId>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -41,6 +42,7 @@ impl ScriptPane {
             view_model,
             kind,
             input,
+            projected_tab_id: None,
             _subscriptions: subscriptions,
         };
         pane.project_active_request(window, cx);
@@ -95,9 +97,14 @@ impl ScriptPane {
                     .to_string()
                 })
         };
+        let tab_id = self.view_model.read(cx).active_tab_id();
+        let tab_changed = self.projected_tab_id != tab_id;
         self.input.update(cx, |input, cx| {
-            input.project_content(content, window, cx);
+            if tab_changed || input.value().as_ref() != content {
+                input.project_content(content, window, cx);
+            }
         });
+        self.projected_tab_id = tab_id;
         cx.notify();
     }
 

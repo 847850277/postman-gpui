@@ -1,5 +1,5 @@
 use crate::{
-    app::{RequestViewModel, ResponseState, WorkspaceViewModel},
+    app::{RequestTabId, RequestViewModel, ResponseState, WorkspaceViewModel},
     models::{RedirectPolicy, MAX_REDIRECT_HOPS},
     ui::{
         components::{
@@ -40,6 +40,7 @@ pub(in crate::app::postman_app::request_workspace) struct OptionsPane {
     view_model: Entity<WorkspaceViewModel>,
     timeout_input: Entity<HeaderInput>,
     max_redirects_input: Entity<HeaderInput>,
+    projected_tab_id: Option<RequestTabId>,
     redirect_policy_focus_handles: Vec<FocusHandle>,
     _subscriptions: Vec<Subscription>,
 }
@@ -64,6 +65,7 @@ impl OptionsPane {
             view_model,
             timeout_input,
             max_redirects_input,
+            projected_tab_id: None,
             redirect_policy_focus_handles: (0..2)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
@@ -209,12 +211,19 @@ impl OptionsPane {
                 (request.timeout_ms(), request.max_redirect_hops())
             })
         };
-        self.timeout_input.update(cx, |input, cx| {
-            input.project_content(timeout_value(timeout_ms), window, cx)
-        });
-        self.max_redirects_input.update(cx, |input, cx| {
-            input.project_content(max_redirect_hops.to_string(), window, cx)
-        });
+        let tab_id = self.view_model.read(cx).active_tab_id();
+        let tab_changed = self.projected_tab_id != tab_id;
+        for (input, content) in [
+            (&self.timeout_input, timeout_value(timeout_ms)),
+            (&self.max_redirects_input, max_redirect_hops.to_string()),
+        ] {
+            input.update(cx, |input, cx| {
+                if tab_changed || input.value().as_ref() != content {
+                    input.project_content(content, window, cx);
+                }
+            });
+        }
+        self.projected_tab_id = tab_id;
         cx.notify();
     }
 

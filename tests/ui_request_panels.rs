@@ -4,6 +4,104 @@ mod ui;
 use gpui::{px, size, AppContext, ClipboardItem, TestAppContext};
 use postman_gpui::app::{BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 
+#[gpui_kit::test]
+fn auth_and_options_keep_undo_within_a_request_and_reset_it_across_requests(
+    cx: &mut TestAppContext,
+) {
+    let mut server = mockito::Server::new();
+    let response = server.mock("GET", "/auth").with_body("ok").create();
+    let model = cx.new(|_| WorkspaceViewModel::new());
+    let observed = model.clone();
+    let (_, cx) = cx.add_window_view(move |window, cx| {
+        ui::shell(window, cx, |window, cx| {
+            PostmanApp::with_view_model(observed, window, cx)
+        })
+    });
+    ui::open_http(cx);
+    ui::replace_text(cx, "url-input", &format!("{}/auth", server.url())).unwrap();
+
+    for (pane, field, text) in [
+        ("request-pane-authorization", "authorization-input", "token"),
+        (
+            "request-pane-authorization",
+            "basic-auth-username-input",
+            "username",
+        ),
+        (
+            "request-pane-authorization",
+            "basic-auth-password-input",
+            "password",
+        ),
+        ("request-pane-options", "request-timeout-input", "12345"),
+        ("request-pane-options", "redirect-max-hops-input", "12"),
+    ] {
+        let value = |cx: &gpui::VisualTestContext| {
+            model.read_with(cx, |m, _| {
+                let r = m.active_request().unwrap();
+                match field {
+                    "authorization-input" => r.bearer_token().to_owned(),
+                    "basic-auth-username-input" => r.basic_username().to_owned(),
+                    "basic-auth-password-input" => r.basic_password().to_owned(),
+                    "request-timeout-input" => r.timeout_ms().to_string(),
+                    _ => r.max_redirect_hops().to_string(),
+                }
+            })
+        };
+        ui::click(cx, "request-tab-0").unwrap();
+        ui::click(cx, pane).unwrap();
+        if field.starts_with("basic-auth") {
+            ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
+        }
+        let before = value(cx);
+        ui::click(cx, field).unwrap();
+        ui::press(cx, "ctrl-a");
+        cx.write_to_clipboard(ClipboardItem::new_string(text.into()));
+        ui::press(cx, "ctrl-v");
+        assert_eq!(value(cx), text);
+        let focus = cx.update(|w, cx| w.focused(cx).unwrap());
+        ui::click(cx, "request-pane-headers").unwrap();
+        ui::click(cx, pane).unwrap();
+        cx.update(|w, cx| focus.focus(w, cx));
+        ui::press(cx, "ctrl-z");
+        assert_eq!(value(cx), before, "{field}: pane changes preserve undo");
+        ui::press(cx, "ctrl-y");
+        assert_eq!(value(cx), text);
+
+        if field == "authorization-input" {
+            ui::click(cx, "send-button").unwrap();
+            cx.run_until_parked();
+            cx.update(|w, cx| focus.focus(w, cx));
+            ui::press(cx, "ctrl-z");
+            assert_eq!(value(cx), before, "Send preserves token undo");
+            ui::press(cx, "ctrl-y");
+            response.assert();
+        }
+
+        if model.read_with(cx, |m, _| m.tab_count()) == 1 {
+            ui::click(cx, "new-tab-button").unwrap();
+        } else {
+            ui::click(cx, "request-tab-1").unwrap();
+        }
+        ui::click(cx, pane).unwrap();
+        if field.starts_with("basic-auth") {
+            ui::choose_auth_kind(cx, "auth-kind-basic").unwrap();
+        }
+        ui::click(cx, field).unwrap();
+        ui::press(cx, "ctrl-a ctrl-v");
+        assert_eq!(value(cx), text);
+        for tab in ["request-tab-0", "request-tab-1"] {
+            ui::click(cx, tab).unwrap();
+            ui::click(cx, field).unwrap();
+            ui::press(cx, "ctrl-z");
+            assert_eq!(
+                value(cx),
+                text,
+                "{field}: equal values do not share undo between requests"
+            );
+        }
+    }
+}
+
 #[gpui::test]
 fn request_context_and_compact_forms_follow_the_selected_request(cx: &mut TestAppContext) {
     let model = cx.new(|_| {

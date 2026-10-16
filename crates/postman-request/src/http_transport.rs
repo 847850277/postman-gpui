@@ -183,6 +183,8 @@ fn decode_text_body(bytes: &[u8], media_type: Option<&Mime>) -> Option<String> {
                 mime.subtype().as_str(),
                 "json"
                     | "xml"
+                    | "yaml"
+                    | "x-yaml"
                     | "javascript"
                     | "ecmascript"
                     | "x-javascript"
@@ -204,7 +206,9 @@ fn decode_text_body(bytes: &[u8], media_type: Option<&Mime>) -> Option<String> {
                 .and_then(|charset| Encoding::for_label(charset.as_str().as_bytes()))
         })
         .unwrap_or(UTF_8);
-    let (text, _, had_errors) = encoding.decode(bytes);
+    // Strip only this encoding's BOM. Sniffing here would override a declared charset
+    // (for example Windows-1252 text starting with FF FE would become UTF-16LE).
+    let (text, had_errors) = encoding.decode_with_bom_removal(bytes);
     // Respect declared legacy charsets, but never display lossy decoding or binary controls.
     if had_errors
         || text
