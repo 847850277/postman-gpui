@@ -135,7 +135,6 @@ Regression coverage: `models::flow_request`, `flows::transfer`, Flow model tests
 `transfer_captures_committed_ime_and_preserves_http_undo` use real codecs/runtime recording transport
 and Kit controls, including a source copied during an in-flight Send.
 
-
 ### P5.3-1: document validation and YAML
 
 `flows/validation.rs` is the document-only boundary. Check snapshots the active FlowId/revision,
@@ -156,3 +155,29 @@ Both operations are synchronous document-only work, so no late asynchronous resu
 Regression coverage: `flows::validation::tests`, native Console command tests, and `ui_flows`
 responsive/theme/scale matrix. Input definition recovery to the same last valid value still advances
 revision, because resolving a pending draft invalidates a previous failure.
+
+### P5.3-2: Flow files and close decisions
+
+`flows/files` owns native pickers, background codec/file operations, recent-file metadata, and Kit
+close/conflict dialogs. `FlowDraft` owns an optional file association, exact last-read/written bytes,
+and saved `FlowDocument` snapshot. Semantic document comparison plus retained invalid drafts derives
+dirty state; selection, Console, Check, YAML presentation and runtime overrides are independent.
+Save captures its owning FlowId and document before the picker/I/O boundary; later edits stay dirty.
+Save as changes the association only on success, while Export leaves the baseline untouched.
+
+Document files are bounded to the native codec's 2 MiB limit. Replacement compares the last observed
+bytes, writes/syncs a unique same-directory temporary file, rechecks, and renames. A conflict carries
+the captured write and observed destination bytes into an explicit replacement decision; an additional
+external change triggers another decision. This is not a cross-process lock. Recent index updates are
+serialized with file commands, and index errors do not undo successful document writes. Invalid index
+contents are retained for repair; only path/name metadata is stored there.
+
+Flow close decisions compare the latest document and pending drafts after a completed Save. Discard
+consent is scoped to FlowId/revision. Actual close removes retained inspectors, Inputs subscriptions,
+YAML, Console and scrolling state; cancellation does not rebuild them. The app first obtains HTTP close
+decisions, then Flow decisions. HTTP tab identities/revisions are checked again before final Quit so
+late HTTP changes cannot bypass protection. Normal window close and Quit share this coordinator.
+
+Tests live in `flows::files::{tests,storage::tests}` and `flows::inputs::tests`; existing HTTP close,
+Flow Check/YAML, editor identity and geometry suites remain applicable. OS file-picker and installed
+platform behavior require separate smoke verification.

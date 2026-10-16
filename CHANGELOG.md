@@ -14,6 +14,12 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- Native GPUI Kit Flow Save/Save as, Export copy, Open and durable recent-file reopening, with
+  complete YAML document preservation and explicit external-file conflict handling. Hidden invalid
+  drafts block writes; runtime overrides remain session-only and edits during saving remain unsaved.
+- Flow saved/unsaved state and Save/Discard/Cancel protection coordinated with HTTP requests on
+  normal window close/Quit. File, picker and index failures preserve existing documents and edits.
+
 - Native Flow Check through the toolbar and Console, using the real compiler and all retained
   document draft errors. Per-Flow results become stale after edits; keyboard/pointer diagnostic
   links restore the owning editor and reject outdated locations.

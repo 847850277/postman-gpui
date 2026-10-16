@@ -95,7 +95,6 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Compare HTML/native Run inputs and Definitions in light/dark at the existing viewport/scale
   matrix, including many rows, long values, errors, reachable Add/Remove, and preserved Console.
 
-
 ## Flow Checks, Exports, and conditions (#222)
 
 - [ ] In Step configuration, switch Request/Checks/Exports using pointer and focused-tab arrows,
@@ -185,7 +184,6 @@ SHA-256, signing status, and pass/fail result in issue #148.
   Search long lists/names, inspect long errors, and confirm the footer remains reachable and a compact
   successful transfer shows Details. Check native candidate windows with the platform input method.
 
-
 ### Flow Check and readonly YAML (#235)
 
 Use local fixtures; Check must send no network request and read no Binary body file. For both
@@ -210,3 +208,22 @@ and 1024×600. Compare Canvas/Console and YAML against `prototypes/request-works
 
 Run `cargo fmt -- --check`, workspace clippy with warnings denied, workspace tests, and the
 cross-platform CI release-build jobs. External HTTPBingo tests remain a separate service smoke.
+
+## Flow files and close protection (#237)
+
+- [ ] On each tested package/OS, create/edit a Flow and Save through its focused input shortcut and
+  toolbar. Check native picker cancellation, Unicode paths, readonly/missing directories, and visible errors.
+- [ ] Restart on Home, reopen through Recent flows/Open, and verify exact native DSL semantics,
+  including readonly API/loop/check fields, explicit defaults, outputs, auth/options and layout.
+- [ ] Save as another filename: keep the first file and change the association. Export a copy after
+  editing: keep the association and unsaved indicator. Reopen both copies and compare expected content.
+- [ ] Leave invalid body/condition/Inputs edits in hidden panes and attempt all write actions. They
+  must not silently save old values. Runtime input/environment changes must not enter saved YAML.
+- [ ] Modify an associated file externally. Cancel conflict handling, then explicitly Replace file;
+  check changed-again conflicts, failures and active-file destination collisions preserve both drafts.
+- [ ] Close dirty Flows and mixed HTTP/Flow windows via keyboard, window close and normal Quit.
+  Exercise Save, Discard changes, Cancel and cancelled pickers; late edits cannot be silently lost.
+- [ ] Check saved/unsaved/saving state, long filenames, keyboard menus, dialog focus/Escape and
+  light/dark layouts at reference, narrow and short sizes. Verify native IME before immediate Save.
+- [ ] Remove a recent entry without deleting the file; test a missing recent file and damaged recent
+  index recovery. Record the exact package/commit and distinguish installed evidence from headless tests.

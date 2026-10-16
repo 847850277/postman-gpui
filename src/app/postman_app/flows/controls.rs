@@ -73,7 +73,7 @@ impl FlowsView {
                                 .text_size(m::LABEL)
                                 .text_color(MUTED.resolve(cx))
                                 .child(
-                                "Drafts last for this session. File saving is not available yet.",
+                                "Save this Flow as a .http.yml file to reopen it after restarting.",
                             ),
                         ),
                 )

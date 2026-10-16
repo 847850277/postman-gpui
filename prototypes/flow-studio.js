@@ -8,7 +8,9 @@
  let pendingRemoval=null;
  let consoleMode='normal', logLevel='all', followLogs=true, eventSequence=0, commandComposing=false;
  const flows=M.samples().map(item=>({...item,selected:item.document.flow.steps[0]?.id,dirty:false,run:null}));
- const current=()=>flows.find(flow=>flow.id===activeFlow);
+ const emptyFlow={id:null,document:{schema_version:1,flow:{name:'',inputs:[],steps:[],outputs:[]}},dirty:false};
+ const files=new FlowFilePreview.Files();
+ const current=()=>flows.find(flow=>flow.id===activeFlow)||emptyFlow;
  const selected=()=>current().document.flow.steps.find(step=>step.id===current().selected);
  const mode=()=>document.body.dataset.view;
  const choice=(value,label,selectedValue)=>'<option value="'+esc(value)+'"'+(value===selectedValue?' selected':'')+'>'+esc(label)+'</option>';
@@ -23,8 +25,8 @@
   '<section class="home-recent"><div class="home-section-head"><h2>Continue editing</h2><span>In this session</span></div><div class="recent-columns"><div><div class="recent-group-label">HTTP REQUESTS</div>'+HTTP.list().slice(-3).map(request=>'<button class="recent-item" data-recent-http="'+esc(request.id)+'"><span class="method '+esc(request.method.toLowerCase())+'">'+esc(request.method)+'</span><div><strong>'+esc(request.title)+'</strong><small>'+esc(request.url||'No URL yet')+'</small></div><span>Open</span></button>').join('')+'</div><div><div class="recent-group-label">FLOWS</div>'+flows.slice(-3).map(flow=>'<button class="recent-item" data-recent-flow="'+esc(flow.id)+'">'+icon('flow')+'<div><strong>'+esc(flow.document.flow.name)+'</strong><small>'+flow.document.flow.steps.length+' steps · '+esc(flow.description)+'</small></div><span>Open</span></button>').join('')+'</div></div></section><p class="home-footnote">'+icon('settings')+'Environment settings and appearance are shared across HTTP and Flows.</p></div>';
  }
  $('flow-screen').innerHTML=`
-  <header class="flow-topbar"><div><div class="flow-breadcrumb">Flows <span>/</span> <span id="flow-filename"></span><span id="flow-unsaved" hidden>· Edited</span></div><input id="flow-title" class="flow-title-input" aria-label="Flow name" spellcheck="false"></div><div class="flow-top-actions"><label class="environment"><span class="dot"></span><select id="flow-environment" aria-label="Flow environment"></select></label><button class="icon-button" id="flow-settings" title="Manage environments" aria-label="Manage flow environments">${icon('settings')}</button><button class="studio-button" id="export-flow">${icon('import')}Export</button><button class="studio-button" id="check-flow">${icon('check')}Check</button><button class="studio-button primary" id="run-flow">${icon('play')}<span>Run preview</span></button></div></header>
-  <div class="flow-layout" id="flow-layout"><aside class="flow-library" id="flow-library" aria-label="Flow library"><div class="library-heading">Your flows<button class="icon-button" id="new-flow" aria-label="New flow" title="New flow">${icon('plus')}</button></div><label class="flow-filter">${icon('search')}<input id="flow-filter" placeholder="Find a flow…" aria-label="Find a flow"></label><div class="flow-list" id="flow-list"></div><div class="library-foot">${icon('code')} .http.yml<br>Visual steps, readable source.<br>Edits stay in this session.</div></aside>
+  <header class="flow-topbar"><div><div class="flow-breadcrumb">Flows <span>/</span> <span id="flow-filename"></span><span id="flow-unsaved" hidden>· Edited</span></div><input id="flow-title" class="flow-title-input" aria-label="Flow name" spellcheck="false"></div><div class="flow-top-actions"><label class="environment"><span class="dot"></span><select id="flow-environment" aria-label="Flow environment"></select></label><button class="icon-button" id="flow-settings" title="Manage environments" aria-label="Manage flow environments">${icon('settings')}</button><button class="studio-button" id="open-flow">Open…</button><button class="studio-button" id="save-flow">Save</button><select class="studio-input" id="flow-file-actions" aria-label="Flow file actions"><option value="">⋯</option><option value="save-as">Save as…</option><option value="recent">Recent flows…</option><option value="close">Close flow</option></select><button class="studio-button" id="export-flow">${icon('import')}Export…</button><button class="studio-button" id="check-flow">${icon('check')}Check</button><button class="studio-button primary" id="run-flow">${icon('play')}<span>Run preview</span></button></div></header>
+  <div class="flow-layout" id="flow-layout"><aside class="flow-library" id="flow-library" aria-label="Flow library"><div class="library-heading">Your flows<button class="icon-button" id="new-flow" aria-label="New flow" title="New flow">${icon('plus')}</button></div><label class="flow-filter">${icon('search')}<input id="flow-filter" placeholder="Find a flow…" aria-label="Find a flow"></label><div class="flow-list" id="flow-list"></div><div class="library-foot"><button class="studio-button quiet" id="flow-recent-files">Recent flows…</button></div></aside>
   <div class="resize-divider" id="flow-library-divider" aria-controls="flow-library" data-testid="flow-library-divider"><span class="divider-grip" aria-hidden="true"></span></div>
   <section class="flow-work" aria-label="Flow editor"><div class="flow-toolbar"><select class="flow-select-mobile" id="flow-picker" aria-label="Choose flow"></select><div class="view-switch" aria-label="Flow view"><button data-flow-view="canvas" aria-pressed="true">Canvas</button><button data-flow-view="yaml" aria-pressed="false">YAML</button></div><span class="muted" id="flow-step-count"></span><span class="spacer"></span><button class="studio-button quiet" id="flow-inputs">${icon('settings')}Inputs <span class="count" id="flow-input-count"></span></button><button class="studio-button" id="add-step">${icon('plus')}Add step</button><button class="studio-button flow-toolbar-toggle" id="toggle-inspector" aria-pressed="false">Details</button></div>
   <div class="flow-stage" id="flow-stage"><div class="flow-content" id="flow-content"><div class="flow-canvas" id="flow-canvas" aria-label="Ordered flow steps"></div><div class="resize-divider" id="flow-inspector-divider" aria-controls="flow-inspector" data-testid="flow-inspector-divider"><span class="divider-grip" aria-hidden="true"></span></div><aside class="flow-inspector" id="flow-inspector" aria-label="Step configuration"></aside><div class="yaml-pane" id="yaml-pane" hidden><div class="yaml-heading"><span id="yaml-status" role="status">Readonly YAML · Current document · Session draft</span><button class="studio-button" id="copy-yaml">${icon('copy')}Copy YAML</button></div><pre class="yaml-code" id="yaml-code"></pre></div></div>
@@ -70,23 +72,24 @@
   updateFooter();
   if(updateHash && location.hash!=='#'+view)history.pushState(null,'','#'+view);
  }
- function updateFooter(){if(mode()!=='http')$('footer-status').textContent=mode()==='home'?'Ready when you are':current().dirty?'Flow has unsaved edits · Export to keep':'Flow editor';}
+ function updateFooter(){if(mode()!=='http')$('footer-status').textContent=mode()==='home'?'Ready when you are':current().dirty?'Flow has unsaved edits · Save to keep':'Flow editor';}
  function switchFlow(id){flows.forEach(f=>f.inputDrafts?.conceal());if(!flows.some(f=>f.id===id))return;activeFlow=id;inspectorTab='request';mobileInspect=false;renderFlow();updateFooter();}
  function syncEnvironment(){const env=HTTP.environment();$('flow-environment').innerHTML=env.items.map(item=>choice(item.id,item.name,env.id)).join('');}
- function filename(){return (current().document.flow.name.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-|-$/g,'')||'untitled-flow')+'.http.yml';}
+ function filename(){return current().filePath||(current().document.flow.name.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-|-$/g,'')||'untitled-flow')+'.http.yml';}
  function renderLibrary(){
   const query=$('flow-filter').value.toLowerCase();
   $('flow-list').innerHTML=flows.filter(flow=>flow.document.flow.name.toLowerCase().includes(query)).map(flow=>'<button class="flow-list-item" data-select-flow="'+esc(flow.id)+'" aria-current="'+(flow.id===activeFlow)+'">'+icon('flow')+'<span><strong>'+esc(flow.document.flow.name)+'</strong><small>'+flow.document.flow.steps.length+' steps'+(flow.dirty?' · Edited':'')+'</small></span></button>').join('')||'<p class="flow-step-list-empty">No matching flows.</p>';
   $('flow-picker').innerHTML=flows.map(flow=>choice(flow.id,flow.document.flow.name,activeFlow)).join('')+choice('__new','+ New flow',activeFlow);
  }
  function renderFlow(){
-  const flow=current();$('flow-title').value=flow.document.flow.name;$('flow-filename').textContent=filename();$('flow-unsaved').hidden=!flow.dirty;
+  const flow=current();flow.dirty=!!flow.id&&files.dirty(flow,pendingDocumentEdits(flow));$('flow-title').disabled=!flow.id;['save-flow','export-flow','check-flow','run-flow','add-step','flow-inputs'].forEach(id=>$(id).disabled=!flow.id);$('flow-title').value=flow.document.flow.name;$('flow-filename').textContent=filename();$('flow-unsaved').hidden=!flow.dirty;
   syncEnvironment();renderLibrary();renderCanvas();renderInspector();renderResults();renderView();syncConsoleCommand();
   $('flow-step-count').textContent=flow.document.flow.steps.length+' steps · Sequential';$('flow-input-count').textContent=flow.document.flow.inputs.length;
   $('run-flow').querySelector('span').textContent=flow.run?.status==='running'?'Stop':'Run preview';
  }
  function renderCanvas(){
   const flow=current(), steps=flow.document.flow.steps;
+  if(!flow.id){$('flow-canvas').innerHTML='<div class="flow-step-list-empty"><h3>Create or open a Flow</h3><p>Use Open… or New flow to continue.</p></div>';return;}
   const connector='<div class="chain-connector" aria-hidden="true">'+icon('down')+'</div>';
   $('flow-canvas').innerHTML='<div class="flow-chain"><div class="chain-cap">'+icon('play')+'Flow inputs <span class="count">'+flow.document.flow.inputs.length+'</span></div>'+connector+steps.map((step,index)=>{
    const loop=step.kind==='repeat_until',result=flow.run?.stale?null:flow.run?.steps[step.id],status=result?.status;
@@ -156,7 +159,7 @@
   }
   if(flow.run?.status==='running')area.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=true);
  }
- function markEdited(){current().dirty=true;current().errors=null;if(current().run&&current().run.status!=='running')current().run.stale=true;$('flow-unsaved').hidden=false;$('flow-filename').textContent=filename();renderCanvas();renderLibrary();if(canvasView==='yaml')renderYaml();renderResults();updateFooter();}
+ function markEdited(){current().dirty=files.dirty(current(),pendingDocumentEdits(current()));current().errors=null;if(current().run&&current().run.status!=='running')current().run.stale=true;$('flow-unsaved').hidden=!current().dirty;$('flow-filename').textContent=filename();renderCanvas();renderLibrary();if(canvasView==='yaml')renderYaml();renderResults();updateFooter();}
  function stepError(input,message){input.setAttribute('aria-invalid','true');$('step-error').textContent=message;$('step-error').hidden=false;}
  function applyInspector(target){
   const step=selected();if(!step)return;
@@ -431,10 +434,14 @@
   }catch(error){run.status=run.cancelled?'cancelled':'failed';run.error=error.message;logEvent(flow,run.cancelled?'warning':'error',(run.cancelled?'':'Preview failed · ')+error.message,executing?.step,executing?.ownerId);run.outputs={};for(const value of Object.values(run.steps))if(value.status==='running')value.status=run.status;}
   run.elapsed=Date.now()-run.started;delete run.wake;repaintRun(flow);if(flow.id===activeFlow)renderInspector();
  }
- function exportFlow(){
-  if(Object.keys(current().fieldDrafts||{}).length){HTTP.toast('Fix the invalid expression before exporting');checkFlow(false);return;}
-  const content=M.yaml(current().document)+'\n',blob=new Blob([content],{type:'application/yaml'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=filename();anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);current().dirty=false;$('flow-unsaved').hidden=true;renderLibrary();updateFooter();HTTP.toast('Flow exported as '+filename());
+ function downloadFlow(path){
+  const content=M.yaml(current().document)+'\n',blob=new Blob([content],{type:'application/yaml'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=path;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }
+ const fileUI=FlowFilePreview.mount({files,flows,current,filename,pending:()=>pendingDocumentEdits(current()),download:downloadFlow,refresh:()=>{renderFlow();updateFooter();},
+  open:(path,document)=>{const opened=flows.find(f=>f.filePath===path);if(opened){switchFlow(opened.id);return;}const flow=createFlow(document.flow.name);flow.document=document;flow.selected=document.flow.steps[0]?.id;flow.filePath=path;flow.savedSource=JSON.stringify(document);flow.dirty=false;},
+  close:()=>{const index=flows.findIndex(f=>f.id===activeFlow);if(index<0)return;flows.splice(index,1);activeFlow=flows[Math.min(index,flows.length-1)]?.id||null;renderFlow();updateFooter();}
+ });
+ function exportFlow(){fileUI.export();}
  document.querySelectorAll('.mode-button').forEach(button=>button.addEventListener('click',()=>setMode(button.dataset.view)));
  $('home-screen').addEventListener('click',event=>{const target=event.target.closest('button');if(!target)return;if(target.dataset.enter)setMode(target.dataset.enter);if(target.dataset.recentHttp){HTTP.activate(target.dataset.recentHttp);setMode('http');}if(target.dataset.recentFlow){switchFlow(target.dataset.recentFlow);setMode('flows');}});
  $('flow-list').addEventListener('click',event=>{const button=event.target.closest('[data-select-flow]');if(button)switchFlow(button.dataset.selectFlow);});
@@ -534,7 +541,7 @@
  $('copy-yaml').addEventListener('click',async()=>{if(pendingDocumentEdits(current()))return;renderYaml();try{await navigator.clipboard.writeText(current().yamlPreview);HTTP.toast('YAML copied');}catch(_){HTTP.toast('Select the YAML to copy it');}});
  document.querySelectorAll('.studio-close').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
  document.querySelectorAll('.studio-dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}));
- document.addEventListener('keydown',event=>{if(mode()!=='flows'||event.isComposing||event.target.closest('#console-command-form')||event.target.closest('.input-fields')||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();exportFlow();}});
+ document.addEventListener('keydown',event=>{if(mode()!=='flows'||event.isComposing||!(event.metaKey||event.ctrlKey)||document.querySelector('dialog[open]'))return;if(event.key==='Enter'&&!event.target.closest('#console-command-form,.input-fields')){event.preventDefault();runFlow();}if(event.key.toLowerCase()==='s'){event.preventDefault();fileUI.save(event.shiftKey);}if(event.key.toLowerCase()==='o'){event.preventDefault();fileUI.open();}if(event.key.toLowerCase()==='w'){event.preventDefault();fileUI.close();}});
  window.addEventListener('popstate',()=>setMode(location.hash.slice(1),false));
  window.addEventListener('hashchange',()=>{if(['home','http','flows'].includes(location.hash.slice(1)))setMode(location.hash.slice(1),false);});
  PanelResize.attach({

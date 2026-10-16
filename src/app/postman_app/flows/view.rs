@@ -50,10 +50,26 @@ impl FlowsView {
                         div()
                             .text_size(m::CAPTION)
                             .text_color(MUTED.resolve(cx))
-                            .child(if active.is_some() {
-                                "Flows / Session draft"
-                            } else {
-                                "Flows"
+                            .debug_selector(|| "flow-file-status".into())
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .w_full()
+                            .min_w_0()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .truncate()
+                                    .child(self.file_status()),
+                            )
+                            .when(active.is_some(), |d| {
+                                d.child(
+                                    div()
+                                        .flex_none()
+                                        .debug_selector(|| "flow-dirty-status".into())
+                                        .child(self.file_state(cx)),
+                                )
                             }),
                     )
                     .map(|d| {
@@ -95,13 +111,17 @@ impl FlowsView {
                     .items_center()
                     .gap_2()
                     .flex_none()
+                    .flex_wrap()
                     .child(self.environments.clone())
+                    .child(self.render_file_actions(cx))
                     .child(
                         Button::new("flow-export")
                             .small()
-                            .label("Export")
-                            .disabled(true)
-                            .tooltip("Flow file export is not available yet"),
+                            .label("Export…")
+                            .disabled(active.is_none() || self.file_operation_pending())
+                            .on_click(cx.listener(|this, _, w, cx| {
+                                this.save_flow(super::SaveKind::Export, w, cx)
+                            })),
                     )
                     .child(
                         Button::new("flow-check")
@@ -143,7 +163,7 @@ impl FlowsView {
                             let draft = this.library.drafts().iter().find(|d|d.id()==id)?;
                             let selected=this.library.active().is_some_and(|d|d.id()==id);
                             let title=draft.title().to_owned();
-                            let subtitle=format!("{} steps{}",draft.document().flow.steps.len(),if draft.revision()>0 { " · Edited" } else { " · Draft" });
+                            let subtitle=format!("{} steps{}",draft.document().flow.steps.len(),if this.is_dirty(id, cx) { " · Unsaved" } else { " · Saved" });
                             Some(div().h_16().px_2().py_1().child(Button::new(gpui::SharedString::from(format!("flow-row-{}",id.0))).debug_selector(move||format!("flow-row-{}",id.0)).accessibility_label(format!("Open flow {title}")).ghost().selected(selected).w_full().h_full().min_w_0().px_2()
                                 .when(selected,|b|b.bg(ACCENT_SOFT.resolve(cx)))
                                 .on_click(cx.listener(move|this,_,w,c|{this.select_flow(id,w,c);this.library_focus.focus(w,c);} ))
@@ -155,7 +175,7 @@ impl FlowsView {
                         }).collect::<Vec<_>>()
                     })).track_scroll(&self.library_scroll).size_full())
                 }))
-            .child(div().p_3().border_t_1().border_color(LINE.resolve(cx)).text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child("Drafts last for this session"))
+            .child(Button::new("flow-recent").debug_selector(|| "flow-recent".into()).small().ghost().label("Recent flows…").disabled(self.file_operation_pending()).on_click(cx.listener(|this, _, w, cx| this.open_recent(w, cx))))
             .into_any_element()
     }
     fn render_toolbar(
@@ -671,6 +691,7 @@ impl Render for FlowsView {
             .bg(PANEL.resolve(cx))
             .text_color(TEXT.resolve(cx))
             .child(self.render_topbar(compact, cx))
+            .child(self.render_file_feedback(cx))
             .child(div().flex_1().min_w_0().min_h_0().child(layout))
     }
 }

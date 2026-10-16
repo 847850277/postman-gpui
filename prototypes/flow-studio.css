@@ -120,3 +120,10 @@ body:not([data-view="http"]) [data-http-tool],body:not([data-view="http"]) .http
 .step-actions-footer .inspector-actions{margin:0;padding:0;border:0}
 .studio-button.danger{background:var(--red-soft);border-color:var(--red-soft);color:var(--red)}
 #remove-step-name,#remove-step-id{overflow-wrap:anywhere}
+
+/* File actions follow the Flow toolbar and remain reachable in compact windows. */
+.flow-top-actions { flex-wrap:wrap; }
+#flow-file-actions { width:44px; padding:6px; }
+#flow-file-actions option { font-size:12px; }
+#flow-file-entries { display:flex; flex-direction:column; gap:8px; max-height:320px; overflow:auto; }
+#flow-file-dialog .dialog-footer { flex-wrap:wrap; }

@@ -277,7 +277,7 @@ impl PostmanApp {
                     Some(r) if r.saved_document_id().is_some() => "All changes saved",
                     _ => "Ready when you are",
                 },
-                AppRoute::Flows => "Flow drafts · This session only",
+                AppRoute::Flows => "Flow files · Save to keep changes",
             }
             .into()
         };

@@ -45,7 +45,7 @@ fn contains_step(step: &postman_flow::HttpStepDefinition, id: &str) -> bool {
     children.iter().any(|step| contains_step(step, id))
 }
 impl FlowsView {
-    fn draft_issues(&self, flow: FlowId, cx: &App) -> Vec<Issue> {
+    pub(super) fn draft_issues(&self, flow: FlowId, cx: &App) -> Vec<Issue> {
         let mut issues = Vec::new();
         if let Some(editor) = self.inputs.get(&flow) {
             issues.extend(editor.read(cx).draft_issues());

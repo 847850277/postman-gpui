@@ -102,11 +102,11 @@ In Flows:
 - Use Inputs for per-run values and the shared environment picker for `base_url`.
   These runtime overrides are kept separate from YAML defaults.
 - Switch Canvas / YAML to inspect generated Flow v1 source, then copy it or
-  Export a `.http.yml` file. YAML is read-only in this prototype; structured
+  Export a `.http.yml` copy without clearing unsaved changes. YAML is readonly in this prototype; structured
   body/condition expressions can be edited in the inspector. Invalid JSON drafts
   survive navigation and must be fixed before running or exporting.
 - Run preview (Cmd/Ctrl+Enter) shows sequential step results, checks, extracted
-  outputs, failures, and cancellation. Cmd/Ctrl+S exports the active flow.
+  outputs, failures, and cancellation. Cmd/Ctrl+S saves the active Flow in the file-workflow preview; Cmd/Ctrl+Shift+S chooses Save as.
 - The bottom **Console** has Logs, Steps, and Outputs tabs. Logs show timestamps,
   levels, requests, checks, polling, and cancellation; filter by level, copy the
   visible view, or clear logs without removing step results and outputs. Click a
@@ -135,7 +135,7 @@ In Flows:
 The Flow screen is an interactive design prototype, not a connection to the Rust
 runtime. Run preview uses local fixtures and a small expression interpreter;
 polling waits are shortened to at most 1.5 seconds. Check performs partial local
-checks, not full engine compilation. Arbitrary YAML import/editing, free-position
+checks, not full engine compilation. Arbitrary YAML parsing/editing, free-position
 node dragging, general loop creation, and production execution are outside this
 prototype. Exported example documents have been checked using the existing
 `postman-g run <file> --check` command without sending network requests.
@@ -257,7 +257,6 @@ still rejects Binary (only metadata is available), multipart and generic cURL fl
 intentional preview limitations, not additional native restrictions. Native Scripts/Tests are also
 explicitly rejected; copying does not run Check, persist the document, or execute it.
 
-
 ### Native P5.3-1 Check/YAML parity
 
 Native Check now uses the real Flow compiler (the browser remains a partial local validator).
@@ -270,3 +269,16 @@ codec errors disable Copy too. Runtime overrides/environment values are excluded
 sensitive defaults remain document content. Canvas/YAML stay reachable at compact widths.
 Save/export/reopen and real Run/Cancel remain later slices. The browser reference includes the
 stale YAML/check presentation; it does not replace native compiler regression coverage.
+
+### Flow file workflow (P5.3-2)
+
+The Open, Save, file-actions menu, Export and Recent flows surfaces specify the native file workflow.
+Save establishes a path and saved snapshot; Save as keeps the old file and changes the association;
+Export writes a copy and preserves dirty state. Close flow presents Save / Discard changes / Cancel.
+Pending inspector/Inputs definition errors block writes, while runtime overrides never become defaults.
+
+`flow-files.js` keeps **session-only browser snapshots** to preview Save/Open/close and overwrite states.
+Open lists those snapshots, Export downloads YAML, and reloading the page clears this file simulation.
+The native app uses real OS pickers, native YAML parsing, background atomic replacement, conflict checks,
+and persistent recent paths. Browser simulation is not evidence of native persistence or OS Quit handling.
+Verify native light/dark and compact windows against these controls; keep verification notes in the PR.
