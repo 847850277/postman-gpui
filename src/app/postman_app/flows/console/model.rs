@@ -4,8 +4,8 @@ use std::collections::VecDeque;
 pub(super) const COMMANDS: [(&str, &str); 8] = [
     ("help", "Show available Flow commands"),
     ("check", "Validate the current Flow document"),
-    ("run", "Run the flow — not available yet"),
-    ("stop", "Stop execution — not available yet"),
+    ("run", "Run the current Flow snapshot"),
+    ("stop", "Cancel the active Flow execution"),
     ("clear", "Clear logs; keep command history and results"),
     ("logs", "Show event logs"),
     ("steps", "Show step results"),
@@ -63,6 +63,7 @@ pub(super) struct LogEntry {
     pub(super) level: Level,
     pub(super) message: String,
     pub(super) step: Option<String>,
+    pub(super) run_revision: Option<u64>,
     pub(super) diagnostic: Option<super::super::validation::DiagnosticTarget>,
 }
 
@@ -76,6 +77,8 @@ pub(super) struct Session {
     pub(super) cleared: bool,
     pub(super) check: Option<(u64, bool)>,
     pub(super) revision: u64,
+    pub(super) run: Option<super::super::execution::Run>,
+    pub(super) step_scroll: gpui::UniformListScrollHandle,
     cursor: usize,
     stash: String,
     next_id: u64,
@@ -92,6 +95,8 @@ impl Default for Session {
             cleared: false,
             check: None,
             revision: 0,
+            run: None,
+            step_scroll: gpui::UniformListScrollHandle::new(),
             cursor: 0,
             stash: String::new(),
             next_id: 0,
@@ -108,6 +113,7 @@ impl Session {
             message: message.into(),
             step,
             diagnostic: None,
+            run_revision: None,
         });
         if self.logs.len() > 500 {
             self.logs.pop_front();
@@ -192,11 +198,7 @@ impl Session {
                 None,
             ),
             "check" => {} // The Flow owner compiles the current document and editor drafts.
-            "run" | "stop" => self.push(
-                Level::Warning,
-                "Flow execution is not available yet. No request was sent.",
-                None,
-            ),
+            "run" | "stop" => {} // The Flow owner owns execution and cancellation.
             "logs" => self.view = View::Logs,
             "steps" => self.view = View::Steps,
             "outputs" => self.view = View::Outputs,
@@ -248,7 +250,7 @@ mod tests {
         assert!(!state.copy_text().contains("event-"));
         for command in ["run", "stop"] {
             state.execute(command);
-            assert_eq!(state.logs.back().unwrap().level, Level::Warning);
+            assert_eq!(state.logs.back().unwrap().level, Level::Command);
         }
         for command in ["run extra", "echo hello", "run; clear"] {
             state.execute(command);

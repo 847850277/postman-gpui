@@ -15,6 +15,7 @@ impl FlowsView {
         if let Some(draft) = self.library.active() {
             self.files.close = Some(CloseTarget::Flow(draft.id()));
             self.files.discarded.clear();
+            self.files.stop_approved.clear();
             self.advance_file_close(window, cx);
         }
     }
@@ -28,9 +29,14 @@ impl FlowsView {
         }
         self.files.close = Some(CloseTarget::Quit);
         self.files.discarded.clear();
+        self.files.stop_approved.clear();
         self.advance_file_close(window, cx);
     }
-    pub(super) fn advance_file_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(in crate::app::postman_app::flows) fn advance_file_close(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.files.busy || self.files.dialog.is_some() || self.files.conflict.is_some() {
             return;
         }
@@ -50,12 +56,37 @@ impl FlowsView {
         if let Some(flow) = next {
             self.open_close_dialog(flow, window, cx);
         } else {
+            let running: Vec<_> = self
+                .library
+                .drafts()
+                .iter()
+                .filter(|d| {
+                    (target == CloseTarget::Quit || target == CloseTarget::Flow(d.id()))
+                        && self.running(d.id())
+                })
+                .map(|d| (d.id(), self.execution.runs[&d.id()].id))
+                .collect();
+            if let Some((flow, _)) = running
+                .iter()
+                .find(|(flow, run)| self.files.stop_approved.get(flow) != Some(run))
+            {
+                self.open_stop_dialog(*flow, window, cx);
+                return;
+            }
+            if !running.is_empty() {
+                for (flow, _) in running {
+                    self.stop_flow(flow, cx);
+                }
+                return; // Worker acknowledgements re-enter this coordinator after stream drop.
+            }
             self.files.close = None;
             self.files.discarded.clear();
+            self.files.stop_approved.clear();
             self.files.return_focus = None;
             match target {
                 CloseTarget::Quit => cx.emit(super::super::FlowsEvent::QuitReady),
                 CloseTarget::Flow(flow) => {
+                    self.forget_run(flow);
                     self.library.close(flow);
                     self.inputs.remove(&flow);
                     self.input_subscriptions.remove(&flow);
@@ -91,6 +122,7 @@ impl FlowsView {
         self.files.dialog = None;
         self.files.close = None;
         self.files.discarded.clear();
+        self.files.stop_approved.clear();
         self.files.conflict = None;
         if let Some(focus) = self.files.return_focus.take() {
             focus.focus(window, cx);

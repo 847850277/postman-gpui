@@ -1,5 +1,6 @@
 //! Native, session-owned Flow editing. Kit owns input, selection controls and overlays.
 mod console;
+mod execution;
 mod files;
 pub(super) use files::SaveKind;
 mod controls;
@@ -66,11 +67,13 @@ pub(super) enum FlowsEvent {
     AddStep,
     RequestAdded,
     QuitReady,
+    CookiesChanged(Vec<(String, String)>),
 }
 impl gpui::EventEmitter<FlowsEvent> for FlowsView {}
 
 pub(super) struct FlowsView {
     library: FlowLibrary,
+    execution: execution::Execution,
     files: files::Files,
     input_subscriptions: HashMap<FlowId, Subscription>,
     console: Entity<console::FlowConsole>,
@@ -105,6 +108,7 @@ pub(super) struct FlowsView {
 impl FlowsView {
     pub(super) fn new(
         environments: Entity<Environments>,
+        executor: crate::http::executor::RequestExecutor,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -133,6 +137,8 @@ impl FlowsView {
         let mut subscriptions = Vec::new();
         subscriptions.push(
             cx.subscribe_in(&console, window, |this, _, event, window, cx| match event {
+                console::ConsoleEvent::Run => this.run_flow(window, cx),
+                console::ConsoleEvent::Stop => this.stop_active_flow(cx),
                 console::ConsoleEvent::Check => this.check_flow(window, cx),
                 console::ConsoleEvent::LocateDiagnostic(target) => {
                     this.locate_diagnostic(target, window, cx)
@@ -141,9 +147,9 @@ impl FlowsView {
                     this.conceal_inputs(cx);
                     cx.notify();
                 }
-                console::ConsoleEvent::LocateStep { flow, step } => {
+                console::ConsoleEvent::LocateStep { flow, step, revision } => {
                     if this.library.active().is_some_and(|d| {
-                        d.id() == *flow && d.document().flow.steps.iter().any(|s| s.id == *step)
+                        d.id() == *flow && revision.is_none_or(|revision| revision == d.revision()) && d.document().flow.steps.iter().any(|s| s.id == *step)
                     }) {
                         this.yaml_open = false;
                         this.select_step(step, window, cx);
@@ -154,7 +160,7 @@ impl FlowsView {
                     } else {
                         window.push_notification(
                             Notification::info(
-                                "This step is no longer available in the active flow.",
+                                "This result belongs to an earlier Flow revision. Run the current Flow again.",
                             ),
                             cx,
                         );
@@ -202,6 +208,7 @@ impl FlowsView {
         );
         Self {
             library: FlowLibrary::default(),
+            execution: execution::Execution::new(executor),
             files: files::Files::default(),
             input_subscriptions: HashMap::new(),
             console,

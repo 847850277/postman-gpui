@@ -9,14 +9,14 @@ All shell commands below assume the repository root unless noted otherwise.
 
 | Component | Current capabilities | Entry point |
 | --- | --- | --- |
-| Native desktop app | HTTP editing, response inspection, local history, and saved Flow files | `cargo run --locked` |
+| Native desktop app | HTTP editing, local history, saved Flows and real Flow execution | `cargo run --locked` |
 | Flow DSL and CLI | Compile and execute `.http` requests and `.http.yml` workflows | [postman-g](../crates/postman-cli/README.md) |
 | Flow MCP server | Schema, examples, validation, inspection, and YAML generation for agents | [postman-flow-mcp](../crates/postman-flow-mcp/README.md) |
 | HTML UI prototype | Separate Home, HTTP, and Flows screens with simulated responses | [Preview guide](../prototypes/README.md) |
 
 The native app opens Home with separate HTTP and Flows destinations. Flows supports a native
-library, sequential canvas, and HTTP Request details with native expressions. Executable workflows
-use the CLI or Rust API.
+library, sequential canvas, HTTP Request details with native expressions, and real Run/Cancel
+with basic feedback. The CLI and Rust API use the same Flow engine.
 
 Runnable HTTP examples use [HTTPBingo](https://httpbingo.org/) throughout the app,
 prototype, and CLI/Flow guides. The HTML prototype uses local fixtures for these
@@ -220,8 +220,7 @@ defaults, or environment storage, and are not saved across restart.
 Sensitive values are concealed until explicitly revealed for editing. Leaving the editing context
 conceals them again without discarding the draft. A sensitive **default** still belongs to the
 document; the sensitivity flag is a redaction annotation, not encryption. Session overrides are
-never written into the document. Input editing prepares parameters only: it does not enable
-Run. File saving/exporting preserves definitions and excludes these runtime overrides. Return with
+never written into the document. Run validates and captures these parameters before sending requests. File saving/exporting preserves definitions and excludes these runtime overrides. Return with
 Step details or select a canvas node to resume its retained Request / Checks / Exports state.
 
 Click a node, then use Up/Down or Home/End to navigate the sequential canvas. The library,
@@ -235,14 +234,14 @@ The bottom **Console** has Logs, Steps, and Outputs tabs and can collapse to its
 maximize within the editor. Restoring it returns to its preferred height. Logs support level
 filtering, copying visible entries, clearing, and auto-scroll; scrolling back pauses follow mode.
 
-The fixed `flow ›` input accepts `help`, `clear`, `logs`, `steps`, `outputs`, and `check`. Enter or
+The fixed `flow ›` input accepts `help`, `clear`, `logs`, `steps`, `outputs`, `check`, `run`, and `stop`. Enter or
 Cmd/Ctrl+Enter submits; Up/Down recalls history and restores unfinished input; Tab completes a
 unique prefix; Escape clears input. Each flow normally keeps up to 500 log entries and 50 commands
 for the session; a complete Check report can exceed the log limit so no diagnostics are lost.
 Clearing logs keeps command history and document edits. Commands never invoke a system shell.
-`check` validates the current document and pending edits. `run` and `stop` currently report that
-their native capability is unavailable; Steps and Outputs remain not run. No requests are sent by
-Console commands.
+`check` validates the current document and pending edits without sending requests. `run` starts real
+execution; `stop` cancels it. Steps shows basic status and timing; Outputs shows the final output
+count. Detailed assertion, extraction and output-value inspection is deferred to P6-2.
 
 Step details include **Move step up**, **Move step down**, and **Remove step** across all
 three tabs. Moves change execution order and keep the selected step, its ID, exact unfinished
@@ -282,10 +281,37 @@ rejected with inline feedback. Descriptions, disabled/incomplete rows, inactive 
 runtime cookies are editor/session data, retained in HTTP but not copied into the step. New checks,
 exports and conditions start empty. This conversion is not a whole-flow Check or Run.
 
-Flow documents support **Save, Save as…, Export…, Open…, and Recent flows…**. Unsaved drafts are not recovered after restart. Native Run remains unavailable.
+Flow documents support **Save, Save as…, Export…, Open…, and Recent flows…**. Unsaved drafts are not recovered after restart. Native Run executes through the shared Rust engine and HTTP session.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Other check kinds remain readonly. P6 connects execution.
+Other check kinds remain readonly in the editor; the engine still executes supported definitions.
+
+### Run, Cancel and runtime feedback
+
+**Run** and Console `run` compile the current in-memory Flow, validate all retained document drafts,
+prepare typed Inputs and capture an immutable plan/environment snapshot. Saving is not required.
+Missing inputs and invalid hidden drafts block execution before any request. HTTP options use product
+defaults plus the document's per-step overrides; an unrelated HTTP tab's options are not inherited.
+Flows and ordinary HTTP share the transport client and cookie jar, without creating HTTP history entries
+for Flow steps. File-body paths are read only during execution, relative to the process working directory.
+
+The toolbar becomes **Cancel**; Console `stop` has the same effect. The stopping state remains until
+the execution stream has dropped its active request or polling wait. Subsequent steps do not execute;
+cancellation cannot undo server-side work already received. One run per Flow may be active; other Flows
+retain independent sessions. Switching Home/HTTP/Flows does not interrupt a run. Editing while running
+changes the next run; results from an older document revision are labeled and cannot navigate stale steps.
+Cmd/Ctrl+Enter runs/cancels from the Flow canvas/library. Text fields keep their editing/IME behavior;
+in Console the same shortcut submits the entered command.
+
+Canvas/Console show step progress, response status/timing, check outcomes, loop waits/limits and terminal
+status. Check results remain separate from execution results. Logs are bounded; Clear keeps results and
+command history. Runtime feedback intentionally omits raw inputs, headers, bodies, output values and
+potentially sensitive error payloads. Safe error categories still distinguish timeouts, network failures
+and checks. Outputs currently reports only a count; full inspection is planned for P6-2.
+
+Closing a running Flow, including a clean saved file, requires **Stop and close** after any necessary
+Save/Discard decisions. Cancel keeps it open and running; failed/cancelled saves keep it open. Confirmed
+close/Quit waits for execution cleanup. Run results/overrides are session-only and never written to YAML.
 
 ### Flow files and unsaved changes
 
@@ -452,7 +478,7 @@ a normal workspace test run alone does not establish that these suites ran.
 
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
-- The native Flow editor supports session Request drafts; use the CLI for actual Flow execution.
+- Native Flows support real Run/Cancel and basic runtime feedback. Detailed result inspection remains P6-2.
 - Request saving is explicit; unsaved drafts are not recovered after a crash or force quit.
 - Native cURL import supports the documented inline subset; file-based and multipart commands
   are export-only.

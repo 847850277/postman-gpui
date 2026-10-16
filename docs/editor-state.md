@@ -181,3 +181,27 @@ late HTTP changes cannot bypass protection. Normal window close and Quit share t
 Tests live in `flows::files::{tests,storage::tests}` and `flows::inputs::tests`; existing HTTP close,
 Flow Check/YAML, editor identity and geometry suites remain applicable. OS file-picker and installed
 platform behavior require separate smoke verification.
+
+### P6-1: native execution and runtime feedback
+
+`flows/execution` owns one task per Flow and immutable compiled document/Input snapshots. It reuses
+the HTTP runner's cloned RequestExecutor context (same RequestClient, cookie jar and Tokio runtime).
+`execute_flow` is the only execution engine. Product default request options are captured with the
+plan's step overrides; ordinary HTTP tab options and history are independent.
+
+A bounded 64-event mailbox applies backpressure; foreground updates apply at most 32 events after
+checking FlowId/run ID. RunningTask sends cancellation to an interruptible stream/send loop and aborts
+on drop. Worker completion is acknowledged only after dropping the request/wait stream; terminal
+cleanup removes the task and resumes pending close decisions. Window/entity teardown aborts tasks.
+Run progress lives outside FlowDocument; Console holds a value-free projection. Raw errors, response
+bodies, runtime inputs and output values are never retained in that projection or copied logs.
+
+Canvas badges apply only to the captured document revision; old log/step navigation also checks it.
+A rerun creates new state and cannot inherit old outputs. Mode changes retain tasks. Cmd/Ctrl+Enter
+belongs to Flow canvas/library navigation; text/IME and Console keep their established key ownership.
+
+Close/Quit first settles dirty-document decisions, then obtains stop consent scoped to each run ID,
+including clean saved Flows. It stops tasks only after all required decisions and waits for worker
+acknowledgements. Cancel-close and failed/cancelled Save retain tasks and drafts; late document edits
+are reconsidered by the existing coordinator. Native control, controlled-transport and local HTTP
+regressions live in `flows::execution::tests`; full Steps/Outputs inspection remains P6-2.

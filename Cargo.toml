@@ -37,6 +37,7 @@ homepage.workspace = true
 postman-http = { path = "crates/postman-http" }
 postman-request = { path = "crates/postman-request" }
 postman-flow = { path = "crates/postman-flow" }
+futures = "0.3"
 # Keep the application, Kit controls, and test harness on the same GPUI snapshot.
 gpui = { package = "gpui-pre", version = "=0.3.9" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.9", features = ["font-kit", "wayland", "x11"] }
@@ -61,7 +62,6 @@ uuid = { version = "1", features = ["v4"] }
 embed-resource = "3.0"
 
 [dev-dependencies]
-futures = "0.3"
 brotli = "8"
 flate2 = "1"
 gpui = { package = "gpui-pre", version = "=0.3.9", features = ["test-support"] }

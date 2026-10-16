@@ -47,7 +47,7 @@ fn commands_history_completion_and_view_keys_use_real_kit_controls(cx: &mut Test
     press(cx, "shift-tab");
     cx.update(|w, cx| assert!(!console.read(cx).input.focus_handle(cx).is_focused(w)));
     command(cx, "  RUN ");
-    assert!(text(&console, cx).contains("No request was sent"));
+    assert!(text(&console, cx).contains("No requests sent"));
     command(cx, "check");
     assert!(text(&console, cx).contains("EmptyFlow"));
     command(cx, "stop");

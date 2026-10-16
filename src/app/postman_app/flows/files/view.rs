@@ -15,7 +15,7 @@ impl FlowsView {
         &self,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let busy = self.files.busy || self.files.conflict.is_some();
+        let busy = self.file_operation_pending();
         let active = self.library.active().is_some();
         let owner = cx.weak_entity();
         div()
@@ -134,6 +134,7 @@ impl FlowsView {
                 }); })
                 .child(div().debug_selector(|| "flow-close-dialog".into()).flex().flex_col().gap_3().text_size(m::LABEL)
                     .child("Discard changes leaves the last saved file unchanged.")
+                    .when(view.running(flow), |d| d.child("This Flow is running. Closing it also requires confirmation to stop execution."))
                     .child(div().text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child("YAML includes entered credentials and defaults as plaintext. Body files remain references."))
                     .when_some(view.files.error.clone(), |d, e| d.child(div().debug_selector(|| "flow-close-error".into()).text_color(ERROR.resolve(cx)).child(e)))
                     .when(!view.draft_issues(flow, cx).is_empty(), |d| d.child(Button::new("flow-review-edits").small().label("Review edits").disabled(busy).on_click(move |_, w, cx| {
@@ -148,6 +149,39 @@ impl FlowsView {
                     .child(Button::new("flow-close-cancel").debug_selector(|| "flow-close-cancel".into()).label("Cancel").disabled(busy).on_click(move |_, w, cx| { let _ = cancel.update(cx, |this, cx| this.cancel_file_dialog(w, cx)); }))
                     .child(Button::new("flow-close-discard").debug_selector(|| "flow-close-discard".into()).label("Discard changes").disabled(busy).on_click(move |_, w, cx| { let _ = discard.update(cx, |this, cx| this.discard_flow(flow, w, cx)); }))
                     .child(Button::new("flow-close-save").debug_selector(|| "flow-close-save".into()).primary().label(if busy { "Saving…" } else { "Save" }).disabled(busy).on_click(move |_, w, cx| { let _ = save.update(cx, |this, cx| this.save_document(flow, SaveKind::Save, w, cx)); })))
+        });
+        cx.notify();
+    }
+    pub(super) fn open_stop_dialog(
+        &mut self,
+        flow: FlowId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.files.dialog = Some(DialogKind::Stop(flow));
+        if self.files.return_focus.is_none() {
+            self.files.return_focus = window.focused(cx);
+        }
+        let owner = cx.weak_entity();
+        window.open_dialog(cx, move |dialog, w, cx| {
+            let Some(entity) = owner.upgrade() else { return dialog; };
+            let name = entity.read(cx).library.get(flow).map(|d| d.title()).unwrap_or("Flow").to_owned();
+            let cancel = owner.clone(); let confirm = owner.clone(); let dismiss = owner.clone();
+            dialog.title(format!("Stop running “{name}” and close?"))
+                .w((w.rem_size()*34.).min(w.viewport_size().width-w.rem_size()*2.))
+                .close_button(false).overlay_closable(false)
+                .on_ok(|_, _, cx| { cx.propagate(); false })
+                .on_close(move |_, w, cx| { let _ = dismiss.update(cx, |this, cx| {
+                    if this.files.dialog == Some(DialogKind::Stop(flow)) { this.file_dialog_closed(w, cx); }
+                }); })
+                .child(div().debug_selector(|| "flow-stop-close-dialog".into()).child("Closing stops the active request or polling wait and prevents later steps. Requests already received by a server cannot be undone. Cancel keeps the Flow open and running."))
+                .footer(div().flex().flex_wrap().justify_end().gap_2()
+                    .child(Button::new("flow-stop-close-cancel").label("Cancel").on_click(move |_, w, cx| { let _ = cancel.update(cx, |this, cx| this.cancel_file_dialog(w, cx)); }))
+                    .child(Button::new("flow-stop-close-confirm").danger().label("Stop and close").on_click(move |_, w, cx| { let _ = confirm.update(cx, |this, cx| {
+                        if let Some(run) = this.execution.runs.get(&flow) { this.files.stop_approved.insert(flow, run.id); }
+                        this.dismiss_file_dialog(w, cx);
+                        cx.defer_in(w, |this, w, cx| this.advance_file_close(w, cx));
+                    }); })))
         });
         cx.notify();
     }

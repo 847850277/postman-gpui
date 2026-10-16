@@ -27,6 +27,10 @@ use gpui_kit::{
 impl FlowsView {
     fn render_topbar(&self, compact: bool, cx: &mut Context<Self>) -> AnyElement {
         let active = self.library.active();
+        let running = active.is_some_and(|d| self.running(d.id()));
+        let stopping = active
+            .and_then(|d| self.execution.runs.get(&d.id()))
+            .is_some_and(|r| r.status == super::execution::Status::Stopping);
         let invalid_name = active.and_then(|d| model::validate_name(&d.document().flow.name).err());
         div()
             .debug_selector(|| "flow-topbar".into())
@@ -134,10 +138,31 @@ impl FlowsView {
                     .child(
                         Button::new("flow-run")
                             .small()
-                            .label("Run")
-                            .icon(IconName::Play)
-                            .disabled(true)
-                            .tooltip("Flow execution is not available yet"),
+                            .debug_selector(|| "flow-run".into())
+                            .primary()
+                            .label(if stopping {
+                                "Stopping…"
+                            } else if running {
+                                "Cancel"
+                            } else {
+                                "Run"
+                            })
+                            .icon(if running {
+                                IconName::Square
+                            } else {
+                                IconName::Play
+                            })
+                            .disabled(
+                                active.is_none()
+                                    || self.file_operation_pending()
+                                    || active
+                                        .and_then(|d| self.execution.runs.get(&d.id()))
+                                        .is_some_and(|r| {
+                                            r.status == super::execution::Status::Stopping
+                                        }),
+                            )
+                            .tooltip("Run the current snapshot, or cancel its execution")
+                            .on_click(cx.listener(|this, _, w, cx| this.run_or_cancel(w, cx))),
                     ),
             )
             .into_any_element()
@@ -242,8 +267,9 @@ impl FlowsView {
                         .text_size(m::CAPTION)
                         .text_color(MUTED.resolve(cx))
                         .child(format!(
-                            "{} steps · Sequential",
-                            active.map_or(0, |d| d.document().flow.steps.len())
+                            "{} steps · {}",
+                            active.map_or(0, |d| d.document().flow.steps.len()),
+                            self.run_label()
                         )),
                 )
             })
@@ -397,6 +423,13 @@ impl FlowsView {
             let id = step.id.clone();
             let flow = draft.id();
             let selected = draft.selected().is_some_and(|s| s.id == step.id);
+            let status = self
+                .execution
+                .runs
+                .get(&flow)
+                .filter(|r| r.revision == draft.revision())
+                .and_then(|r| r.steps.iter().find(|s| s.id == step.id))
+                .map(|s| s.status);
             let (method, url) = request_summary(step);
             let name = if step.name.trim().is_empty() {
                 "Untitled step"
@@ -474,8 +507,16 @@ impl FlowsView {
                                     .child(
                                         div()
                                             .text_size(m::CAPTION)
-                                            .text_color(MUTED.resolve(cx))
-                                            .child(if method.is_some() { "HTTP" } else { "DSL" }),
+                                            .text_color(
+                                                status
+                                                    .map(super::execution::status_color)
+                                                    .unwrap_or(MUTED)
+                                                    .resolve(cx),
+                                            )
+                                            .child(status.map_or(
+                                                if method.is_some() { "HTTP" } else { "DSL" },
+                                                |s| s.label(),
+                                            )),
                                     ),
                             )
                             .child(
