@@ -399,7 +399,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  const bodyEditor = BodyEditor.attach({current,changed:() => { dirty(); updateCount("headers"); },openHeaders:() => { setPane("headers"); $("add-header").focus(); }});
  const requestHasBody = request => { RequestBody.ensure(request); return request.bodyFormat !== "none"; };
  const requestCode = () => CurlRequest.stringify(RequestBody.project(current()));
- function dirty() { updateContext(); current().dirty = true; $("footer-status").textContent = "Unsaved changes"; renderTabs(); }
+ function dirty() { current().revision = (current().revision || 0) + 1; updateContext(); current().dirty = true; $("footer-status").textContent = "Unsaved changes"; renderTabs(); }
  function toast(message) {
   $("toast-text").textContent = message; $("toast").classList.add("visible"); clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $("toast").classList.remove("visible"),2400);
@@ -788,6 +788,7 @@ dialog{color:var(--text);width:min(560px,calc(100vw - 32px));border:1px solid va
  window.PrototypeHTTP = {
   list:() => requests.map(r => ({id:r.id,title:r.title,method:r.method,url:r.url})),
   current:() => RequestBody.project(current()),
+  snapshot:id => { const request = requests.find(r => r.id === id); return request ? {...RequestBody.project(clone(request)),revision:request.revision || 0} : null; },
   activate,newRequest,toast,
   environment:() => ({id:activeEnvironmentId,baseUrl:baseUrl(),items:clone(environments)}),
   setEnvironment:id => { $("environment").value=id; $("environment").dispatchEvent(new Event("change")); },

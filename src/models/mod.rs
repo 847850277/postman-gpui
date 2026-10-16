@@ -1,6 +1,7 @@
 // This file serves as a module for data models used in the application.
 
 pub mod curl;
+pub(crate) mod flow_request;
 pub mod history;
 pub mod request_draft;
 

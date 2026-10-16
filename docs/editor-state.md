@@ -113,3 +113,24 @@ step, then previous, or Add step for an empty flow. Inputs overrides and Console
 Session-only reserved IDs include imported/nested IDs and deleted IDs, preventing reuse by Add
 step. These reservations are not DSL fields or restart persistence. Reference repair and
 structural undo are outside this slice; compiler diagnostics remain P5.3.
+
+### HTTP → Flow transfer
+
+The Flow-owned transfer dialog receives the shared HTTP model through shell events, never another
+view's controls. It captures `(RequestTabId, draft_revision)` and one immutable converted request at
+open/source selection. Script/Test edits participate in that revision. Confirmation revalidates the
+source and destination before the Flow library performs one append with its reserved-ID allocator.
+New-flow naming and conversion finish before any document or selection changes. Each dialog accepts
+only one submission; Cancel/Escape and stale sources consume no Flow revisions.
+
+`models/flow_request.rs` reuses `RequestDraft::construct`, returning typed conversion failures without
+request values. TextTemplate literals preserve text exactly; no variables are inferred. Absolute
+Unicode File paths copy without I/O, and timeout None becomes explicit zero to prevent destination
+inheritance. Multipart, scripts, invalid HTTP(S) URLs/headers/JSON and nonrepresentable paths block
+transfer. The new inspector is retained independently; other inspectors, Inputs and Console remain
+owned by their existing entities. Closing the Kit dialog precedes new-editor focus so focus restoration
+does not steal it. Runtime execution, persistence and HTTP history are untouched.
+
+Regression coverage: `models::flow_request`, `flows::transfer`, Flow model tests, and
+`transfer_captures_committed_ime_and_preserves_http_undo` use real codecs/runtime recording transport
+and Kit controls, including a source copied during an in-flight Send.

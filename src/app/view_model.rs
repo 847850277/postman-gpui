@@ -418,6 +418,7 @@ impl RequestViewModel {
         let script = script.into();
         if self.pre_request_script != script {
             self.pre_request_script = script;
+            self.draft_revision = self.draft_revision.wrapping_add(1);
         }
     }
 
@@ -425,6 +426,7 @@ impl RequestViewModel {
         let script = script.into();
         if self.tests_script != script {
             self.tests_script = script;
+            self.draft_revision = self.draft_revision.wrapping_add(1);
         }
     }
 

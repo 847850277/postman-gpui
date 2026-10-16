@@ -169,9 +169,28 @@ API 引用和循环节点可整体排序或删除，配置仍只读。变量提�
 删除生产者或把消费者移到前面可能留下无效引用，完整编译诊断将在 P5.3 接入。
 本批不含拖拽排序和结构操作撤销；文本撤销重做继续可用。
 
+### 将 HTTP 请求复制到 Flow（#228）
+
+HTTP 工具栏的 **Add to flow** 可将当前草稿复制到已有流程，或在同一个对话框中选择
+**Create a new flow…** 并填写名称。点击 **Add and open flow** 后，直接打开新步骤的 Request
+详情，窄窗口也会切到 Details。Flows → **Add step** → **From open HTTP requests** 复用同一流程，
+可搜索其他已打开的 HTTP 标签；**New HTTP request** 仍可添加空白步骤。同名流程使用独立标识区分。
+
+对话框捕获当前编辑内容；确认前源请求被修改或关闭时，需要取消并重新打开。取消或校验失败不会
+创建空流程。复制后的两侧独立编辑，HTTP 未保存状态、撤销、响应及进行中的 Send 保持不变，
+目标 Flow 原有编辑器、Inputs 运行参数和 Console 内容也会保留。复制操作不会发送请求。
+
+转换复用 HTTP Send 的构造结果，保留 URL/query、重复及有效 Header、Basic/Bearer/手工认证、
+自动 Content-Type/Accept，以及 None、JSON、Raw、URL encoded 的类型和字节；`{{token}}` 等文本
+保持字面量。超时、重定向和跳数显式复制，“无限超时”不会变成继承 Flow 环境。Binary 仅复制绝对
+Unicode 文件路径，不读取文件；相对或非 Unicode 路径会拒绝。浏览器原型无法保留本机文件路径，
+因此仍不支持 Binary。Form-data、非空 Scripts/Tests、无效 URL/Header/JSON 会显示原因并阻止复制。
+说明、禁用或未完成行、未启用的 Body 草稿、运行时 Cookie 留在 HTTP，不写入新步骤；新步骤的
+Checks、Exports、运行条件为空。转换成功不代表整个流程已经 Check 或 Run。
+
 Flow 草稿**不会跨重启保存**。YAML、工具栏 Check、文件 Export、Run 暂不可用。Request 编辑保留文档原有的
 条件、检查、导出、请求选项/认证、API 目录、嵌套步骤、输入输出和布局信息。
-JSON 结构或 URL 格式提示不等于流程编译成功。后续 P5.2 补充其他检查类型编辑和 HTTP Add to flow，
+JSON 结构或 URL 格式提示不等于流程编译成功。其他检查类型暂时只读；
 P5.3 接入编译诊断与文件保存，P6 接入执行。
 
 使用 `cargo test --locked -p postman-gpui --lib app::postman_app::flows` 和

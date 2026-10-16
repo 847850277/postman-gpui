@@ -111,6 +111,7 @@
   return errors;
  }
  function fromRequest(request,id) {
+  try{const url=new URL(request.url);if(!['http:','https:'].includes(url.protocol))throw new Error();}catch(_){throw new Error('Enter an absolute HTTP(S) request URL before adding it to a flow.');}
   if(request.hasBody&&['multipart','binary'].includes(request.bodyFormat))throw new Error('Form-data and binary bodies cannot be added to a flow in this preview. Use JSON, Raw, or URL encoded.');
   if(!['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'].includes(request.method))throw new Error('Flow v1 does not support '+request.method+'. Choose a standard HTTP method first.');
   if(request.curlOptions?.length)throw new Error('Remove cURL transport flags before adding this request to a flow.');

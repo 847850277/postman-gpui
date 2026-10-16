@@ -242,7 +242,10 @@ impl FlowsView {
                     .label("Add step…")
                     .icon(IconName::Plus)
                     .disabled(active.is_none())
-                    .on_click(cx.listener(|this, _, w, c| this.open_add_step(w, c))),
+                    .on_click(cx.listener(|this, _, w, c| {
+                        this.add_step_focus.focus(w, c);
+                        this.open_add_step(w, c)
+                    })),
             )
             .when(compact, |d| {
                 d.child(
@@ -521,13 +524,17 @@ impl FlowsView {
             div()
                 .child(
                     Button::new("canvas-add-step")
+                        .track_focus(&self.canvas_add_step_focus)
                         .ghost()
                         .label("Add a step…")
                         .icon(IconName::Plus)
                         .w_full()
                         .border_1()
                         .border_color(LINE.resolve(cx))
-                        .on_click(cx.listener(|this, _, w, c| this.open_add_step(w, c))),
+                        .on_click(cx.listener(|this, _, w, c| {
+                            this.canvas_add_step_focus.focus(w, c);
+                            this.open_add_step(w, c)
+                        })),
                 )
                 .child(connector(cx))
                 .into_any_element()

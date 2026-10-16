@@ -7,6 +7,8 @@ mod model;
 mod request_inspector;
 mod request_source;
 mod step_actions;
+mod transfer;
+pub(super) use transfer::open as open_transfer;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -56,6 +58,12 @@ impl SearchableListItem for FlowOption {
     }
 }
 
+pub(super) enum FlowsEvent {
+    AddStep,
+    RequestAdded,
+}
+impl gpui::EventEmitter<FlowsEvent> for FlowsView {}
+
 pub(super) struct FlowsView {
     library: FlowLibrary,
     console: Entity<console::FlowConsole>,
@@ -69,6 +77,7 @@ pub(super) struct FlowsView {
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
     step_subscriptions: HashMap<(FlowId, String), Subscription>,
     add_step_focus: FocusHandle,
+    canvas_add_step_focus: FocusHandle,
     remove_step_focus: FocusHandle,
     filter: Entity<InputState>,
     picker: Entity<SelectState<SearchableVec<FlowOption>>>,
@@ -188,6 +197,7 @@ impl FlowsView {
             inspectors: HashMap::new(),
             step_subscriptions: HashMap::new(),
             add_step_focus: cx.focus_handle().tab_stop(true),
+            canvas_add_step_focus: cx.focus_handle().tab_stop(true),
             remove_step_focus: cx.focus_handle().tab_stop(true),
             filter,
             picker,
@@ -380,9 +390,12 @@ impl FlowsView {
         cx.notify();
     }
     fn append_step(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.library.append_step();
+        self.finish_append(window, cx);
+    }
+    fn finish_append(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.conceal_inputs(cx);
         self.inputs_open = false;
-        self.library.append_step();
         if let Some(draft) = self.library.active() {
             if let Some(scroll) = self.canvas_scroll.get(&draft.id()) {
                 let index = draft.document().flow.steps.len();
@@ -390,6 +403,7 @@ impl FlowsView {
             }
         }
         self.sync_fields(window, cx);
+        self.sync_picker(window, cx);
         self.details = true;
         self.reveal_step();
         self.focus_inspector(window, cx);
