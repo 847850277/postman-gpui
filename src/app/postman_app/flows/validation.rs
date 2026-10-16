@@ -13,6 +13,7 @@ pub(super) enum InspectorTarget {
 #[derive(Clone, Debug)]
 pub(super) enum Target {
     Root(String),
+    RuntimeInputs,
     Input(u64),
     Step(String, InspectorTarget),
 }
@@ -65,14 +66,27 @@ impl FlowsView {
             return;
         };
         let (flow, revision) = (draft.id(), draft.revision());
+        let issues = self.prepare_plan(flow, cx).err().unwrap_or_default();
+        self.console.update(cx, |console, cx| {
+            console.report(flow, revision, issues, window, cx)
+        });
+        cx.notify();
+    }
+    pub(super) fn prepare_plan(
+        &self,
+        flow: FlowId,
+        cx: &App,
+    ) -> Result<postman_flow::FlowPlan, Vec<Issue>> {
+        let draft = self.library.get(flow).expect("open Flow");
         let mut issues = self.draft_issues(flow, cx);
         let document = draft.document();
-        if let Err(errors) = compile_flow(
+        let compiled = compile_flow(
             &document.flow,
             &document.apis,
             &CompileEnvironment::default(),
-        ) {
-            issues.extend(errors.into_iter().map(|error| {
+        );
+        if let Err(errors) = &compiled {
+            issues.extend(errors.iter().map(|error| {
                 let field = &error.location.field;
                 // Nested/API diagnostics reveal their top-level readonly owner. Do not confuse
                 // a scoped namesake with another top-level step or invent an editable field.
@@ -110,10 +124,11 @@ impl FlowsView {
                 }
             }));
         }
-        self.console.update(cx, |console, cx| {
-            console.report(flow, revision, issues, window, cx)
-        });
-        cx.notify();
+        if issues.is_empty() {
+            Ok(compiled.expect("compiler errors were collected"))
+        } else {
+            Err(issues)
+        }
     }
     /// Called at document edit boundaries, not during rendering. Hidden YAML is refreshed lazily.
     pub(super) fn document_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -170,6 +185,12 @@ impl FlowsView {
             console.set_mode(console::ConsoleMode::Normal, cx)
         });
         match &target.target {
+            Target::RuntimeInputs => {
+                self.open_inputs(window, cx);
+                if let Some(editor) = self.inputs.get(&target.flow) {
+                    editor.update(cx, |editor, cx| editor.show_runtime(window, cx));
+                }
+            }
             Target::Input(row) => {
                 self.open_inputs(window, cx);
                 if let Some(editor) = self.inputs.get(&target.flow) {

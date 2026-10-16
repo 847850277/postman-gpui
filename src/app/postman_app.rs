@@ -179,7 +179,8 @@ impl PostmanApp {
         let cookie_pane = cx.new(|cx| CookiePane::new(view_model.clone(), cx));
         let global_search =
             cx.new(|cx| RequestFinder::new(FinderKind::Search, view_model.clone(), window, cx));
-        let flows = cx.new(|cx| FlowsView::new(environments.clone(), window, cx));
+        let flow_executor = request_runner.read(cx).executor();
+        let flows = cx.new(|cx| FlowsView::new(environments.clone(), flow_executor, window, cx));
         flows.update(cx, |view, cx| view.configure_files(flow_index, cx));
         let subscriptions = vec![
             cx.subscribe_in(
@@ -232,6 +233,12 @@ impl PostmanApp {
                         window,
                         cx,
                     ),
+                    flows::FlowsEvent::CookiesChanged(cookies) => {
+                        this.view_model.update(cx, |model, cx| {
+                            model.sync_cookie_jar(cookies.clone());
+                            cx.notify();
+                        });
+                    }
                     flows::FlowsEvent::QuitReady => {
                         let current: Vec<_> = this
                             .view_model

@@ -70,11 +70,15 @@ impl PostmanApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.route != AppRoute::Http {
-            return;
+        match self.route {
+            AppRoute::Http => self
+                .request_workspace
+                .update(cx, |workspace, cx| workspace.send_or_cancel(window, cx)),
+            AppRoute::Flows => self
+                .flows
+                .update(cx, |flows, cx| flows.execution_shortcut(window, cx)),
+            AppRoute::Home => {}
         }
-        self.request_workspace
-            .update(cx, |workspace, cx| workspace.send_or_cancel(window, cx));
     }
 
     pub(super) fn new_request_command(
@@ -192,7 +196,7 @@ impl PostmanApp {
             let owner = owner.clone();
             let modifier = if cfg!(target_os = "macos") { "⌘" } else { "Ctrl" };
             let shortcuts = [
-                ("Send / cancel active request (HTTP)", format!("{modifier} + Enter")),
+                ("Send / cancel HTTP; Run / Cancel Flow canvas", format!("{modifier} + Enter")),
                 ("Save active HTTP request or Flow", format!("{modifier} + S")),
                 ("Open Flow file (Flows)", format!("{modifier} + O")),
                 ("Save Flow as (Flows)", format!("{modifier} + Shift + S")),

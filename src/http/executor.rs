@@ -63,6 +63,7 @@ impl Drop for RequestTask {
 }
 
 /// HTTP 请求执行器
+#[derive(Clone)]
 pub struct RequestExecutor {
     client: RequestClient,
     runtime: Arc<tokio::runtime::Runtime>,
@@ -105,6 +106,11 @@ impl RequestExecutor {
             handle,
             runtime: self.runtime.clone(),
         }
+    }
+
+    /// Flow execution uses the same client, cookie jar and runtime as ordinary HTTP requests.
+    pub(crate) fn flow_context(&self) -> (RequestClient, Arc<tokio::runtime::Runtime>) {
+        (self.client.clone(), self.runtime.clone())
     }
 
     pub(crate) fn cookie_snapshot(&self) -> Vec<(String, String)> {

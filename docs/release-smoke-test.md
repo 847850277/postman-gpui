@@ -56,9 +56,8 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Rename/filter flows and reopen a real entry from Home. Test Chinese IME and keyboard navigation.
 - [ ] Drag library, inspector, and Console dividers; test arrows, Escape, numeric sizing, and reset.
       Shrink/expand the window and verify preferred sizes return without clipping controls.
-- [ ] Exercise light/dark themes and narrow Canvas/Details mode. Verify Check, YAML, Export,
-      and Run remain unavailable; no simulated result or successful save is reported.
-- [ ] Restart and verify Flow drafts are gone, consistent with the visible session-only notice;
+- [ ] Exercise light/dark themes and narrow Canvas/Details mode. Verify Check/YAML, real file operations and Run/Cancel match the current capability descriptions.
+- [ ] Restart and verify saved Flows reopen through Recent flows; unsaved drafts and run state are not restored;
       saved HTTP requests, environment settings, and history retain their existing behavior.
 
 ## Flow Request details (#218)
@@ -109,7 +108,7 @@ SHA-256, signing status, and pass/fail result in issue #148.
       apply immediately, errors keep their last valid value. Verify clipboard, Chinese IME, multiline
       Enter, Tab/Shift+Tab and undo; no HTTP send or Console submission occurs.
 - [ ] Keep different drafts in two steps/two flows, switch pages/themes/Console modes and resize.
-      API/loop configuration remains readonly. No success state appears for Check or Run.
+      API/loop configuration remains readonly. Check/Run use the native compiler/engine and report real outcomes.
 - [ ] Compare light/dark inspector states to the HTML at 1440×960; check 1920×1080, 1024×768,
       768×720, 1024×600 at 1×/2×. Long error/export content scrolls independently; actions remain
       reachable and the Console retains its bounds. Multiple checks and Sensitive are native additions.
@@ -227,3 +226,17 @@ cross-platform CI release-build jobs. External HTTPBingo tests remain a separate
   light/dark layouts at reference, narrow and short sizes. Verify native IME before immediate Save.
 - [ ] Remove a recent entry without deleting the file; test a missing recent file and damaged recent
   index recovery. Record the exact package/commit and distinguish installed evidence from headless tests.
+
+## Native Flow execution (#239)
+
+- [ ] Open a saved Flow against a controlled local service; set typed/environment inputs and Run.
+      Verify real network traffic, step status, response timing, checks and terminal feedback.
+- [ ] Cancel during HTTP and during a polling wait; later steps must not send. Rerun uses new inputs.
+- [ ] Reject missing inputs and hidden invalid document/runtime JSON drafts before network activity.
+- [ ] Switch Flows/modes, resize and change themes while running. Keep progress, edit state and focus.
+      Verify old-revision result labels and navigation after document edits.
+- [ ] Close a clean running Flow and a dirty running Flow; Cancel preserves execution. Save failures
+      retain work; Stop and close waits for cleanup. Repeat with mixed HTTP/Flow window close and Quit.
+- [ ] Copy filtered logs and inspect error/timeout paths for sensitive values. Clear keeps run results.
+- [ ] Verify canvas/library Cmd/Ctrl+Enter, Console run/stop, text fields/IME and modal key ownership.
+      Outputs currently shows only a count; detailed result inspection remains P6-2.

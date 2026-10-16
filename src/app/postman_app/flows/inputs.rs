@@ -263,8 +263,12 @@ impl InputsInspector {
             .overridden = enabled;
         cx.notify();
     }
-    /// Explicit future-run boundary. Rendering never prepares a snapshot. Invalid drafts block it.
-    #[allow(dead_code)] // P6 consumes this boundary; exercised through native controls now.
+    /// Explicit run boundary. Rendering never prepares a snapshot. Invalid drafts block it.
+    pub(super) fn show_runtime(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.definitions = false;
+        self.tab_focus[0].focus(window, cx);
+        cx.notify();
+    }
     pub(super) fn prepare(&self, cx: &App) -> Result<FlowInputs, Vec<String>> {
         let mut values = FlowInputs::new();
         let mut errors = Vec::new();
