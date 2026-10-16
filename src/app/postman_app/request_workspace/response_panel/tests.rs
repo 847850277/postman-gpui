@@ -77,6 +77,37 @@ fn editor(viewer: &Entity<ResponseViewer>, cx: &App) -> Entity<EditorState> {
 }
 
 #[gpui_kit::test]
+fn reactivating_body_tab_preserves_selection_for_pointer_and_keyboard(cx: &mut TestAppContext) {
+    let text = "A😀中\nselected response";
+    let (handle, viewer, _) = open(text, cx);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        let state = editor(&viewer, cx);
+        state.read(cx).focus_handle(cx).focus(window, cx);
+        window.press("secondary-a", cx);
+        assert_eq!(state.read(cx).selected_value().as_ref(), text);
+        window.click("response-pane-body", cx);
+        assert_eq!(state.read(cx).selected_value().as_ref(), text);
+        for key in ["enter", "space"] {
+            window.press(key, cx);
+            assert_eq!(state.read(cx).selected_value().as_ref(), text);
+        }
+        state.read(cx).focus_handle(cx).focus(window, cx);
+        window.press("secondary-c", cx);
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().as_deref(),
+            Some(text)
+        );
+        window.click("response-pane-headers", cx);
+        assert!(
+            state.read(cx).selected_range().is_empty(),
+            "changing panes still clears the hidden selection"
+        );
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
 fn binary_response_hides_text_controls_and_saves_original_snapshot(cx: &mut TestAppContext) {
     let bytes = (0..102_400).map(|i| (i % 256) as u8).collect::<Vec<_>>();
     let (handle, viewer, model) = open_response(
@@ -94,6 +125,7 @@ fn binary_response_hides_text_controls_and_saves_original_snapshot(cx: &mut Test
         assert!(window.try_find("response-copy-button").is_none());
         assert!(window.try_find("response-pretty").is_none());
         assert!(window.try_find("response-raw").is_none());
+        assert_eq!(window.find("response-body-metadata").label(), Some("Binary · application/octet-stream"));
         let response = model.read(cx).active_request().unwrap().response();
         assert!(matches!(response, ResponseState::Success { body_bytes, is_binary: true, .. } if body_bytes.len() == 102_400));
         window.click("response-save", cx);
@@ -130,6 +162,10 @@ fn save_text_preserves_original_charset_and_cancel_writes_nothing(cx: &mut TestA
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(editor(&viewer, cx).read(cx).value().as_ref(), "café");
+        assert_eq!(
+            window.find("response-body-metadata").label(),
+            Some("Text · text/plain; charset=windows-1252")
+        );
         window.click("response-save", cx);
     })
     .unwrap();

@@ -69,6 +69,46 @@ fn current(flows: &Entity<FlowsView>, cx: &mut VisualTestContext) -> postman_flo
 }
 
 #[gpui_kit::test]
+fn title_undo_survives_step_changes_but_not_equal_named_flow_changes(cx: &mut TestAppContext) {
+    let redo = if cfg!(target_os = "macos") {
+        "cmd-shift-z"
+    } else {
+        "ctrl-y"
+    };
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |app, _| app.flows.clone());
+    click(cx, "nav-flows");
+    create(cx, "Original flow");
+    add(cx);
+    add(cx);
+    click(cx, "flow-title");
+    press(cx, "secondary-a");
+    cx.write_to_clipboard(gpui::ClipboardItem::new_string("Shared name".into()));
+    press(cx, "secondary-v");
+    press(cx, "secondary-z");
+    assert_eq!(current(&flows, cx).flow.name, "Original flow");
+    press(cx, redo);
+    assert_eq!(current(&flows, cx).flow.name, "Shared name");
+
+    click(cx, "flow-node-1-request-1");
+    click(cx, "flow-title");
+    press(cx, "secondary-z");
+    assert_eq!(current(&flows, cx).flow.name, "Original flow");
+    press(cx, redo);
+    create(cx, "Shared name");
+    for row in ["flow-row-1", "flow-row-2"] {
+        click(cx, row);
+        click(cx, "flow-title");
+        press(cx, "secondary-z");
+        assert_eq!(
+            current(&flows, cx).flow.name,
+            "Shared name",
+            "undo cannot cross Flow identity"
+        );
+    }
+}
+
+#[gpui_kit::test]
 fn kit_fields_sync_before_blur_and_documents_survive_navigation(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |app, _| app.flows.clone());

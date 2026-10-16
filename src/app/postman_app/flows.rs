@@ -7,6 +7,8 @@ mod model;
 mod request_inspector;
 mod request_source;
 mod step_actions;
+mod transfer;
+pub(super) use transfer::open as open_transfer;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -56,6 +58,12 @@ impl SearchableListItem for FlowOption {
     }
 }
 
+pub(super) enum FlowsEvent {
+    AddStep,
+    RequestAdded,
+}
+impl gpui::EventEmitter<FlowsEvent> for FlowsView {}
+
 pub(super) struct FlowsView {
     library: FlowLibrary,
     console: Entity<console::FlowConsole>,
@@ -64,11 +72,13 @@ pub(super) struct FlowsView {
     canvas_focus: FocusHandle,
     library_focus: FocusHandle,
     title: Entity<InputState>,
+    projected_title_flow: Option<FlowId>,
     inputs: HashMap<FlowId, Entity<inputs::InputsInspector>>,
     inputs_open: bool,
     inspectors: HashMap<(FlowId, String), Entity<RequestInspector>>,
     step_subscriptions: HashMap<(FlowId, String), Subscription>,
     add_step_focus: FocusHandle,
+    canvas_add_step_focus: FocusHandle,
     remove_step_focus: FocusHandle,
     filter: Entity<InputState>,
     picker: Entity<SelectState<SearchableVec<FlowOption>>>,
@@ -183,11 +193,13 @@ impl FlowsView {
             canvas_focus: cx.focus_handle().tab_stop(true),
             library_focus: cx.focus_handle().tab_stop(true),
             title,
+            projected_title_flow: None,
             inputs: HashMap::new(),
             inputs_open: false,
             inspectors: HashMap::new(),
             step_subscriptions: HashMap::new(),
             add_step_focus: cx.focus_handle().tab_stop(true),
+            canvas_add_step_focus: cx.focus_handle().tab_stop(true),
             remove_step_focus: cx.focus_handle().tab_stop(true),
             filter,
             picker,
@@ -252,9 +264,11 @@ impl FlowsView {
             }
         });
     }
-    /// Projection occurs only on context changes. Kit clears composition/undo even for equal text.
+    /// Retain title editing state within a Flow; rebind it when the Flow identity changes.
     fn sync_fields(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let active = self.library.active().map(|d| d.id());
+        let flow_changed = self.projected_title_flow != active;
+        self.projected_title_flow = active;
         self.console
             .update(cx, |console, cx| console.activate(active, window, cx));
         let Some(draft) = self.library.active() else {
@@ -308,7 +322,10 @@ impl FlowsView {
             )
         });
         self.title.update(cx, |input, cx| {
-            input.set_value(draft.document().flow.name.clone(), window, cx)
+            let name = &draft.document().flow.name;
+            if flow_changed || input.value().as_ref() != name {
+                input.set_value(name.clone(), window, cx);
+            }
         });
         if let Some(step) = draft.selected() {
             let flow = draft.id();
@@ -380,9 +397,12 @@ impl FlowsView {
         cx.notify();
     }
     fn append_step(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.library.append_step();
+        self.finish_append(window, cx);
+    }
+    fn finish_append(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.conceal_inputs(cx);
         self.inputs_open = false;
-        self.library.append_step();
         if let Some(draft) = self.library.active() {
             if let Some(scroll) = self.canvas_scroll.get(&draft.id()) {
                 let index = draft.document().flow.steps.len();
@@ -390,6 +410,7 @@ impl FlowsView {
             }
         }
         self.sync_fields(window, cx);
+        self.sync_picker(window, cx);
         self.details = true;
         self.reveal_step();
         self.focus_inspector(window, cx);

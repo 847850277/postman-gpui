@@ -43,6 +43,7 @@ pub(super) enum RequestWorkspaceEvent {
     Abort(SendId),
     OpenCookieJar,
     CloseRequested(RequestTabId),
+    AddToFlow(RequestTabId),
 }
 
 /// Workspace composition for request tabs, the active composer, and its response.
@@ -137,6 +138,7 @@ impl RequestWorkspace {
                 cx.emit(RequestWorkspaceEvent::Execute(pending.clone()))
             }
             RequestComposerEvent::Abort(send_id) => cx.emit(RequestWorkspaceEvent::Abort(*send_id)),
+            RequestComposerEvent::AddToFlow(tab) => cx.emit(RequestWorkspaceEvent::AddToFlow(*tab)),
         }
     }
 

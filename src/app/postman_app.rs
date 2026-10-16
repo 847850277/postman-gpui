@@ -205,6 +205,24 @@ impl PostmanApp {
             cx.subscribe_in(&global_search, window, Self::on_finder_event),
             cx.observe(&view_model, |_, _, cx| cx.notify()),
             cx.observe(&flows, |_, _, cx| cx.notify()),
+            cx.subscribe_in(
+                &flows,
+                window,
+                |this, flows, event, window, cx| match event {
+                    flows::FlowsEvent::AddStep => flows::open_transfer(
+                        flows.clone(),
+                        this.view_model.clone(),
+                        None,
+                        window,
+                        cx,
+                    ),
+                    flows::FlowsEvent::RequestAdded => {
+                        this.route = AppRoute::Flows;
+                        this.cookie_jar_open = false;
+                        cx.notify();
+                    }
+                },
+            ),
         ];
 
         let app = Self {
@@ -270,6 +288,13 @@ impl PostmanApp {
                     .update(cx, |runner, _| runner.abort(*send_id));
             }
             RequestWorkspaceEvent::OpenCookieJar => self.open_cookie_jar(window, cx),
+            RequestWorkspaceEvent::AddToFlow(tab) => flows::open_transfer(
+                self.flows.clone(),
+                self.view_model.clone(),
+                Some(*tab),
+                window,
+                cx,
+            ),
             RequestWorkspaceEvent::CloseRequested(tab) => {
                 self.saved_requests.update(cx, |saved, cx| {
                     saved.request_close(CloseIntent::Tab(*tab), window, cx)

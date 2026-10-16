@@ -168,3 +168,19 @@ SHA-256, signing status, and pass/fail result in issue #148.
   fields scroll independently, and resizing/collapsing the Console preserves the editor.
 - [ ] API/loop nodes move as complete units. Removing a producer does not rewrite downstream
   expressions or outputs; no compile/run success is claimed. Session drafts remain unsaved.
+
+## HTTP Add to flow (#228)
+
+- [ ] Type into focused HTTP URL/Params/Headers/Body/Auth/Options, including Chinese IME; add to a
+  new flow without Send/Save. Verify method, repeated/empty query and headers, body and options.
+- [ ] Add to an existing flow with another flow of the same name. Verify exactly one new step,
+  preserved earlier editors/Inputs/Console, and Request focus; try Tab/Shift+Tab/Enter/Space/Escape.
+- [ ] From Add step, select an inactive HTTP tab. Verify HTTP selection and drafts stay unchanged.
+  Confirm New HTTP request still adds a blank step. Cancel/invalid name must not leave an empty flow.
+- [ ] Reject changed/closed sources and multipart/Scripts/Tests with inline feedback. Verify
+  Basic/Bearer, literal `{{text}}`, no-timeout and absolute file references without file reads or Send.
+- [ ] Copy during an HTTP Send; its snapshot, eventual response and history must remain associated
+  with the original tab. Edit each copy separately and check source undo and dirty/saved state.
+- [ ] Check light/dark at 1440×960, 1920×1080, 1024×768, 768×720 and 1024×600, at 1×/2×.
+  Search long lists/names, inspect long errors, and confirm the footer remains reachable and a compact
+  successful transfer shows Details. Check native candidate windows with the platform input method.

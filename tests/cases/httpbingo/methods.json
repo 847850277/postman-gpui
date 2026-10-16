@@ -42,10 +42,10 @@
         "response": {
           "kind": "success",
           "status": 200,
-          "headers_contain": [
+          "header_tokens_contain": [
             [
               "access-control-allow-methods",
-              "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS"
+              ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"]
             ]
           ]
         },

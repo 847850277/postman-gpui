@@ -14,6 +14,11 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
+- GPUI Kit HTTP Add to flow and Add step from open requests, with searchable destinations,
+  inline new-flow naming, immutable source validation, and independent step copies. Conversion
+  preserves effective request bytes, auth and options, including native file references; unsupported
+  multipart/scripts fail before mutation. Compact layouts open Request Details after insertion.
+
 - GPUI Kit Flow step ordering and removal: adjacent up/down controls, explicit removal
   confirmation, neighbor selection and focus restoration, and non-recycled session step IDs.
   Surviving editors retain drafts and undo; variable hints refresh without rewriting references.

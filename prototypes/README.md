@@ -240,3 +240,19 @@ Loop removal includes nested steps; new IDs do not reuse deleted/imported IDs wi
 Inputs overrides and Console history stay intact. The native controls use GPUI Kit; the browser
 continues using fixture execution. Run `node --test prototypes/*.test.cjs` and manually verify
 dialog focus, keyboard activation, cancel/confirm, empty state, and light/dark compact layouts.
+
+### HTTP transfer reference update (P5.2-5 / #228)
+
+Add to flow and Add step share one confirmation dialog. The latter includes New HTTP request and
+an open-request selector; selecting a request reads an independent snapshot without activating its
+HTTP tab. A new destination gets an inline name field with the existing single-line/80-character
+rule. Cancel/failed validation creates no flow. Source revisions are checked again on confirmation;
+changed/closed sources require reopening. Success selects the appended node, opens Request Details
+in compact layouts and focuses its name. The source summary omits URL/query/header/body values.
+
+The native implementation follows `RequestDraft::construct`, not this preview converter: it retains
+URL-encoded BodyTemplate and exact bytes, Basic/Bearer/manual auth precedence, explicit native request
+options, and absolute Unicode `BodyTemplate::File` references without reading files. The browser
+still rejects Binary (only metadata is available), multipart and generic cURL flags. These are
+intentional preview limitations, not additional native restrictions. Native Scripts/Tests are also
+explicitly rejected; copying does not enable P5.3 Check/persistence or P6 execution.

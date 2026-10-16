@@ -395,3 +395,54 @@ fn definition_edits_preserve_requests_references_catalog_and_other_flows() {
         expected
     );
 }
+
+#[test]
+fn transfer_is_atomic_and_preserves_destination_fields_and_reserved_ids() {
+    let document = parse_flow_yaml(include_str!(
+        "../../../../../crates/postman-flow/examples/flows/httpbingo_catalog.http.yml"
+    ))
+    .unwrap();
+    let mut library = FlowLibrary::default();
+    let target = library.insert(document.clone());
+    let other = library.create("Other").unwrap();
+    let request = HttpRequestTemplate::new(
+        HttpMethod::GET,
+        TextTemplate::literal("https://httpbingo.org/get"),
+    );
+    for destination in [
+        TransferDestination::Existing(FlowId(999)),
+        TransferDestination::New(" ".into()),
+        TransferDestination::New("a\nb".into()),
+    ] {
+        assert!(library
+            .append_request(&destination, Some("Copy".into()), request.clone())
+            .is_err());
+        assert_eq!(library.active().unwrap().id(), other);
+        assert_eq!(library.drafts().len(), 2);
+        assert_eq!(library.drafts()[0].document(), &document);
+        assert_eq!(library.drafts()[0].revision(), 0);
+    }
+    library
+        .append_request(
+            &TransferDestination::Existing(target),
+            Some("Copy".into()),
+            request.clone(),
+        )
+        .unwrap();
+    let draft = library.active().unwrap();
+    assert_eq!(draft.revision(), 1);
+    let step = draft.selected().unwrap().clone();
+    let mut expected = document;
+    expected.flow.steps.push(step.clone());
+    assert_eq!(draft.document(), &expected);
+    library.remove_step(target, &step.id).unwrap();
+    library
+        .append_request(
+            &TransferDestination::Existing(target),
+            Some("Next".into()),
+            request,
+        )
+        .unwrap();
+    assert_ne!(library.active().unwrap().selected().unwrap().id, step.id);
+    assert_eq!(library.drafts()[1].revision(), 0);
+}

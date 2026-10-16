@@ -187,6 +187,10 @@ impl BodyInput {
         }
     }
 
+    pub(crate) fn text_value(&self, cx: &App) -> gpui::SharedString {
+        self.text_input.read(cx).value()
+    }
+
     #[cfg(test)]
     fn add_form_data_entry(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.form_input

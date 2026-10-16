@@ -266,13 +266,17 @@ impl BodyPane {
                     if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
-                    input.project_content("", window, cx);
+                    if projection_changed || !input.text_value(cx).is_empty() {
+                        input.project_content("", window, cx);
+                    }
                 }
                 RequestBodyDraft::Json(body) | RequestBodyDraft::Raw(body) => {
                     if projection_changed {
                         input.project_form_data_entries_with_rebind(Vec::new(), window, cx);
                     }
-                    input.project_content(body, window, cx)
+                    if projection_changed || input.text_value(cx).as_ref() != body {
+                        input.project_content(body, window, cx);
+                    }
                 }
                 RequestBodyDraft::UrlEncoded(rows) => {
                     let entries = rows

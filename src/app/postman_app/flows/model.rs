@@ -44,6 +44,11 @@ impl FlowDraft {
     }
 }
 
+pub(super) enum TransferDestination {
+    Existing(FlowId),
+    New(String),
+}
+
 #[derive(Default)]
 pub(super) struct FlowLibrary {
     drafts: Vec<FlowDraft>,
@@ -117,22 +122,61 @@ impl FlowLibrary {
         }
     }
     pub(super) fn append_step(&mut self) {
-        let Some(draft) = self.active_mut() else {
-            return;
+        if let Some(id) = self.active {
+            let _ = self.append_request(
+                &TransferDestination::Existing(id),
+                None,
+                HttpRequestTemplate::new(HttpMethod::GET, TextTemplate::literal("")),
+            );
+        }
+    }
+
+    pub(super) fn validate_destination(
+        &self,
+        destination: &TransferDestination,
+    ) -> Result<(), &'static str> {
+        match destination {
+            TransferDestination::Existing(id) if self.drafts.iter().any(|d| d.id == *id) => Ok(()),
+            TransferDestination::Existing(_) => {
+                Err("This flow is no longer available. Choose another flow.")
+            }
+            TransferDestination::New(name) => validate_name(name),
+        }
+    }
+
+    /// All fallible preparation precedes mutation. The ID allocator is shared with blank steps
+    /// and reserves imported, nested and deleted IDs for the whole session.
+    pub(super) fn append_request(
+        &mut self,
+        destination: &TransferDestination,
+        name: Option<String>,
+        request: HttpRequestTemplate,
+    ) -> Result<FlowId, &'static str> {
+        self.validate_destination(destination)?;
+        let id = match destination {
+            TransferDestination::Existing(id) => *id,
+            TransferDestination::New(name) => self.create(name)?,
         };
+        let draft = self
+            .drafts
+            .iter_mut()
+            .find(|d| d.id == id)
+            .expect("validated destination");
         let mut number = draft.document.flow.steps.len() + 1;
         while draft.used_step_ids.contains(&format!("request-{number}")) {
             number += 1;
         }
-        let id = format!("request-{number}");
-        draft.used_step_ids.insert(id.clone());
+        let step_id = format!("request-{number}");
+        draft.used_step_ids.insert(step_id.clone());
         draft.document.flow.steps.push(HttpStepDefinition::new(
-            &id,
-            format!("Request {number}"),
-            HttpRequestTemplate::new(HttpMethod::GET, TextTemplate::literal("")),
+            &step_id,
+            name.unwrap_or_else(|| format!("Request {number}")),
+            request,
         ));
-        draft.selected = Some(id);
+        draft.selected = Some(step_id);
         draft.revision += 1;
+        self.active = Some(id);
+        Ok(id)
     }
     pub(super) fn reorder_step(
         &mut self,

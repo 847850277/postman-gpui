@@ -24,6 +24,7 @@ use gpui_kit::base::ElementExt;
 pub(super) enum RequestComposerEvent {
     Execute(PendingRequest),
     Abort(SendId),
+    AddToFlow(crate::app::RequestTabId),
 }
 
 /// Method/URL/Send controls plus the currently selected request pane.
@@ -49,6 +50,7 @@ pub(super) struct RequestComposer {
     pub(super) pane_tabs_scroll: gpui::ScrollHandle,
     pub(super) send_focus_handle: FocusHandle,
     pub(super) code_focus_handle: FocusHandle,
+    pub(super) add_to_flow_focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -141,6 +143,7 @@ impl RequestComposer {
             pane_tabs_scroll: gpui::ScrollHandle::new(),
             send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             code_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
+            add_to_flow_focus: cx.focus_handle().tab_index(0).tab_stop(true),
             _subscriptions: subscriptions,
         };
         composer.project_active_request(window, cx);
@@ -540,6 +543,63 @@ mod tests {
             model.read_with(cx, |m, _| m.active_request().unwrap().url().to_owned()),
             "A🦀"
         );
+    }
+
+    #[gpui_kit::test]
+    fn transfer_captures_committed_ime_and_preserves_http_undo(cx: &mut TestAppContext) {
+        use gpui::{ElementInputHandler, InputHandler, WindowOptions};
+        use gpui_kit::test::TestWindowExt;
+        cx.update(|cx| {
+            crate::ui::kit::init(cx);
+            cx.set_reduce_motion(true);
+        });
+        let model = cx.new(|_| WorkspaceViewModel::new());
+        let (handle, app) = cx
+            .update(|cx| {
+                gpui_kit::open_window(WindowOptions::default(), cx, |w, cx| {
+                    cx.new(|cx| PostmanApp::with_view_model(model, w, cx))
+                })
+            })
+            .unwrap();
+        cx.update_window(handle, |_, w, cx| {
+            w.click("home-open-http", cx);
+            w.click("request-url-input", cx);
+            let prefix = "https://httpbingo.org/anything/A🦀";
+            w.input(prefix, cx);
+            let workspace = app.read(cx).request_workspace.clone();
+            let composer = workspace.read(cx).composer.clone();
+            let mut handler = ElementInputHandler::new(
+                w.find("request-url-input").bounds(),
+                composer.read(cx).url_input.clone(),
+            );
+            handler.replace_and_mark_text_in_range(None, "ni", Some(2..2), w, cx);
+            handler.replace_and_mark_text_in_range(None, "你好", Some(2..2), w, cx);
+            handler.replace_text_in_range(None, "你好", w, cx);
+            w.render_frame(cx);
+            w.click("add-request-to-flow", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, w, cx| {
+            w.click("flow-transfer-submit", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, w, cx| {
+            let prefix = "https://httpbingo.org/anything/A🦀";
+            for _ in 0..6 {
+                w.render_frame(cx);
+            }
+            assert_eq!(
+                w.find("flow-step-url").value(),
+                Some(format!("{prefix}你好").as_str())
+            );
+            w.click("nav-http", cx);
+            w.click("request-url-input", cx);
+            w.press("secondary-z", cx);
+            assert_eq!(w.find("request-url-input").value(), Some(prefix));
+        })
+        .unwrap();
     }
 
     #[gpui::test]

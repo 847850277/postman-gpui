@@ -260,6 +260,8 @@ pub enum ResponseSpec {
         #[serde(default)]
         headers_contain: Vec<(String, String)>,
         #[serde(default)]
+        header_tokens_contain: Vec<(String, Vec<String>)>,
+        #[serde(default)]
         redirect_chain: Vec<RedirectHopSpec>,
     },
     Error {
@@ -1020,6 +1022,7 @@ pub fn assert_response_state(
                 body_contains,
                 body_json_contains,
                 headers_contain,
+                header_tokens_contain,
                 ..
             },
         ) => {
@@ -1043,6 +1046,21 @@ pub fn assert_response_state(
                     return Err(format!(
                         "response header missing: {expected_name}: {expected_value}\n  actual: {actual_headers:#?}"
                     ));
+                }
+            }
+            for (expected_name, expected_tokens) in header_tokens_contain {
+                for expected_token in expected_tokens {
+                    let found = actual_headers
+                        .iter()
+                        .filter(|(name, _)| name.eq_ignore_ascii_case(expected_name))
+                        .flat_map(|(_, value)| value.split(','))
+                        .map(|token| token.trim_matches([' ', '\t']))
+                        .any(|token| !token.is_empty() && token == expected_token);
+                    if !found {
+                        return Err(format!(
+                            "response header token missing: {expected_name}: {expected_token}\n  actual: {actual_headers:#?}"
+                        ));
+                    }
                 }
             }
             if let Some(expected_json) = body_json_contains {

@@ -256,11 +256,35 @@ References are never rewritten: moving a consumer before its producer or removin
 leave invalid references. Variable hints update immediately; full compiler diagnostics remain P5.3.
 Structural undo/redo and drag-and-drop ordering are not implemented; text undo/redo is preserved.
 
+### Copy HTTP requests into a flow (#228)
+
+Use **Add to flow** beside Code/Save in HTTP. Choose an existing flow or **Create a new flow…**,
+enter its name, then **Add and open flow**. Flows → **Add step** → **From open HTTP requests**
+uses the same copy operation; **New HTTP request** still creates a blank step. Searchable pickers
+identify flows and tabs separately even when their names match. The new step opens in Request
+Details, including compact windows.
+
+The dialog captures the current editable draft. If that source changes or closes before confirmation,
+cancel and reopen it. Cancel/Escape creates nothing. A confirmed copy is independent: HTTP edits,
+unsaved state, undo, responses and any in-flight Send remain intact. Existing Flow editors, Inputs
+run overrides and Console history also remain intact. Transfer itself sends no requests.
+
+The effective request follows HTTP Send construction: exact URL/query and ordered enabled headers,
+including Basic/Bearer/manual Authorization and automatic Content-Type/Accept. None, JSON, Raw and
+URL-encoded bodies retain their kind and bytes. Template-looking text such as `{{token}}` stays
+literal. Timeout/redirect/hop settings are explicit; no-timeout remains disabled instead of inheriting
+a Flow environment timeout. Binary bodies copy an absolute Unicode file reference without reading
+it; relative or non-Unicode paths are rejected. This extends the browser preview, which cannot
+preserve native file paths. Form-data, nonempty Scripts/Tests and invalid URLs/headers/JSON are
+rejected with inline feedback. Descriptions, disabled/incomplete rows, inactive body drafts and
+runtime cookies are editor/session data, retained in HTTP but not copied into the step. New checks,
+exports and conditions start empty. This conversion is not a whole-flow Check or Run.
+
 Flow drafts are **not saved across restart**. YAML, toolbar Check, file Export, and Run remain unavailable.
 Request edits preserve conditions, checks/exports, options/auth, API catalogs, nested steps,
 inputs/outputs, and layout. Local JSON shape or URL feedback does not compile or execute a flow.
-Later P5.2 slices add other check editors and HTTP Add to flow; P5.3 adds compiler
-diagnostics and file persistence, and P6 connects execution.
+Other check kinds remain read-only. P5.3 adds compiler diagnostics and file persistence,
+and P6 connects execution.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
 `cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.

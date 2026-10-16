@@ -4,14 +4,11 @@ use gpui::{
     div, prelude::FluentBuilder, Context, Focusable, InteractiveElement, ParentElement, Styled,
     Window,
 };
-use gpui_kit::{
-    assets::IconName,
-    component::{
-        button::{Button, ButtonVariants},
-        dialog::Confirm,
-        input::Input,
-        Disableable, Sizable, WindowExt,
-    },
+use gpui_kit::component::{
+    button::{Button, ButtonVariants},
+    dialog::Confirm,
+    input::Input,
+    Disableable, WindowExt,
 };
 
 impl FlowsView {
@@ -130,23 +127,8 @@ impl FlowsView {
         cx.notify();
     }
     pub(super) fn open_add_step(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.library.active().is_none() || window.has_active_dialog(cx) {
-            return;
+        if self.library.active().is_some() && !window.has_active_dialog(cx) {
+            cx.emit(super::FlowsEvent::AddStep);
         }
-        let owner = cx.weak_entity();
-        let flow = self.library.active().unwrap().id();
-        window.open_dialog(cx, move |dialog, window, cx| {
-            let owner = owner.clone();
-            dialog.title("Add a step")
-                .w((window.rem_size() * 30.).min(window.viewport_size().width - window.rem_size() * 2.))
-                .child(Button::new("flow-add-http").label("New HTTP request").icon(IconName::Terminal).w_full().large()
-                    .on_click(move |_, window, cx| {
-                        window.close_dialog(cx);
-                        let _ = owner.update(cx, |this, cx| {
-                            if this.library.active().is_some_and(|d| d.id() == flow) { this.append_step(window, cx); }
-                        });
-                    }))
-                .child(div().text_size(m::LABEL).text_color(MUTED.resolve(cx)).child("Start with a method and URL. Copying an open HTTP request is not available yet."))
-        });
     }
 }

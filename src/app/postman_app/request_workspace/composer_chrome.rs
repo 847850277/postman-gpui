@@ -226,6 +226,7 @@ impl RequestComposer {
             .map(|r| r.tab_title())
             .unwrap_or_else(|| "Untitled request".into());
         let compact = window.viewport_size().height < gpui::px(700.);
+        let narrow = window.viewport_size().width < gpui::px(1100.);
         div()
             .debug_selector(|| "request-head".into())
             .min_w_0()
@@ -250,11 +251,14 @@ impl RequestComposer {
                     .flex()
                     .items_center()
                     .gap_4()
+                    .flex_wrap()
+                    .when(narrow, |row| row.gap_2())
                     .min_w_0()
                     .child(
                         div()
                             .min_w_0()
                             .flex_1()
+                            .when(narrow, |title| title.w_full().flex_none())
                             .flex()
                             .flex_col()
                             .gap_2()
@@ -299,6 +303,28 @@ impl RequestComposer {
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.code_focus_handle.focus(window, cx);
                                 this.open_curl(false, window, cx)
+                            })),
+                    )
+                    .child(
+                        kit_controls::editor_button("add-request-to-flow", "", cx)
+                            .accessibility_label("Add to flow")
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                gpui_kit::component::Icon::new(
+                                    gpui_kit::assets::IconName::Workflow,
+                                )
+                                .size(m::SMALL_ICON),
+                            )
+                            .child("Add to flow")
+                            .track_focus(&self.add_to_flow_focus)
+                            .debug_selector(|| "add-request-to-flow".into())
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_to_flow_focus.focus(window, cx);
+                                if let Some(tab) = this.view_model.read(cx).active_tab_id() {
+                                    cx.emit(super::composer::RequestComposerEvent::AddToFlow(tab));
+                                }
                             })),
                     )
                     .when(

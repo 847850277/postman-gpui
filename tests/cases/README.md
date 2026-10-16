@@ -247,7 +247,13 @@ A successful response supports:
   for HTTPBingo because dynamic fields such as origin IP and proxy headers are
   intentionally omitted from the expected subset;
 - `headers_contain`: optional response-header subset. Header names are matched
-  case-insensitively and values exactly.
+  case-insensitively and values exactly;
+- `header_tokens_contain`: optional required tokens in comma-separated list headers,
+  for example `[["access-control-allow-methods", ["GET", "OPTIONS"]]]`. Header names
+  are case-insensitive; each token matches exactly (case-sensitive) after trimming
+  spaces/tabs. Repeated header fields are combined; order and additional tokens do
+  not matter. Use this for extensible method lists, while `headers_contain` continues
+  to assert exact values for ordinary headers.
 
 An error response uses `contains` to match a stable fragment of the error
 message. `history_len` specifies the expected shared-history size after sending.
