@@ -107,8 +107,9 @@ impl FlowsView {
                         Button::new("flow-check")
                             .small()
                             .label("Check")
-                            .disabled(true)
-                            .tooltip("Flow validation is not available yet"),
+                            .disabled(active.is_none())
+                            .tooltip("Validate the current document without sending requests")
+                            .on_click(cx.listener(|this, _, w, cx| this.check_flow(w, cx))),
                     )
                     .child(
                         Button::new("flow-run")
@@ -166,6 +167,7 @@ impl FlowsView {
         let active = self.library.active();
         div()
             .debug_selector(|| "flow-toolbar".into())
+            .flex_wrap()
             .flex_none()
             .min_h(rems(51. / 16.))
             .px_4()
@@ -173,12 +175,13 @@ impl FlowsView {
             .flex()
             .items_center()
             .gap_3()
+            .when(compact, |d| d.gap_1())
             .border_b_1()
             .border_color(LINE.resolve(cx))
             .when(!show_library, |d| {
                 d.child(
                     div()
-                        .w(rems(if compact { 10. } else { 14. }))
+                        .w(rems(if compact { 8. } else { 14. }))
                         .min_w_0()
                         .debug_selector(|| "flow-picker".into())
                         .child(
@@ -195,20 +198,22 @@ impl FlowsView {
                         .on_click(cx.listener(|this, _, w, c| this.open_create(w, c))),
                 )
             })
-            .when(!compact, |d| {
+            .map(|d| {
                 d.child(
                     Button::new("flow-canvas-tab")
                         .small()
                         .label("Canvas")
-                        .selected(true),
+                        .selected(!self.yaml_open)
+                        .on_click(cx.listener(|this, _, w, cx| this.show_yaml(false, w, cx))),
                 )
                 .child(
                     Button::new("flow-yaml-tab")
                         .small()
                         .ghost()
                         .label("YAML")
-                        .disabled(true)
-                        .tooltip("YAML preview is not available yet"),
+                        .selected(self.yaml_open)
+                        .disabled(active.is_none())
+                        .on_click(cx.listener(|this, _, w, cx| this.show_yaml(true, w, cx))),
                 )
             })
             .when(show_library, |d| {
@@ -247,7 +252,7 @@ impl FlowsView {
                         this.open_add_step(w, c)
                     })),
             )
-            .when(compact, |d| {
+            .when(compact && !self.yaml_open, |d| {
                 d.child(
                     Button::new("flow-toggle-details")
                         .small()
@@ -603,7 +608,13 @@ impl Render for FlowsView {
         let show_library = width > 67.375;
         let canvas = self.render_canvas(cx);
         let inspector = self.render_inspector(cx);
-        let center = if compact {
+        let center = if self.yaml_open {
+            self.library
+                .active()
+                .and_then(|d| self.previews.get(&d.id()))
+                .map(|p| p.clone().into_any_element())
+                .unwrap_or_else(|| div().into_any_element())
+        } else if compact {
             if self.details {
                 inspector
             } else {

@@ -184,3 +184,29 @@ SHA-256, signing status, and pass/fail result in issue #148.
 - [ ] Check light/dark at 1440×960, 1920×1080, 1024×768, 768×720 and 1024×600, at 1×/2×.
   Search long lists/names, inspect long errors, and confirm the footer remains reachable and a compact
   successful transfer shows Details. Check native candidate windows with the platform input method.
+
+
+### Flow Check and readonly YAML (#235)
+
+Use local fixtures; Check must send no network request and read no Binary body file. For both
+light/dark themes and 1×/2× display scales, inspect 1440×960, 1920×1080, 1024×768, 768×720,
+and 1024×600. Compare Canvas/Console and YAML against `prototypes/request-workspace.html#flows`.
+
+- Check an empty flow, then a valid local-URL flow from the toolbar and Console `check`. Verify
+  failed/passed summaries, code/field/step/API diagnostics, and independent Not run results.
+- Leave invalid URL/header/body/condition/status/export/input-definition drafts, switch step or
+  Flow, then Check. Hidden drafts must block success. Invalid runtime overrides and missing run
+  inputs must not. Fix back to the last applied value and confirm the prior result becomes stale.
+- Activate Locate by mouse and keyboard from YAML, compact Details, collapsed and maximized
+  Console. Check Request/Checks/Exports/Inputs focus and scrolling, readonly API/loop owners,
+  root locations, and long/many diagnostics. Reorder/remove a step or row: old links must refuse.
+- Copy YAML and parse it with the native codec; include API/loops/options/auth/conditions/native
+  checks/inputs/defaults/outputs/layout. Confirm no runtime overrides/environment values enter it.
+  Explicit sensitive document defaults remain. Compiler-invalid documents can still preview.
+- Try typing/pasting/deleting in YAML; document stays unchanged. Switch Canvas/Flow/theme/size
+  and back: unchanged source retains selection/scroll. Preview/Copy never saves a draft.
+- With pending edits, retain the last applied source, show stale status, disable Copy. With no
+  prior preview show a draft-error state. Exercise codec size/depth/layout errors, then recovery.
+
+Run `cargo fmt -- --check`, workspace clippy with warnings denied, workspace tests, and the
+cross-platform CI release-build jobs. External HTTPBingo tests remain a separate service smoke.

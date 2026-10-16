@@ -275,15 +275,15 @@ impl RequestInspector {
             .when_some(self.readonly.clone(), |d, description| d.child(div().debug_selector(|| "flow-step-readonly".into()).child(field("Request source", hint(description, false, cx), cx)))
                 .child(hint("Configuration is read-only for API references and loop steps. Their contents are preserved.", false, cx)))
             .when(self.readonly.is_none(), |d| d
-                .child(self.url_control(cx))
+                .child(div().id(("flow-field-anchor", 0usize)).anchor_scroll(Some(self.request_anchors[0].clone())).child(self.url_control(cx)))
                 .child(div().flex().flex_col().gap_2().child(hint("AVAILABLE VARIABLES", false, cx))
                     .when(self.variables.is_empty(), |d| d.child(hint("No declared inputs or preceding step exports.", false, cx)))
                     .child(div().flex().flex_wrap().gap_1().children(self.variables.iter().map(|name| div().px_2().py_1().rounded(m::RADIUS).bg(ACCENT_SOFT.resolve(cx)).text_color(ACCENT.resolve(cx)).font_family(FONT_MONO).text_size(m::CAPTION).child(name.clone())))))
-                .child(self.headers_control(cx))
-                .child(field("BODY EXPRESSION", source("flow-body-source", &self.body, 11.), cx))
+                .child(div().id(("flow-field-anchor", 1usize)).anchor_scroll(Some(self.request_anchors[1].clone())).child(self.headers_control(cx)))
+                .child(div().id(("flow-field-anchor", 2usize)).anchor_scroll(Some(self.request_anchors[2].clone())).child(field("BODY EXPRESSION", source("flow-body-source", &self.body, 11.), cx)))
                 .when_some(self.body_error.clone(), |d, error| d.child(hint(format!("{error} Draft retained; body not applied."), true, cx)))
                 .child(hint("JSON expressions preserve types and references. Empty means no body. Shape checks do not compile or run the flow.", false, cx)))
-            .child(self.condition_control(cx)).into_any_element()
+            .child(div().id(("flow-field-anchor", 3usize)).anchor_scroll(Some(self.request_anchors[3].clone())).child(self.condition_control(cx))).into_any_element()
     }
     fn condition_control(&self, cx: &mut Context<Self>) -> AnyElement {
         Collapsible::new().open(self.condition_open)

@@ -471,3 +471,68 @@ fn definition_panes_scroll_at_all_sizes_without_moving_console_or_tabs(cx: &mut 
     click(cx, "flow-exports-tab");
     assert_eq!(row_value(cx, "flow-export-name", last), "unfinished");
 }
+
+#[gpui_kit::test]
+fn check_collects_hidden_check_export_condition_and_expression_drafts(cx: &mut TestAppContext) {
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |a, _| a.flows.clone());
+    click(cx, "nav-flows");
+    create(cx, "Hidden errors");
+    add(cx);
+    replace(cx, "flow-step-url", "http://127.0.0.1:1/local");
+    let owner = inspector(&flows, cx);
+    click(cx, "flow-checks-tab");
+    let check = owner.read_with(cx, |v, _| v.checks[0].id);
+    row_replace(cx, "flow-check-status", check, "999");
+    click(cx, "flow-exports-tab");
+    click(cx, "flow-add-export"); // A never-applied row must also block Check.
+    click(cx, "flow-request-tab");
+    let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
+    scroll(cx, panel.origin + point(px(16.), px(4.)), px(-5000.));
+    settle(cx);
+    click(cx, "flow-condition-toggle");
+    edit_source(cx, "flow-condition-source", "{");
+    top(cx);
+    click(cx, "flow-headers-toggle");
+    edit_source(cx, "flow-headers-source", "bad header");
+    top(cx);
+    click(cx, "flow-url-expression");
+    edit_source(cx, "flow-url-source", "{");
+    click(cx, "flow-check");
+    let diagnostics = flows.read_with(cx, |v, cx| v.console.read(cx).diagnostics());
+    assert_eq!(
+        diagnostics.len(),
+        5,
+        "every hidden document draft is collected"
+    );
+    for (id, target) in diagnostics {
+        click(cx, "console-maximize");
+        settle(cx);
+        cx.update(|w, cx| {
+            w.click(
+                gpui::SharedString::from(format!("console-diagnostic-{id}")),
+                cx,
+            )
+        });
+        settle(cx);
+        owner.read_with(cx, |v, _| match target.target {
+            crate::app::postman_app::flows::validation::Target::Step(
+                _,
+                crate::app::postman_app::flows::validation::InspectorTarget::Check(_),
+            ) => assert_eq!(v.tab, 1),
+            crate::app::postman_app::flows::validation::Target::Step(
+                _,
+                crate::app::postman_app::flows::validation::InspectorTarget::Export(_),
+            ) => assert_eq!(v.tab, 2),
+            _ => assert_eq!(v.tab, 0),
+        });
+    }
+    click(cx, "flow-checks-tab");
+    row_replace(cx, "flow-check-status", check, "");
+    click(cx, "flow-check");
+    assert_eq!(
+        flows.read_with(cx, |v, cx| v.console.read(cx).diagnostics().len()),
+        4,
+        "blank optional status removes its check"
+    );
+}

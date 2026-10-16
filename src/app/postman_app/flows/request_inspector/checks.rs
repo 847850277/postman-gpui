@@ -18,10 +18,10 @@ use postman_flow::{validate_response_status, write_response_check, ResponseCheck
 
 pub(super) struct CheckRow {
     pub(super) id: u64,
-    anchor: gpui::ScrollAnchor,
-    input: Option<Entity<InputState>>,
-    value: Option<ResponseCheck>,
-    error: Option<String>,
+    pub(super) anchor: gpui::ScrollAnchor,
+    pub(super) input: Option<Entity<InputState>>,
+    pub(super) value: Option<ResponseCheck>,
+    pub(super) error: Option<String>,
     readonly_source: String,
     _subscription: Option<Subscription>,
 }
@@ -141,6 +141,9 @@ impl RequestInspector {
                 let id = row.id;
                 div()
                     .id(("flow-check-row", id))
+                    .when(row.input.is_none() || self.readonly.is_some(), |d| {
+                        d.anchor_scroll(Some(row.anchor.clone()))
+                    })
                     .flex()
                     .flex_col()
                     .gap_2()

@@ -558,3 +558,58 @@ fn inputs_layout_keeps_actions_reachable_and_console_geometry(cx: &mut TestAppCo
         }
     }
 }
+
+#[gpui_kit::test]
+fn check_ignores_runtime_errors_but_tracks_hidden_definition_errors_and_recovery(
+    cx: &mut TestAppContext,
+) {
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |a, _| a.flows.clone());
+    click(cx, "nav-flows");
+    create(cx, "Input validation boundary");
+    add(cx);
+    replace(cx, "flow-step-url", "http://127.0.0.1:1/local");
+    click(cx, "flow-inputs");
+    named_click(cx, "flow-input-add");
+    name(cx, 0, "required");
+    click(cx, "flow-check");
+    let status =
+        |cx: &mut VisualTestContext| flows.read_with(cx, |v, cx| v.console.read(cx).check_label());
+    assert_eq!(
+        status(cx),
+        "Check passed",
+        "missing run input does not block compilation"
+    );
+    click(cx, "flow-inputs-run-tab");
+    row_click(cx, "flow-input-override", 0);
+    named_click(cx, "flow-input-runtime-0-json");
+    source(cx, "runtime", 0, "{runtime-draft");
+    assert_eq!(status(cx), "Check passed");
+    click(cx, "flow-check");
+    assert_eq!(status(cx), "Check passed");
+    click(cx, "flow-yaml-tab");
+    click(cx, "flow-yaml-copy");
+    let yaml = cx.read_from_clipboard().unwrap().text().unwrap();
+    assert!(!yaml.contains("runtime-draft"));
+    assert_eq!(parse_flow_yaml(&yaml).unwrap(), document(&flows, cx));
+    click(cx, "flow-inputs");
+    click(cx, "flow-inputs-definitions-tab");
+    row_click(cx, "flow-input-has-default", 0);
+    named_click(cx, "flow-input-default-0-json");
+    source(cx, "default", 0, "{definition-draft");
+    click(cx, "flow-inputs-back");
+    click(cx, "flow-check");
+    assert_eq!(status(cx), "Check failed");
+    let id = flows.read_with(cx, |v, cx| v.console.read(cx).diagnostics()[0].0);
+    cx.update(|w, cx| w.click(SharedString::from(format!("console-diagnostic-{id}")), cx));
+    settle(cx);
+    assert!(editor(&flows, cx).read_with(cx, |v, _| v.definitions));
+    source(cx, "default", 0, "\"\"");
+    assert_eq!(
+        status(cx),
+        "Check stale",
+        "recovering to the same applied value changes draft revision"
+    );
+    click(cx, "flow-check");
+    assert_eq!(status(cx), "Check passed");
+}

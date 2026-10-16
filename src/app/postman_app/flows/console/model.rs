@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 
 pub(super) const COMMANDS: [(&str, &str); 8] = [
     ("help", "Show available Flow commands"),
-    ("check", "Check the flow — not available yet"),
+    ("check", "Validate the current Flow document"),
     ("run", "Run the flow — not available yet"),
     ("stop", "Stop execution — not available yet"),
     ("clear", "Clear logs; keep command history and results"),
@@ -63,6 +63,7 @@ pub(super) struct LogEntry {
     pub(super) level: Level,
     pub(super) message: String,
     pub(super) step: Option<String>,
+    pub(super) diagnostic: Option<super::super::validation::DiagnosticTarget>,
 }
 
 pub(super) struct Session {
@@ -73,6 +74,8 @@ pub(super) struct Session {
     pub(super) filter: Option<Level>,
     pub(super) follow: bool,
     pub(super) cleared: bool,
+    pub(super) check: Option<(u64, bool)>,
+    pub(super) revision: u64,
     cursor: usize,
     stash: String,
     next_id: u64,
@@ -87,6 +90,8 @@ impl Default for Session {
             filter: None,
             follow: true,
             cleared: false,
+            check: None,
+            revision: 0,
             cursor: 0,
             stash: String::new(),
             next_id: 0,
@@ -102,6 +107,7 @@ impl Session {
             level,
             message: message.into(),
             step,
+            diagnostic: None,
         });
         if self.logs.len() > 500 {
             self.logs.pop_front();
@@ -185,11 +191,7 @@ impl Session {
                     .join("\n"),
                 None,
             ),
-            "check" => self.push(
-                Level::Warning,
-                "Flow validation is not available yet. No check was performed.",
-                None,
-            ),
+            "check" => {} // The Flow owner compiles the current document and editor drafts.
             "run" | "stop" => self.push(
                 Level::Warning,
                 "Flow execution is not available yet. No request was sent.",
@@ -244,7 +246,7 @@ mod tests {
         assert_eq!(state.visible().count(), 1);
         assert!(state.copy_text().contains("[request-1] Bad field"));
         assert!(!state.copy_text().contains("event-"));
-        for command in ["check", "run", "stop"] {
+        for command in ["run", "stop"] {
             state.execute(command);
             assert_eq!(state.logs.back().unwrap().level, Level::Warning);
         }

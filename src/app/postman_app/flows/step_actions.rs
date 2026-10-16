@@ -113,7 +113,7 @@ impl FlowsView {
         flow: FlowId,
         id: &str,
         direction: StepDirection,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.library.active().is_some_and(|d| d.id() == flow) {
@@ -127,6 +127,7 @@ impl FlowsView {
             scroll.splice(range.start + 1..range.end + 1, range.len());
         }
         self.refresh_step_variables(flow, cx);
+        self.document_changed(window, cx);
         self.reveal_step();
         cx.notify();
     }
@@ -160,6 +161,7 @@ impl FlowsView {
         }
         self.sync_fields(window, cx);
         self.refresh_step_variables(flow, cx);
+        self.document_changed(window, cx);
         self.reveal_step();
         if self.inspector().is_some() {
             self.focus_inspector(window, cx);

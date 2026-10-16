@@ -83,7 +83,7 @@ impl FlowConsole {
                 div()
                     .text_size(m::CAPTION)
                     .text_color(MUTED.resolve(cx))
-                    .child("Not run"),
+                    .child(self.check_label()),
             )
             .child(
                 Button::new("console-maximize")
@@ -362,7 +362,27 @@ impl FlowConsole {
                             )),
                         )
                     })
-                    .child(entry.message.clone()),
+                    .when_some(entry.diagnostic.clone(), |d, target| {
+                        d.child(
+                            div().flex().items_start().child(
+                                Button::new(gpui::SharedString::from(format!(
+                                    "console-diagnostic-{}",
+                                    entry.id
+                                )))
+                                .ghost()
+                                .small()
+                                .label("Locate")
+                                .icon(IconName::ArrowRight)
+                                .accessibility_label(format!("Locate {}", entry.message))
+                                .on_click(cx.listener(
+                                    move |_, _, _, cx| {
+                                        cx.emit(ConsoleEvent::LocateDiagnostic(target.clone()))
+                                    },
+                                )),
+                            ),
+                        )
+                    })
+                    .child(div().whitespace_normal().child(entry.message.clone())),
             )
             .into_any_element()
     }

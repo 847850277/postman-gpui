@@ -49,7 +49,7 @@ fn commands_history_completion_and_view_keys_use_real_kit_controls(cx: &mut Test
     command(cx, "  RUN ");
     assert!(text(&console, cx).contains("No request was sent"));
     command(cx, "check");
-    assert!(text(&console, cx).contains("No check was performed"));
+    assert!(text(&console, cx).contains("EmptyFlow"));
     command(cx, "stop");
     command(cx, "echo hello");
     console.read_with(cx, |v, _| {
