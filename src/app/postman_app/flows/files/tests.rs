@@ -91,6 +91,15 @@ fn focused_save_export_save_as_and_restart_recent_reopen(cx: &mut TestAppContext
     restored.read_with(win2, |v, _| {
         assert_eq!(v.library.active().unwrap().document(), &document(&renamed))
     });
+    // Reopening from Recent must leave app commands reachable without clicking an editor.
+    press(win2, "secondary-o");
+    assert!(win2.did_prompt_for_paths());
+    win2.simulate_path_prompt_response(|_| None);
+    settle(win2);
+    save_as(win2);
+    assert!(win2.did_prompt_for_new_path());
+    win2.simulate_new_path_selection(|_| None);
+    settle(win2);
     click(win2, "flow-recent");
     recent(win2, &renamed);
     settle(win2);

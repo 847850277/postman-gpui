@@ -13,6 +13,8 @@ Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requ
   <img src="assets/readme/tour-en.svg" alt="Interface tour: Home, HTTP, Body, History, Search, Environments, cURL, Save, Cookies, Shortcuts, layouts and Flows">
 </picture>
 
-Illustrated with sample data. Native Flows supports saved documents, real Run/Cancel, detailed Steps/Outputs and nested iteration inspection.
+Illustrated with sample data. Current source supports Flow files, Check/YAML, Run/Cancel and detailed results.
+Published builds can lag behind these capabilities; check the selected release's tag, notes and build metadata.
+See the [release runbook](docs/releasing.md) for candidate verification.
 
 [User & development guide](docs/guide.md) · [Flow CLI](crates/postman-cli/README.md) · [MCP](crates/postman-flow-mcp/README.md) · [Changelog](CHANGELOG.md) · [MIT license](LICENSE)

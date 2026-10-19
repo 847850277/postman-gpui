@@ -20,6 +20,10 @@ This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tra
 - All macOS, Windows, and Linux jobs must finish before a GitHub Release is created. A failed job
   cannot publish a partial release.
 - `v0.1.0-rc.N` is a GitHub prerelease. A tag without a suffix is a final release.
+- Pin all packaging jobs to the source SHA resolved during validation. `BUILD-INFO-*.txt` binds
+  each platform's tag, SHA, target, workflow attempt and actual signing status to `SHA256SUMS`.
+- Published release assets are immutable. A new source revision or rebuilt published artifact
+  needs a new candidate tag. Only an unpublished draft can resume uploads.
 - Document current limitations in the changelog and release notes; issue closure alone does not
   establish that a feature is available in a shipped package.
 
@@ -54,6 +58,35 @@ The workflow imports the certificate into the current user's certificate store i
 packaging. Without these secrets, the NSIS installer is still produced but release notes must warn
 about SmartScreen.
 
+## Build artifacts for acceptance before publication
+
+Run the `Release` workflow with a candidate label in **tag**, the source branch/full commit in
+**ref**, and **publish = false** (the default for manual runs). The candidate label must match
+the base Cargo version; choose an unused label such as `v0.1.0-rc.N`. The checkout must contain
+this workflow and its tooling. This mode does not create a tag or a GitHub Release.
+
+Validation resolves the ref once, then all platform jobs check out that exact commit. The
+`Verify candidate artifacts` job rejects missing/duplicate packages, mixed tag/commit/target/run
+metadata and unexpected files. It generates `SHA256SUMS` and uploads one complete
+`release-candidate-<tag>-<commit>-<attempt>` Actions artifact retained for 30 days. Keep the workflow run
+and attempt URL with downloaded bytes; an Actions artifact is not a published release. Use
+**Re-run all jobs** for a failed candidate: assembly rejects packages mixed across attempts, and
+attempt-specific artifact names prevent a rerun from replacing earlier downloads.
+
+Download and extract the complete artifact into a fresh directory, then verify it using the
+same source revision's tooling:
+
+```bash
+python3 scripts/release_artifacts.py verify --directory candidate \
+  --tag v0.1.0-rc.N --commit FULL_40_CHARACTER_COMMIT
+```
+
+The command requires all GUI/CLI packages, three build-info files and `SHA256SUMS`. It neither
+creates missing checksums nor repairs changed bytes. For an individual package, compare its
+SHA-256 with the manifest and retain its platform build-info file. Complete the platform matrix
+in [the smoke checklist](release-smoke-test.md#candidate-evidence-249); #249 / #148 / #49 share
+those results. Installed package, real file picker and OS IME evidence remain separate from CI.
+
 ## Prepare a release candidate
 
 1. Confirm CI and HTTPBingo E2E are green on `main`.
@@ -76,14 +109,20 @@ about SmartScreen.
    git push origin "$release_tag"
    ```
 
-6. The `Release` workflow builds a universal macOS `.app/.dmg`, Windows NSIS installer, Linux
+6. The tag-triggered `Release` workflow builds a universal macOS `.app/.dmg`, Windows NSIS installer, Linux
    `.AppImage/.deb`, and standalone `postman-g` CLI archives for all three platforms. It publishes
    these with `BUILD-INFO-*.txt` and `SHA256SUMS`.
 7. Complete `docs/release-smoke-test.md` on clean installations and record results in #148.
 
-To rebuild an existing tag, use the `Release` workflow's **Run workflow** action and enter that
-tag. It checks out the tagged commit and replaces the release assets on success. Source fixes
-need a new tag containing those commits; rerunning an old tag does not pick up changes from `main`.
+For a tag whose publication failed, use **Run workflow**, enter that tag, leave **ref** empty and
+set **publish = true**. Publication validates that the checked-out SHA is exactly the tag's commit,
+rechecks downloaded checksums, and permits only a new release or an unpublished draft. An already
+published release is rejected before any asset upload or edit. Workflow runs for the same tag are
+serialized. Source fixes need a new tag; rerunning an old tag does not pick up changes from `main`.
+
+Tag publication rebuilds packages. Record the final published checksums and rerun affected installed
+checks against those bytes; an artifact-only run with the same source SHA is not proof that a rebuilt
+or newly signed package is byte-identical. Do not overwrite a published candidate to carry a fix.
 
 ## Promote v0.1.0
 

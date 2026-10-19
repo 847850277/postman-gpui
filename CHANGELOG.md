@@ -7,12 +7,27 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Fixed
 
+- Bound Flow file errors and short Console/empty-canvas scrolling, retain the full command bar,
+  and keep file/execution actions reachable in compact windows. Explain Rust-source selections
+  at Open Flow while preserving valid YAML filename variants and parser details.
+- Strip credentials on same-port HTTPS-to-HTTP redirects, count redirect hops correctly, retain
+  CLI overrides of nested file variables, and enforce loop deadlines around unlimited requests.
+
 - Preserve response bytes before character decoding so binary and non-UTF-8 response sizes
   remain accurate in the response panel and History. Binary responses show a placeholder;
   Save as writes the original body bytes, including when the active response changes.
 - Keep the full OPTIONS method visible in Flow request selectors and their dropdown menus.
 
 ### Added
+
+- Release workflow candidates can be built from an explicit source ref without publishing a
+  GitHub Release. All package jobs use the validated source commit; build metadata records the
+  tag, commit, workflow attempt and verified signing status. Complete artifact sets and checksums
+  are validated before upload/publication. Published release assets are never overwritten.
+- Native Flow Run/Cancel from the toolbar and Console, with immutable document/input/environment
+  snapshots, real HTTP execution, request/poll cancellation, and running-flow close protection.
+- Detailed Steps/check/extraction and typed Outputs inspection, scoped nested loop iterations,
+  partial failure evidence, revision-aware navigation, bounded retention and sensitive-value redaction.
 
 - Native GPUI Kit Flow Save/Save as, Export copy, Open and durable recent-file reopening, with
   complete YAML document preservation and explicit external-file conflict handling. Hidden invalid
@@ -55,20 +70,23 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 - Shared field-expression codecs reuse Flow v1 wire types, including strict unknown-field
   rejection for explicit `none` bodies.
 
-- Native session-only Flow library, sequential canvas, and basic HTTP step inspector using
+- Native Flow library, sequential canvas, and HTTP step inspector using
   GPUI Kit. Create, rename, filter, append steps, and resume drafts from Home without losing edits.
 - Responsive Flow library/inspector/results panels with pointer and keyboard resizing. Compact
   windows use a flow picker and Canvas/Details switching; the minimum window is now 768 × 600.
 - Native Flow Console with Logs/Steps/Outputs, bounded per-flow command history, level filtering,
   copy/clear, auto-scroll, and collapse/maximize/restore. Local commands use retained GPUI Kit
-  controls; execution commands report their unavailable state.
+  controls; `check`, `run` and `stop` use the native compiler and execution engine.
 - Flow inspectors can expand beyond the former 480px cap while keeping the canvas usable.
 
 ### Limitations
 
-- Flow drafts and panel sizes last only for the session. Other check editors, export/save,
-  and native execution remain deferred. Request edits preserve richer
-  Flow DSL document fields without converting expressions to literal URLs.
+- Unsaved Flow drafts, runtime overrides, execution results and Flow panel sizes remain
+  session-only. Saved/exported documents reopen without losing readonly native DSL fields.
+- Non-status check editors and API/loop configuration remain readonly; YAML is a readonly preview.
+  General DAG editing, parallel scheduling and crash recovery are separate work.
+- P7-1 establishes development-build acceptance. Candidate/platform installation, native OS input
+  methods and final signing/release acceptance remain tracked in #249, #148 and #49.
 
 ## [0.1.0-rc.4] - 2026-10-13
 

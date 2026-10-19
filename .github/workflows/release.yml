@@ -7,9 +7,22 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild and publish
+        description: Release tag or candidate label (for example v0.1.0-rc.5)
         required: true
         type: string
+      ref:
+        description: Source branch or commit for an artifact-only candidate (leave empty to use tag)
+        required: false
+        type: string
+      publish:
+        description: Publish the existing tag after verification (published assets cannot be replaced)
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -27,11 +40,14 @@ jobs:
       prerelease: ${{ steps.metadata.outputs.prerelease }}
       tag: ${{ steps.metadata.outputs.tag }}
       version: ${{ steps.metadata.outputs.version }}
+      commit: ${{ steps.metadata.outputs.commit }}
+      publish: ${{ steps.metadata.outputs.publish }}
     steps:
       - name: Checkout release ref
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.ref || inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: Install Python
         uses: actions/setup-python@v7
@@ -50,10 +66,22 @@ jobs:
         id: metadata
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: python scripts/release.py verify --tag "$RELEASE_TAG" --github-output
+          PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+          SOURCE_REF: ${{ inputs.ref }}
+        shell: bash
+        run: |
+          arguments=(--tag "$RELEASE_TAG" --github-output)
+          if [[ "$PUBLISH" == "true" ]]; then
+            if [[ -n "$SOURCE_REF" ]]; then
+              echo "Publication uses the existing tag; ref is only for artifact-only candidates" >&2
+              exit 1
+            fi
+            arguments+=(--publish)
+          fi
+          python scripts/release_artifacts.py source "${arguments[@]}"
 
       - name: Require macOS signing and notarization for final releases
-        if: steps.metadata.outputs.prerelease == 'false'
+        if: steps.metadata.outputs.publish == 'true' && steps.metadata.outputs.prerelease == 'false'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -105,7 +133,7 @@ jobs:
       - name: Checkout release ref
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.validate.outputs.tag }}
+          ref: ${{ needs.validate.outputs.commit }}
 
       - name: Install Python
         uses: actions/setup-python@v7
@@ -237,11 +265,11 @@ jobs:
           if [[ -n "$APPLE_ID" ]]; then
             xcrun stapler validate "$app_bundle"
           fi
-          printf 'tag=%s\ntarget=universal-apple-darwin\nsigned=%s\nnotarized=%s\n' \
-            "${{ needs.validate.outputs.tag }}" \
-            "$([[ -n "$APPLE_SIGNING_IDENTITY" ]] && echo true || echo false)" \
-            "$([[ -n "$APPLE_ID" ]] && echo true || echo false)" \
-            > dist/BUILD-INFO-macos.txt
+          python scripts/release_artifacts.py build-info --platform macos \
+            --tag "${{ needs.validate.outputs.tag }}" --commit "${{ needs.validate.outputs.commit }}" \
+            --signed "$([[ -n "$APPLE_SIGNING_IDENTITY" ]] && echo true || echo false)" \
+            --notarized "$([[ -n "$APPLE_ID" ]] && echo true || echo false)" \
+            --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
 
       - name: Validate Windows installer and signature
         if: runner.os == 'Windows'
@@ -290,11 +318,11 @@ jobs:
           if (Test-Path $installDirectory) {
             throw "Silent uninstall left the application directory behind"
           }
-          @(
-            "tag=${{ needs.validate.outputs.tag }}"
-            "target=x86_64-pc-windows-msvc"
-            "signed=$signed"
-          ) | Set-Content -Encoding utf8 dist/BUILD-INFO-windows.txt
+          python scripts/release_artifacts.py build-info --platform windows `
+            --tag "${{ needs.validate.outputs.tag }}" --commit "${{ needs.validate.outputs.commit }}" `
+            --signed "$signed" --notarized n/a `
+            --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
+          if ($LASTEXITCODE -ne 0) { throw "Could not record package provenance" }
 
       - name: Validate Linux packages
         if: runner.os == 'Linux'
@@ -314,9 +342,10 @@ jobs:
           sudo apt-get remove --yes postman-gpui
           test ! -e /usr/bin/postman-gpui
           test ! -e /usr/lib/postman-gpui
-          printf 'tag=%s\ntarget=x86_64-unknown-linux-gnu\nsigned=false\n' \
-            "${{ needs.validate.outputs.tag }}" \
-            > dist/BUILD-INFO-linux.txt
+          python scripts/release_artifacts.py build-info --platform linux \
+            --tag "${{ needs.validate.outputs.tag }}" --commit "${{ needs.validate.outputs.commit }}" \
+            --signed false --notarized n/a \
+            --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
 
       - name: Verify AppImage entry point as a different user
         if: runner.os == 'Linux'
@@ -345,7 +374,7 @@ jobs:
       - name: Upload native packages
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 14
           path: |
@@ -357,50 +386,68 @@ jobs:
             dist/*.tar.gz
             dist/BUILD-INFO-*.txt
 
+  assemble:
+    name: Verify candidate artifacts
+    needs: [validate, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Download all native packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: postman-gpui-*-${{ github.run_attempt }}
+          path: dist
+          merge-multiple: true
+      - name: Verify provenance, artifact completeness and SHA-256
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: python scripts/release_artifacts.py assemble --directory dist --tag "$RELEASE_TAG" --commit "$SOURCE_COMMIT"
+      - name: Upload complete candidate for installed-app acceptance
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate-${{ needs.validate.outputs.tag }}-${{ needs.validate.outputs.commit }}-${{ github.run_attempt }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     name: Publish GitHub Release
-    needs: [validate, package]
+    if: needs.validate.outputs.publish == 'true'
+    needs: [validate, assemble]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download all native packages
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Download the verified candidate
         uses: actions/download-artifact@v8
         with:
-          pattern: postman-gpui-*
+          name: release-candidate-${{ needs.validate.outputs.tag }}-${{ needs.validate.outputs.commit }}-${{ github.run_attempt }}
           path: dist
-          merge-multiple: true
-
-      - name: Reject partial release output
-        shell: bash
-        run: |
-          test -n "$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name '*.app.zip' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name '*.deb' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-macos-universal.tar.gz' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-linux-x86_64.tar.gz' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-windows-x86_64.zip' -print -quit)"
-          test "$(find dist -maxdepth 1 -type f -name 'BUILD-INFO-*.txt' | wc -l | tr -d ' ')" = "3"
-
-      - name: Generate SHA-256 checksums
-        shell: bash
-        run: |
-          cd dist
-          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > SHA256SUMS
-          sha256sum --check SHA256SUMS
-
-      - name: Publish or update release
+      - name: Recheck downloaded artifact bytes
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: python scripts/release_artifacts.py verify --directory dist --tag "$RELEASE_TAG" --commit "$SOURCE_COMMIT"
+      - name: Publish new release or resume an unpublished draft
         env:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ needs.validate.outputs.prerelease }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         shell: bash
         run: |
-          notes="Native desktop packages and standalone postman-g CLI for Postman GPUI ${RELEASE_TAG}. Verify downloads with SHA256SUMS. See [current limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/docs/guide.md#current-limitations)."
+          notes="Native desktop packages and standalone postman-g CLI for Postman GPUI ${RELEASE_TAG}. Source commit: ${{ needs.validate.outputs.commit }}. Verify downloads with SHA256SUMS and BUILD-INFO files. See [current limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/docs/guide.md#current-limitations)."
           if ! grep -q '^signed=true$' dist/BUILD-INFO-macos.txt; then
             notes+=$'\n\nThe macOS release candidate is unsigned and can trigger Gatekeeper.'
           elif ! grep -q '^notarized=true$' dist/BUILD-INFO-macos.txt; then
@@ -410,13 +457,8 @@ jobs:
             notes+=$'\n\nThe Windows installer is unsigned and can trigger SmartScreen.'
           fi
 
-          # The tag endpoint only returns published releases. Include drafts so a new
-          # release can be published and an interrupted upload can be resumed.
-          find_release_id() {
-            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .id"
-          }
-          release_id=$(find_release_id)
+          # Published bytes are immutable. Only an unpublished draft can be resumed.
+          release_id=$(python scripts/release_artifacts.py draft-release --tag "$RELEASE_TAG")
           if [[ -n "$release_id" ]]; then
             gh release upload "$RELEASE_TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
           else
@@ -434,7 +476,7 @@ jobs:
               arguments+=(--prerelease)
             fi
             gh release create "${arguments[@]}"
-            release_id=$(find_release_id)
+            release_id=$(python scripts/release_artifacts.py draft-release --tag "$RELEASE_TAG")
           fi
 
           test -n "$release_id"

@@ -366,7 +366,8 @@ node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
 ## 当前限制
 
 - 响应体仍使用缓冲后的文本模型，尚未提供原始字节响应查看、响应原子保存和流式响应的增量进度。
-- 原生 Flow 编辑器支持会话内 Request 草稿；实际 Flow 执行请使用 CLI。
+- 当前源码支持 Flow 保存、重新打开、Run/Cancel 和详细结果；YAML、非状态码检查定义及 API/循环配置
+  保持只读。下载的发布包可能落后于源码，请核对所选版本的说明和构建信息。
 - 请求需要显式保存；崩溃或强制退出后不会恢复未保存的草稿。
 - 原生 cURL 导入支持文档列出的内联请求；文件与 multipart 命令只支持导出，详见 [cURL 说明](curl.md)。
 

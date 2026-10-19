@@ -490,7 +490,9 @@ a normal workspace test run alone does not establish that these suites ran.
 
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
-- Native Flows support real Run/Cancel, detailed Steps/Outputs and nested iteration inspection.
+- Flow YAML remains readonly; non-status check editors and API/loop configuration are readonly.
+  Saved documents, Run/Cancel and detailed results are available in current source. Verify the
+  selected release's notes and build metadata before assuming a published package includes them.
 - Request saving is explicit; unsaved drafts are not recovered after a crash or force quit.
 - Native cURL import supports the documented inline subset; file-based and multipart commands
   are export-only.

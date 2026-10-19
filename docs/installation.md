@@ -102,6 +102,13 @@ Extract and place `postman-g` in your system `PATH` (such as `~/.cargo/bin` or `
 
 ## Verify a download
 
+Use one candidate's complete artifact set. Each `BUILD-INFO-<platform>.txt` records its tag,
+full source commit, target, signing/notarization status and workflow run/attempt. The metadata
+and packages are covered by `SHA256SUMS`; keep their identity with your smoke-test results.
+A successful runtime-assets check verifies embedded fonts, not interactive platform acceptance.
+Older candidates (including rc.4) do not include the later native Flow work described by current
+source documentation. See the selected release's notes before comparing capabilities.
+
 Each release publishes `SHA256SUMS`. From the directory containing the downloads:
 
 ```bash

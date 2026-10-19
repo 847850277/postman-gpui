@@ -12,6 +12,7 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
   <img src="assets/readme/tour-zh.svg" alt="界面导览：首页、HTTP、Body、历史、搜索、环境、cURL、保存、Cookie、快捷键、分屏与 Flows">
 </picture>
 
-画面为界面示意，使用示例数据。原生 Flows 已支持文件保存、真实 Run/Cancel，以及 Steps、Outputs 和嵌套循环迭代详情。
+画面为界面示意，使用示例数据。当前源码已支持 Flow 文件、Check/YAML、真实 Run/Cancel 和详细运行结果。
+发布包可能尚未包含这些功能，请以所选版本的标签、发布说明和构建信息为准。候选包验证见[发布流程](docs/releasing.md)。
 
 [使用与开发指南](docs/guide-zh.md) · [Flow CLI](crates/postman-cli/README.md) · [MCP](crates/postman-flow-mcp/README.md) · [更新日志](CHANGELOG.md) · [MIT 许可](LICENSE)

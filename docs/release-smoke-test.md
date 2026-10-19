@@ -4,6 +4,26 @@ Run this checklist against the exact artifacts attached to the release candidate
 account or virtual machine, not a development checkout. Record the OS version, artifact filename,
 SHA-256, signing status, and pass/fail result in issue #148.
 
+## Candidate evidence (#249)
+
+Record the candidate tag and full source commit, workflow run/attempt URL, package filename,
+SHA-256, OS/version, architecture, display server, actual scale, signing/notarization status,
+exact actions and observed results. Use the same record in #249, #148 and #49. Record manual
+native checks separately from simulated controls, asset checks and CI build results.
+
+| Installed environment | Package | Result / evidence |
+| --- | --- | --- |
+| macOS Apple silicon | Universal DMG/app | Pending |
+| macOS Intel | Same universal DMG/app | Pending |
+| Windows x86_64 | NSIS installer | Pending |
+| Linux x86_64 Wayland | AppImage and Debian | Pending |
+| Linux x86_64 X11 | AppImage and Debian | Pending |
+
+Unavailable hardware, display scale, OS picker or IME checks stay Pending/Blocked with an owner
+and follow-up. A test on the existing development account is not clean-account acceptance.
+After a package fix, record the new bytes and repeat affected checks; never reuse an old pass
+for an artifact with a different checksum. Use temporary captures and textual issue/PR evidence.
+
 ## Package integrity
 
 - [ ] The downloaded artifact matches `SHA256SUMS`.
