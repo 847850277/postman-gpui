@@ -4,12 +4,14 @@ import argparse
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import shlex
 import shutil
 import stat
 import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -92,12 +94,107 @@ class ReleaseConfigurationTests(unittest.TestCase):
             {"tag": "v0.1.0-rc.1", "version": "0.1.0", "prerelease": "true"},
         )
 
+    def test_unsigned_final_release_metadata_is_valid(self) -> None:
+        credentials = {name: "" for name in os.environ if name.startswith(("APPLE_", "WINDOWS_CERTIFICATE"))}
+        with mock.patch.dict(os.environ, credentials):
+            self.assertEqual(
+                release.verify_release("v0.1.0"),
+                {"tag": "v0.1.0", "version": "0.1.0", "prerelease": "false"},
+            )
+
     def test_linux_smoke_install_uses_an_absolute_deb_path(self) -> None:
         workflow = (release.ROOT / ".github/workflows/release.yml").read_text(
             encoding="utf-8"
         )
         self.assertIn('deb=$(realpath "$deb")', workflow)
         self.assertIn('sudo apt-get install --yes "$deb"', workflow)
+
+
+@unittest.skipIf(os.name == "nt", "release publication runs in bash on Linux")
+class ReleasePublicationTests(unittest.TestCase):
+    def run_publication(self, state: str, prerelease: bool = False):
+        workflow = (release.ROOT / ".github/workflows/release.yml").read_text()
+        step = workflow.split("      - name: Publish new release or resume an unpublished draft\n", 1)[1]
+        script = textwrap.dedent(step.split("        run: |\n", 1)[1])
+        script = script.replace("${{ needs.validate.outputs.commit }}", "a" * 40)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "dist").mkdir()
+            for platform in ("macos", "windows"):
+                (root / "dist" / f"BUILD-INFO-{platform}.txt").write_text("signed=false\n")
+            (root / "state").write_text(state)
+            gh = root / "gh"
+            gh.write_text(textwrap.dedent('''\
+                #!/usr/bin/env python3
+                import json, sys
+                from pathlib import Path
+                args = sys.argv[1:]
+                with Path('calls.jsonl').open('a') as stream:
+                    stream.write(json.dumps(args) + '\\n')
+                state = Path('state').read_text()
+                if args[:2] == ['api', '--paginate']:
+                    if state == 'api-error':
+                        sys.exit(1)
+                    if state != 'new':
+                        print('42\\t' + ('true' if state == 'draft' else 'false') + '\\t' +
+                              ('0' if state == 'published-empty' else '3'))
+                elif args[:2] == ['api', 'repos/example/project/releases/42']:
+                    print('Existing release changelog')
+                elif args[:2] == ['release', 'edit']:
+                    notes = Path(args[args.index('--notes-file') + 1]).read_text()
+                    assert 'Existing release changelog' in notes
+                    assert 'unsigned and not notarized' in notes
+                elif args[:2] == ['release', 'create']:
+                    Path('state').write_text('draft')
+                '''))
+            gh.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-e", "-o", "pipefail", "-c", script], cwd=root,
+                env={**os.environ, "PATH": str(root) + os.pathsep + os.environ["PATH"],
+                     "GITHUB_REPOSITORY": "example/project", "RELEASE_TAG": "v0.1.0",
+                     "PRERELEASE": str(prerelease).lower()}, capture_output=True, text=True,
+            )
+            calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
+            return result, calls
+
+    def test_unsigned_final_and_prerelease_keep_the_requested_release_kind(self) -> None:
+        for prerelease in (False, True):
+            with self.subTest(prerelease=prerelease):
+                result, calls = self.run_publication("new", prerelease)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                create = next(call for call in calls if call[:2] == ["release", "create"])
+                self.assertIn("--draft", create)
+                self.assertEqual("--prerelease" in create, prerelease)
+                notes = create[create.index("--notes") + 1]
+                self.assertIn("macOS package is unsigned", notes)
+                self.assertIn("Windows installer is unsigned", notes)
+                self.assertIn("draft=false", calls[-1])
+                self.assertIn(f"prerelease={str(prerelease).lower()}", calls[-1])
+
+    def test_only_an_unpublished_draft_can_replace_uploaded_assets(self) -> None:
+        result, calls = self.run_publication("draft")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(any(call[:2] == ["release", "upload"] for call in calls))
+        self.assertIn("draft=false", calls[-1])
+        result, calls = self.run_publication("published")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already has published assets", result.stderr)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:2], ["api", "--paginate"])
+
+    def test_empty_published_release_can_receive_first_assets_without_clobber(self) -> None:
+        result, calls = self.run_publication("published-empty")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        upload = next(call for call in calls if call[:2] == ["release", "upload"])
+        self.assertNotIn("--clobber", upload)
+        self.assertFalse(any(call[:2] == ["release", "create"] for call in calls))
+        self.assertIn("prerelease=false", calls[-1])
+
+    def test_failed_release_lookup_cannot_create_or_modify_a_release(self) -> None:
+        result, calls = self.run_publication("api-error")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:2], ["api", "--paginate"])
 
 
 @unittest.skipIf(os.name == "nt", "AppImage permissions require POSIX")

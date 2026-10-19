@@ -3,9 +3,9 @@
 Postman GPUI supports macOS, Windows, and Linux. Download artifacts from
 [GitHub Releases](https://github.com/847850277/postman-gpui/releases).
 
-Release candidates may be unsigned. Their release notes must state that explicitly; do not bypass
-an operating-system security warning unless the artifact and its SHA-256 checksum came from this
-repository's release page.
+Both final releases and release candidates may be unsigned. Their release notes state that
+explicitly; do not bypass an operating-system security warning unless the artifact and its
+SHA-256 checksum came from this repository's release page.
 
 Inter and JetBrains Mono are embedded for consistent cross-platform text rendering. Inter includes
 static Regular, Medium, SemiBold, and Bold weights. Their SIL Open Font License notices are
@@ -19,10 +19,11 @@ Supported: macOS 10.15.7 or later on Intel and Apple silicon.
 2. Open it and drag **Postman GPUI** to Applications.
 3. Start Postman GPUI from Applications.
 
-The zipped `.app` is also published for testers who do not want the DMG layout. Signed final builds
-are notarized and should pass `spctl --assess --type execute` after installation. An unsigned
-release candidate may require **Privacy & Security → Open Anyway**; the release notes will identify
-it as unsigned.
+The zipped `.app` is also published for users who do not want the DMG layout. Signing and
+notarization are optional and recorded separately in the release notes and build information.
+A notarized build should pass `spctl --assess --type execute` after installation. An unsigned or
+unnotarized build can trigger Gatekeeper, including when its version has no prerelease suffix.
+Verify the download's origin and checksum before using the OS's application-opening controls.
 
 ## Windows
 

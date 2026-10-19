@@ -20,10 +20,10 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ### Added
 
-- Release workflow candidates can be built from an explicit source ref without publishing a
-  GitHub Release. All package jobs use the validated source commit; build metadata records the
-  tag, commit, workflow attempt and verified signing status. Complete artifact sets and checksums
-  are validated before upload/publication. Published release assets are never overwritten.
+- Tag-driven releases use the existing release tooling directly, with package jobs pinned to
+  the validated source commit. Build metadata records the tag, commit, workflow attempt and
+  signing status. Both final and prerelease packages may be unsigned, with explicit release-note
+  disclosure. Complete artifacts and checksums are required; published assets are never overwritten.
 - Native Flow Run/Cancel from the toolbar and Console, with immutable document/input/environment
   snapshots, real HTTP execution, request/poll cancellation, and running-flow close protection.
 - Detailed Steps/check/extraction and typed Outputs inspection, scoped nested loop iterations,
@@ -86,7 +86,7 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 - Non-status check editors and API/loop configuration remain readonly; YAML is a readonly preview.
   General DAG editing, parallel scheduling and crash recovery are separate work.
 - P7-1 establishes development-build acceptance. Candidate/platform installation, native OS input
-  methods and final signing/release acceptance remain tracked in #249, #148 and #49.
+  methods and release acceptance remain tracked in #249, #148 and #49. Signing is optional.
 
 ## [0.1.0-rc.4] - 2026-10-13
 
@@ -170,8 +170,8 @@ This section summarizes the 0.1.0 prerelease series. Candidate builds are availa
 - Binary and range responses do not yet have a byte-native viewer.
 - Large responses cannot yet be saved atomically to disk.
 - Streaming responses do not yet expose incremental progress or stream cancellation semantics.
-- Unsigned release candidates can trigger macOS Gatekeeper or Windows SmartScreen warnings. Final
-  release packages should be signed using the credentials documented in `docs/releasing.md`.
+- Unsigned packages, including final releases, can trigger macOS Gatekeeper or Windows SmartScreen
+  warnings. Optional signing credentials are documented in `docs/releasing.md`.
 
 [Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.4...HEAD
 [0.1.0-rc.4]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.3...v0.1.0-rc.4

@@ -23,14 +23,17 @@ This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tra
 - Pin all packaging jobs to the source SHA resolved during validation. `BUILD-INFO-*.txt` binds
   each platform's tag, SHA, target, workflow attempt and actual signing status to `SHA256SUMS`.
 - Published release assets are immutable. A new source revision or rebuilt published artifact
-  needs a new candidate tag. Only an unpublished draft can resume uploads.
+  needs a new release tag. Only an unpublished draft can replace uploads; an empty, manually
+  created release can receive its first artifact set without overwriting any assets.
 - Document current limitations in the changelog and release notes; issue closure alone does not
   establish that a feature is available in a shipped package.
 
 ## Repository secrets
 
-The workflow produces unsigned prerelease packages when signing credentials are absent. Configure
-these Actions secrets before publishing signed packages.
+Signing and notarization are optional for both final releases and prereleases. With no signing
+credentials, the workflow produces unsigned packages and marks that in build metadata and release
+notes. Configured signing must still pass verification; incomplete credentials fail validation.
+Configure these Actions secrets when signed packages are required.
 
 ### macOS signing and notarization
 
@@ -58,81 +61,58 @@ The workflow imports the certificate into the current user's certificate store i
 packaging. Without these secrets, the NSIS installer is still produced but release notes must warn
 about SmartScreen.
 
-## Build artifacts for acceptance before publication
+## Publish a release
 
-Run the `Release` workflow with a candidate label in **tag**, the source branch/full commit in
-**ref**, and **publish = false** (the default for manual runs). The candidate label must match
-the base Cargo version; choose an unused label such as `v0.1.0-rc.N`. The checkout must contain
-this workflow and its tooling. This mode does not create a tag or a GitHub Release.
+The workflow uses the existing `scripts/release.py` directly. Push a version tag, or run the
+`Release` workflow manually with an **existing tag**. A tag such as `v0.1.0` publishes a final
+GitHub Release; a suffix such as `v0.1.0-rc.5` marks it as a prerelease. A prior RC is not required
+by the workflow. There is no separate candidate-artifact job, source-ref input or publish toggle.
 
-Validation resolves the ref once, then all platform jobs check out that exact commit. The
-`Verify candidate artifacts` job rejects missing/duplicate packages, mixed tag/commit/target/run
-metadata and unexpected files. It generates `SHA256SUMS` and uploads one complete
-`release-candidate-<tag>-<commit>-<attempt>` Actions artifact retained for 30 days. Keep the workflow run
-and attempt URL with downloaded bytes; an Actions artifact is not a published release. Use
-**Re-run all jobs** for a failed candidate: assembly rejects packages mixed across attempts, and
-attempt-specific artifact names prevent a rerun from replacing earlier downloads.
-
-Download and extract the complete artifact into a fresh directory, then verify it using the
-same source revision's tooling:
-
-```bash
-python3 scripts/release_artifacts.py verify --directory candidate \
-  --tag v0.1.0-rc.N --commit FULL_40_CHARACTER_COMMIT
-```
-
-The command requires all GUI/CLI packages, three build-info files and `SHA256SUMS`. It neither
-creates missing checksums nor repairs changed bytes. For an individual package, compare its
-SHA-256 with the manifest and retain its platform build-info file. Complete the platform matrix
-in [the smoke checklist](release-smoke-test.md#candidate-evidence-249); #249 / #148 / #49 share
-those results. Installed package, real file picker and OS IME evidence remain separate from CI.
-
-## Prepare a release candidate
-
-1. Confirm CI and HTTPBingo E2E are green on `main`.
-2. Confirm the [editor-state regression checks](editor-state.md#regression-checks) pass on
-   the commit being released. Use the installed-app smoke checklist for package-level verification.
-3. Update `CHANGELOG.md` and review Known limitations against the code being released.
-4. Choose an unused candidate tag matching the base version in `Cargo.toml`. In the commands below,
-   replace `N` with the new candidate number, then validate release metadata:
+1. Confirm CI and the release's agreed smoke checks pass on the selected source commit. Review
+   [editor-state checks](editor-state.md#regression-checks), current limitations and the changelog.
+2. Choose an unused tag matching the base version in `Cargo.toml`, then validate:
 
    ```bash
-   release_tag='v0.1.0-rc.N'
+   release_tag='v0.1.0'
    python3 -m unittest discover -s scripts/tests
    python3 scripts/release.py verify --tag "$release_tag"
    ```
 
-5. Create and push the annotated tag:
+3. Commit all required files before tagging. A local untracked file is not included in CI.
+   Create and push the annotated tag:
 
    ```bash
    git tag -a "$release_tag" -m "Postman GPUI $release_tag"
    git push origin "$release_tag"
    ```
 
-6. The tag-triggered `Release` workflow builds a universal macOS `.app/.dmg`, Windows NSIS installer, Linux
-   `.AppImage/.deb`, and standalone `postman-g` CLI archives for all three platforms. It publishes
-   these with `BUILD-INFO-*.txt` and `SHA256SUMS`.
-7. Complete `docs/release-smoke-test.md` on clean installations and record results in #148.
+4. Validation resolves the tag's exact source SHA. All platform jobs use that SHA and verify
+   their native packages. Signing/notarization checks run when their credentials are configured.
+5. After all platforms finish, the publish job checks the complete GUI/CLI artifact set,
+   generates and verifies `SHA256SUMS`, uploads a draft, then publishes it. Each platform's
+   `BUILD-INFO` records the source SHA, workflow attempt and signing/notarization status.
+6. Verify the downloaded release assets and checksums. Record installed-app evidence in #148 / #249
+   using [the smoke checklist](release-smoke-test.md#candidate-evidence-249). A successful packaging
+   job does not by itself establish native input or installation acceptance on every platform.
 
-For a tag whose publication failed, use **Run workflow**, enter that tag, leave **ref** empty and
-set **publish = true**. Publication validates that the checked-out SHA is exactly the tag's commit,
-rechecks downloaded checksums, and permits only a new release or an unpublished draft. An already
-published release is rejected before any asset upload or edit. Workflow runs for the same tag are
-serialized. Source fixes need a new tag; rerunning an old tag does not pick up changes from `main`.
+## Retry a failed publication
 
-Tag publication rebuilds packages. Record the final published checksums and rerun affected installed
-checks against those bytes; an artifact-only run with the same source SHA is not proof that a rebuilt
-or newly signed package is byte-identical. Do not overwrite a published candidate to carry a fix.
+For a transient failure on an unchanged tag, use **Re-run all jobs**, or manually run `Release`
+with that tag. Workflow runs for a tag are serialized, and attempt-specific artifact names keep
+packages from earlier attempts out of the release. Only an unpublished draft can replace uploads.
+A published release with no assets can receive its first set without `--clobber`; its existing
+changelog is preserved and signing disclosures are appended. A published release that already
+has assets is rejected before any upload or edit.
 
-## Promote v0.1.0
+Source fixes must be included in the tag being built. Pushing a fix to `main` and rerunning an
+old tag still checks out the old source. For a workflow-only fix, manually run the corrected
+workflow from `main` with the existing tag; application sources still come from that tag.
+Application source fixes need a new version/tag; retargeting an unpublished tag requires an
+explicit maintainer decision. Never overwrite a published release to carry a fix.
+Record rebuilt package checksums and repeat affected installed checks against those exact bytes.
 
-1. Resolve every release-candidate regression or document an accepted limitation.
-2. Change the `0.1.0` changelog date from `Unreleased` to the release date.
-3. Configure every macOS signing and notarization secret listed above. The release workflow rejects
-   an unsigned final tag. Windows signing is strongly recommended; if it is unavailable, document
-   the SmartScreen limitation in the final release notes.
-4. Set `release_tag=v0.1.0`, then validate, create, and push the tag using the same commands.
-5. Verify all release assets and checksums before announcing the release.
+Unsigned final releases remain final releases. Their notes must clearly identify macOS
+Gatekeeper / Windows SmartScreen limitations, and macOS signing must not imply notarization.
 
 ## Local package commands
 
