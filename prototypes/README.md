@@ -311,3 +311,14 @@ The GPUI Kit implementation consumes real Rust events, supports all existing DSL
 for_each/repeat_until, explicit redaction metadata, virtual lists and bounded retention. Use the native
 release smoke checklist for full behavior. Compare matching success/check-failure/value/drilldown states
 in light/dark and compact sizes; record evidence as PR text without committed captures.
+
+### P7-1 native workflow acceptance
+
+P7 native acceptance also consumes the two design samples in `tests/fixtures/flows/`.
+`flow-model.test.cjs` guards their alignment with `FlowPreview.samples()`. Native control tests open,
+Check, save/export, run against local HTTP responses, inspect and reopen these documents. The browser
+continues to simulate execution; native `Run` and environment inheritance are intentional differences.
+At widths up to 1024 logical pixels the native environment settings button uses an icon with a
+tooltip and accessible name, preserving the compact action row. The native YAML title reports
+document currency, while the file title reports saved state. Open accepts Flow YAML; Rust example
+programs require their matching files under `crates/postman-flow/examples/flows/`.

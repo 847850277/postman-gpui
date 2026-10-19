@@ -77,7 +77,13 @@ pub(super) fn open(path: &Path) -> Result<Loaded, String> {
     let bytes = read_bounded(&path, MAX_DOCUMENT)?
         .ok_or("This file no longer exists. Choose it again or remove its recent entry.")?;
     let text = std::str::from_utf8(&bytes).map_err(|_| "Flow files must be UTF-8 YAML.")?;
-    let document = parse_flow_yaml(text).map_err(|e| e.to_string())?;
+    let document = parse_flow_yaml(text).map_err(|e| {
+        if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
+            format!("Open a Flow YAML document (.http.yml, .yml or .yaml). This selection appears to be Rust source; choose the matching YAML in crates/postman-flow/examples/flows/.\n{e}")
+        } else {
+            format!("Cannot open this Flow YAML document. Choose a Flow file (.http.yml, .yml or .yaml), or correct the YAML and try again.\n{e}")
+        }
+    })?;
     Ok(Loaded {
         path,
         bytes,

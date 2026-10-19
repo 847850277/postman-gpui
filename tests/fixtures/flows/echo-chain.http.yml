@@ -1,0 +1,148 @@
+# Design sample from prototypes/flow-model.js; keep semantic parity.
+schema_version: 1
+flow:
+  name: "UUID and JSON echo"
+  inputs:
+    -
+      name: "base_url"
+      default: "https://httpbingo.org"
+    -
+      name: "user_name"
+      default: "Maya Chen"
+  steps:
+    -
+      id: "generate-id"
+      name: "Generate UUID"
+      request:
+        kind: "http"
+        method: "GET"
+        url:
+          concat:
+            -
+              input: "base_url"
+            -
+              literal: "/uuid"
+        headers:
+          -
+            name:
+              literal: "Accept"
+            value:
+              literal: "application/json"
+      checks:
+        -
+          kind: "status"
+          equals: 200
+      exports:
+        -
+          name: "request_id"
+          path: "$.uuid"
+    -
+      id: "echo-json"
+      name: "Echo JSON"
+      request:
+        kind: "http"
+        method: "POST"
+        url:
+          concat:
+            -
+              input: "base_url"
+            -
+              literal: "/post"
+        headers:
+          -
+            name:
+              literal: "Accept"
+            value:
+              literal: "application/json"
+          -
+            name:
+              literal: "Content-Type"
+            value:
+              literal: "application/json"
+        body:
+          kind: "json"
+          value:
+            object:
+              id:
+                output:
+                  step: "generate-id"
+                  name: "request_id"
+              name:
+                input: "user_name"
+      checks:
+        -
+          kind: "status"
+          equals: 200
+      exports:
+        -
+          name: "request_id"
+          path: "$.json.id"
+        -
+          name: "name"
+          path: "$.json.name"
+    -
+      id: "echo-status"
+      name: "Echo status"
+      request:
+        kind: "http"
+        method: "PATCH"
+        url:
+          concat:
+            -
+              input: "base_url"
+            -
+              literal: "/patch"
+        headers:
+          -
+            name:
+              literal: "Accept"
+            value:
+              literal: "application/json"
+          -
+            name:
+              literal: "Content-Type"
+            value:
+              literal: "application/json"
+        body:
+          kind: "json"
+          value:
+            object:
+              id:
+                output:
+                  step: "echo-json"
+                  name: "request_id"
+              status:
+                literal: "active"
+      checks:
+        -
+          kind: "status"
+          equals: 200
+      exports:
+        -
+          name: "status"
+          path: "$.json.status"
+      when:
+        ne:
+          -
+            output:
+              step: "echo-json"
+              name: "name"
+          -
+            literal: ""
+  outputs:
+    -
+      name: "request_id"
+      value:
+        output:
+          step: "generate-id"
+          name: "request_id"
+    -
+      name: "status"
+      value:
+        coalesce:
+          -
+            output:
+              step: "echo-status"
+              name: "status"
+          -
+            literal: "not echoed"

@@ -19,6 +19,7 @@ use gpui_kit::{
     component::{
         button::{Button, ButtonVariants},
         input::Input,
+        scroll::ScrollableElement,
         select::Select,
         Disableable, Icon, Selectable, Sizable,
     },
@@ -389,7 +390,8 @@ impl FlowsView {
                             Button::new("flow-empty-create")
                                 .label("New flow…")
                                 .on_click(cx.listener(|this, _, w, c| this.open_create(w, c))),
-                        ),
+                        )
+                        .overflow_y_scrollbar(),
                 )
                 .into_any_element();
         };
@@ -558,7 +560,15 @@ impl FlowsView {
                                             .px_1()
                                             .rounded(m::RADIUS)
                                             .bg(PANEL_ALT.resolve(cx))
-                                            .child(format!("{} checks", step.checks.len())),
+                                            .child(format!(
+                                                "{} {}",
+                                                step.checks.len(),
+                                                if step.checks.len() == 1 {
+                                                    "check"
+                                                } else {
+                                                    "checks"
+                                                }
+                                            )),
                                     )
                                     .children(step.exports.iter().take(2).map(|export| {
                                         div()

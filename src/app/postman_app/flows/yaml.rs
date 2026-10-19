@@ -80,7 +80,7 @@ impl YamlPreview {
                         self.refresh_syntax(cx);
                     }
                     self.current = true;
-                    self.status = "Readonly YAML · Current document · Session draft".into();
+                    self.status = "Readonly YAML · Current document".into();
                 }
                 Err(error) => {
                     self.status = format!(

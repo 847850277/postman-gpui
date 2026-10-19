@@ -12,6 +12,7 @@ use gpui_kit::{
     component::{
         button::{Button, ButtonVariants},
         input::Input,
+        scroll::ScrollableElement,
         select::Select,
         Disableable, Icon, Selectable, Sizable,
     },
@@ -298,20 +299,34 @@ impl FlowConsole {
                 } else {
                     d.child(
                         div()
+                            .id("console-empty-scroll")
                             .size_full()
-                            .flex()
-                            .flex_col()
-                            .justify_center()
-                            .items_center()
-                            .gap_1()
-                            .px_4()
-                            .child(div().child(title))
+                            .overflow_y_scroll()
+                            .track_scroll(&self.empty_scroll)
                             .child(
                                 div()
-                                    .text_size(m::COMPACT_LABEL)
-                                    .text_color(MUTED.resolve(cx))
-                                    .child(description),
-                            ),
+                                    .w_full()
+                                    .min_h_full()
+                                    .flex_none()
+                                    .flex()
+                                    .flex_col()
+                                    .justify_center()
+                                    .items_center()
+                                    .gap_1()
+                                    .px_4()
+                                    .child(
+                                        div()
+                                            .debug_selector(|| "console-empty-title".into())
+                                            .child(title),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(m::COMPACT_LABEL)
+                                            .text_color(MUTED.resolve(cx))
+                                            .child(description),
+                                    ),
+                            )
+                            .vertical_scrollbar(&self.empty_scroll),
                     )
                 }
             })

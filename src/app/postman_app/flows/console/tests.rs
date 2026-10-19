@@ -11,6 +11,34 @@ fn command(cx: &mut VisualTestContext, value: &str) {
 fn text(console: &Entity<FlowConsole>, cx: &mut VisualTestContext) -> String {
     console.read_with(cx, |c, _| c.current().unwrap().copy_text())
 }
+
+#[gpui_kit::test]
+fn short_console_empty_message_starts_inside_its_scroll_view(cx: &mut TestAppContext) {
+    use gpui::{point, px, size, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+    let (_, cx) = setup(cx);
+    click(cx, "nav-flows");
+    create(cx, "Small window");
+    let handle = cx.update(|w, _| w.window_handle());
+    cx.simulate_window_resize(handle, size(px(768.), px(600.)));
+    settle(cx);
+    let content = cx.debug_bounds("console-content").unwrap();
+    let title = cx.debug_bounds("console-empty-title").unwrap();
+    assert!(
+        title.top() >= content.top(),
+        "centered text is clipped above the viewport: {title:?}, {content:?}"
+    );
+    assert!(title.bottom() <= content.bottom());
+    let command = cx.debug_bounds("console-command").unwrap();
+    cx.simulate_event(ScrollWheelEvent {
+        position: content.center(),
+        delta: ScrollDelta::Pixels(point(px(0.), px(-100.))),
+        modifiers: Modifiers::none(),
+        touch_phase: TouchPhase::Moved,
+    });
+    settle(cx);
+    assert!(cx.debug_bounds("console-empty-title").unwrap().top() < title.top());
+    assert_eq!(cx.debug_bounds("console-command").unwrap(), command);
+}
 #[gpui_kit::test]
 fn commands_history_completion_and_view_keys_use_real_kit_controls(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);

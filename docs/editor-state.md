@@ -172,6 +172,12 @@ external change triggers another decision. This is not a cross-process lock. Rec
 serialized with file commands, and index errors do not undo successful document writes. Invalid index
 contents are retained for repair; only path/name metadata is stored there.
 
+Open attempts the native codec regardless of the filename. After a parse failure, a Rust `.rs`
+selection gets source-versus-document guidance; other malformed YAML keeps its structured parser
+location/details. File errors use a bounded, independently scrolling alert. Failed opens never
+insert a document or write recent metadata. The YAML preview reports document currency; the title
+area separately reports file association and saved/unsaved state.
+
 Flow close decisions compare the latest document and pending drafts after a completed Save. Discard
 consent is scoped to FlowId/revision. Actual close removes retained inspectors, Inputs subscriptions,
 YAML, Console and scrolling state; cancellation does not rebuild them. The app first obtains HTTP close

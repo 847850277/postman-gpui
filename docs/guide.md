@@ -315,7 +315,16 @@ close/Quit waits for execution cleanup. Run results/overrides are session-only a
 
 ### Flow files and unsaved changes
 
-**Open… / Cmd+O / Ctrl+O** opens a native `.http.yml` file. **Save / Cmd+S / Ctrl+S**
+**Open… / Cmd+O / Ctrl+O** opens a native Flow YAML document (`.http.yml`, `.yml`, or `.yaml`).
+Valid Flow YAML with another filename, including files saved without an extension, also opens.
+Use `crates/postman-flow/examples/flows/` for executable example documents. The Rust programs in
+the parent `examples/` directory are source code, not Flow documents: for example, open
+`flows/httpbingo_multi_hop.http.yml`, not `httpbingo_multi_hop_chain.rs`.
+The native picker currently cannot filter file types. A rejected file leaves the active draft,
+unapplied edits, recent entries and source bytes intact; correct the YAML or choose another file.
+Long diagnostics scroll within their own region so the editor and Console remain reachable.
+
+**Save / Cmd+S / Ctrl+S**
 writes the associated file, asking for a destination on first save. **Save as…** in the file
 menu (Cmd/Ctrl+Shift+S) writes another file and associates the open Flow with it. **Export…**
 writes a copy and keeps the original association and unsaved state. Save and Open do not execute
@@ -358,6 +367,9 @@ cannot preserve unsaved edits.
 
 Run `cargo test --locked -p postman-gpui --lib app::postman_app::flows` and
 `cargo test --locked --test ui_flows` for native control, document preservation, and layout checks.
+The native acceptance tests use both design examples from `tests/fixtures/flows/` with a local
+HTTP server, verify actual JSON request bodies, inspect results, and reopen saved documents.
+Their `base_url` override is session-only. Public HTTPBingo availability is not required for these tests.
 
 ### Check and readonly YAML
 

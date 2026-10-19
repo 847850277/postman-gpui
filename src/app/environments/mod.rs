@@ -273,7 +273,13 @@ impl Environments {
 }
 
 impl Render for Environments {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let compact = window.viewport_size().width / window.rem_size() <= 64.;
+        let settings_label = if self.current.environments.is_empty() && !self.blocked {
+            "Create environment…"
+        } else {
+            "Environment settings…"
+        };
         div()
             .flex()
             .items_center()
@@ -300,11 +306,9 @@ impl Render for Environments {
             .child(
                 Button::new("environment-settings")
                     .debug_selector(|| "environment-settings".into())
-                    .label(if self.current.environments.is_empty() && !self.blocked {
-                        "Create environment…"
-                    } else {
-                        "Settings…"
-                    })
+                    .when(!compact, |button| button.label(settings_label))
+                    .accessibility_label(settings_label)
+                    .tooltip(settings_label)
                     .icon(IconName::Settings)
                     .small()
                     .disabled(self.loading || self.saving)

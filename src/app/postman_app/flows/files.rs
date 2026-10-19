@@ -49,6 +49,7 @@ pub(super) struct Files {
     recent: Vec<storage::Recent>,
     recent_error: Option<String>,
     error: Option<String>,
+    error_scroll: gpui::ScrollHandle,
     busy: bool,
     busy_flow: Option<FlowId>,
     conflict: Option<Write>,
@@ -91,6 +92,7 @@ impl FlowsView {
     }
     fn file_error(&mut self, error: String, cx: &mut Context<Self>) {
         self.files.error = Some(error);
+        self.files.error_scroll.set_offset(Default::default());
         if self.files.dialog.is_none() {
             self.files.close = None;
             self.files.return_focus = None;
@@ -342,7 +344,7 @@ impl FlowsView {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("Open Flow (.http.yml)".into()),
+            prompt: Some("Open Flow YAML".into()),
         });
         cx.spawn_in(window, async move |this, cx| {
             let result = selection.await;

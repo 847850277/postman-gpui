@@ -123,10 +123,30 @@ SHA-256, signing status, and pass/fail result in issue #148.
       Check command history, draft restoration, unique-prefix Tab completion, Shift+Tab, and Escape.
 - [ ] Switch between two flows and Home/HTTP; logs and unfinished commands remain isolated.
       Clearing logs keeps history and document edits; copying includes only visible filtered logs.
-- [ ] Verify Chinese IME does not submit while composing. `check`, `run`, `stop`, unknown commands,
-      and unsupported arguments must never send requests or report successful execution.
+- [ ] Verify Chinese IME does not submit while composing. `check` compiles without network I/O;
+      `run` starts the native execution and `stop` cancels it. Unknown commands and unsupported
+      arguments must never send requests or report successful execution.
 - [ ] Scroll back through enough log entries to pause auto-scroll; re-enable it to follow the end.
       Steps/Outputs show not-run states and a fresh session has no fabricated logs or runs.
+
+## Native complete Flow journey (#247)
+
+- [ ] With a controlled local endpoint, open both `tests/fixtures/flows/echo-chain.http.yml` and
+      `poll-status.http.yml`. Set the environment or a session `base_url` override. Check sends no
+      requests; Run sends the expected GET → POST → PATCH JSON chain, and polling stops on `ready`.
+- [ ] Select `crates/postman-flow/examples/httpbingo_multi_hop_chain.rs`: Open explains that Flow
+      YAML is required. Recover using `examples/flows/httpbingo_multi_hop.http.yml`. Also try malformed
+      YAML, long diagnostics, `.yaml` and extensionless saved documents. Existing drafts remain intact.
+- [ ] Edit while focused, Check and copy YAML, Save as and Export, inspect Steps/Outputs, then
+      close/quit/relaunch and reopen through Recent flows and Open. Compare full DSL semantics for
+      the multi-hop, catalog/API and nested-loop fixtures. Session overrides/results must be absent.
+- [ ] Match Home/HTTP/Flows and used overlays against the HTML in both themes at 1440×960,
+      1920×1080, 1024×768, 768×720, 1024×600 and the native minimum 768×600. Record display scale.
+      In compact windows, the environment settings icon remains labeled/keyboard accessible and
+      file/execution controls fit; long file errors scroll without displacing the Console command bar.
+- [ ] Record actual platform and process-restart evidence separately from test-window simulations.
+      Record unavailable OS picker, display-scale and IME checks as follow-ups in #148 / #49;
+      a development build does not satisfy installed-package acceptance.
 
 ## Platform-specific checks
 
