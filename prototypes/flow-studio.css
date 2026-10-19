@@ -127,3 +127,10 @@ body:not([data-view="http"]) [data-http-tool],body:not([data-view="http"]) .http
 #flow-file-actions option { font-size:12px; }
 #flow-file-entries { display:flex; flex-direction:column; gap:8px; max-height:320px; overflow:auto; }
 #flow-file-dialog .dialog-footer { flex-wrap:wrap; }
+
+/* P6-2 inline result drilldown preserves the Console command bar. */
+.result-detail-heading{display:flex;align-items:center;gap:8px;padding:8px 16px;min-width:0}
+.result-detail-heading strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.result-detail-heading button{flex-shrink:0}
+.result-detail-note{margin:0;padding:0 16px 8px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.run-outputs{overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}

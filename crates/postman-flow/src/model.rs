@@ -569,11 +569,17 @@ pub struct FlowOutputSpec {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct FlowValue {
+    pub(crate) inspection: crate::InspectionValue,
     pub(crate) value: Value,
     pub(crate) sensitive: bool,
 }
 
 impl FlowValue {
+    /// Bounded credential-redacted projection; raw execution/CLI values remain unchanged.
+    pub fn inspection(&self) -> &crate::InspectionValue {
+        &self.inspection
+    }
+
     pub fn value(&self) -> &Value {
         &self.value
     }
@@ -588,7 +594,7 @@ impl fmt::Debug for FlowValue {
         if self.sensitive {
             output.field("value", &"[REDACTED]");
         } else {
-            output.field("value", &self.value);
+            output.field("value", &self.inspection);
         }
         output.field("sensitive", &self.sensitive).finish()
     }
@@ -619,12 +625,16 @@ pub enum FlowEvent {
     CheckFinished {
         step_id: String,
         check: String,
+        /// Safe categorical/numeric detail; never includes response or template text.
+        inspection: String,
         success: bool,
         message: Option<String>,
     },
     OutputExported {
         step_id: String,
         name: String,
+        /// Safe typed inspection of the actual extraction (not a reevaluated expression).
+        value: crate::InspectionValue,
     },
     StepFinished {
         step_id: String,

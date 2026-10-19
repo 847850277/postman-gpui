@@ -162,6 +162,12 @@ impl FlowConsole {
         let session = self.current();
         let logs = session.is_none_or(|s| s.view == View::Logs);
         let count = session.map_or(0, |s| s.logs.len());
+        let outputs = session.is_some_and(|s| s.view == View::Outputs);
+        let copy_label = if outputs {
+            "Copy all outputs"
+        } else {
+            "Copy visible logs"
+        };
         div()
             .debug_selector(|| "console-tools".into())
             .h(rems(TOOLS_HEIGHT))
@@ -217,12 +223,18 @@ impl FlowConsole {
             })
             .child(
                 Button::new("console-copy")
-                    .accessibility_label("Copy visible logs")
+                    .accessibility_label(copy_label)
                     .ghost()
                     .small()
                     .icon(IconName::Copy)
-                    .tooltip("Copy visible logs")
-                    .disabled(!logs || self.visible.is_empty())
+                    .tooltip(copy_label)
+                    .disabled(if outputs {
+                        session
+                            .and_then(|s| s.run.as_ref())
+                            .is_none_or(|r| !r.results.can_copy_outputs())
+                    } else {
+                        !logs || self.visible.is_empty()
+                    })
                     .on_click(cx.listener(|this, _, _, cx| this.copy(cx))),
             )
             .when(logs, |d| {
@@ -247,11 +259,11 @@ impl FlowConsole {
             ),
             Some(_) if view == View::Steps => (
                 "No step results yet",
-                "Run a Flow to see basic step status and timing.",
+                "Run a Flow to inspect steps, checks, extractions and iterations.",
             ),
             Some(_) if view == View::Outputs => (
                 "No flow outputs yet",
-                "Detailed output inspection is planned for the next results slice. Values are omitted from logs.",
+                "Run a Flow to inspect typed final outputs. Values stay out of logs.",
             ),
             Some(s) if s.cleared => ("Logs cleared", "Step results and command history are kept."),
             Some(s) if !s.logs.is_empty() && self.visible.is_empty() => (
@@ -303,80 +315,6 @@ impl FlowConsole {
                     )
                 }
             })
-            .into_any_element()
-    }
-    fn run_results(&self, cx: &mut Context<Self>) -> AnyElement {
-        let session = self.current().unwrap();
-        let run = session.run.as_ref().unwrap();
-        if session.view == View::Outputs {
-            return div().id("flow-run-results").size_full().overflow_y_scroll().px_4().py_3().flex().flex_col().gap_2()
-                .child(format!("{} final output(s).", run.output_count))
-                .child("Detailed output inspection is planned for the next results slice. Values stay out of logs and clipboard.").into_any_element();
-        }
-        gpui::uniform_list(
-            "flow-run-step-list",
-            run.steps.len(),
-            cx.processor(|this, range: std::ops::Range<usize>, _, cx| {
-                range
-                    .map(|index| this.run_step_row(index, cx))
-                    .collect::<Vec<_>>()
-            }),
-        )
-        .track_scroll(&session.step_scroll)
-        .size_full()
-        .into_any_element()
-    }
-    fn run_step_row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
-        let run = self.current().unwrap().run.as_ref().unwrap();
-        let step = &run.steps[index];
-        let flow = self.active.unwrap();
-        let revision = Some(run.revision);
-        let id = step.id.clone();
-        div()
-            .flex()
-            .items_center()
-            .gap_3()
-            .min_w_0()
-            .px_4()
-            .py_2()
-            .border_b_1()
-            .border_color(LINE.resolve(cx))
-            .child(
-                Button::new(gpui::SharedString::from(format!(
-                    "run-step-{}-{}",
-                    flow.0, id
-                )))
-                .ghost()
-                .small()
-                .label(if step.name.is_empty() {
-                    id.clone()
-                } else {
-                    step.name.clone()
-                })
-                .flex_1()
-                .min_w_0()
-                .on_click(cx.listener(move |_, _, _, cx| {
-                    cx.emit(ConsoleEvent::LocateStep {
-                        flow,
-                        revision,
-                        step: id.clone(),
-                    })
-                })),
-            )
-            .child(
-                div()
-                    .text_size(m::CAPTION)
-                    .text_color(super::super::execution::status_color(step.status).resolve(cx))
-                    .child(step.status.label()),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .truncate()
-                    .text_color(MUTED.resolve(cx))
-                    .child(step.summary()),
-            )
             .into_any_element()
     }
     fn log_row(&self, ix: usize, cx: &mut Context<Self>) -> AnyElement {

@@ -8,8 +8,11 @@ pub(super) const COMMANDS: [(&str, &str); 8] = [
     ("stop", "Cancel the active Flow execution"),
     ("clear", "Clear logs; keep command history and results"),
     ("logs", "Show event logs"),
-    ("steps", "Show step results"),
-    ("outputs", "Show flow outputs"),
+    ("steps", "Inspect steps, checks, extractions and iterations"),
+    (
+        "outputs",
+        "Inspect and copy sanitized final outputs as JSON",
+    ),
 ];
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
@@ -78,7 +81,7 @@ pub(super) struct Session {
     pub(super) check: Option<(u64, bool)>,
     pub(super) revision: u64,
     pub(super) run: Option<super::super::execution::Run>,
-    pub(super) step_scroll: gpui::UniformListScrollHandle,
+    pub(super) inspector: Option<super::results::Inspector>,
     cursor: usize,
     stash: String,
     next_id: u64,
@@ -96,7 +99,7 @@ impl Default for Session {
             check: None,
             revision: 0,
             run: None,
-            step_scroll: gpui::UniformListScrollHandle::new(),
+            inspector: None,
             cursor: 0,
             stash: String::new(),
             next_id: 0,
@@ -126,6 +129,13 @@ impl Session {
             .filter(|entry| self.filter.is_none_or(|level| entry.level == level))
     }
     pub(super) fn copy_text(&self) -> String {
+        if self.view == View::Outputs {
+            return self
+                .run
+                .as_ref()
+                .and_then(|r| r.results.outputs_json())
+                .unwrap_or_default();
+        }
         if self.view != View::Logs {
             return String::new();
         }

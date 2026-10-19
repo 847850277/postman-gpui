@@ -288,8 +288,8 @@ Verify native light/dark and compact windows against these controls; keep verifi
 The native GPUI app now runs the real compiler/execution stream through its shared HTTP client.
 Toolbar Run/Cancel and Console run/stop share preflight, immutable Inputs/environment snapshots and
 per-Flow task ownership. Basic status/timing, step outcomes, loop waits and terminal summaries are
-real. Runtime values and raw error payloads stay out of visible/copied logs; output-value inspection
-and detailed assertion/iteration views remain P6-2. Check remains document-only.
+real. Runtime values and raw error payloads stay out of visible/copied logs. Detailed native inspection
+is implemented in P6-2 below. Check remains document-only.
 
 The browser continues using explicitly labeled Run preview fixtures. Cancel shows Stopping until
 the preview has stopped. Closing any running Flow (even a saved/clean one) requires Stop and close
@@ -297,3 +297,17 @@ after dirty-file decisions; Cancel leaves it running. Native close/Quit addition
 request/wait cleanup. Native Cmd/Ctrl+Enter is scoped to canvas/library to preserve editor/IME behavior;
 Console owns command submission. Record native/design comparisons as text in the PR, without
 committing captures or recreating docs/validation.
+
+### P6-2 detailed results
+
+The reference now uses inline Steps → loop invocation → iteration → child-step drilldown, a Back/Escape
+path, categorical/numeric checks, extraction rows and a readonly JSON value pane. Outputs lists typed
+final returns; Copy value and the toolbar have distinct scopes. This extends the pinned `5edbea4`
+Logs/Steps/Outputs hierarchy without adding an inspector modal or hiding the Console command bar.
+The browser remains fixture-only, with its existing limited loop/check simulator; it does not claim
+native API/for_each/runtime parity. `flow-result-inspection.js` supplies fixture projection only.
+
+The GPUI Kit implementation consumes real Rust events, supports all existing DSL steps/checks, nested
+for_each/repeat_until, explicit redaction metadata, virtual lists and bounded retention. Use the native
+release smoke checklist for full behavior. Compare matching success/check-failure/value/drilldown states
+in light/dark and compact sizes; record evidence as PR text without committed captures.

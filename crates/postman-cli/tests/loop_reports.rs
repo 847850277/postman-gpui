@@ -375,3 +375,38 @@ flow:
     assert!(json["requests"][0].get("loop_path").is_none());
     assert_eq!(report.requests[0].display_name(), "fetch");
 }
+
+#[tokio::test]
+async fn detailed_gui_fixture_preserves_cli_schema_outcomes_and_scoped_iterations() {
+    // Shared with the native results projection: same four failures, skipped middle loop,
+    // successful continue-policy parents and final collected outputs.
+    let source = include_str!("../../postman-flow/tests/fixtures/inspection-nested.http.yml");
+    let report = run_flow(
+        FakeTransport::new((0..4).map(|_| Ok(HttpResponse::new(503, vec![], "{}".into())))),
+        Path::new("inspection-nested.http.yml"),
+        source,
+        &BTreeMap::new(),
+        RequestOptions::default(),
+    )
+    .await
+    .unwrap();
+    assert!(report.success);
+    assert_eq!(report.outputs["batches"], json!([[], []]));
+    let requests: Vec<_> = report.requests.iter().filter(|r| !r.skipped).collect();
+    assert_eq!(requests.len(), 4);
+    assert!(requests
+        .iter()
+        .all(|r| !r.success && r.status == Some(503) && !r.assertions[0].success));
+    assert_eq!(requests[0].loop_path[0].iteration, 1);
+    assert_eq!(requests[2].loop_path[0].iteration, 3);
+    assert_eq!(requests[0].loop_path[1].iteration, 1);
+    assert_eq!(requests[1].loop_path[1].iteration, 2);
+    assert!(report
+        .loops
+        .iter()
+        .filter(|l| !l.skipped)
+        .all(|l| l.reason == Some(LoopFinishReason::Completed)));
+    let encoded = serde_json::to_value(&report).unwrap();
+    assert!(encoded["requests"][0].get("inspection").is_none());
+    assert!(encoded["requests"][0].get("values").is_none());
+}

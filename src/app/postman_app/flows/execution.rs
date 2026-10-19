@@ -1,6 +1,7 @@
 //! Run lifetimes and immutable engine commands. The bounded mailbox applies backpressure;
-//! only value-free projections reach rendering, and each batch is checked against its run ID.
+//! only sanitized bounded projections reach rendering, and each batch is checked against its run ID.
 mod model;
+pub(super) mod results;
 pub(super) use model::{Feedback, Run, Status};
 #[cfg(test)]
 mod tests;
@@ -12,7 +13,10 @@ use gpui::{Context, Window};
 use gpui_kit::component::WindowExt;
 use postman_flow::{execute_flow, FlowEvent, FlowPlan, FlowSessionEnvironment};
 use postman_http::HttpTransport;
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 use tokio::sync::{mpsc, oneshot};
 
 pub(super) struct Execution {
@@ -41,7 +45,7 @@ impl Drop for RunningTask {
     }
 }
 enum Message {
-    Event(FlowEvent),
+    Event(FlowEvent, Instant),
     Tick,
     Finished(Status),
 }
@@ -68,7 +72,7 @@ async fn drive<T: HttpTransport>(
                             if let FlowEvent::FlowFinished { success, .. } = &event {
                                 outcome = if *success { Status::Succeeded } else { Status::Failed };
                             }
-                            Message::Event(event)
+                            Message::Event(event, Instant::now())
                         }
                         Some(Err(_)) | None => break,
                     },
@@ -254,8 +258,8 @@ impl FlowsView {
         for message in messages {
             match message {
                 Message::Tick => run.tick(),
-                Message::Event(event) => {
-                    if let Some(event) = run.event(event) {
+                Message::Event(event, observed) => {
+                    if let Some(event) = run.event(event, observed) {
                         feedback.push(event);
                     }
                 }

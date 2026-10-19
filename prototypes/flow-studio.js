@@ -332,9 +332,25 @@
  function consoleText() {
   const flow=current(),run=flow.run;
   if(resultView==='logs')return visibleLogs().map(row=>`${row.time} ${row.level.toUpperCase()}${row.name?' ['+row.name+']':''} ${row.message}`).join('\n');
-  if(resultView==='outputs')return run?.status==='passed'?JSON.stringify(run.outputs,null,2):'';
+  if(resultView==='outputs')return run?.status==='passed'?FlowResultInspection.inspect(run.outputs,false,run.inspectionSecrets).json||'':'';
   return (flow.errors?.length?flow.errors.map(error=>`${error.step||'Flow'}: ${error.message}`):run?.rows.map(row=>`${row.name} · ${statuses[row.status]}${row.code?' · HTTP '+row.code:''} · ${row.elapsed} ms${row.error?' · '+row.error:''}`)||[]).join('\n');
  }
+ function inspectionMarkup(run,outputs){
+  const state=run.inspection??={scope:null,value:null},node=outputs?null:run.resultNodes?.[state.scope];
+  const entries=outputs?Object.entries(run.outputs||{}):Object.entries(node?.values||{});
+  const selected=state.value?.outputs===outputs?entries.find(([name])=>name===state.value.name):null;
+  const projected=selected?FlowResultInspection.inspect(selected[1],sensitiveResultName(selected[0]),run.inspectionSecrets):null;
+  const title=selected?selected[0]+' · '+projected.type+(projected.redacted.length?' · Redacted':''):node?node.name+' · '+statuses[node.status]+' · '+node.step:outputs?'Final outputs':'Steps';
+  const back=selected||node;
+  const heading='<div class="result-detail-heading"><button class="btn ghost small" data-result-back '+(!back?'disabled':'')+'>← Back</button><strong>'+esc(title)+'</strong>'+(node?'<button class="btn ghost small" data-error-step="'+esc(node.owner)+'">Locate</button>':'')+(selected?'<button class="btn ghost small" data-copy-result '+(!projected.json?'disabled':'')+'>Copy value</button>':'')+'</div>';
+  const note='<p class="result-detail-note">'+esc(selected?'Readonly JSON · Copy value includes only this sanitized value.':node?[node.detail,node.code?'HTTP '+node.code:'',node.elapsed!==undefined?node.elapsed+' ms':'','Checks '+node.checks.length+' · Extractions '+entries.length].filter(Boolean).join(' · '):outputs?'Declared final outputs · Preview fixtures only':'Select a step or loop to inspect its results · Preview fixtures only')+'</p>';
+  if(selected)return heading+note+'<pre tabindex="0" class="run-outputs">'+esc(projected.json??'Value unavailable: inspection size limit exceeded.')+'</pre>';
+  if(outputs&&run.status!=='passed')return heading+'<p class="result-detail-note">No final returns. Partial extractions remain in Steps.</p>';
+  const children=outputs?[]:node?node.children:(run.resultNodes||[]).map((n,i)=>n.parent===null?i:null).filter(i=>i!==null);
+  return heading+note+children.map(id=>{const n=run.resultNodes[id];return '<button class="run-row '+n.status+'" data-result-node="'+id+'"><span>'+esc(n.name)+'</span><span>'+esc(statuses[n.status]||n.status)+'</span><small>'+esc(n.detail||'')+'</small></button>';}).join('')+(node?.checks||[]).map((c,i)=>'<div class="run-row"><strong>Check '+(i+1)+'</strong><span>'+esc(c.success?'Passed':'Failed')+'</span><small>'+esc(c.detail)+'</small></div>').join('')+entries.map(([name,value])=>{const p=FlowResultInspection.inspect(value,sensitiveResultName(name),run.inspectionSecrets);return '<button class="run-row" data-result-value="'+esc(name)+'"><span>'+esc(name)+'</span><span>'+esc(p.type)+'</span><small>'+(p.redacted.length?'Inspect sanitized value · Redacted':'Inspect value')+'</small></button>';}).join('');
+ }
+ const sensitiveResultName=name=>/authorization|cookie|session|token|secret|password|credential|api.?key/i.test(name);
+ function resultBack(){const run=current().run;if(!run)return;const s=run.inspection??={scope:null,value:null};if(s.value)s.value=null;else s.scope=run.resultNodes[s.scope]?.parent??null;renderResults();$('flow-results-body').querySelector('[data-result-node],[data-result-value]')?.focus();}
  function renderResults(){
   const flow=current(),run=flow.run,body=$('flow-results-body'),scroll=body.scrollTop;
   const focused=document.activeElement?.dataset.consoleEvent;
@@ -352,13 +368,15 @@
   $('console-level-field').hidden=!logs;$('console-follow').hidden=!logs;$('clear-console').hidden=!logs;
   $('console-follow').setAttribute('aria-pressed',followLogs);
   $('clear-console').disabled=!consoleLogs().length;
-  $('copy-console').disabled=!consoleText();
-  $('copy-console').setAttribute('aria-label','Copy '+resultView);$('copy-console').title='Copy '+resultView;
+  $('copy-console').disabled=resultView==='steps'||!consoleText();
+  const copyLabel=resultView==='outputs'?'Copy all outputs':'Copy visible logs';$('copy-console').setAttribute('aria-label',copyLabel);$('copy-console').title=copyLabel;
   $('console-count').textContent=logs?`${logLevel==='all'?'':visibleLogs().length+' of '}${consoleLogs().length} events`:resultView==='steps'?`${run?.rows.length||0} completed request${run?.rows.length===1?'':'s'}`:'Flow outputs';
   const empty=(title,text)=>'<div class="results-empty">'+icon('terminal')+'<div><strong>'+esc(title)+'</strong>'+esc(text)+'</div></div>';
   if(logs){
    const rows=visibleLogs();
    body.innerHTML=rows.length?rows.map(row=>'<div class="console-row"><time datetime="'+row.time+'">'+logTime(row.time)+'</time><span class="console-level '+row.level+'">'+row.level.toUpperCase()+'</span><div class="console-message">'+(row.step?'<button class="console-step" data-error-step="'+esc(row.step)+'" data-console-event="'+row.id+'" title="Show step '+esc(row.name)+'">'+esc(row.name)+icon('arrow')+'</button>':'')+'<span>'+esc(row.message)+'</span></div></div>').join(''):empty(flow.logsCleared?'Logs cleared':consoleLogs().length?'No matching events':'Ready to follow your flow',flow.logsCleared?'New events will appear here. Step results and outputs are kept.':consoleLogs().length?'Choose another log level to see more events.':'Run preview to see requests, checks, and polling events. No network requests are sent.');
+  }else if(run?.resultNodes){
+   body.innerHTML=inspectionMarkup(run,resultView==='outputs');
   }else if(resultView==='outputs'){
    body.innerHTML=run?.status==='passed'?'<pre class="run-outputs">'+esc(JSON.stringify(run.outputs||{},null,2))+'</pre>':empty('No outputs yet',run?.status==='running'?'Outputs appear when the preview completes.':'Complete a successful preview to inspect flow outputs.');
   }else if(errors.length){
@@ -392,25 +410,29 @@
   if(commandLine)logEvent(flow,'command','› '+commandLine);
   if(!checkFlow(false))return;
   const snapshot=M.copy(flow.document.flow);let inputs;try{inputs=(flow.inputDrafts??=new FlowInputDrafts.Inputs(snapshot.inputs)).prepare(HTTP.environment().baseUrl);}catch(error){logEvent(flow,'error',error.message);inspectorTab='inputs';mobileInspect=true;renderInspector();renderView();renderResults();return;}
-  const run={status:'running',steps:{},rows:[],outputs:{},cancelled:false,started:Date.now()};flow.run=run;flow.errors=[];flow.logs=[];
+  const run={status:'running',steps:{},rows:[],resultNodes:[],inspectionSecrets:Object.entries(inputs).filter(([name])=>sensitiveResultName(name)).map(([,value])=>value),outputs:{},cancelled:false,started:Date.now()};flow.run=run;flow.errors=[];flow.logs=[];
   if(commandLine)logEvent(flow,'command','› '+commandLine);
   logEvent(flow,'info','Preview started · local fixtures only');selectConsoleView('logs');renderInspector();repaintRun(flow);
   const exports={};let executing=null;
   const wait=ms=>new Promise(resolve=>{const timer=setTimeout(resolve,ms);run.wake=()=>{clearTimeout(timer);resolve();};});
   const assertActive=()=>{if(run.cancelled)throw new Error('Preview cancelled');};
-  async function execute(step,iteration,ownerId=step.id){
+  async function execute(step,iteration,ownerId=step.id,parent=null){
+   const node={parent,step:step.id,owner:ownerId,name:step.name||step.id,status:'running',checks:[],values:{},children:[]},nodeId=run.resultNodes.push(node)-1;
+   if(parent!==null)run.resultNodes[parent].children.push(nodeId);
    assertActive();executing={step,ownerId};run.steps[step.id]={status:'running'};
    logEvent(flow,'info',step.kind==='repeat_until'?'Polling started':'Request started'+(iteration?' · attempt '+iteration:''),step,ownerId);repaintRun(flow);
-   if(step.when&&!M.condition(step.when,inputs,exports)){run.steps[step.id]={status:'skipped'};run.rows.push({step:ownerId,name:step.name,status:'skipped',elapsed:0,iteration});logEvent(flow,'warning','Skipped · run condition was false',step,ownerId);repaintRun(flow);return;}
+   if(step.when&&!M.condition(step.when,inputs,exports)){node.status='skipped';node.detail='Run condition was false';run.steps[step.id]={status:'skipped'};run.rows.push({step:ownerId,name:step.name,status:'skipped',elapsed:0,iteration});logEvent(flow,'warning','Skipped · run condition was false',step,ownerId);repaintRun(flow);return;}
    if(step.kind==='repeat_until'){
     const start=Date.now();let passed=false;
     for(let index=1;index<=step.max_iterations;index++){
-     for(const child of step.steps)await execute(child,index,ownerId);
+     const attempt={parent:nodeId,step:step.id,owner:ownerId,name:'Iteration '+index,status:'running',checks:[],values:{},children:[]},attemptId=run.resultNodes.push(attempt)-1;
+     node.children.push(attemptId);node.detail='Limit '+step.max_iterations+' · '+index+' executed';
+     try{for(const child of step.steps)await execute(child,index,ownerId,attemptId);attempt.status='passed';}catch(error){attempt.status=run.cancelled?'cancelled':'failed';node.status=attempt.status;throw error;}
      if(M.condition(step.until,inputs,exports)){passed=true;break;}
      if(Date.now()-start>=step.timeout_ms)throw new Error('Polling timed out');
      if(index<step.max_iterations){logEvent(flow,'info','Waiting before attempt '+(index+1),step,ownerId);repaintRun(flow);await wait(Math.min(step.interval_ms,1500));assertActive();}
     }
-    if(!passed)throw new Error('Polling reached its attempt limit');run.steps[step.id]={status:'passed'};logEvent(flow,'success','Polling condition passed',step,ownerId);repaintRun(flow);return;
+    if(!passed){node.status='failed';node.detail+=' · Iteration limit reached';throw new Error('Polling reached its attempt limit');}node.status='passed';node.detail+=' · Condition met';run.steps[step.id]={status:'passed'};logEvent(flow,'success','Polling condition passed',step,ownerId);repaintRun(flow);return;
    }
    const start=Date.now(),address=M.resolve(step.request.url,inputs,exports);if(!/^https?:\/\//.test(address))throw new Error('Invalid request URL');
    await wait(550);assertActive();
@@ -422,16 +444,17 @@
    const {code,data}=HTTPBingoDemo.response({url:address,method:step.request.method,headers,body,bodyFormat});
    logEvent(flow,'info',step.request.method+' · HTTP '+code+' · '+(Date.now()-start)+' ms',step,ownerId);
    try{
-    for(const check of step.checks){if(check.kind==='status'&&code!==check.equals)throw new Error('Expected status '+check.equals+', received '+code);if(check.kind==='jsonpath'&&JSON.stringify(M.extract(data,check.path))!==JSON.stringify(M.resolve(check.equals,inputs,exports)))throw new Error('Response check failed at '+check.path);}
-    const values={};for(const item of step.exports)values[item.name]=M.extract(data,item.path);exports[step.id]=values;
-   }catch(error){run.steps[step.id]={status:'failed'};run.rows.push({step:ownerId,name:step.name,status:'failed',code,error:error.message,elapsed:Date.now()-start,iteration});logEvent(flow,'error',error.message,step,ownerId);throw error;}
-   run.steps[step.id]={status:'passed'};run.rows.push({step:ownerId,name:step.name,status:'passed',code,elapsed:Date.now()-start,iteration});logEvent(flow,'success',step.checks.length+' check'+(step.checks.length===1?'':'s')+' passed · '+step.exports.length+' value'+(step.exports.length===1?'':'s')+' exported',step,ownerId);repaintRun(flow);
+    for(const check of step.checks){const success=check.kind==='status'?code===check.equals:JSON.stringify(M.extract(data,check.path))===JSON.stringify(M.resolve(check.equals,inputs,exports));node.checks.push({success,detail:check.kind==='status'?'HTTP status · Expected '+check.equals+' · Actual '+code:'JSON value equals expected value'});if(!success)throw new Error('Response check failed');}
+    const values={};for(const item of step.exports)values[item.name]=M.extract(data,item.path);exports[step.id]=values;node.values=values;
+   }catch(error){node.status='failed';node.code=code;node.detail='Response check or extraction failed';node.elapsed=Date.now()-start;run.steps[step.id]={status:'failed'};run.rows.push({step:ownerId,name:step.name,status:'failed',code,error:error.message,elapsed:Date.now()-start,iteration});logEvent(flow,'error',error.message,step,ownerId);throw error;}
+   node.status='passed';node.code=code;node.elapsed=Date.now()-start;run.steps[step.id]={status:'passed'};run.rows.push({step:ownerId,name:step.name,status:'passed',code,elapsed:Date.now()-start,iteration});logEvent(flow,'success',step.checks.length+' check'+(step.checks.length===1?'':'s')+' passed · '+step.exports.length+' value'+(step.exports.length===1?'':'s')+' exported',step,ownerId);repaintRun(flow);
   }
   try{
    for(const step of snapshot.steps)await execute(step);
    for(const item of snapshot.outputs)run.outputs[item.name]=M.resolve(item.value,inputs,exports);
    run.status='passed';logEvent(flow,'success','Preview completed · '+run.rows.length+' request'+(run.rows.length===1?'':'s'));
   }catch(error){run.status=run.cancelled?'cancelled':'failed';run.error=error.message;logEvent(flow,run.cancelled?'warning':'error',(run.cancelled?'':'Preview failed · ')+error.message,executing?.step,executing?.ownerId);run.outputs={};for(const value of Object.values(run.steps))if(value.status==='running')value.status=run.status;}
+  for(const n of run.resultNodes)if(n.status==='running')n.status=run.cancelled?'cancelled':'failed';
   run.elapsed=Date.now()-run.started;delete run.wake;repaintRun(flow);if(flow.id===activeFlow)renderInspector();
  }
  function downloadFlow(path){
@@ -536,6 +559,15 @@
   const step=M.fromRequest(pendingRequest,'pending-step'),id=pendingTarget||$('destination-flow').value;
   if(id==='__new')createFlow($('transfer-flow-name').value.trim());else activeFlow=id;
   step.id=M.nextStepId(current());addStep(step);setMode('flows');$('step-name')?.focus();
+ });
+ $('flow-results-body').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();resultBack();}});
+ $('flow-results-body').addEventListener('click',async event=>{
+  const run=current().run;if(!run)return;const s=run.inspection??={scope:null,value:null};
+  const node=event.target.closest('[data-result-node]'),value=event.target.closest('[data-result-value]');
+  if(node){s.scope=Number(node.dataset.resultNode);s.value=null;renderResults();$('flow-results-body').querySelector('[data-result-back]')?.focus();}
+  if(value){s.value={outputs:resultView==='outputs',name:value.dataset.resultValue};renderResults();$('flow-results-body').querySelector('pre')?.focus();}
+  if(event.target.closest('[data-result-back]'))resultBack();
+  if(event.target.closest('[data-copy-result]')){const values=s.value.outputs?run.outputs:run.resultNodes[s.scope].values;const p=FlowResultInspection.inspect(values[s.value.name],sensitiveResultName(s.value.name),run.inspectionSecrets);if(p.json){await navigator.clipboard.writeText(p.json);HTTP.toast('Selected value copied as sanitized JSON');}}
  });
  $('flow-results-body').addEventListener('click',event=>{const button=event.target.closest('[data-error-step]');if(button?.dataset.errorStep){const row=consoleLogs().find(row=>String(row.id)===button.dataset.consoleEvent);if(row?.checkSignature&&row.checkSignature!==checkSignature(current())){HTTP.toast('This diagnostic is stale. Check the current flow again.');return;}locateStep(button.dataset.errorStep);}});
  $('check-flow').addEventListener('click',()=>checkFlow());$('run-flow').addEventListener('click',runFlow);$('export-flow').addEventListener('click',exportFlow);

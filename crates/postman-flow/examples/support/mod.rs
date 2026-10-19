@@ -80,7 +80,7 @@ pub async fn run_live(
             } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
-            FlowEvent::OutputExported { step_id, name } => {
+            FlowEvent::OutputExported { step_id, name, .. } => {
                 tracing::info!(step_id = %step_id, export_name = %name, "↳ 提取并导出变量");
             }
             FlowEvent::CheckFinished {
@@ -88,6 +88,7 @@ pub async fn run_live(
                 check,
                 success,
                 message,
+                ..
             } => {
                 if *success {
                     tracing::info!(step_id = %step_id, check = %check, "↳ 断言检查通过 ✔");
