@@ -193,8 +193,8 @@ A bounded 64-event mailbox applies backpressure; foreground updates apply at mos
 checking FlowId/run ID. RunningTask sends cancellation to an interruptible stream/send loop and aborts
 on drop. Worker completion is acknowledged only after dropping the request/wait stream; terminal
 cleanup removes the task and resumes pending close decisions. Window/entity teardown aborts tasks.
-Run progress lives outside FlowDocument; Console holds a value-free projection. Raw errors, response
-bodies, runtime inputs and output values are never retained in that projection or copied logs.
+Run progress lives outside FlowDocument; Console holds a bounded, sanitized inspection projection. Raw errors, request/response dumps and
+runtime inputs never enter it; values stay out of copied logs.
 
 Canvas badges apply only to the captured document revision; old log/step navigation also checks it.
 A rerun creates new state and cannot inherit old outputs. Mode changes retain tasks. Cmd/Ctrl+Enter
@@ -204,4 +204,24 @@ Close/Quit first settles dirty-document decisions, then obtains stop consent sco
 including clean saved Flows. It stops tasks only after all required decisions and waits for worker
 acknowledgements. Cancel-close and failed/cancelled Save retain tasks and drafts; late document edits
 are reconsidered by the existing coordinator. Native control, controlled-transport and local HTTP
-regressions live in `flows::execution::tests`; full Steps/Outputs inspection remains P6-2.
+regressions live in `flows::execution::tests`, including detailed result inspection.
+
+### P6-2: bounded run inspection
+
+`execution::results::Results` owns a per-run tree. A row index is scoped by Flow + run ID; parent
+indices distinguish repeated/nested DSL IDs. Templates retain only document identity/counts/children.
+Engine events carry safe extraction `InspectionValue`s and categorical/numeric check details.
+`FlowValue::inspection()` adds safe final-return inspection without changing execution bindings or CLI
+report schema. Final returns commit only after worker cleanup; cancellation clears pending returns.
+
+Nodes are shared by `Arc` and copied only on mutation; lists are virtualized. Retention is append-only
+(first 2,000 observed rows), with total counts, per-node 128-check/value caps and a 2 MiB step-value budget.
+Final returns retain at most 128 values. Individual projections are bounded at 16 KiB formatted JSON,
+2,048 nodes/depth 32. Credential matching has a bounded budget and fails closed when exhausted.
+Projection/cached JSON preparation occurs outside render. Worker observation timestamps measure body
+and waits independently from UI mailbox processing. Cancelled partial intervals are labeled as observations.
+
+Each Console session retains drilldown, per-scope selection/scroll and separate readonly Steps/Outputs
+Kit editors. Streaming updates never focus them; explicit user navigation does. Escape returns to the
+parent and restores result-list focus. A new run replaces the inspector; closing drops it. No result
+state enters FlowDocument, serialization, persistent history or telemetry.

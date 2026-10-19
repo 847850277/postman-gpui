@@ -239,4 +239,22 @@ cross-platform CI release-build jobs. External HTTPBingo tests remain a separate
       retain work; Stop and close waits for cleanup. Repeat with mixed HTTP/Flow window close and Quit.
 - [ ] Copy filtered logs and inspect error/timeout paths for sensitive values. Clear keeps run results.
 - [ ] Verify canvas/library Cmd/Ctrl+Enter, Console run/stop, text fields/IME and modal key ownership.
-      Outputs currently shows only a count; detailed result inspection remains P6-2.
+      Inspect typed Outputs with the checklist below.
+
+## Native Flow result inspection (#241)
+
+- [ ] Open a saved local-service Flow, Run, enter Steps and inspect a failed check, HTTP status/timing,
+      extraction failure, skipped request and unexecuted child. Check diagnostics remain independent.
+- [ ] Drill into nested for_each/repeat_until invocations. Verify one-based indexes, zero iterations,
+      continue-after-failure, terminal reasons, polling interval/wait and cancellation during request/wait.
+- [ ] Successfully rerun and inspect/copy `null`, `false`, `0`, empty strings/containers and nested JSON.
+      Verify Copy value scope and Copy all outputs; failed/cancelled runs never expose final returns.
+- [ ] Use synthetic secrets in annotations, nested JSON, auth/cookies, URL and response echoes. Check
+      display/accessibility, JSON selection/copy and toolbar copy. Literal `[REDACTED]` is not marked redacted.
+- [ ] Exercise large values/iterations: scroll retained lists, see omission counts/size limits and cancel.
+      Switch Flows, views and themes without losing selection; Clear logs keeps results; rerun resets them.
+- [ ] Compare native and fixture-only HTML light/dark 1440×960; resize to 1920×1080, 1024×768, 768×720,
+      1024×600. Scroll/maximize Console; primary actions and command bar stay reachable. Test Up/Down,
+      Enter, Tab, Escape, readonly selection/copy and prior-revision Locate protection.
+- [ ] Repeat close/Quit/save failures; inspect YAML and HTTP history for absence of runtime results.
+      Record screenshots/comparison notes as PR text only. P7 installed-platform/IME acceptance is separate.

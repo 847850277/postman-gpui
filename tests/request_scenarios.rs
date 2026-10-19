@@ -879,7 +879,7 @@ fn redirect_policy_scenarios_define_follow_no_follow_and_limit_contracts() {
         ResponseSpec::Error { contains, .. }
             if contains == "Redirect limit exceeded after 2 hops."
     ));
-    assert_eq!(response_redirect_chain(&limited.expect.response).len(), 2);
+    assert_eq!(response_redirect_chain(&limited.expect.response).len(), 3);
     assert_eq!(limited.expect.history_len, 0);
 
     assert!(file

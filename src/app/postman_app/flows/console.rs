@@ -1,5 +1,6 @@
 //! A retained, session-only Console. Documents and execution remain owned elsewhere.
 mod model;
+mod results;
 mod runtime;
 #[cfg(test)]
 mod tests;
@@ -61,7 +62,17 @@ pub(super) enum ConsoleEvent {
 }
 actions!(
     flow_console,
-    [PreviousTab, NextTab, FirstTab, LastTab, ActivateTab]
+    [
+        PreviousTab,
+        NextTab,
+        FirstTab,
+        LastTab,
+        ActivateTab,
+        ResultBack,
+        ResultPrevious,
+        ResultNext,
+        ResultOpen
+    ]
 );
 
 pub(super) struct FlowConsole {
@@ -89,6 +100,11 @@ impl FlowConsole {
     }
     pub(super) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         cx.bind_keys([
+            KeyBinding::new("escape", ResultBack, Some("FlowResultInspector")),
+            KeyBinding::new("alt-left", ResultBack, Some("FlowResultInspector")),
+            KeyBinding::new("up", ResultPrevious, Some("FlowResultInspector")),
+            KeyBinding::new("down", ResultNext, Some("FlowResultInspector")),
+            KeyBinding::new("enter", ResultOpen, Some("FlowResultInspector")),
             KeyBinding::new("left", PreviousTab, Some("FlowConsoleTabs")),
             KeyBinding::new("right", NextTab, Some("FlowConsoleTabs")),
             KeyBinding::new("home", FirstTab, Some("FlowConsoleTabs")),
@@ -311,6 +327,7 @@ impl FlowConsole {
         cx.notify();
     }
     fn refresh_logs(&mut self, reset: bool) {
+        self.refresh_results();
         let next: Vec<_> = self
             .current()
             .map_or(Vec::new(), |s| s.visible().map(|entry| entry.id).collect());
@@ -345,6 +362,7 @@ impl FlowConsole {
         if let Some(session) = self.current_mut() {
             session.view = view;
         }
+        self.refresh_results();
         if self.mode == ConsoleMode::Collapsed {
             self.set_mode(ConsoleMode::Normal, cx);
         }
@@ -374,7 +392,12 @@ impl FlowConsole {
         let text = self.current().map_or(String::new(), Session::copy_text);
         if !text.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(text));
-            self.hint = "Visible logs copied.".into();
+            self.hint = if self.current().is_some_and(|s| s.view == View::Outputs) {
+                "All final outputs copied as sanitized JSON."
+            } else {
+                "Visible logs copied."
+            }
+            .into();
             cx.notify();
         }
     }

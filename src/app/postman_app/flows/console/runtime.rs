@@ -59,10 +59,8 @@ impl FlowConsole {
         cx: &mut Context<Self>,
     ) {
         let session = self.sessions.entry(flow).or_default();
+        session.inspector = Some(super::results::Inspector::new(window, cx));
         session.run = Some(run);
-        session
-            .step_scroll
-            .scroll_to_item(0, gpui::ScrollStrategy::Top);
         session.view = View::Logs;
         session.filter = None;
         session.follow = true;
@@ -97,6 +95,7 @@ impl FlowConsole {
             session.logs.back_mut().unwrap().run_revision = Some(run.revision);
         }
         session.run = Some(run);
+        self.refresh_results();
         if self.active == Some(flow) {
             self.refresh_logs(false);
         }

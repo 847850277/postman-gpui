@@ -1,5 +1,4 @@
-//! A bounded, value-free projection of real engine events. Raw failures and outputs never
-//! enter the UI/clipboard model: they may contain credentials not annotated by the document.
+//! Bounded projection of engine events. Only safe inspection values enter UI/copy state.
 use postman_flow::{FlowDocument, FlowEvent, LoopFinishReason, StepOutcome};
 use std::time::{Duration, Instant};
 
@@ -35,20 +34,7 @@ impl Status {
 #[derive(Clone)]
 pub(in super::super) struct Step {
     pub(in super::super) id: String,
-    pub(in super::super) name: String,
     pub(in super::super) status: Status,
-    pub(in super::super) detail: String,
-    response: Option<(u16, u128)>,
-}
-impl Step {
-    pub(in super::super) fn summary(&self) -> String {
-        if self.status == Status::Succeeded {
-            if let Some((status, elapsed)) = self.response {
-                return format!("HTTP {status} · {elapsed} ms");
-            }
-        }
-        self.detail.clone()
-    }
 }
 #[derive(Clone)]
 pub(in super::super) struct Run {
@@ -58,6 +44,7 @@ pub(in super::super) struct Run {
     pub(in super::super) steps: Vec<Step>,
     pub(in super::super) elapsed: Duration,
     pub(in super::super) output_count: usize,
+    pub(in super::super) results: super::results::Results,
     started: Instant,
     loops: Vec<String>,
 }
@@ -71,6 +58,7 @@ impl Run {
         Self {
             id,
             revision,
+            results: super::results::Results::new(document),
             status: Status::Running,
             elapsed: Duration::ZERO,
             started: Instant::now(),
@@ -82,10 +70,7 @@ impl Run {
                 .iter()
                 .map(|step| Step {
                     id: step.id.clone(),
-                    name: step.name.clone(),
                     status: Status::NotExecuted,
-                    detail: String::new(),
-                    response: None,
                 })
                 .collect(),
         }
@@ -114,6 +99,7 @@ impl Run {
         } else {
             status
         };
+        self.results.finish(self.status);
         for step in &mut self.steps {
             if step.status.active() {
                 step.status = if self.status == Status::Cancelled {
@@ -127,19 +113,9 @@ impl Run {
             self.output_count = 0;
         }
     }
-    pub(super) fn event(&mut self, event: FlowEvent) -> Option<Feedback> {
+    pub(super) fn event(&mut self, event: FlowEvent, observed: Instant) -> Option<Feedback> {
         self.tick();
-        if let FlowEvent::ResponseReceived {
-            step_id,
-            status,
-            elapsed_ms,
-        } = &event
-        {
-            let owner = self.loops.first().unwrap_or(step_id);
-            if let Some(step) = self.steps.iter_mut().find(|s| &s.id == owner) {
-                step.response = Some((*status, *elapsed_ms));
-            }
-        }
+        self.results.event(&event, observed);
         let (id, status, message, terminal_step) = match event {
             FlowEvent::FlowStarted { total_steps, .. } => {
                 return Some(Feedback {
@@ -294,7 +270,6 @@ impl Run {
             {
                 step.status = status;
             }
-            step.detail.clone_from(&message);
         }
         Some(Feedback {
             status,
@@ -304,11 +279,18 @@ impl Run {
     }
 }
 
-fn failure_summary(message: &str) -> &'static str {
+pub(super) fn failure_summary(message: &str) -> &'static str {
     if message.starts_with("HTTP request timed out") {
         "Request timed out."
     } else if message.starts_with("HTTP network error:") {
         "Network request failed. Check connectivity and the request URL."
+    } else if message.starts_with("output '") && message.ends_with("requires a JSON response body")
+    {
+        "Extraction failed: response body is not valid JSON."
+    } else if message.starts_with("output '") && message.contains("could not be exported:") {
+        "Extraction failed: JSON path could not be resolved."
+    } else if message.starts_with("failed to evaluate condition:") {
+        "Run condition could not be evaluated; no request sent."
     } else if message == "one or more response checks failed" {
         "Response checks failed."
     } else if message.starts_with("invalid HTTP request:") {
@@ -324,7 +306,7 @@ fn failure_summary(message: &str) -> &'static str {
     }
 }
 
-fn loop_reason(reason: LoopFinishReason) -> &'static str {
+pub(super) fn loop_reason(reason: LoopFinishReason) -> &'static str {
     match reason {
         LoopFinishReason::Completed => "Completed",
         LoopFinishReason::ConditionMet => "Condition met",

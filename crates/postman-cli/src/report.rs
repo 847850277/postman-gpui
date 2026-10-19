@@ -368,6 +368,7 @@ impl ReportBuilder {
                 check,
                 success,
                 message,
+                ..
             } => {
                 if let Some(request) = self.requests.get_mut(&step_id) {
                     request.assertions.push(AssertionReport {
@@ -377,7 +378,7 @@ impl ReportBuilder {
                     });
                 }
             }
-            FlowEvent::OutputExported { step_id, name } => {
+            FlowEvent::OutputExported { step_id, name, .. } => {
                 if let Some(active_index) = self.active_loop(&step_id) {
                     self.report.loops[self.active_loops[active_index].report_index]
                         .captures

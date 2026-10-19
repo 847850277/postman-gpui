@@ -51,6 +51,23 @@ fn shipped_examples_match_schema_before_and_after_canonical_serialization() {
 }
 
 #[test]
+fn schema_and_compiler_accept_an_unlimited_request_timeout() {
+    let mut value = minimal();
+    value["flow"]["steps"][0]["request"]["options"] = json!({"timeout_ms": 0});
+    let document = parse_flow_yaml(&value.to_string()).unwrap();
+    compile_flow(
+        &document.flow,
+        &document.apis,
+        &CompileEnvironment::default(),
+    )
+    .unwrap();
+    assert!(
+        validator().is_valid(&value),
+        "schema must accept the runtime's explicit unlimited timeout"
+    );
+}
+
+#[test]
 fn schema_and_parser_reject_malformed_document_shapes() {
     let validator = validator();
     for mutate in [

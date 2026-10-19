@@ -240,8 +240,8 @@ unique prefix; Escape clears input. Each flow normally keeps up to 500 log entri
 for the session; a complete Check report can exceed the log limit so no diagnostics are lost.
 Clearing logs keeps command history and document edits. Commands never invoke a system shell.
 `check` validates the current document and pending edits without sending requests. `run` starts real
-execution; `stop` cancels it. Steps shows basic status and timing; Outputs shows the final output
-count. Detailed assertion, extraction and output-value inspection is deferred to P6-2.
+execution; `stop` cancels it. Steps opens request checks, safe extractions and nested loop iterations.
+Outputs shows typed final returns with explicitly scoped JSON copy.
 
 Step details include **Move step up**, **Move step down**, and **Remove step** across all
 three tabs. Moves change execution order and keep the selected step, its ID, exact unfinished
@@ -307,7 +307,7 @@ Canvas/Console show step progress, response status/timing, check outcomes, loop 
 status. Check results remain separate from execution results. Logs are bounded; Clear keeps results and
 command history. Runtime feedback intentionally omits raw inputs, headers, bodies, output values and
 potentially sensitive error payloads. Safe error categories still distinguish timeouts, network failures
-and checks. Outputs currently reports only a count; full inspection is planned for P6-2.
+and checks. Steps and Outputs provide the detailed inspection described below.
 
 Closing a running Flow, including a clean saved file, requires **Stop and close** after any necessary
 Save/Discard decisions. Cancel keeps it open and running; failed/cancelled saves keep it open. Confirmed
@@ -478,7 +478,7 @@ a normal workspace test run alone does not establish that these suites ran.
 
 - Response bodies use a buffered text model. A byte-native response viewer, atomic response
   save-as, and incremental streaming-response progress are not yet implemented.
-- Native Flows support real Run/Cancel and basic runtime feedback. Detailed result inspection remains P6-2.
+- Native Flows support real Run/Cancel, detailed Steps/Outputs and nested iteration inspection.
 - Request saving is explicit; unsaved drafts are not recovered after a crash or force quit.
 - Native cURL import supports the documented inline subset; file-based and multipart commands
   are export-only.
@@ -500,3 +500,33 @@ persistence. Cancelled requests and transport failures are not recorded.
 ## License
 
 [MIT](../LICENSE)
+
+### Inspect Steps, iterations and Outputs
+
+Select **Steps**, then a request or loop. The breadcrumb identifies its invocation; a loop opens
+one-based iterations and their child steps. Failed attempts remain failed even when `on_error: continue`
+lets their parent succeed. The summary includes HTTP status/timing, limits, executed counts, terminal
+reason, configured polling interval and observed wait. Observed body/wait times are measured at the
+engine event consumer, not inferred from the UI refresh rate or server response duration.
+
+Checks show their actual pass/fail result and safe kind; status and redirect checks include numeric
+expected/actual values when a response exists. Other comparisons keep unsafe payloads/path/header
+text out of the inspector. Failed/skipped/unexecuted requests do not invent checks or extractions.
+Select a check to read its full description in the detail heading. **Locate** selects the owning
+editable step; nested readonly results navigate to their top-level owner. Old-revision navigation is disabled.
+
+Select an extraction or final output to open a native readonly JSON editor. **Copy value** copies only
+that sanitized value; the Outputs toolbar copies the complete output object when all values are
+available. JSON preserves `null`, `false`, `0`, empty strings and containers. Explicit **Redacted**
+metadata distinguishes masking from a literal `[REDACTED]` string. A wholly sensitive value hides its
+shape. Known credentials and echoes are masked even without an explicit annotation; there is no reveal action.
+
+**Back** or Escape returns to the parent. Use Up/Down and Enter on the result list, Tab for controls,
+and normal editor selection/copy in JSON. Scroll the independent list or maximize Console for more space.
+Selection, list position and JSON editor state survive tab/mode/theme changes; rerunning resets them.
+Clear only removes logs. Failed/cancelled runs retain partial step evidence and never publish final returns.
+
+Inspection keeps at most 2,000 rows, 128 checks/extractions per invocation and 128 final outputs.
+Safe values are limited to 16 KiB of formatted JSON, 2,048 nodes and depth 32; step values share a
+2 MiB budget. Omitted rows/values and unavailable values are labeled; complete-output copy is disabled
+when incomplete. Results are session-only: never saved/exported to YAML, HTTP history or telemetry.

@@ -1,0 +1,26 @@
+schema_version: 1
+flow:
+  name: nested results
+  steps:
+    - id: outer
+      kind: for_each
+      items: {literal: [true, false, true]}
+      as: enabled
+      on_error: continue
+      steps:
+        - id: inner
+          kind: for_each
+          when: {eq: [{input: enabled}, {literal: true}]}
+          items: {literal: [1, 2]}
+          as: item
+          on_error: continue
+          steps:
+            - id: fetch
+              request: {kind: http, method: GET, url: {literal: 'https://example.test'}}
+              checks: [{kind: status, equals: 200}]
+              exports: [{name: value, path: $.value}]
+          exports: [{name: values, collect: {step: fetch, name: value}}]
+      exports: [{name: batches, collect: {step: inner, name: values}}]
+  outputs:
+    - name: batches
+      value: {output: {step: outer, name: batches}}

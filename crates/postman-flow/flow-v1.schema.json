@@ -286,7 +286,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Request timeout in milliseconds. Zero disables the request timeout; an enclosing loop deadline still applies."
+        },
         "redirect_policy": { "enum": ["follow", "do_not_follow"] },
         "max_redirect_hops": { "type": "integer", "minimum": 0 }
       }

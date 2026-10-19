@@ -388,6 +388,10 @@ ms, and polling timeouts to 1–86,400,000 ms. Dropping the execution stream can
 request and prevents later iterations. Use polling only for idempotent reads such as receipt/status
 queries; the runtime never implicitly retries approval, signing, or transaction broadcast.
 
+A request's `options.timeout_ms: 0` disables its own timeout. Inside a loop, the remaining loop
+budget still caps that request, including requests in nested loops. A positive request timeout
+uses the smaller of that timeout and the remaining loop budget.
+
 ## Assertions and Outputs
 
 ```yaml
@@ -470,3 +474,17 @@ cargo fmt -p postman-flow -- --check
 
 All unit tests run offline. Running `run_yaml` against HTTPBingo sends real requests; use `--check`
 for offline validation.
+
+### Safe interactive inspection
+
+`OutputExported` now includes the actual extraction as a bounded `InspectionValue`; `FlowValue::inspection()`
+provides the corresponding final-return projection. Raw `value()` and sensitivity propagation retain their
+execution/CLI meaning. `CheckFinished.inspection` is safe categorical/numeric detail, independent of CLI
+assertion text. Consumers must not reconstruct extraction values or reevaluate assertions from templates.
+
+Inspection preserves JSON types and explicit redacted JSON pointers (empty pointer means whole-value
+redaction). No value means size/depth/node limit, not JSON null. It removes annotated secrets, sensitive
+field names and known credential echoes from input/request/response bindings, including encoded strings.
+Credential-budget exhaustion redacts whole values. It does not provide raw request/response inspection.
+Formatted JSON is prepared once; consumers additionally bound per-run retention. UI inspection is transient
+and must not be persisted with the Flow document. Existing CLI report schema remains version 1.

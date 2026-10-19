@@ -82,8 +82,8 @@ async fn finish(receiver: &mut mpsc::Receiver<Message>, run: &mut Run) -> Vec<St
             .unwrap()
             .unwrap();
         match message {
-            Message::Event(event) => {
-                if let Some(event) = run.event(event) {
+            Message::Event(event, observed) => {
+                if let Some(event) = run.event(event, observed) {
                     text.push(event.message);
                 }
             }
@@ -124,6 +124,9 @@ async fn cancellation_drops_the_active_request_before_ack_and_prevents_later_ste
     assert_eq!(dropped.load(Ordering::SeqCst), 1);
     assert_eq!(run.steps[0].status, Status::Cancelled);
     assert_eq!(run.steps[1].status, Status::NotExecuted);
+    assert_eq!(run.results.nodes[0].status, Status::Cancelled);
+    assert_eq!(run.results.nodes[1].status, Status::NotExecuted);
+    assert!(run.results.outputs_json().is_none());
 }
 
 #[tokio::test]
@@ -385,9 +388,9 @@ async fn cancel_polling_wait_and_report_iteration_limit_truthfully() {
                     .await
                     .unwrap()
                     .unwrap();
-                if let Message::Event(event) = message {
+                if let Message::Event(event, observed) = message {
                     let waiting = matches!(event, FlowEvent::LoopWaiting { .. });
-                    run.event(event);
+                    run.event(event, observed);
                     if waiting {
                         break;
                     }
@@ -410,8 +413,14 @@ async fn cancel_polling_wait_and_report_iteration_limit_truthfully() {
             count.load(Ordering::SeqCst),
             if cancelled_run { 1 } else { 2 }
         );
-        if !cancelled_run {
+        assert!(run.results.outputs_json().is_none());
+        assert_eq!(run.results.nodes[0].status, run.status);
+        if cancelled_run {
+            assert_eq!(run.results.nodes[0].executed, Some(1));
+            assert!(run.results.nodes[0].detail.contains("Cancelled"));
+        } else {
             assert!(logs.contains("Iteration limit reached"), "{logs}");
+            assert_eq!(run.results.nodes[0].executed, Some(2));
         }
     }
 }
@@ -898,3 +907,5 @@ fn invalid_runtime_json_is_not_a_stale_default_and_does_not_fail_document_check(
     assert!(!text.contains("secret-invalid"));
     request.assert();
 }
+
+mod results;

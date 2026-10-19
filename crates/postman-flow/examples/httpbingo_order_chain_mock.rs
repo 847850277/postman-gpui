@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
-            FlowEvent::OutputExported { step_id, name } => {
+            FlowEvent::OutputExported { step_id, name, .. } => {
                 tracing::info!(step_id = %step_id, export_name = %name, "↳ 提取并导出变量");
             }
             FlowEvent::CheckFinished {
@@ -59,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 check,
                 success,
                 message,
+                ..
             } => {
                 if *success {
                     tracing::info!(step_id = %step_id, check = %check, "↳ 断言检查通过 ✔");

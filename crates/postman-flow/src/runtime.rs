@@ -827,6 +827,10 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         };
 
+        self.context.inspection.url(&request.url);
+        self.context.inspection.headers(&request.headers);
+        self.context.inspection.body(&request.body);
+
         tracing::info!(
             step_id = %step_id,
             method = %request.method,
@@ -873,6 +877,7 @@ impl<T: HttpTransport> RunMachine<T> {
             options.timeout_ms = Some(
                 options
                     .timeout_ms
+                    .filter(|configured| *configured > 0)
                     .map(|configured| configured.min(remaining_ms))
                     .unwrap_or(remaining_ms),
             );
@@ -880,6 +885,10 @@ impl<T: HttpTransport> RunMachine<T> {
 
         let response = match self.transport.execute(request, options).await {
             Ok(response) => {
+                self.context.inspection.headers(&response.headers);
+                if let Ok(body) = serde_json::from_str::<Value>(&response.body) {
+                    self.context.inspection.discover(&body);
+                }
                 tracing::info!(
                     step_id = %step_id,
                     status = response.status,
@@ -915,6 +924,7 @@ impl<T: HttpTransport> RunMachine<T> {
                         self.pending.push_back(FlowEvent::CheckFinished {
                             step_id: step_id.clone(),
                             check: result.description,
+                            inspection: inspect_check(check, None),
                             success: result.success,
                             message: result.message.map(|message| self.context.redact(&message)),
                         });
@@ -960,6 +970,7 @@ impl<T: HttpTransport> RunMachine<T> {
             self.pending.push_back(FlowEvent::CheckFinished {
                 step_id: step_id.clone(),
                 check: result.description,
+                inspection: inspect_check(check, Some(&response)),
                 success: result.success,
                 message: result.message.map(|message| self.context.redact(&message)),
             });
@@ -981,6 +992,13 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         }
 
+        // Register all sensitive siblings before projecting any extraction.
+        for (export, value) in &staged_outputs {
+            if export.sensitive || crate::inspection::sensitive_name(&export.name) {
+                self.context.inspection.remember(value);
+            }
+            self.context.inspection.discover(value);
+        }
         for (export, value) in staged_outputs {
             self.context.outputs.insert(
                 (step_id.clone(), export.name.clone()),
@@ -992,6 +1010,11 @@ impl<T: HttpTransport> RunMachine<T> {
             self.pending.push_back(FlowEvent::OutputExported {
                 step_id: step_id.clone(),
                 name: export.name.clone(),
+                value: self.context.inspect_value(
+                    &export.name,
+                    &self.context.outputs[&(step_id.clone(), export.name.clone())].value,
+                    export.sensitive,
+                ),
             });
         }
 
@@ -1055,6 +1078,11 @@ impl<T: HttpTransport> RunMachine<T> {
             self.pending.push_back(FlowEvent::OutputExported {
                 step_id: state.step_id.clone(),
                 name: collection.name.clone(),
+                value: self.context.inspect_value(
+                    &collection.name,
+                    &self.context.outputs[&(state.step_id.clone(), collection.name.clone())].value,
+                    sensitive,
+                ),
             });
         }
         self.last_result = true;
@@ -1221,6 +1249,40 @@ struct CheckResult {
     description: String,
     success: bool,
     message: Option<String>,
+}
+
+fn inspect_check(check: &CompiledCheck, response: Option<&HttpResponse>) -> String {
+    match check {
+        CompiledCheck::Status(expected) => response.map_or_else(
+            || format!("HTTP status · Expected {expected} · Response unavailable"),
+            |r| format!("HTTP status · Expected {expected} · Actual {}", r.status),
+        ),
+        CompiledCheck::Redirects(expected) => response.map_or_else(
+            || format!("Redirect count · Expected {expected} · Response unavailable"),
+            |r| {
+                format!(
+                    "Redirect count · Expected {expected} · Actual {}",
+                    r.redirect_chain
+                        .iter()
+                        .filter(|h| (300..400).contains(&h.status) && h.location.is_some())
+                        .count()
+                )
+            },
+        ),
+        CompiledCheck::HeaderExists { .. } => "Header exists".into(),
+        CompiledCheck::HeaderContains { .. } => "Header contains expected value".into(),
+        CompiledCheck::BodyContains { .. } => "Body contains expected value".into(),
+        CompiledCheck::JsonValue { .. } => "JSON value equals expected value".into(),
+        CompiledCheck::Error(expected) => format!(
+            "Transport error · Expected {}{}",
+            expected_error_name(*expected),
+            if response.is_some() {
+                " · Received HTTP response"
+            } else {
+                ""
+            }
+        ),
+    }
 }
 
 fn evaluate_check(
@@ -1422,11 +1484,28 @@ struct BoundValue {
 
 #[derive(Debug, Clone)]
 struct RunContext {
+    inspection: crate::inspection::Redactor,
     inputs: BTreeMap<String, BoundValue>,
     outputs: BTreeMap<(String, String), BoundValue>,
 }
 
 impl RunContext {
+    fn inspect_value(&self, name: &str, value: &Value, sensitive: bool) -> crate::InspectionValue {
+        let mut redactor = self.inspection.clone();
+        for (name, bound) in &self.inputs {
+            if bound.sensitive || crate::inspection::sensitive_name(name) {
+                redactor.remember(&bound.value);
+            }
+            redactor.discover(&bound.value);
+        }
+        for ((_, name), bound) in &self.outputs {
+            if bound.sensitive || crate::inspection::sensitive_name(name) {
+                redactor.remember(&bound.value);
+            }
+            redactor.discover(&bound.value);
+        }
+        redactor.inspect(name, value, sensitive)
+    }
     fn json_sensitive(&self, template: &JsonTemplate) -> bool {
         match template {
             JsonTemplate::Literal(_) => false,
@@ -1512,6 +1591,7 @@ impl RunContext {
                 Ok((
                     output.name.clone(),
                     FlowValue {
+                        inspection: self.inspect_value(&output.name, &value.value, value.sensitive),
                         value: value.value,
                         sensitive: value.sensitive,
                     },
@@ -1795,6 +1875,7 @@ fn bind_inputs(plan: &FlowPlan, provided: &FlowInputs) -> Result<RunContext, Flo
     }
 
     Ok(RunContext {
+        inspection: Default::default(),
         inputs,
         outputs: BTreeMap::new(),
     })
@@ -2071,6 +2152,7 @@ mod tests {
             },
         );
         let context = RunContext {
+            inspection: Default::default(),
             inputs,
             outputs: BTreeMap::new(),
         };
@@ -2105,6 +2187,7 @@ mod tests {
             },
         );
         let context = RunContext {
+            inspection: Default::default(),
             inputs,
             outputs: BTreeMap::new(),
         };
@@ -2121,6 +2204,7 @@ mod tests {
     #[test]
     fn test_redact_header() {
         let context = RunContext {
+            inspection: Default::default(),
             inputs: BTreeMap::new(),
             outputs: BTreeMap::new(),
         };

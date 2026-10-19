@@ -108,7 +108,9 @@ async fn send_following_redirects(
             )));
         }
 
-        if redirect_chain.len() >= max_hops as usize {
+        // The current redirect response is recorded before following its Location.
+        // Only preceding entries represent redirects that have already been followed.
+        if redirect_chain.len() > max_hops as usize {
             return Err(HttpError::RedirectLimitExceeded {
                 max_hops,
                 chain: redirect_chain,
@@ -237,6 +239,66 @@ mod tests {
                 Request::new(HttpMethod::GET, url),
                 RequestOptions::default(),
             ))
+    }
+
+    #[tokio::test]
+    async fn redirect_hop_limit_allows_exactly_the_configured_number_of_follows() {
+        for max_hops in [1, 2, 3] {
+            for extra_hop in [false, true] {
+                let mut server = mockito::Server::new_async().await;
+                let mut redirects = Vec::new();
+                for hop in 0..max_hops + u32::from(extra_hop) {
+                    redirects.push(
+                        server
+                            .mock("GET", format!("/hop/{hop}").as_str())
+                            .with_status(302)
+                            .with_header("location", &format!("/hop/{}", hop + 1))
+                            .create_async()
+                            .await,
+                    );
+                }
+                let terminal = server
+                    .mock("GET", format!("/hop/{}", redirects.len()).as_str())
+                    .with_status(200)
+                    .expect(usize::from(!extra_hop))
+                    .create_async()
+                    .await;
+                let client = RequestClient::try_new("redirect-limit-test").unwrap();
+                let result = client
+                    .execute(
+                        Request::new(HttpMethod::GET, format!("{}/hop/0", server.url())),
+                        RequestOptions {
+                            max_redirect_hops: max_hops,
+                            ..RequestOptions::default()
+                        },
+                    )
+                    .await;
+                if extra_hop {
+                    let Err(HttpError::RedirectLimitExceeded {
+                        max_hops: limit,
+                        chain,
+                    }) = result
+                    else {
+                        panic!("expected redirect limit {max_hops}, got {result:?}");
+                    };
+                    assert_eq!(limit, max_hops);
+                    assert_eq!(chain.len(), max_hops as usize + 1);
+                    assert_eq!(
+                        chain.last().unwrap().url,
+                        format!("{}/hop/{max_hops}", server.url())
+                    );
+                } else {
+                    let response = result.unwrap();
+                    assert_eq!(response.status, 200);
+                    assert_eq!(response.redirect_chain.len(), max_hops as usize + 1);
+                    assert_eq!(response.redirect_chain.last().unwrap().status, 200);
+                }
+                for redirect in redirects {
+                    redirect.assert_async().await;
+                }
+                terminal.assert_async().await;
+            }
+        }
     }
 
     #[test]

@@ -114,6 +114,11 @@
               "status": 302,
               "url": "/absolute-redirect/2",
               "location": "https://httpbingo.org/absolute-redirect/1"
+            },
+            {
+              "status": 302,
+              "url": "/absolute-redirect/1",
+              "location": "https://httpbingo.org/get"
             }
           ]
         },

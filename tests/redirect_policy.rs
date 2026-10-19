@@ -41,6 +41,7 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
         .create();
     let absolute_two_url = format!("{}/absolute-redirect/2", server.url());
     let absolute_one_url = format!("{}/absolute-redirect/1", server.url());
+    let absolute_terminal_url = format!("{}/get", server.url());
     let absolute_three = server
         .mock("GET", "/absolute-redirect/3")
         .with_status(302)
@@ -50,6 +51,11 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
         .mock("GET", "/absolute-redirect/2")
         .with_status(302)
         .with_header("location", &absolute_one_url)
+        .create();
+    let absolute_one = server
+        .mock("GET", "/absolute-redirect/1")
+        .with_status(302)
+        .with_header("location", &absolute_terminal_url)
         .create();
 
     let workspace = test_cx.new(|_| WorkspaceViewModel::new());
@@ -225,6 +231,11 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
                 format!("{}/absolute-redirect/2", server.url()),
                 Some(&absolute_one_url),
             ),
+            RedirectHop::new(
+                302,
+                format!("{}/absolute-redirect/1", server.url()),
+                Some(&absolute_terminal_url),
+            ),
         ]
     );
     assert_eq!(
@@ -236,7 +247,7 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
         "response-transport-error",
         "redirect-chain",
         "redirect-chain-partial",
-        "redirect-hop-1",
+        "redirect-hop-2",
     ] {
         assert!(
             cx.debug_bounds(selector).is_some(),
@@ -251,4 +262,5 @@ fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     no_follow.assert();
     absolute_three.assert();
     absolute_two.assert();
+    absolute_one.assert();
 }
