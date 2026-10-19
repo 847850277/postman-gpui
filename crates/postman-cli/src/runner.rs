@@ -48,7 +48,15 @@ where
         file: &HttpFile,
         overrides: &BTreeMap<String, String>,
     ) -> Result<RunReport, String> {
-        let plan = compile_http_file(file)?;
+        let mut effective_file = file.clone();
+        for name in overrides.keys() {
+            if let Some(default) = effective_file.variables.get_mut(name) {
+                // Keep the input declaration, but do not inline its replaced template.
+                // Overrides are literal runtime values, even if they contain `{{...}}`.
+                default.clear();
+            }
+        }
+        let plan = compile_http_file(&effective_file)?;
         let mut merged = file.variables.clone();
         merged.extend(overrides.clone());
         let mut inputs = FlowInputs::new();
@@ -291,6 +299,73 @@ Authorization: Bearer {{secret}}
 
         assert!(report.success, "{report:#?}");
         assert_eq!(transport.requests()[0].url, "https://other.test/anything");
+    }
+
+    #[tokio::test]
+    async fn overrides_replace_nested_file_variables_everywhere_they_are_referenced() {
+        let file = parse_http_file(
+            "@base = https://example.com\n@url = {{base}}/original\n@alias = {{url}}/child\n# @assert body contains {{url}}\nPOST {{alias}}\nX-Target: {{url}}\nContent-Type: application/json\n\n{\"url\":\"{{url}}\"}\n",
+        ).unwrap();
+        let original = file.clone();
+        let replacement = "https://other.test/replacement";
+        let transport =
+            FakeTransport::new([Ok(HttpResponse::new(200, vec![], replacement.into()))]);
+        let overrides = BTreeMap::from([("url".into(), replacement.into())]);
+        let report = HeadlessRunner::new(transport.clone())
+            .run(&file, &overrides)
+            .await
+            .unwrap();
+
+        assert!(report.success, "{report:#?}");
+        let requests = transport.requests();
+        assert_eq!(requests[0].url, format!("{replacement}/child"));
+        assert!(requests[0]
+            .headers
+            .contains(&("X-Target".into(), replacement.into())));
+        assert_eq!(
+            requests[0].body,
+            RequestBody::Json(format!("{{\"url\":\"{replacement}\"}}"))
+        );
+        assert_eq!(
+            file, original,
+            "run overrides must not modify the source file"
+        );
+    }
+
+    #[tokio::test]
+    async fn overriding_a_cyclic_file_variable_removes_its_unused_definition() {
+        let file = parse_http_file("@url = {{url}}\nGET {{url}}\n").unwrap();
+        let transport = FakeTransport::new([Ok(HttpResponse::new(200, vec![], String::new()))]);
+        let report = HeadlessRunner::new(transport.clone())
+            .run(
+                &file,
+                &BTreeMap::from([("url".into(), "https://example.test/".into())]),
+            )
+            .await
+            .unwrap();
+        assert!(report.success);
+        assert_eq!(transport.requests()[0].url, "https://example.test/");
+    }
+
+    #[tokio::test]
+    async fn override_values_remain_literal_even_when_they_contain_template_syntax() {
+        let file = parse_http_file(
+            "@base = default\n@nested = {{base}}\nGET https://example.test/\nX-Value: {{nested}}\n",
+        )
+        .unwrap();
+        let transport = FakeTransport::new([Ok(HttpResponse::new(200, vec![], String::new()))]);
+        let report = HeadlessRunner::new(transport.clone())
+            .run(
+                &file,
+                &BTreeMap::from([("nested".into(), "literal {{nested}}".into())]),
+            )
+            .await
+            .unwrap();
+        assert!(report.success);
+        assert_eq!(
+            transport.requests()[0].headers,
+            [("X-Value".into(), "literal {{nested}}".into())]
+        );
     }
 
     #[tokio::test]

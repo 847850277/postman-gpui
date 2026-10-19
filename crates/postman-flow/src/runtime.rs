@@ -877,6 +877,7 @@ impl<T: HttpTransport> RunMachine<T> {
             options.timeout_ms = Some(
                 options
                     .timeout_ms
+                    .filter(|configured| *configured > 0)
                     .map(|configured| configured.min(remaining_ms))
                     .unwrap_or(remaining_ms),
             );

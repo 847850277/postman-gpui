@@ -388,6 +388,10 @@ ms, and polling timeouts to 1–86,400,000 ms. Dropping the execution stream can
 request and prevents later iterations. Use polling only for idempotent reads such as receipt/status
 queries; the runtime never implicitly retries approval, signing, or transaction broadcast.
 
+A request's `options.timeout_ms: 0` disables its own timeout. Inside a loop, the remaining loop
+budget still caps that request, including requests in nested loops. A positive request timeout
+uses the smaller of that timeout and the remaining loop budget.
+
 ## Assertions and Outputs
 
 ```yaml

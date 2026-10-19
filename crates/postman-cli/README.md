@@ -42,6 +42,11 @@ files. A failure stops the remaining requests in that file while independent fil
 appear in the suite report. Extra bindings that a file did not declare are ignored, so a mixed
 directory can share one `--var host=...`.
 
+For `.http` files, overrides replace file variable definitions before nested references are
+expanded. For example, with `@url = {{host}}/original`, `--var url=https://example.test/new`
+replaces the entire URL in requests and assertions, including references through another file
+variable. Override values are literal strings; `{{...}}` inside an override is not interpolated.
+
 `--check` parses and compiles without creating a transport or sending requests. Add `--json` for a
 versioned machine-readable suite report, `--timeout-ms N` for a default request deadline,
 `--no-follow-redirects` to return the first redirect response, or `-v`/`--verbose` for Flow debug

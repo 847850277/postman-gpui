@@ -507,6 +507,148 @@ async fn repeat_until_reports_iteration_limit_and_timeout() {
 }
 
 #[tokio::test]
+async fn loop_deadline_bounds_unlimited_and_finite_request_timeouts() {
+    use postman_http::request::RequestOptions;
+
+    for (step_timeout, default_timeout, upper_bound) in [
+        (Some(0), Some(10), 1000),
+        (None, Some(0), 1000),
+        (None, None, 1000),
+        (Some(5), Some(0), 5),
+        (Some(5000), None, 1000),
+    ] {
+        let source = match step_timeout {
+            Some(timeout) => POLL_FLOW.replace(
+                "kind: http",
+                &format!("kind: http\n            options: {{ timeout_ms: {timeout} }}"),
+            ),
+            None => POLL_FLOW.to_owned(),
+        };
+        let transport = FakeTransport::new([response(json!({"status": "success"}))]);
+        let environment =
+            FlowSessionEnvironment::new(FlowInputs::new().with("transaction_id", "0xabc"))
+                .with_request_options(RequestOptions {
+                    timeout_ms: default_timeout,
+                    ..RequestOptions::default()
+                });
+        let events: Vec<_> = execute_flow(compile(&source), transport.clone(), environment)
+            .unwrap()
+            .collect()
+            .await;
+        assert!(matches!(
+            events.last(),
+            Some(Ok(FlowEvent::FlowFinished { success: true, .. }))
+        ));
+        let timeout = transport.requests()[0].1.timeout_ms.unwrap();
+        assert!(
+            (1..=upper_bound).contains(&timeout),
+            "step={step_timeout:?}, default={default_timeout:?}: got {timeout}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn unlimited_request_to_a_stalled_server_still_obeys_the_loop_deadline() {
+    use futures::{
+        future::{select, Either},
+        FutureExt,
+    };
+    use std::{
+        io::Read,
+        net::TcpListener,
+        sync::mpsc,
+        time::{Duration, Instant},
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let (shutdown, stopped) = mpsc::channel::<()>();
+    let server = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut socket = loop {
+            match listener.accept() {
+                Ok((socket, _)) => break socket,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    assert!(Instant::now() < deadline, "no request reached the server");
+                    std::thread::sleep(Duration::from_millis(2));
+                }
+                Err(error) => panic!("accept failed: {error}"),
+            }
+        };
+        socket.set_nonblocking(false).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let received = socket.read(&mut [0; 4096]).unwrap();
+        assert!(received > 0);
+        // Keep the connection open without sending a response until the test finishes.
+        let _ = stopped.recv_timeout(Duration::from_secs(3));
+    });
+    let source = POLL_FLOW
+        .replace("timeout_ms: 1000", "timeout_ms: 100")
+        .replace("https://example.test", &format!("http://{address}"))
+        .replace(
+            "kind: http",
+            "kind: http\n            options: { timeout_ms: 0 }",
+        );
+    let stream = execute_flow(
+        compile(&source),
+        postman_request::RequestClient::try_new("loop-timeout-test").unwrap(),
+        FlowSessionEnvironment::new(FlowInputs::new().with("transaction_id", "0xabc")),
+    )
+    .unwrap();
+    let result = select(
+        stream.collect::<Vec<_>>().boxed(),
+        futures_timer::Delay::new(Duration::from_secs(1)).boxed(),
+    )
+    .await;
+    drop(shutdown);
+    server.join().unwrap();
+    let Either::Left((events, _)) = result else {
+        panic!("unlimited request bypassed the 100 ms loop deadline");
+    };
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            Ok(FlowEvent::LoopFinished {
+                success: false,
+                reason: LoopFinishReason::Timeout,
+                ..
+            })
+        )),
+        "{events:?}"
+    );
+    assert!(matches!(
+        events.last(),
+        Some(Ok(FlowEvent::FlowFinished { success: false, .. }))
+    ));
+}
+
+#[tokio::test]
+async fn standalone_request_keeps_an_explicit_unlimited_timeout() {
+    let source = r#"
+schema_version: 1
+flow:
+  name: unlimited standalone request
+  steps:
+    - id: fetch
+      request:
+        kind: http
+        method: GET
+        url: { literal: "https://example.test/" }
+        options: { timeout_ms: 0 }
+"#;
+    let transport = FakeTransport::new([response(json!({}))]);
+    let events = run(compile(source), FlowInputs::new(), transport.clone()).await;
+    assert!(matches!(
+        events.last(),
+        Some(FlowEvent::FlowFinished { success: true, .. })
+    ));
+    assert_eq!(transport.requests()[0].1.timeout_ms, Some(0));
+}
+
+#[tokio::test]
 async fn for_each_continue_skips_failed_iteration_collections() {
     let source = r#"
 schema_version: 1
