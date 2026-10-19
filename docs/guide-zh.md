@@ -8,13 +8,13 @@
 
 | 组件 | 当前能力 | 入口 |
 | --- | --- | --- |
-| 原生桌面应用 | HTTP 请求编辑、响应查看、本地历史和会话 Flow 草稿 | `cargo run --locked` |
+| 原生桌面应用 | HTTP 请求编辑、响应查看、本地历史、Flow 文件及真实执行 | `cargo run --locked` |
 | Flow DSL 与 CLI | 编译、执行 `.http` 请求和 `.http.yml` 流程 | [postman-g](../crates/postman-cli/README.md) |
 | Flow MCP Server | 为 Agent 提供 Schema、示例、校验、结构检查和 YAML 生成 | [postman-flow-mcp](../crates/postman-flow-mcp/README.md) |
 | HTML UI 原型 | 独立的 Home、HTTP 和 Flows 界面，使用模拟响应 | [预览说明](../prototypes/README.md) |
 
 原生桌面应用从 Home 进入独立的 HTTP 和 Flows 页面。Flows 已支持原生流程库、
-顺序画布和支持原生表达式的 HTTP Request 详情编辑；实际流程执行仍通过 CLI 或 Rust API 完成。
+顺序画布和支持原生表达式的 HTTP Request 详情编辑；真实 Run / Cancel 已接入 Rust 引擎，并提供基础运行反馈。
 
 应用、HTML 原型及 CLI/Flow 文档中的可运行 HTTP 示例统一使用
 [HTTPBingo](https://httpbingo.org/)。HTML 原型使用对应的本地模拟响应；原生客户端和
@@ -153,11 +153,11 @@ URL 和 **Headers · N** 提供 **Literal / Expression** 切换。字面量中�
 Logs、Steps、Outputs 页签，可折叠到标题栏或在编辑区内最大化，恢复时保留原有高度。
 日志支持级别筛选、复制可见内容、清空和自动滚动；向上回看时暂停自动跟随。
 
-固定的 `flow ›` 输入栏支持 `help`、`clear`、`logs`、`steps`、`outputs`、`check`。Enter 或 Cmd/Ctrl+Enter 执行，
+固定的 `flow ›` 输入栏支持 `help`、`clear`、`logs`、`steps`、`outputs`、`check`、`run`、`stop`。Enter 或 Cmd/Ctrl+Enter 执行，
 上下键浏览历史并恢复未提交的输入，Tab 补全唯一前缀，Esc 清空输入。每个 Flow 通常独立保留最多 500 条
 日志和 50 条命令，均仅在本次会话有效；完整的 Check 报告可以超过日志上限，以保留所有诊断。
 清空日志不会删除命令历史或文档编辑。此处不执行系统 Shell；`check` 校验当前文档及待应用的编辑，
-`run`、`stop` 会明确提示原生能力尚未接入，Steps/Outputs 保持未运行。Console 命令不会发送网络请求。
+`run` 执行真实请求，`stop` 取消运行。Steps 展示基础步骤状态与耗时；Outputs 暂时只显示最终输出数量，详细结果查看留到 P6-2。
 
 步骤详情的 Request / Checks / Exports 都提供**上移、下移、删除步骤**。上移下移改变执行顺序，
 保留选中的步骤 ID、未完成草稿和文本撤销历史；画布方向键仍只用于选择步骤。首尾步骤的对应移动按钮禁用。
@@ -188,10 +188,31 @@ Unicode 文件路径，不读取文件；相对或非 Unicode 路径会拒绝。
 说明、禁用或未完成行、未启用的 Body 草稿、运行时 Cookie 留在 HTTP，不写入新步骤；新步骤的
 Checks、Exports、运行条件为空。转换成功不代表整个流程已经 Check 或 Run。
 
-Flow 支持 **Save、Save as…、Export…、Open… 和 Recent flows…**，未保存的草稿不会跨重启恢复。真实 Run 暂不可用。Request 编辑保留文档原有的
+Flow 支持 **Save、Save as…、Export…、Open… 和 Recent flows…**，未保存的草稿不会跨重启恢复。真实 Run 使用共享 Rust 引擎和 HTTP 会话。Request 编辑保留文档原有的
 条件、检查、导出、请求选项/认证、API 目录、嵌套步骤、输入输出和布局信息。
 JSON 结构或 URL 格式提示不等于流程编译成功。其他检查类型暂时只读；
-P6 接入真实执行。
+已有原生 DSL 能力仍可真实执行。
+
+### Run / Cancel 与基础运行反馈
+
+工具栏 **Run** 和 Console `run` 编译当前内存中的 Flow，检查隐藏的无效编辑，并准备类型完整的 Inputs。
+无须先保存；参数缺失、无效 JSON 或编译错误会在发送请求前阻止运行。运行捕获文档、参数和环境快照，
+后续编辑留给下一次运行。请求选项使用产品默认值及文档中的步骤覆盖，不继承无关 HTTP 标签的选项。
+Flow 与普通 HTTP 共享传输客户端和 Cookie 会话，但 Flow 步骤不会新增普通 HTTP 历史记录。
+
+运行时按钮变为 **Cancel**，Console `stop` 使用同一取消路径。停止中的状态持续到当前 HTTP 请求或轮询等待
+已被释放，之后不再执行后续步骤；取消无法撤销服务端已收到的操作。每个 Flow 同时只允许一个运行，
+切换 Flow 或 Home/HTTP 页面保留任务。画布/流程库内 Cmd/Ctrl+Enter 运行或取消；文本编辑保留自身快捷键和
+IME 行为，Console 中该快捷键提交命令。旧文档版本的结果会标记过期，不能跳到已变化的步骤。
+
+画布与 Console 展示步骤状态、HTTP 状态和耗时、检查结果、循环等待/上限以及最终成功、失败或取消状态。
+Check 文档校验与运行结果分开记录。Clear 仅清日志，保留结果和命令历史。运行日志及复制内容不包含原始参数、
+请求头、请求体、响应正文、输出值或可能含密钥的错误载荷；显示超时、网络错误、断言失败等安全类别。
+详细断言、提取值和循环结果查看属于 P6-2。
+
+关闭正在运行的 Flow（包括已保存且无修改的文件）时，在必要的 Save/Discard 决策后，还需选择 **Stop and close**。
+Cancel 保留任务和草稿，保存取消或失败不会关闭。确认关闭/Quit 后等待任务清理。运行结果及覆盖参数仅属于本次
+应用会话，不会写入 YAML；文件请求体只在真正执行时按进程工作目录读取。
 
 ### Flow 文件与未保存保护
 
@@ -241,7 +262,7 @@ Reset 移除运行覆盖值并恢复继承。Text 的空文本是空字符串，
 
 敏感值默认隐藏，可显式揭示后编辑；离开编辑上下文会再次隐藏。敏感默认值仍属于文档，
 敏感标记用于脱敏，并非加密。返回 Step details 或点击节点可继续原有 Request / Checks / Exports
-草稿。保存/导出仅写入定义，不包含 Run inputs；真实运行仍属后续阶段。
+草稿。保存/导出仅写入定义，不包含 Run inputs；Run 在启动时校验并捕获参数快照。
 
 ### Check 校验与只读 YAML
 

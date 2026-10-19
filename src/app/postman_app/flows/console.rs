@@ -1,5 +1,6 @@
 //! A retained, session-only Console. Documents and execution remain owned elsewhere.
 mod model;
+mod runtime;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -49,8 +50,14 @@ pub(super) enum ConsoleMode {
 pub(super) enum ConsoleEvent {
     LayoutChanged,
     Check,
+    Run,
+    Stop,
     LocateDiagnostic(super::validation::DiagnosticTarget),
-    LocateStep { flow: FlowId, step: String },
+    LocateStep {
+        flow: FlowId,
+        step: String,
+        revision: Option<u64>,
+    },
 }
 actions!(
     flow_console,
@@ -282,8 +289,11 @@ impl FlowConsole {
             return;
         }
         self.current_mut().unwrap().execute(&source);
-        if source.trim().eq_ignore_ascii_case("check") {
-            cx.emit(ConsoleEvent::Check);
+        match source.trim().to_ascii_lowercase().as_str() {
+            "check" => cx.emit(ConsoleEvent::Check),
+            "run" => cx.emit(ConsoleEvent::Run),
+            "stop" => cx.emit(ConsoleEvent::Stop),
+            _ => {}
         }
         self.input
             .update(cx, |input, cx| input.set_value("", window, cx));

@@ -267,7 +267,7 @@ Native YAML uses a retained readonly GPUI Kit editor with selection/scroll and e
 serialization. Unapplied drafts label the retained source Last applied document and disable Copy;
 codec errors disable Copy too. Runtime overrides/environment values are excluded, while explicit
 sensitive defaults remain document content. Canvas/YAML stay reachable at compact widths.
-Save/export/reopen and real Run/Cancel remain later slices. The browser reference includes the
+Native Save/export/reopen and Run/Cancel are implemented in subsequent slices. The browser reference includes the
 stale YAML/check presentation; it does not replace native compiler regression coverage.
 
 ### Flow file workflow (P5.3-2)
@@ -282,3 +282,18 @@ Open lists those snapshots, Export downloads YAML, and reloading the page clears
 The native app uses real OS pickers, native YAML parsing, background atomic replacement, conflict checks,
 and persistent recent paths. Browser simulation is not evidence of native persistence or OS Quit handling.
 Verify native light/dark and compact windows against these controls; keep verification notes in the PR.
+
+### P6-1 native execution
+
+The native GPUI app now runs the real compiler/execution stream through its shared HTTP client.
+Toolbar Run/Cancel and Console run/stop share preflight, immutable Inputs/environment snapshots and
+per-Flow task ownership. Basic status/timing, step outcomes, loop waits and terminal summaries are
+real. Runtime values and raw error payloads stay out of visible/copied logs; output-value inspection
+and detailed assertion/iteration views remain P6-2. Check remains document-only.
+
+The browser continues using explicitly labeled Run preview fixtures. Cancel shows Stopping until
+the preview has stopped. Closing any running Flow (even a saved/clean one) requires Stop and close
+after dirty-file decisions; Cancel leaves it running. Native close/Quit additionally waits for real
+request/wait cleanup. Native Cmd/Ctrl+Enter is scoped to canvas/library to preserve editor/IME behavior;
+Console owns command submission. Record native/design comparisons as text in the PR, without
+committing captures or recreating docs/validation.

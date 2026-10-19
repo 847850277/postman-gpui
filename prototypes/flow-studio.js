@@ -85,7 +85,7 @@
   const flow=current();flow.dirty=!!flow.id&&files.dirty(flow,pendingDocumentEdits(flow));$('flow-title').disabled=!flow.id;['save-flow','export-flow','check-flow','run-flow','add-step','flow-inputs'].forEach(id=>$(id).disabled=!flow.id);$('flow-title').value=flow.document.flow.name;$('flow-filename').textContent=filename();$('flow-unsaved').hidden=!flow.dirty;
   syncEnvironment();renderLibrary();renderCanvas();renderInspector();renderResults();renderView();syncConsoleCommand();
   $('flow-step-count').textContent=flow.document.flow.steps.length+' steps · Sequential';$('flow-input-count').textContent=flow.document.flow.inputs.length;
-  $('run-flow').querySelector('span').textContent=flow.run?.status==='running'?'Stop':'Run preview';
+  $('run-flow').disabled=!flow.id||!!(flow.run?.status==='running'&&flow.run.cancelled);$('run-flow').querySelector('span').textContent=flow.run?.status==='running'?(flow.run.cancelled?'Stopping…':'Cancel'):'Run preview';
  }
  function renderCanvas(){
   const flow=current(), steps=flow.document.flow.steps;
@@ -384,7 +384,7 @@
   else renderResults();
   return true;
  }
- function repaintRun(flow){if(flow.id!==activeFlow)return;renderCanvas();renderResults();$('run-flow').querySelector('span').textContent=flow.run.status==='running'?'Stop':'Run preview';}
+ function repaintRun(flow){if(flow.id!==activeFlow)return;renderCanvas();renderResults();$('run-flow').disabled=!!(flow.run.status==='running'&&flow.run.cancelled);$('run-flow').querySelector('span').textContent=flow.run.status==='running'?(flow.run.cancelled?'Stopping…':'Cancel'):'Run preview';}
  function cancelRun(flow){if(flow.run?.status!=='running'||flow.run.cancelled)return;logEvent(flow,'warning','Cancellation requested');flow.run.cancelled=true;flow.run.wake?.();repaintRun(flow);}
  async function runFlow(command=null){
   const flow=current();if(flow.run?.status==='running'){cancelRun(flow);return;}
@@ -439,6 +439,7 @@
  }
  const fileUI=FlowFilePreview.mount({files,flows,current,filename,pending:()=>pendingDocumentEdits(current()),download:downloadFlow,refresh:()=>{renderFlow();updateFooter();},
   open:(path,document)=>{const opened=flows.find(f=>f.filePath===path);if(opened){switchFlow(opened.id);return;}const flow=createFlow(document.flow.name);flow.document=document;flow.selected=document.flow.steps[0]?.id;flow.filePath=path;flow.savedSource=JSON.stringify(document);flow.dirty=false;},
+  stop:async()=>{const flow=current();cancelRun(flow);while(flow.run?.status==='running')await new Promise(resolve=>setTimeout(resolve,10));},
   close:()=>{const index=flows.findIndex(f=>f.id===activeFlow);if(index<0)return;flows.splice(index,1);activeFlow=flows[Math.min(index,flows.length-1)]?.id||null;renderFlow();updateFooter();}
  });
  function exportFlow(){fileUI.export();}

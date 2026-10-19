@@ -25,6 +25,7 @@ enum CloseTarget {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DialogKind {
     Close(FlowId),
+    Stop(FlowId),
     Conflict,
     Recent,
 }
@@ -55,6 +56,7 @@ pub(super) struct Files {
     return_focus: Option<gpui::FocusHandle>,
     close: Option<CloseTarget>,
     discarded: HashMap<FlowId, u64>,
+    stop_approved: HashMap<FlowId, u64>,
 }
 impl FlowsView {
     pub(in crate::app::postman_app) fn configure_files(
@@ -98,7 +100,10 @@ impl FlowsView {
         cx.notify();
     }
     fn files_available(&self, window: &mut Window, cx: &mut App) -> bool {
-        !self.files.busy && self.files.conflict.is_none() && !window.has_active_dialog(cx)
+        !self.files.busy
+            && self.files.close.is_none()
+            && self.files.conflict.is_none()
+            && !window.has_active_dialog(cx)
     }
     pub(super) fn is_dirty(&self, flow: FlowId, cx: &App) -> bool {
         self.library.get(flow).is_some_and(|d| d.is_dirty())

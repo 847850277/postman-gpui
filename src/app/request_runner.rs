@@ -126,6 +126,10 @@ impl RequestRunner {
         }
     }
 
+    pub(super) fn executor(&self) -> RequestExecutor {
+        self.executor.clone()
+    }
+
     pub(super) fn clear_cookies(&self) -> usize {
         self.executor.clear_cookies()
     }

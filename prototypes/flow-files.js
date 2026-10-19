@@ -25,13 +25,14 @@
   function finish() { dialog.close(); api.refresh(); }
   function show(kind, continuation = null) {
    operation = kind; afterSave = continuation; trigger = document.activeElement;
-   $('flow-file-dialog-title').textContent = kind === 'open' ? 'Recent flows' : kind === 'close' ? 'Save changes to “'+api.current().document.flow.name+'”?' : kind === 'export' ? 'Export copy' : 'Save Flow';
-   $('flow-file-name-field').hidden = kind === 'open' || kind === 'close';
+   $('flow-file-dialog-title').textContent = kind === 'stop' ? 'Stop running “'+api.current().document.flow.name+'” and close?' : kind === 'open' ? 'Recent flows' : kind === 'close' ? 'Save changes to “'+api.current().document.flow.name+'”?' : kind === 'export' ? 'Export copy' : 'Save Flow';
+   $('flow-file-name-field').hidden = kind === 'open' || kind === 'close' || kind === 'stop';
    $('flow-file-entries').replaceChildren();
    $('flow-file-error').hidden = true;
    $('flow-file-discard').hidden = kind !== 'close';
    $('flow-file-submit').hidden = kind === 'open';
-   $('flow-file-submit').textContent = kind === 'export' ? 'Export copy' : 'Save';
+   $('flow-file-submit').textContent = kind === 'stop' ? 'Stop and close' : kind === 'export' ? 'Export copy' : 'Save';
+   if (kind === 'stop') $('flow-file-entries').textContent='Closing stops the active preview and prevents later steps. Cancel keeps the Flow open and running. The native app also cancels real requests and polling waits.';
    $('flow-file-name').value = api.current().filePath || api.filename();
    if (kind === 'open') {
     if (!files.entries.size) $('flow-file-entries').textContent = 'Save a Flow in this preview to reopen it here.';
@@ -40,8 +41,9 @@
      row.addEventListener('click', () => { api.open(path, files.open(path)); finish(); }); $('flow-file-entries').append(row);
     }
    }
-   dialog.showModal(); (kind === 'open' || kind === 'close' ? $('flow-file-cancel') : $('flow-file-name')).focus();
+   dialog.showModal(); (kind === 'open' || kind === 'close' || kind === 'stop' ? $('flow-file-cancel') : $('flow-file-name')).focus();
   }
+  function closeAfterFiles() { if(api.current().run?.status==='running')show('stop');else api.close(); }
   function save(as = false, continuation = null) {
    if (!api.current().id) return;
    if (!as && api.current().filePath) {
@@ -49,9 +51,10 @@
     catch (e) { show('save', continuation); $('flow-file-error').textContent=e.message; $('flow-file-error').hidden=false; }
    } else show('save', continuation);
   }
-  $('flow-file-form').addEventListener('submit', event => {
+  $('flow-file-form').addEventListener('submit', async event => {
    event.preventDefault();
-   if (operation === 'close') { dialog.close(); setTimeout(()=>save(false, api.close),0); return; }
+   if (operation === 'stop') { $('flow-file-submit').disabled=true; $('flow-file-cancel').disabled=true; await api.stop(); $('flow-file-submit').disabled=false; $('flow-file-cancel').disabled=false; dialog.close(); api.close(); return; }
+   if (operation === 'close') { dialog.close(); setTimeout(()=>save(false, closeAfterFiles),0); return; }
    try {
     const path = $('flow-file-name').value.trim();
     const replacing = $('flow-file-submit').textContent === 'Replace file';
@@ -64,7 +67,8 @@
   });
   $('flow-file-name').addEventListener('input', () => { $('flow-file-submit').textContent=operation==='export'?'Export copy':'Save'; });
   $('flow-file-cancel').addEventListener('click', () => dialog.close());
-  $('flow-file-discard').addEventListener('click', () => { dialog.close(); api.close(); });
+  $('flow-file-discard').addEventListener('click', () => { dialog.close(); closeAfterFiles(); });
+  dialog.addEventListener('cancel', event => { if($('flow-file-submit').disabled)event.preventDefault(); });
   dialog.addEventListener('close', () => { afterSave = null; trigger?.focus(); });
   $('save-flow').addEventListener('click', () => save());
   $('open-flow').addEventListener('click', () => show('open'));
@@ -72,9 +76,9 @@
   $('flow-file-actions').addEventListener('change', event => {
    const value=event.target.value; event.target.value='';
    if(value==='save-as')save(true); if(value==='recent')show('open');
-   if(value==='close'&&api.current().id) { if(files.dirty(api.current(),api.pending()))show('close'); else api.close(); }
+   if(value==='close'&&api.current().id) { if(files.dirty(api.current(),api.pending()))show('close'); else closeAfterFiles(); }
   });
-  return {save, export:()=>{if(api.current().id)show('export');}, open:()=>show('open'), close:()=>{if(!api.current().id)return;if(files.dirty(api.current(),api.pending()))show('close');else api.close();}};
+  return {save, export:()=>{if(api.current().id)show('export');}, open:()=>show('open'), close:()=>{if(!api.current().id)return;if(files.dirty(api.current(),api.pending()))show('close');else closeAfterFiles();}};
  }
  const api = {Files, mount}; if (typeof module === 'object') module.exports=api; else root.FlowFilePreview=api;
 })(typeof globalThis === 'object' ? globalThis : this);
