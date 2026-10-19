@@ -81,6 +81,7 @@ pub(super) struct FlowConsole {
     input: Entity<InputState>,
     filter: Entity<SelectState<SearchableVec<&'static str>>>,
     scroll: ListState,
+    empty_scroll: gpui::ScrollHandle,
     visible: Vec<u64>,
     tab_focus: [FocusHandle; 3],
     mode: ConsoleMode,
@@ -183,6 +184,7 @@ impl FlowConsole {
             input,
             filter,
             scroll,
+            empty_scroll: gpui::ScrollHandle::new(),
             visible: Vec::new(),
             tab_focus: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             mode: ConsoleMode::Normal,
@@ -210,6 +212,7 @@ impl FlowConsole {
             return;
         }
         self.active = id;
+        self.empty_scroll.set_offset(Default::default());
         if let Some(id) = id {
             self.sessions.entry(id).or_default();
         }

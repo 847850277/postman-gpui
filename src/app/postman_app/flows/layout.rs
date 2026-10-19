@@ -128,7 +128,11 @@ impl FlowSplit {
                     + super::console::COMMAND_HEIGHT;
                 // Keep room for the inspector heading, tabs, actions, and an editable field.
                 // Short windows share the available height instead of starving the editor.
-                let min = (chrome + 3.).min(self.total() * 0.5);
+                // File diagnostics can leave less than two chrome heights for the split.
+                // Keep the complete command bar visible before allocating editor space.
+                let min = (chrome + 3.)
+                    .min(self.total() * 0.5)
+                    .max(chrome.min(self.total()));
                 return (
                     min,
                     (self.total() - 13.75_f32.min(self.total() * 0.5)).max(min),

@@ -2,6 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('./flow-model.js');
 
+test('native acceptance fixtures stay aligned with the design samples', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  for (const sample of M.samples()) {
+    const fixture = fs.readFileSync(path.join(__dirname, '../tests/fixtures/flows', sample.id + '.http.yml'), 'utf8');
+    assert.equal(fixture, '# Design sample from prototypes/flow-model.js; keep semantic parity.\n' + M.yaml(sample.document) + '\n');
+  }
+});
+
 test('step mutations retain payloads, references, session drafts, and non-recycled identities', () => {
   const flow=M.samples()[0];flow.selected='echo-json';
   flow.fieldDrafts={keep:{step:'echo-json',value:'{'},remove:{step:'generate-id',value:'['}};

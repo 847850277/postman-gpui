@@ -134,3 +134,51 @@ fn moving_yaml_preserves_file_expressions_without_reading_body_files() {
     }
     assert!(!dir.path().join("body-that-does-not-exist.bin").exists());
 }
+
+#[test]
+fn source_selection_explains_yaml_and_keeps_parser_details_for_broken_documents() {
+    let dir = tempfile::tempdir().unwrap();
+    let source =
+        include_str!("../../../../../../crates/postman-flow/examples/httpbingo_multi_hop_chain.rs");
+    let path = dir.path().join("httpbingo_multi_hop_chain.rs");
+    fs::write(&path, source).unwrap();
+    let error = open(&path).err().unwrap();
+    assert!(error.contains("Rust source"), "{error}");
+    assert!(error.contains("Flow YAML"), "{error}");
+    assert!(error.contains("examples/flows/"), "{error}");
+    assert_eq!(fs::read_to_string(&path).unwrap(), source);
+
+    let malformed = "schema_version: 1\nflow:\n  name: [\n";
+    let diagnostic = parse_flow_yaml(malformed).unwrap_err().to_string();
+    fs::write(&path, malformed).unwrap();
+    assert!(open(&path).err().unwrap().contains(&diagnostic));
+    // The suffix is a hint, never a filter: valid documents still open below.
+    let yaml = dir.path().join("broken.yaml");
+    fs::write(&yaml, malformed).unwrap();
+    let error = open(&yaml).err().unwrap();
+    assert!(error.contains("Flow YAML"), "{error}");
+    assert!(error.contains(&diagnostic), "{error}");
+    assert_eq!(fs::read_to_string(&yaml).unwrap(), malformed);
+}
+
+#[test]
+fn matching_multi_hop_yaml_opens_with_every_previously_supported_filename() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = include_str!(
+        "../../../../../../crates/postman-flow/examples/flows/httpbingo_multi_hop.http.yml"
+    );
+    let expected = parse_flow_yaml(text).unwrap();
+    for name in [
+        "flow.http.yml",
+        "flow.yml",
+        "flow.yaml",
+        "flow",
+        "flow.backup",
+        "flow.rs",
+    ] {
+        let path = dir.path().join(name);
+        fs::write(&path, text).unwrap();
+        assert_eq!(open(&path).unwrap().document, expected);
+        assert_eq!(fs::read_to_string(&path).unwrap(), text);
+    }
+}

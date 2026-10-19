@@ -7,6 +7,7 @@ use gpui::{
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     menu::{DropdownMenu, PopupMenuItem},
+    scroll::ScrollableElement,
     Disableable, Sizable,
 };
 
@@ -27,6 +28,8 @@ impl FlowsView {
                     .debug_selector(|| "flow-open".into())
                     .small()
                     .label("Open…")
+                    .tooltip("Open a Flow YAML document (.http.yml, .yml or .yaml)")
+                    .accessibility_label("Open Flow YAML document")
                     .disabled(busy)
                     .on_click(cx.listener(|this, _, w, cx| this.open_flow(w, cx))),
             )
@@ -81,8 +84,13 @@ impl FlowsView {
         &self,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        div().flex_none().when_some(self.files.error.clone(), |d, error| {
-            d.child(div().debug_selector(|| "flow-file-error".into()).px_4().py_2().text_size(m::LABEL).text_color(ERROR.resolve(cx)).child(error))
+        div().flex_none().min_w_0().when_some(self.files.error.clone(), |d, error| {
+            d.child(div().id("flow-file-error").debug_selector(|| "flow-file-error".into())
+                .role(gpui::Role::Alert).w_full().min_w_0().max_h_20()
+                .overflow_y_scroll().track_scroll(&self.files.error_scroll)
+                .px_4().py_2().text_size(m::LABEL).text_color(ERROR.resolve(cx))
+                .child(div().debug_selector(|| "flow-file-error-text".into()).child(error))
+                .vertical_scrollbar(&self.files.error_scroll))
         }).when(self.files.recent_error.is_some(), |d| {
             d.child(div().px_4().py_1().text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child("Recent-file storage needs attention. Open Recent flows to reload; document files are independent."))
         }).into_any_element()

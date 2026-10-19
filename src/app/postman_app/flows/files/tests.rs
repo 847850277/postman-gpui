@@ -4,6 +4,8 @@ use gpui::{Entity, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
 use std::{fs, path::Path};
 
+mod acceptance;
+
 fn save_key(cx: &mut VisualTestContext) {
     press(cx, "secondary-s");
 }
@@ -388,6 +390,7 @@ fn open_errors_collision_and_missing_recent_leave_existing_editors_intact(cx: &m
     assert_eq!(flows.read_with(cx, |v, _| v.library.drafts().len()), 1);
     assert!(dirty(&flows, cx));
 }
+
 #[gpui_kit::test]
 fn mixed_http_flow_quit_cancellation_keeps_both_sessions(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);

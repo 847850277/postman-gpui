@@ -1,0 +1,52 @@
+# Design sample from prototypes/flow-model.js; keep semantic parity.
+schema_version: 1
+flow:
+  name: "Poll echoed status"
+  inputs:
+    -
+      name: "base_url"
+      default: "https://httpbingo.org"
+  steps:
+    -
+      id: "wait-ready"
+      name: "Wait for echoed ready status"
+      kind: "repeat_until"
+      max_iterations: 3
+      interval_ms: 1000
+      timeout_ms: 10000
+      until:
+        eq:
+          -
+            output:
+              step: "query-status"
+              name: "status"
+          -
+            literal: "ready"
+      steps:
+        -
+          id: "query-status"
+          name: "Echo ready status"
+          request:
+            kind: "http"
+            method: "GET"
+            url:
+              concat:
+                -
+                  input: "base_url"
+                -
+                  literal: "/anything/health?status=ready"
+            headers:
+              -
+                name:
+                  literal: "Accept"
+                value:
+                  literal: "application/json"
+          checks:
+            -
+              kind: "status"
+              equals: 200
+          exports:
+            -
+              name: "status"
+              path: "$.args.status[0]"
+  outputs: []
