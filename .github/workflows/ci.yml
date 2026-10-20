@@ -208,8 +208,10 @@ jobs:
     - name: Test release tooling
       run: python -m unittest discover -s scripts/tests
 
-    - name: Validate v0.1 release metadata
-      run: python scripts/release.py verify --tag v0.1.0-rc.1
+    - name: Validate current release metadata
+      run: |
+        version=$(PYTHONPATH=scripts python3 -c 'import release; print(release.load_manifest()["version"])')
+        python3 scripts/release.py verify --tag "v${version}"
 
   # Security audit
   security-audit:

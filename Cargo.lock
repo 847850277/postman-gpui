@@ -5552,7 +5552,7 @@ dependencies = [
 
 [[package]]
 name = "postman-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "futures",
  "postman-flow",
@@ -5566,7 +5566,7 @@ dependencies = [
 
 [[package]]
 name = "postman-flow"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bigdecimal",
  "futures",
@@ -5591,7 +5591,7 @@ dependencies = [
 
 [[package]]
 name = "postman-flow-e2e"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "postman-cli",
  "postman-flow",
@@ -5607,7 +5607,7 @@ dependencies = [
 
 [[package]]
 name = "postman-flow-mcp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "postman-flow",
  "rmcp",
@@ -5623,7 +5623,7 @@ dependencies = [
 
 [[package]]
 name = "postman-gpui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5656,11 +5656,11 @@ dependencies = [
 
 [[package]]
 name = "postman-http"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "postman-request"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "encoding_rs",
  "flate2",

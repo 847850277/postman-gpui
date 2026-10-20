@@ -33,7 +33,7 @@ class ReleaseConfigurationTests(unittest.TestCase):
         )
 
     def test_mismatched_or_unsafe_tags_are_rejected(self) -> None:
-        for tag in ("0.1.0", "v0.2.0", "v0.1.0;echo-bad"):
+        for tag in ("0.1.0", "v0.1.1", "v0.2.0", "v0.1.0;echo-bad"):
             with self.subTest(tag=tag), self.assertRaises(release.ReleaseError):
                 release.parse_release_tag(tag, "0.1.0")
 
@@ -53,7 +53,7 @@ class ReleaseConfigurationTests(unittest.TestCase):
                         root / "bin",
                         root / "dist",
                     )
-                    self.assertEqual(config["version"], "0.1.0")
+                    self.assertEqual(config["version"], release.load_manifest()["version"])
                     self.assertEqual(config["identifier"], release.IDENTIFIER)
                     self.assertEqual(config["targetTriple"], target)
                     self.assertIn(expected_section, config)
@@ -89,17 +89,21 @@ class ReleaseConfigurationTests(unittest.TestCase):
             )
 
     def test_release_assets_and_documentation_are_complete(self) -> None:
+        version = release.load_manifest()["version"]
+        tag = f"v{version}-rc.1"
         self.assertEqual(
-            release.verify_release("v0.1.0-rc.1"),
-            {"tag": "v0.1.0-rc.1", "version": "0.1.0", "prerelease": "true"},
+            release.verify_release(tag),
+            {"tag": tag, "version": version, "prerelease": "true"},
         )
 
     def test_unsigned_final_release_metadata_is_valid(self) -> None:
+        version = release.load_manifest()["version"]
+        tag = f"v{version}"
         credentials = {name: "" for name in os.environ if name.startswith(("APPLE_", "WINDOWS_CERTIFICATE"))}
         with mock.patch.dict(os.environ, credentials):
             self.assertEqual(
-                release.verify_release("v0.1.0"),
-                {"tag": "v0.1.0", "version": "0.1.0", "prerelease": "false"},
+                release.verify_release(tag),
+                {"tag": tag, "version": version, "prerelease": "false"},
             )
 
     def test_linux_smoke_install_uses_an_absolute_deb_path(self) -> None:

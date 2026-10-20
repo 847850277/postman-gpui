@@ -5,18 +5,31 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-20
+
+### Added
+
+- Inspect bounded request and response parameters from Flow Logs and Steps, including method,
+  URL, query, headers, body, response status and timing. The default view and copy actions redact
+  sensitive values; explicitly revealing original HTTP details is limited to the current run.
+
 ### Fixed
 
-- Bound Flow file errors and short Console/empty-canvas scrolling, retain the full command bar,
-  and keep file/execution actions reachable in compact windows. Explain Rust-source selections
-  at Open Flow while preserving valid YAML filename variants and parser details.
-- Strip credentials on same-port HTTPS-to-HTTP redirects, count redirect hops correctly, retain
-  CLI overrides of nested file variables, and enforce loop deadlines around unlimited requests.
+- Avoid redacting ordinary credential-related field names, short query values, and the CORS
+  `Access-Control-Allow-Credentials` header. Correctly handle padded Basic credentials and
+  percent-encoded URL credentials while retaining sensitive-value masking.
+- Preserve existing Flow file permissions when saving, give step URLs their own editor row,
+  and report Linux file-picker D-Bus/portal failures with actionable guidance.
+- Normalize Windows signing metadata with LF, CRLF or a UTF-8 BOM before publishing release notes.
+- Align the workspace and lockfile versions with the release tag, and validate release tests
+  and CI metadata against the current package version instead of assuming `0.1.0`.
 
-- Preserve response bytes before character decoding so binary and non-UTF-8 response sizes
-  remain accurate in the response panel and History. Binary responses show a placeholder;
-  Save as writes the original body bytes, including when the active response changes.
-- Keep the full OPTIONS method visible in Flow request selectors and their dropdown menus.
+### Clarified
+
+- HTTP status codes are validated by explicit Flow checks; receiving a non-2xx response alone
+  does not fail a step without a corresponding check.
+
+## [0.1.0] - 2026-10-19
 
 ### Added
 
@@ -79,6 +92,42 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   controls; `check`, `run` and `stop` use the native compiler and execution engine.
 - Flow inspectors can expand beyond the former 480px cap while keeping the canvas usable.
 
+- Native GPUI request workspace with multi-tab isolation and keyboard-first editing.
+- HTTP methods, query parameters, custom headers, cookies, Basic/Bearer authorization, and request
+  bodies including JSON, raw, URL-encoded, and multipart file upload.
+- Redirect policy, response decompression, timeout, cancellation, status/header inspection, body
+  formatting, and quick copy.
+- Local SQLite request history with redaction, persistence recovery, search, and complete-request
+  replay.
+- HTTPBingo application E2E scenarios and deterministic local request/UI regression suites.
+- Embedded static Inter UI weights and JetBrains Mono for consistent rendering on clean macOS,
+  Windows, and Linux installations.
+- Reproducible macOS, Windows, and Linux packaging and tag-driven GitHub Releases.
+
+### Changed
+
+- `BodyInput::form_data_entry_count` now reads the form editor's rows directly instead of
+  maintaining a duplicate count. This changes the public Rust signature from
+  `form_data_entry_count(&self)` to `form_data_entry_count(&self, cx: &gpui::App)`.
+  Rust callers must migrate `input.form_data_entry_count()` to
+  `input.form_data_entry_count(cx)` using their current GPUI application context; this is
+  a source-breaking change for consumers of the UI library. Both workspace callers have
+  been migrated. Disabled and blank editor rows still count, and application behavior
+  and persisted data formats are unchanged. Refs #190, #180.
+
+### Fixed
+
+- Bound Flow file errors and short Console/empty-canvas scrolling, retain the full command bar,
+  and keep file/execution actions reachable in compact windows. Explain Rust-source selections
+  at Open Flow while preserving valid YAML filename variants and parser details.
+- Strip credentials on same-port HTTPS-to-HTTP redirects, count redirect hops correctly, retain
+  CLI overrides of nested file variables, and enforce loop deadlines around unlimited requests.
+
+- Preserve response bytes before character decoding so binary and non-UTF-8 response sizes
+  remain accurate in the response panel and History. Binary responses show a placeholder;
+  Save as writes the original body bytes, including when the active response changes.
+- Keep the full OPTIONS method visible in Flow request selectors and their dropdown menus.
+
 ### Limitations
 
 - Unsaved Flow drafts, runtime overrides, execution results and Flow panel sizes remain
@@ -87,6 +136,10 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   General DAG editing, parallel scheduling and crash recovery are separate work.
 - P7-1 establishes development-build acceptance. Candidate/platform installation, native OS input
   methods and release acceptance remain tracked in #249, #148 and #49. Signing is optional.
+- Binary and range responses do not yet have a byte-native viewer.
+- Streaming responses do not yet expose incremental progress or stream cancellation semantics.
+- Unsigned packages can trigger macOS Gatekeeper or Windows SmartScreen warnings. Optional
+  signing credentials are documented in `docs/releasing.md`.
 
 ## [0.1.0-rc.4] - 2026-10-13
 
@@ -135,44 +188,7 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   streaming progress are not implemented.
 - Unsigned candidate packages can trigger macOS Gatekeeper or Windows SmartScreen warnings.
 
-## [0.1.0] - Unreleased
-
-This section summarizes the 0.1.0 prerelease series. Candidate builds are available on
-[GitHub Releases](https://github.com/847850277/postman-gpui/releases); the final release is still pending.
-
-### Added
-
-- Native GPUI request workspace with multi-tab isolation and keyboard-first editing.
-- HTTP methods, query parameters, custom headers, cookies, Basic/Bearer authorization, and request
-  bodies including JSON, raw, URL-encoded, and multipart file upload.
-- Redirect policy, response decompression, timeout, cancellation, status/header inspection, body
-  formatting, and quick copy.
-- Local SQLite request history with redaction, persistence recovery, search, and complete-request
-  replay.
-- HTTPBingo application E2E scenarios and deterministic local request/UI regression suites.
-- Embedded static Inter UI weights and JetBrains Mono for consistent rendering on clean macOS,
-  Windows, and Linux installations.
-- Reproducible macOS, Windows, and Linux packaging and tag-driven GitHub Releases.
-
-### Changed
-
-- `BodyInput::form_data_entry_count` now reads the form editor's rows directly instead of
-  maintaining a duplicate count. This changes the public Rust signature from
-  `form_data_entry_count(&self)` to `form_data_entry_count(&self, cx: &gpui::App)`.
-  Rust callers must migrate `input.form_data_entry_count()` to
-  `input.form_data_entry_count(cx)` using their current GPUI application context; this is
-  a source-breaking change for consumers of the UI library. Both workspace callers have
-  been migrated. Disabled and blank editor rows still count, and application behavior
-  and persisted data formats are unchanged. Refs #190, #180.
-
-### Known limitations
-
-- Binary and range responses do not yet have a byte-native viewer.
-- Large responses cannot yet be saved atomically to disk.
-- Streaming responses do not yet expose incremental progress or stream cancellation semantics.
-- Unsigned packages, including final releases, can trigger macOS Gatekeeper or Windows SmartScreen
-  warnings. Optional signing credentials are documented in `docs/releasing.md`.
-
-[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.4...HEAD
+[Unreleased]: https://github.com/847850277/postman-gpui/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/847850277/postman-gpui/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.4...v0.1.0
 [0.1.0-rc.4]: https://github.com/847850277/postman-gpui/compare/v0.1.0-rc.3...v0.1.0-rc.4
-[0.1.0]: https://github.com/847850277/postman-gpui/releases

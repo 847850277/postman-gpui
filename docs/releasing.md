@@ -1,6 +1,6 @@
 # Release runbook
 
-This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tracked by
+This runbook covers versioned prereleases and final releases. Platform acceptance is tracked in
 [#148](https://github.com/847850277/postman-gpui/issues/148).
 
 ## Release invariants
@@ -19,7 +19,7 @@ This runbook covers `v0.1.0-rc.N` prereleases and the final `v0.1.0` release tra
   root-owned AppRun as a separate unprivileged user before upload.
 - All macOS, Windows, and Linux jobs must finish before a GitHub Release is created. A failed job
   cannot publish a partial release.
-- `v0.1.0-rc.N` is a GitHub prerelease. A tag without a suffix is a final release.
+- A tag with a suffix such as `-rc.1` is a GitHub prerelease. A tag without a suffix is a final release.
 - Pin all packaging jobs to the source SHA resolved during validation. `BUILD-INFO-*.txt` binds
   each platform's tag, SHA, target, workflow attempt and actual signing status to `SHA256SUMS`.
 - Published release assets are immutable. A new source revision or rebuilt published artifact
@@ -70,10 +70,13 @@ by the workflow. There is no separate candidate-artifact job, source-ref input o
 
 1. Confirm CI and the release's agreed smoke checks pass on the selected source commit. Review
    [editor-state checks](editor-state.md#regression-checks), current limitations and the changelog.
-2. Choose an unused tag matching the base version in `Cargo.toml`, then validate:
+2. Choose an unused version. Set `[workspace.package].version` in `Cargo.toml`, refresh the
+   workspace packages in `Cargo.lock` with `cargo update --offline --workspace`, and add a dated
+   `## [VERSION]` entry to `CHANGELOG.md`. Review the lockfile diff to confirm external dependencies
+   are unchanged. Validate the matching tag before pushing it:
 
    ```bash
-   release_tag='v0.1.0'
+   release_tag='v0.1.1'
    python3 -m unittest discover -s scripts/tests
    python3 scripts/release.py verify --tag "$release_tag"
    ```
