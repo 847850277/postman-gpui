@@ -493,7 +493,7 @@ fn check_collects_hidden_check_export_condition_and_expression_drafts(cx: &mut T
     click(cx, "flow-condition-toggle");
     edit_source(cx, "flow-condition-source", "{");
     top(cx);
-    click(cx, "flow-headers-toggle");
+    inspector_click(cx, "flow-headers-toggle");
     edit_source(cx, "flow-headers-source", "bad header");
     top(cx);
     click(cx, "flow-url-expression");

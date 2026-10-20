@@ -54,6 +54,59 @@ fn top(cx: &mut VisualTestContext) {
     settle(cx);
 }
 
+fn inspector_click(cx: &mut VisualTestContext, id: &'static str) {
+    for _ in 0..3 {
+        let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
+        let bounds = cx.update(|w, _| w.find(id).bounds());
+        if bounds.top() >= panel.top() && bounds.bottom() <= panel.bottom() {
+            break;
+        }
+        scroll(
+            cx,
+            panel.origin + point(px(5.), px(5.)),
+            panel.center().y - bounds.center().y,
+        );
+        settle(cx);
+    }
+    click(cx, id);
+}
+
+#[gpui_kit::test]
+fn literal_url_uses_the_inspector_width_and_keeps_native_editing(cx: &mut TestAppContext) {
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |app, _| app.flows.clone());
+    click(cx, "nav-flows");
+    create(cx, "URL editing");
+    add(cx);
+    let url = "https://httpbingo.org/delay/8";
+    replace(cx, "flow-step-url", url);
+    settle(cx);
+    let method = cx.debug_bounds("flow-step-method").unwrap();
+    let field = cx.debug_bounds("flow-step-url").unwrap();
+    let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
+    assert!(
+        field.size.width >= panel.size.width - px(40.),
+        "{field:?} in {panel:?}"
+    );
+    assert!(field.top() >= method.bottom());
+    click(cx, "flow-step-url");
+    press(cx, "secondary-a");
+    press(cx, "secondary-c");
+    assert_eq!(cx.read_from_clipboard().unwrap().text().unwrap(), url);
+    cx.write_to_clipboard(ClipboardItem::new_string(
+        "https://example.test/a/much/longer/path?name=value&next=another-value".into(),
+    ));
+    press(cx, "secondary-v");
+    assert_eq!(
+        request(&flows, cx).url,
+        TextTemplate::literal(
+            "https://example.test/a/much/longer/path?name=value&next=another-value"
+        )
+    );
+    press(cx, "secondary-z");
+    assert_eq!(request(&flows, cx).url, TextTemplate::literal(url));
+}
+
 #[gpui_kit::test]
 fn source_controls_apply_native_semantics_and_keep_last_valid_fields(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);
@@ -91,7 +144,7 @@ fn source_controls_apply_native_semantics_and_keep_last_valid_fields(cx: &mut Te
     top(cx);
     click(cx, "flow-url-literal");
     assert!(!inspector(&flows, cx).read_with(cx, |v, _| v.expression_url));
-    click(cx, "flow-headers-toggle");
+    inspector_click(cx, "flow-headers-toggle");
     edit_source(
         cx,
         "flow-headers-source",
@@ -126,7 +179,7 @@ fn source_controls_apply_native_semantics_and_keep_last_valid_fields(cx: &mut Te
     edit_source(cx, "flow-headers-source", "");
     assert!(request(&flows, cx).headers.is_empty());
     top(cx);
-    click(cx, "flow-headers-expression");
+    inspector_click(cx, "flow-headers-expression");
     let headers =
         r#"[{"name":{"input":"header_name"},"value":{"output":{"step":"seed","name":"token"}}}]"#;
     edit_source(cx, "flow-headers-source", headers);
@@ -270,7 +323,7 @@ fn long_source_errors_fit_the_inspector_at_all_supported_sizes(cx: &mut TestAppC
     settle(cx);
     create(cx, "Responsive Request");
     add(cx);
-    click(cx, "flow-headers-toggle");
+    inspector_click(cx, "flow-headers-toggle");
     edit_source(cx, "flow-headers-source", &"missing-separator".repeat(40));
     edit_source(
         cx,
@@ -311,6 +364,11 @@ fn long_source_errors_fit_the_inspector_at_all_supported_sizes(cx: &mut TestAppC
                         field.left() >= panel.left() && field.right() <= panel.right() + px(1.),
                         "{id} overflow at {width}x{height}: {field:?}"
                     );
+                    if id == "flow-step-url" {
+                        let name = cx.debug_bounds("flow-step-name").unwrap();
+                        assert!((field.left() - name.left()).abs() <= px(1.));
+                        assert!((field.right() - name.right()).abs() <= px(1.));
+                    }
                 }
                 let panel_height = panel.size.height;
                 scroll(cx, panel.origin + point(px(5.), px(5.)), -panel_height);

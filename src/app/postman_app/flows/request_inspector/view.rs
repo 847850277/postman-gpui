@@ -87,7 +87,7 @@ impl RequestInspector {
             cx,
         ));
         let url = div()
-            .flex_1()
+            .w_full()
             .min_w_0()
             .debug_selector(|| "flow-step-url".into())
             .child(field(
@@ -105,21 +105,10 @@ impl RequestInspector {
             .flex_col()
             .gap_2()
             .min_w_0()
-            .child(div().flex().items_end().justify_between().gap_2().child(
-                if self.expression_url {
-                    method.into_any_element()
-                } else {
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .flex()
-                        .items_start()
-                        .gap_2()
-                        .child(method)
-                        .child(url)
-                        .into_any_element()
-                },
-            ))
+            // The inspector can be only 16.25rem wide. Sharing a row with
+            // Method leaves too little room to read the URL's scheme/host.
+            .child(method)
+            .when(!self.expression_url, |d| d.child(url))
             .child(
                 div()
                     .flex()

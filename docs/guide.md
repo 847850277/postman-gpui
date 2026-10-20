@@ -309,6 +309,12 @@ command history. Runtime feedback intentionally omits raw inputs, headers, bodie
 potentially sensitive error payloads. Safe error categories still distinguish timeouts, network failures
 and checks. Steps and Outputs provide the detailed inspection described below.
 
+**Succeeded** means execution, configured response checks and extractions completed. It does
+not imply HTTP 2xx: a response such as 400 or 404 can be an expected test result. Add a **Checks**
+status assertion (for example, equals 200) to make a different status fail the step. Without
+response checks, Steps explains why a non-2xx response did not fail execution. Transport errors
+still fail unless an explicit error check expects them.
+
 Closing a running Flow, including a clean saved file, requires **Stop and close** after any necessary
 Save/Discard decisions. Cancel keeps it open and running; failed/cancelled saves keep it open. Confirmed
 close/Quit waits for execution cleanup. Run results/overrides are session-only and never written to YAML.
@@ -534,6 +540,12 @@ that sanitized value; the Outputs toolbar copies the complete output object when
 available. JSON preserves `null`, `false`, `0`, empty strings and containers. Explicit **Redacted**
 metadata distinguishes masking from a literal `[REDACTED]` string. A wholly sensitive value hides its
 shape. Known credentials and echoes are masked even without an explicit annotation; there is no reveal action.
+
+Credential names use whole words, including `access_token`, `clientSecret` and `X-API-Key`;
+metadata such as `token_count` is not a credential. Ordinary URL query parameters such as
+`page` and `q` remain inspectable. Mark custom secret Inputs/Exports `sensitive: true`; arbitrary
+parameter names cannot identify secrets reliably. Sensitive URL parameters and userinfo are
+masked in their raw, decoded and encoded forms, including echoed values.
 
 **Back** or Escape returns to the parent. Use Up/Down and Enter on the result list, Tab for controls,
 and normal editor selection/copy in JSON. Scroll the independent list or maximize Console for more space.

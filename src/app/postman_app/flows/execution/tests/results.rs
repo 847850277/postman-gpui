@@ -78,6 +78,36 @@ async fn types_partial_evidence_failures_and_new_runs_are_truthful() {
     assert!(next.results.nodes[0].values.is_empty());
     assert_eq!(next.results.nodes[0].status, Status::NotExecuted);
 }
+
+#[tokio::test]
+async fn non_2xx_success_is_decided_by_explicit_checks_and_explained_in_steps() {
+    for status in [200, 400, 404, 503] {
+        for expected in [None, Some(200), Some(status)] {
+            let mut doc = inspected_document("https://example.test");
+            doc.flow.steps[0].checks = expected
+                .map(postman_flow::ResponseCheck::StatusEquals)
+                .into_iter()
+                .collect();
+            let run = projected(&doc, Ok(HttpResponse::new(status, vec![], "{}".into()))).await;
+            let succeeds = expected.is_none_or(|code| code == status);
+            let outcome = if succeeds {
+                Status::Succeeded
+            } else {
+                Status::Failed
+            };
+            assert_eq!(run.status, outcome);
+            let step = &run.results.nodes[0];
+            assert_eq!(step.status, outcome);
+            assert_eq!(step.check_count, usize::from(expected.is_some()));
+            assert_eq!(step.response.unwrap().0, status);
+            assert_eq!(
+                step.summary().contains("No response checks configured"),
+                status >= 300 && expected.is_none()
+            );
+            assert_eq!(run.results.outputs_json().is_some(), succeeds);
+        }
+    }
+}
 fn nested() -> FlowDocument {
     parse_flow_yaml(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

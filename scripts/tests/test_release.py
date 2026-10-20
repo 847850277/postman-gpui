@@ -112,7 +112,7 @@ class ReleaseConfigurationTests(unittest.TestCase):
 
 @unittest.skipIf(os.name == "nt", "release publication runs in bash on Linux")
 class ReleasePublicationTests(unittest.TestCase):
-    def run_publication(self, state: str, prerelease: bool = False):
+    def run_publication(self, state: str, prerelease: bool = False, windows_metadata: bytes = b"signed=false\n"):
         workflow = (release.ROOT / ".github/workflows/release.yml").read_text()
         step = workflow.split("      - name: Publish new release or resume an unpublished draft\n", 1)[1]
         script = textwrap.dedent(step.split("        run: |\n", 1)[1])
@@ -122,6 +122,7 @@ class ReleasePublicationTests(unittest.TestCase):
             (root / "dist").mkdir()
             for platform in ("macos", "windows"):
                 (root / "dist" / f"BUILD-INFO-{platform}.txt").write_text("signed=false\n")
+            (root / "dist" / "BUILD-INFO-windows.txt").write_bytes(windows_metadata)
             (root / "state").write_text(state)
             gh = root / "gh"
             gh.write_text(textwrap.dedent('''\
@@ -181,6 +182,18 @@ class ReleasePublicationTests(unittest.TestCase):
         self.assertIn("already has published assets", result.stderr)
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][:2], ["api", "--paginate"])
+
+    def test_windows_signing_metadata_accepts_lf_crlf_and_powershell_bom(self) -> None:
+        for signed in (True, False):
+            for newline in (b"\n", b"\r\n"):
+                for bom in (b"", b"\xef\xbb\xbf"):
+                    with self.subTest(signed=signed, newline=newline, bom=bom):
+                        metadata = bom + b"tag=v0.1.0" + newline + b"signed=" + str(signed).lower().encode() + newline
+                        result, calls = self.run_publication("new", windows_metadata=metadata)
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        create = next(call for call in calls if call[:2] == ["release", "create"])
+                        notes = create[create.index("--notes") + 1]
+                        self.assertEqual("Windows installer is unsigned" in notes, not signed)
 
     def test_empty_published_release_can_receive_first_assets_without_clobber(self) -> None:
         result, calls = self.run_publication("published-empty")

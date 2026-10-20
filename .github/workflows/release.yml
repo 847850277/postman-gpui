@@ -402,7 +402,7 @@ jobs:
           elif ! grep -q '^notarized=true$' dist/BUILD-INFO-macos.txt; then
             notes+=$'\n\nThe macOS package is signed but not notarized and can trigger Gatekeeper.'
           fi
-          if ! grep -q '^signed=true$' dist/BUILD-INFO-windows.txt; then
+          if ! tr -d '\r' < dist/BUILD-INFO-windows.txt | grep -qx 'signed=true'; then
             notes+=$'\n\nThe Windows installer is unsigned and can trigger SmartScreen.'
           fi
 

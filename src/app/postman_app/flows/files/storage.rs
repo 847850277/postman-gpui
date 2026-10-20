@@ -135,7 +135,18 @@ fn replace(
             .open(&temporary)
             .map_err(|e| WriteError::Failed(e.to_string()))?;
         file.write_all(bytes)
-            .and_then(|_| file.sync_all())
+            .map_err(|e| WriteError::Failed(e.to_string()))?;
+        // Keep the temporary file private while writing, then preserve the
+        // destination's mode. New files stay 0600.
+        #[cfg(unix)]
+        match fs::metadata(path) {
+            Ok(metadata) => file
+                .set_permissions(metadata.permissions())
+                .map_err(|e| WriteError::Failed(e.to_string()))?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(WriteError::Failed(error.to_string())),
+        }
+        file.sync_all()
             .map_err(|e| WriteError::Failed(e.to_string()))?;
         drop(file);
         before_replace()?;

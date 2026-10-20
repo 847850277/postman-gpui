@@ -59,13 +59,31 @@ impl std::fmt::Debug for Redactor {
     }
 }
 pub(crate) fn sensitive_name(name: &str) -> bool {
-    let name: String = name
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .flat_map(char::to_lowercase)
-        .collect();
+    // Recognize credential words, including snake/kebab/camel case, without
+    // treating metadata such as token_count or unrelated words as credentials.
+    let mut separated = String::with_capacity(name.len());
+    let mut chars = name.chars().peekable();
+    let mut previous = None::<char>;
+    while let Some(ch) = chars.next() {
+        if !ch.is_ascii_alphanumeric() {
+            separated.push('_');
+        } else {
+            if ch.is_ascii_uppercase()
+                && previous.is_some_and(|p| {
+                    p.is_ascii_lowercase()
+                        || p.is_ascii_uppercase()
+                            && chars.peek().is_some_and(char::is_ascii_lowercase)
+                })
+            {
+                separated.push('_');
+            }
+            separated.push(ch.to_ascii_lowercase());
+        }
+        previous = Some(ch);
+    }
+    let words: Vec<_> = separated.split('_').filter(|s| !s.is_empty()).collect();
     matches!(
-        name.as_str(),
+        words.concat().as_str(),
         "authorization"
             | "proxyauthorization"
             | "cookie"
@@ -73,9 +91,29 @@ pub(crate) fn sensitive_name(name: &str) -> bool {
             | "setcookie"
             | "session"
             | "sessionid"
-    ) || ["token", "secret", "password", "credential", "apikey"]
-        .iter()
-        .any(|part| name.contains(part))
+            | "apikey"
+            | "secretkey"
+    ) || matches!(
+        words.last().copied(),
+        Some(
+            "token"
+                | "tokens"
+                | "secret"
+                | "secrets"
+                | "password"
+                | "passwords"
+                | "credential"
+                | "credentials"
+                | "apikey"
+        )
+    ) || words.ends_with(&["api", "key"])
+        || words.ends_with(&["secret", "key"])
+        || words.ends_with(&["private", "key"])
+        || words.ends_with(&["secret", "access", "key"])
+        || words.ends_with(&["password", "hash"])
+        || words.ends_with(&["token", "value"])
+        || words.ends_with(&["secret", "value"])
+        || words.ends_with(&["session", "id"])
 }
 impl Redactor {
     fn remember_text(&mut self, text: &str) {
@@ -88,7 +126,8 @@ impl Redactor {
         }
         let encoded = serde_json::to_string(text).expect("string serialization");
         let url = url::form_urlencoded::byte_serialize(text.as_bytes()).collect::<String>();
-        for pattern in [text, &encoded[1..encoded.len() - 1], &url] {
+        let percent = url.replace('+', "%20");
+        for pattern in [text, &encoded[1..encoded.len() - 1], &url, &percent] {
             if self.secrets.contains(pattern) {
                 continue;
             }
@@ -100,6 +139,12 @@ impl Redactor {
             }
             self.bytes += pattern.len();
             self.secrets.insert(pattern.to_owned());
+        }
+    }
+    fn remember_url_component(&mut self, raw: &str) {
+        self.remember_text(raw);
+        if !self.exhausted {
+            self.remember_text(&percent_encoding::percent_decode_str(raw).decode_utf8_lossy());
         }
     }
     pub(crate) fn body(&mut self, body: &postman_http::request::RequestBody) {
@@ -173,8 +218,17 @@ impl Redactor {
                 continue;
             }
             self.remember_text(value);
-            if let Some((_, token)) = value.split_once(' ') {
-                self.remember_text(token);
+            if name.eq_ignore_ascii_case("authorization")
+                || name.eq_ignore_ascii_case("proxy-authorization")
+            {
+                if let Some((_, token)) = value.split_once(char::is_whitespace) {
+                    self.remember_text(token.trim());
+                }
+            }
+            // Only cookies contain name=value pairs. '=' in an opaque header
+            // (notably Basic's Base64 padding) must not become its own secret.
+            if !name.eq_ignore_ascii_case("cookie") && !name.eq_ignore_ascii_case("set-cookie") {
+                continue;
             }
             for part in value
                 .split(';')
@@ -192,15 +246,23 @@ impl Redactor {
     }
     pub(crate) fn url(&mut self, source: &str) {
         if let Ok(url) = url::Url::parse(source) {
-            self.remember_text(url.username());
+            self.remember_url_component(url.username());
             if let Some(p) = url.password() {
-                self.remember_text(p);
+                self.remember_url_component(p);
             }
-            for (_, v) in url.query_pairs() {
-                self.remember_text(&v);
+            // Keep both the original wire spelling and form-decoded value.
+            for pair in url.query().unwrap_or_default().split('&') {
+                if let Some((name, value)) = url::form_urlencoded::parse(pair.as_bytes()).next() {
+                    if sensitive_name(&name) {
+                        self.remember_text(&value);
+                        if let Some((_, raw)) = pair.split_once('=') {
+                            self.remember_text(raw);
+                        }
+                    }
+                }
             }
             if let Some(f) = url.fragment() {
-                self.remember_text(f);
+                self.remember_url_component(f);
             }
         }
     }

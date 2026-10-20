@@ -159,14 +159,14 @@ fn design_examples_open_check_save_run_inspect_and_reopen_without_session_values
         settle(win);
         click(win, "result-copy-value");
         let extracted: Value = serde_json::from_str(&clipboard(win)).unwrap();
-        // Query values are protected even when echoed by the response. The loop
-        // still evaluates its unredacted internal value and succeeds on attempt 1.
+        // Ordinary query values stay readable in Steps/Copy. The loop evaluates
+        // the same unmodified internal value and succeeds on attempt 1.
         assert_eq!(
             extracted,
             json!(if sample == "echo-chain" {
                 uuid
             } else {
-                "[REDACTED]"
+                "ready"
             })
         );
         press(win, "escape");

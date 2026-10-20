@@ -486,5 +486,9 @@ Inspection preserves JSON types and explicit redacted JSON pointers (empty point
 redaction). No value means size/depth/node limit, not JSON null. It removes annotated secrets, sensitive
 field names and known credential echoes from input/request/response bindings, including encoded strings.
 Credential-budget exhaustion redacts whole values. It does not provide raw request/response inspection.
+Credential names are matched as words (including snake/kebab/camel case), so `token_count` and
+`secretary` are ordinary data. Only credential-named URL query parameters are automatically
+registered as secrets; ordinary parameters such as `page` and `q` are not. Use `sensitive: true`
+for custom secret inputs/exports. URL credentials retain raw, decoded and encoded match patterns.
 Formatted JSON is prepared once; consumers additionally bound per-run retention. UI inspection is transient
 and must not be persisted with the Flow document. Existing CLI report schema remains version 1.

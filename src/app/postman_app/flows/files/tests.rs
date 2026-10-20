@@ -6,6 +6,24 @@ use std::{fs, path::Path};
 
 mod acceptance;
 
+#[test]
+fn file_picker_dependency_errors_explain_recovery_and_keep_the_diagnostic() {
+    for error in [
+        "ZBus Error: Failed to connect to address 'unix:path=/run/user/1000/bus': No such file or directory (os error 2)",
+        "org.freedesktop.portal.FileChooser is not available",
+        "D-Bus session unavailable",
+    ] {
+        let message = file_picker_error(error);
+        assert!(message.contains("Linux desktop session with D-Bus"));
+        assert!(message.contains("portal backend"));
+        assert!(message.ends_with(error));
+    }
+    assert_eq!(
+        file_picker_error("Permission denied"),
+        "Could not open the file picker: Permission denied"
+    );
+}
+
 fn save_key(cx: &mut VisualTestContext) {
     press(cx, "secondary-s");
 }

@@ -55,13 +55,22 @@ sudo apt install ./postman-gpui*.deb
 ```
 
 The Debian package declares these runtime libraries: ALSA, Fontconfig, Vulkan loader, Wayland
-client, XCB, and XKB Common/X11. On a minimal desktop, portals may also be needed for native file
-dialogs:
+client, XCB, and XKB Common/X11. Native Open, Save as and Export dialogs require a running
+user D-Bus session, `xdg-desktop-portal`, and a file chooser backend for your desktop
+(for example `xdg-desktop-portal-gtk` on GTK desktops or `xdg-desktop-portal-kde` on KDE):
 
 ```bash
 sudo apt install libasound2 libfontconfig1 libvulkan1 libwayland-client0 \
   libxcb1 libxkbcommon0 libxkbcommon-x11-0 xdg-desktop-portal
 ```
+
+A `ZBus` connection error mentioning `/run/user/<uid>/bus` means the desktop session bus is
+missing or its address is stale. Launch the app from a logged-in graphical desktop session;
+check that `DBUS_SESSION_BUS_ADDRESS` belongs to that session. Install/enable the matching
+portal backend if the bus works but the file chooser is unavailable. A bare SSH/container/Xvfb
+session does not supply these services just by displaying a window; `dbus-run-session` alone
+also does not install a portal backend. Failed or cancelled pickers retain the in-memory Flow.
+For headless execution, use `postman-g` with a Flow YAML file instead of the desktop dialogs.
 
 To build on Debian/Ubuntu, install the development packages used by GPUI:
 

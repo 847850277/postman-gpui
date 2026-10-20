@@ -11,6 +11,18 @@ use gpui_kit::component::WindowExt;
 use postman_flow::FlowDocument;
 use std::{collections::HashMap, path::PathBuf};
 
+fn file_picker_error(error: &str) -> String {
+    let lower = error.to_ascii_lowercase();
+    if ["zbus", "d-bus", "dbus", "portal"]
+        .iter()
+        .any(|term| lower.contains(term))
+    {
+        format!("Could not open the file picker. Start Postman GPUI from a Linux desktop session with D-Bus and an XDG file chooser portal, then try again. Ensure the portal backend for your desktop is installed. Details: {error}")
+    } else {
+        format!("Could not open the file picker: {error}")
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(in crate::app::postman_app) enum SaveKind {
     Save,
@@ -194,7 +206,7 @@ impl FlowsView {
                     window,
                     cx,
                 ),
-                Ok(Err(e)) => this.file_error(format!("Could not open the file picker: {e}"), cx),
+                Ok(Err(e)) => this.file_error(file_picker_error(&e.to_string()), cx),
                 _ => {
                     this.files.busy = false;
                     this.files.busy_flow = None;
@@ -352,7 +364,7 @@ impl FlowsView {
                 Ok(Ok(Some(paths))) if !paths.is_empty() => {
                     this.open_path(paths[0].clone(), window, cx)
                 }
-                Ok(Err(e)) => this.file_error(format!("Could not open the file picker: {e}"), cx),
+                Ok(Err(e)) => this.file_error(file_picker_error(&e.to_string()), cx),
                 _ => {
                     this.files.busy = false;
                     cx.notify();

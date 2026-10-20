@@ -5574,6 +5574,7 @@ dependencies = [
  "hex",
  "hmac",
  "jsonschema",
+ "percent-encoding",
  "postman-http",
  "postman-request",
  "serde",

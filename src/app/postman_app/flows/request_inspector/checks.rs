@@ -133,7 +133,7 @@ impl RequestInspector {
             .gap_4()
             .min_w_0()
             .child(hint(
-                "Configure response checks for this step. Checks are evaluated when the flow runs.",
+                "Checks run after the response arrives. Non-2xx statuses do not fail a step automatically; add a status check to require an expected response.",
                 false,
                 cx,
             ))

@@ -95,6 +95,11 @@ impl Node {
         }
         if let Some((status, elapsed)) = self.response {
             parts.push(format!("HTTP {status} · {elapsed} ms"));
+            if !(200..300).contains(&status) && self.expected_checks == 0 {
+                parts.push(
+                    "No response checks configured; HTTP status does not fail this step".into(),
+                );
+            }
         }
         if let Some(limit) = self.limit {
             parts.push(format!(

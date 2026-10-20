@@ -1,6 +1,28 @@
 use super::*;
 use postman_flow::{compile_flow, CompileEnvironment};
 
+#[cfg(unix)]
+#[test]
+fn save_preserves_existing_file_modes_and_new_files_are_private() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("flow.http.yml");
+    write(&path, b"old", None).unwrap();
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    for mode in [0o644, 0o640, 0o660, 0o600] {
+        fs::set_permissions(&path, fs::Permissions::from_mode(mode)).unwrap();
+        write(&path, b"new", Some(&fs::read(&path).unwrap())).unwrap();
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            mode
+        );
+        assert_eq!(fs::read(&path).unwrap(), b"new");
+    }
+}
+
 #[test]
 fn native_round_trips_preserve_catalog_loops_and_json_values() {
     let dir = tempfile::tempdir().unwrap();

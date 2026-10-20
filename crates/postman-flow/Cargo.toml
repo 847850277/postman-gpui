@@ -24,6 +24,7 @@ serde_path_to_error = "0.1"
 yaml_serde = "0.10.7"
 tracing = "0.1"
 url = "2"
+percent-encoding = "2"
 
 [dev-dependencies]
 postman-request = { path = "../postman-request" }
