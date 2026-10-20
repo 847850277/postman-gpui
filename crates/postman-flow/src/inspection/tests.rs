@@ -124,10 +124,11 @@ fn opaque_header_padding_is_not_a_cookie_secret() {
     );
     assert_eq!(inspected.value().unwrap()["formula"], "a=b");
     assert_eq!(inspected.value().unwrap()["padding"], "==");
-    assert_eq!(
-        inspected.redacted_paths(),
-        ["/api", "/basic", "/csrf", "/sid"]
-    );
+    // Workspace dependencies can enable serde_json/preserve_order. Verify the
+    // exact redacted locations without depending on object traversal order.
+    let mut paths = inspected.redacted_paths().to_vec();
+    paths.sort_unstable();
+    assert_eq!(paths, ["/api", "/basic", "/csrf", "/sid"]);
 }
 
 #[test]
