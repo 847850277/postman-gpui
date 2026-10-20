@@ -16,7 +16,7 @@ use crate::{
     models::HistoryEntry,
     ui::theme::BG,
 };
-use gpui::{
+use gpui_kit::{
     div, px, AppContext, Context, Entity, EventEmitter, FocusHandle, IntoElement, ParentElement,
     Pixels, Render, Styled, Subscription, Window,
 };
@@ -58,7 +58,7 @@ pub(super) struct RequestWorkspace {
     tab_focus_handles: HashMap<RequestTabId, FocusHandle>,
     tab_close_focus_handles: HashMap<RequestTabId, FocusHandle>,
     tab_bar_width: Pixels,
-    tab_scroll: gpui::ScrollHandle,
+    tab_scroll: gpui_kit::ScrollHandle,
     tab_reveal_key: Option<(RequestTabId, usize, usize)>,
     _subscriptions: Vec<Subscription>,
 }
@@ -100,7 +100,7 @@ impl RequestWorkspace {
             tab_focus_handles: HashMap::new(),
             tab_close_focus_handles: HashMap::new(),
             tab_bar_width: px(0.),
-            tab_scroll: gpui::ScrollHandle::new(),
+            tab_scroll: gpui_kit::ScrollHandle::new(),
             tab_reveal_key: None,
             _subscriptions: subscriptions,
         }

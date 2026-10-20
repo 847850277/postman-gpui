@@ -2,10 +2,6 @@
 use super::view::{field, hint};
 use super::*;
 use crate::ui::theme::{metrics as m, LINE, MUTED, PANEL_ALT};
-use gpui::{
-    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
-    StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -14,11 +10,15 @@ use gpui_kit::{
         Sizable,
     },
 };
+use gpui_kit::{
+    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
+    StatefulInteractiveElement, Styled,
+};
 use postman_flow::{validate_response_status, write_response_check, ResponseCheck};
 
 pub(super) struct CheckRow {
     pub(super) id: u64,
-    pub(super) anchor: gpui::ScrollAnchor,
+    pub(super) anchor: gpui_kit::ScrollAnchor,
     pub(super) input: Option<Entity<InputState>>,
     pub(super) value: Option<ResponseCheck>,
     pub(super) error: Option<String>,
@@ -73,7 +73,7 @@ impl RequestInspector {
             .unwrap_or_default();
         CheckRow {
             id,
-            anchor: gpui::ScrollAnchor::for_handle(scroll.clone()),
+            anchor: gpui_kit::ScrollAnchor::for_handle(scroll.clone()),
             input,
             value,
             error: None,

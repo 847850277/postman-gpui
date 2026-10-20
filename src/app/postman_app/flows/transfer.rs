@@ -6,10 +6,6 @@ use crate::{
     models::flow_request,
     ui::theme::{metrics as m, ERROR, MUTED, PANEL_ALT},
 };
-use gpui::{
-    div, prelude::FluentBuilder, App, AppContext, Context, Entity, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Subscription, WeakEntity, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -21,6 +17,10 @@ use gpui_kit::{
         Disableable, IndexPath, Sizable, WindowExt,
     },
 };
+use gpui_kit::{
+    div, prelude::FluentBuilder, App, AppContext, Context, Entity, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Subscription, WeakEntity, Window,
+};
 use postman_flow::HttpRequestTemplate;
 
 #[derive(Clone, PartialEq)]
@@ -31,11 +31,11 @@ enum DestinationChoice {
 #[derive(Clone)]
 struct Choice<T: Clone> {
     id: T,
-    label: gpui::SharedString,
+    label: gpui_kit::SharedString,
 }
 impl<T: Clone + PartialEq + 'static> SearchableListItem for Choice<T> {
     type Value = T;
-    fn title(&self) -> gpui::SharedString {
+    fn title(&self) -> gpui_kit::SharedString {
         self.label.clone()
     }
     fn value(&self) -> &T {
@@ -172,7 +172,7 @@ struct TransferDialog {
     snapshot: Option<Snapshot>,
     target: Option<FlowId>,
     has_sources: bool,
-    blank_focus: gpui::FocusHandle,
+    blank_focus: gpui_kit::FocusHandle,
     submitted: bool,
     failure: Option<&'static str>,
     _subscriptions: Vec<Subscription>,

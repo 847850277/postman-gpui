@@ -1,4 +1,4 @@
-use gpui::{actions, KeyBinding};
+use gpui_kit::{actions, KeyBinding};
 
 pub(crate) use crate::ui::components::common::keyboard::ActivateControl;
 

@@ -1,15 +1,15 @@
 //! Structural edits belong to the Flow owner, not to retained field editors.
 use super::{model::StepDirection, FlowId, FlowsView};
 use crate::ui::theme::{metrics as m, ERROR, FONT_MONO, LINE, MUTED, PANEL};
-use gpui::{
-    div, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
         button::{Button, ButtonVariants},
         Disableable, Sizable, WindowExt,
     },
+};
+use gpui_kit::{
+    div, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled, Window,
 };
 
 impl FlowsView {

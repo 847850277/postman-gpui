@@ -1,17 +1,17 @@
 use super::super::execution::{results::HttpPart, Status};
 use super::super::tests::{click, press, settle, setup};
 use super::*;
-use gpui::{TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{TestAppContext, VisualTestContext};
 use postman_flow::{parse_flow_yaml, BodyTemplate, HttpRequestSource, JsonTemplate};
 use serde_json::{json, Value};
 
 fn reveal(console: &Entity<FlowConsole>, id: u64, cx: &mut VisualTestContext) {
     console.update(cx, |v, cx| {
         let index = v.visible.iter().position(|entry| *entry == id).unwrap();
-        v.scroll.scroll_to(gpui::ListOffset {
+        v.scroll.scroll_to(gpui_kit::ListOffset {
             item_ix: index,
-            offset_in_item: gpui::px(0.),
+            offset_in_item: gpui_kit::px(0.),
         });
         cx.notify();
     });

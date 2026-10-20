@@ -5,8 +5,8 @@ mod ui;
 
 use std::time::Duration;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext};
 use postman_gpui::app::{PostmanApp, ResponseState, WorkspaceViewModel};
 use ui::{click, right_click};
 
@@ -16,7 +16,7 @@ fn clipboard_text(cx: &TestAppContext) -> String {
         .unwrap_or_default()
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -134,7 +134,7 @@ fn platform_clipboard_shortcuts_cover_all_editable_input_types(cx: &mut TestAppC
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let response = server
@@ -205,7 +205,7 @@ fn right_click_menus_paste_into_editors_and_copy_the_response(cx: &mut TestAppCo
     response.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
     cx: &mut TestAppContext,
 ) {
@@ -299,7 +299,7 @@ fn populated_response_quick_copy_uses_the_full_raw_body_without_mutating_state(
     next_response.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let response = server.mock("GET", "/no-content").with_status(204).create();
@@ -329,7 +329,7 @@ fn empty_response_body_does_not_render_the_quick_copy_action(cx: &mut TestAppCon
     response.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -362,7 +362,7 @@ fn form_cell_right_click_menu_preserves_single_line_values(cx: &mut TestAppConte
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn masked_password_allows_paste_and_history_without_copy_or_cut_disclosure(
     cx: &mut TestAppContext,
 ) {

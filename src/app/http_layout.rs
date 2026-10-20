@@ -1,5 +1,5 @@
 //! Non-sensitive HTTP layout preferences. Drafts and responses never enter this store.
-use gpui::{App, Global, Task};
+use gpui_kit::{App, Global, Task};
 use serde::{Deserialize, Serialize};
 use std::{
     fs, io,
@@ -139,7 +139,7 @@ mod tests {
     use super::*;
     #[gpui_kit::test]
     fn preferences_validate_restore_and_fail_without_losing_session_changes(
-        cx: &mut gpui::TestAppContext,
+        cx: &mut gpui_kit::TestAppContext,
     ) {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("http-layout.json");

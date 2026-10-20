@@ -3,7 +3,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{point, px, AppContext, Modifiers, MouseButton, TestAppContext};
+use gpui_kit::{point, px, AppContext, Modifiers, MouseButton, TestAppContext};
 use postman_gpui::app::{AuthorizationKind, BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 use postman_gpui::models::{HistoryEntry, HttpMethod, Request};
 use postman_gpui::persistence::{
@@ -14,10 +14,10 @@ use ui::{click, scroll_down, scroll_up};
 
 /// The wrapper follows the viewport; Kit owns the painted thumb and its hit testing.
 fn assert_scrollbar_at_viewport(
-    cx: &mut gpui::VisualTestContext,
+    cx: &mut gpui_kit::VisualTestContext,
     track: &'static str,
     scroll: &'static str,
-) -> gpui::Bounds<gpui::Pixels> {
+) -> gpui_kit::Bounds<gpui_kit::Pixels> {
     let bar = cx
         .debug_bounds(track)
         .expect("overflow should expose a scrollbar");
@@ -29,7 +29,7 @@ fn assert_scrollbar_at_viewport(
 }
 
 fn assert_scrollbar_pointer_moves_rows(
-    cx: &mut gpui::VisualTestContext,
+    cx: &mut gpui_kit::VisualTestContext,
     track: &'static str,
     scroll: &'static str,
     first_row: &'static str,
@@ -71,7 +71,7 @@ fn assert_scrollbar_pointer_moves_rows(
     assert_eq!(assert_scrollbar_at_viewport(cx, track, scroll), bar);
 }
 
-fn copy_visible_json_line(cx: &mut gpui::VisualTestContext) -> u64 {
+fn copy_visible_json_line(cx: &mut gpui_kit::VisualTestContext) -> u64 {
     click(cx, "request-text-editor").unwrap();
     cx.simulate_keystrokes("home shift-down cmd-c");
     let copied = cx
@@ -82,7 +82,7 @@ fn copy_visible_json_line(cx: &mut gpui::VisualTestContext) -> u64 {
     line["line"].as_u64().unwrap()
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -93,7 +93,7 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     });
     ui::open_http(cx);
     let handle = cx.update(|window, _| window.window_handle());
-    cx.simulate_window_resize(handle, gpui::size(px(1480.), px(980.)));
+    cx.simulate_window_resize(handle, gpui_kit::size(px(1480.), px(980.)));
 
     let top_header = cx
         .debug_bounds("top-header")
@@ -136,7 +136,7 @@ fn app_shell_uses_expected_frame_dimensions(cx: &mut TestAppContext) {
     assert_eq!(send.size.height, px(48.0));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn history_dialog_overlays_editor_without_changing_split(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |window, cx| {
@@ -147,7 +147,7 @@ fn history_dialog_overlays_editor_without_changing_split(cx: &mut TestAppContext
     ui::open_http(cx);
     for (width, height) in [(1440., 960.), (1920., 1080.), (1024., 768.), (960., 640.)] {
         let handle = cx.update(|w, _| w.window_handle());
-        cx.simulate_window_resize(handle, gpui::size(px(width), px(height)));
+        cx.simulate_window_resize(handle, gpui_kit::size(px(width), px(height)));
         let before = cx.debug_bounds("request-container").unwrap();
         let response = cx.debug_bounds("response-container").unwrap();
         ui::open_history(cx);
@@ -162,7 +162,7 @@ fn history_dialog_overlays_editor_without_changing_split(cx: &mut TestAppContext
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -251,7 +251,7 @@ fn response_panel_can_be_dragged_taller_and_shorter(cx: &mut TestAppContext) {
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_method_select_matches_composer_geometry_and_escape_restores_focus(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -282,7 +282,7 @@ fn kit_method_select_matches_composer_geometry_and_escape_restores_focus(cx: &mu
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn history_dialog_keeps_header_filter_results_and_footer_in_order(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -331,7 +331,7 @@ fn history_dialog_keeps_header_filter_results_and_footer_in_order(cx: &mut TestA
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -375,7 +375,7 @@ fn issue_51_query_contract_sections_fit_inside_the_request_panel(cx: &mut TestAp
     assert!(preview.bottom() <= panel.bottom());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -415,7 +415,7 @@ fn issue_53_bearer_contract_sections_fit_inside_the_request_panel(cx: &mut TestA
     assert!(status.bottom() <= panel.bottom());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -473,7 +473,7 @@ fn issue_54_basic_auth_contract_sections_fit_inside_the_request_panel(cx: &mut T
     assert!(status.bottom() <= panel.bottom());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
     cx: &mut TestAppContext,
 ) {
@@ -560,7 +560,7 @@ fn issue_57_json_body_contract_projects_the_active_value_and_effective_headers(
         .is_none());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_body_scrolls_inside_its_viewport_and_effective_headers_keep_their_scrollbar(
     cx: &mut TestAppContext,
 ) {
@@ -638,7 +638,7 @@ fn kit_body_scrolls_inside_its_viewport_and_effective_headers_keep_their_scrollb
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -736,7 +736,7 @@ fn issue_60_raw_body_contract_fits_editor_and_exact_request_semantics(cx: &mut T
     assert!(cx.debug_bounds("body-raw-scrollbar").is_none());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_text_body_preserves_viewport_and_contents_across_long_and_empty_edits(
     cx: &mut TestAppContext,
 ) {
@@ -756,7 +756,7 @@ fn kit_text_body_preserves_viewport_and_contents_across_long_and_empty_edits(
     });
     let handle = cx.update(|window, _| window.window_handle());
     // Match the native preview where an empty editor previously showed a full track.
-    cx.simulate_window_resize(handle, gpui::size(px(1480.), px(978.)));
+    cx.simulate_window_resize(handle, gpui_kit::size(px(1480.), px(978.)));
     ui::open_http(cx);
     for selector in ["body-kind-json", "body-kind-raw"] {
         ui::choose_body_kind(cx, selector).unwrap();
@@ -791,7 +791,7 @@ fn kit_text_body_preserves_viewport_and_contents_across_long_and_empty_edits(
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -887,7 +887,7 @@ fn raw_semantics_scrolls_internally_when_the_request_panel_is_narrowed(cx: &mut 
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -984,7 +984,7 @@ fn issue_58_url_encoded_contract_fits_the_editor_and_effective_preview(cx: &mut 
     assert!(accept.right() <= effective.right());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn urlencoded_prototype_rows_grow_then_scroll_with_the_preview_below_the_table(
     cx: &mut TestAppContext,
 ) {
@@ -1117,7 +1117,7 @@ fn urlencoded_prototype_rows_grow_then_scroll_with_the_preview_below_the_table(
     assert_eq!(cx.debug_bounds("request-panel").unwrap(), capped_panel);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn form_panel_preserves_split_when_blank_or_disabled_rows_are_added_and_removed(
     cx: &mut TestAppContext,
 ) {
@@ -1168,7 +1168,7 @@ fn form_panel_preserves_split_when_blank_or_disabled_rows_are_added_and_removed(
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn params_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -1257,7 +1257,7 @@ fn params_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn header_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| {
         let mut workspace = WorkspaceViewModel::new();
@@ -1348,7 +1348,7 @@ fn header_rows_grow_within_the_split_then_scroll(cx: &mut TestAppContext) {
     assert!(add_action.origin.y >= rows_viewport.bottom());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut TestAppContext) {
     for (pane, first, last, scroll, track, short_height) in [
         (
@@ -1375,7 +1375,7 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
             })
         });
         let handle = cx.update(|window, _| window.window_handle());
-        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        cx.simulate_window_resize(handle, gpui_kit::size(px(1440.), px(1080.)));
         ui::open_http(cx);
         click(cx, pane).unwrap();
         for _ in 0..5 {
@@ -1386,13 +1386,13 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
         assert!(cx.debug_bounds(scroll).unwrap().size.height >= content_height);
         assert!(cx.debug_bounds(track).is_none());
 
-        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(short_height)));
+        cx.simulate_window_resize(handle, gpui_kit::size(px(1440.), px(short_height)));
         let mut adjusted_height = px(short_height);
         // Crossing the compact section-heading breakpoint needs a second measured frame.
         for _ in 0..3 {
             let clipped = cx.debug_bounds(scroll).unwrap().size.height;
             adjusted_height += content_height - row_height / 2. - clipped;
-            cx.simulate_window_resize(handle, gpui::size(px(1440.), adjusted_height));
+            cx.simulate_window_resize(handle, gpui_kit::size(px(1440.), adjusted_height));
         }
         let viewport = cx.debug_bounds(scroll).unwrap();
         assert!(viewport.size.height < content_height);
@@ -1412,16 +1412,16 @@ fn row_scrollbars_cover_partial_rows_and_disappear_when_all_rows_fit(cx: &mut Te
         assert!(cx.debug_bounds(last).unwrap().bottom() <= viewport.bottom() + px(0.5));
         assert!(cx.debug_bounds("add-row-button").unwrap().top() >= viewport.bottom());
 
-        cx.simulate_window_resize(handle, gpui::size(px(1440.), px(1080.)));
+        cx.simulate_window_resize(handle, gpui_kit::size(px(1440.), px(1080.)));
         assert!(cx.debug_bounds(track).is_none());
         assert!(cx.debug_bounds(first).unwrap().top() >= cx.debug_bounds(scroll).unwrap().top());
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_request_editor_fits_minimum_window_in_both_themes_and_scales(cx: &mut TestAppContext) {
-    use gpui::{size, SharedString};
     use gpui_kit::{component::ThemeMode, test::TestWindowExt};
+    use gpui_kit::{size, SharedString};
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
     let (_, cx) = cx.add_window_view(move |window, cx| {

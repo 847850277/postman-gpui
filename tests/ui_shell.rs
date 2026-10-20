@@ -1,11 +1,11 @@
 //! P2 through the production composition root: routes, retained drafts/tasks, native controls.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{px, size, AppContext, TestAppContext};
 use gpui_kit::{
     component::{Theme, ThemeMode},
     test::TestWindowExt,
 };
+use gpui_kit::{px, size, AppContext, TestAppContext};
 use postman_gpui::{
     app::{PostmanApp, ResponseState, WorkspaceViewModel},
     models::HttpMethod,
@@ -13,7 +13,7 @@ use postman_gpui::{
 };
 use ui::{click, replace_text};
 
-#[gpui::test]
+#[gpui_kit::test]
 fn home_cards_and_navigation_support_native_keyboard_and_shared_theme(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
@@ -66,7 +66,7 @@ fn home_cards_and_navigation_support_native_keyboard_and_shared_theme(cx: &mut T
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn hidden_http_does_not_accept_input_or_commands_and_recent_rows_reuse_tabs(
     cx: &mut TestAppContext,
 ) {
@@ -136,7 +136,7 @@ fn hidden_http_does_not_accept_input_or_commands_and_recent_rows_reuse_tabs(
     assert!(cx.debug_bounds("history-panel").is_some());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestAppContext) {
     use std::{
         io::{Read, Write},
@@ -200,7 +200,7 @@ fn completion_while_away_targets_original_tab_and_persists_once(cx: &mut TestApp
     assert_eq!(model.read_with(cx, |m, _| m.history_len()), 1);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn shell_geometry_in_both_themes_at_reference_and_minimum_sizes(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |window, cx| {

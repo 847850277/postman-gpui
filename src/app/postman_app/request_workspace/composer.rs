@@ -13,12 +13,12 @@ use crate::{
         components::kit_controls::MethodState, theme::PANEL,
     },
 };
-use gpui::{
+use gpui_kit::base::ElementExt;
+use gpui_kit::{
     div, prelude::FluentBuilder, App, AppContext, Context, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription,
     Window,
 };
-use gpui_kit::base::ElementExt;
 
 #[derive(Clone, Debug)]
 pub(super) enum RequestComposerEvent {
@@ -47,7 +47,7 @@ pub(super) struct RequestComposer {
     tests_pane: Entity<ScriptPane>,
     options_pane: Entity<OptionsPane>,
     pub(super) request_pane_focus_handles: Vec<FocusHandle>,
-    pub(super) pane_tabs_scroll: gpui::ScrollHandle,
+    pub(super) pane_tabs_scroll: gpui_kit::ScrollHandle,
     pub(super) send_focus_handle: FocusHandle,
     pub(super) code_focus_handle: FocusHandle,
     pub(super) add_to_flow_focus: FocusHandle,
@@ -140,7 +140,7 @@ impl RequestComposer {
             request_pane_focus_handles: (0..7)
                 .map(|_| cx.focus_handle().tab_index(0).tab_stop(true))
                 .collect(),
-            pane_tabs_scroll: gpui::ScrollHandle::new(),
+            pane_tabs_scroll: gpui_kit::ScrollHandle::new(),
             send_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             code_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             add_to_flow_focus: cx.focus_handle().tab_index(0).tab_stop(true),
@@ -434,7 +434,7 @@ impl RequestComposer {
             .flex_col()
             .min_w_0()
             .bg(PANEL.resolve(cx))
-            .font_weight(gpui::FontWeight::NORMAL)
+            .font_weight(gpui_kit::FontWeight::NORMAL)
             .overflow_hidden()
             .child(self.render_request_menu(window, cx))
             .child(
@@ -468,7 +468,7 @@ impl RequestComposer {
             .when(
                 request_pane != RequestPane::Body
                     && !self.stacked
-                    && window.viewport_size().height >= gpui::px(700.),
+                    && window.viewport_size().height >= gpui_kit::px(700.),
                 |panel| panel.child(self.render_request_context(cx)),
             )
             .into_any_element()
@@ -487,15 +487,15 @@ mod tests {
         app::{PostmanApp, ResponseState, WorkspaceViewModel},
         models::HttpMethod,
     };
-    use gpui::{AppContext, TestAppContext};
+    use gpui_kit::{AppContext, TestAppContext};
     use mockito::Matcher;
 
     // Exercise the IME protocol on the actual URL input and its ViewModel subscription.
     // Platform candidate windows still require native input-method checks.
-    #[gpui::test]
+    #[gpui_kit::test]
     fn url_composes_and_commits_chinese_after_an_astral_character(cx: &mut TestAppContext) {
-        use gpui::{ElementInputHandler, InputHandler, WindowOptions};
         use gpui_kit::test::TestWindowExt;
+        use gpui_kit::{ElementInputHandler, InputHandler, WindowOptions};
 
         cx.update(crate::ui::kit::init);
         let model = cx.new(|_| WorkspaceViewModel::new());
@@ -547,8 +547,8 @@ mod tests {
 
     #[gpui_kit::test]
     fn transfer_captures_committed_ime_and_preserves_http_undo(cx: &mut TestAppContext) {
-        use gpui::{ElementInputHandler, InputHandler, WindowOptions};
         use gpui_kit::test::TestWindowExt;
+        use gpui_kit::{ElementInputHandler, InputHandler, WindowOptions};
         cx.update(|cx| {
             crate::ui::kit::init(cx);
             cx.set_reduce_motion(true);
@@ -602,7 +602,7 @@ mod tests {
         .unwrap();
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn send_command_is_built_only_from_the_view_model(cx: &mut TestAppContext) {
         let mut server = mockito::Server::new();
         let expected_body = r#"{"source":"view-model"}"#;

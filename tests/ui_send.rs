@@ -10,7 +10,7 @@ use flate2::{
     write::{GzEncoder, ZlibEncoder},
     Compression,
 };
-use gpui::{AppContext, ClipboardItem, TestAppContext};
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{
@@ -127,7 +127,7 @@ fn brotli(body: &str) -> Vec<u8> {
     encoded
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -156,7 +156,7 @@ fn empty_url_shows_error_in_response_panel(cx: &mut TestAppContext) {
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
@@ -195,7 +195,7 @@ fn get_404_shows_status_and_body_in_response_panel(cx: &mut TestAppContext) {
     mock.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut TestAppContext) {
     let response_body = "I'm a teapot!";
     let mut server = mockito::Server::new();
@@ -291,7 +291,7 @@ fn get_418_is_a_completed_response_with_exact_view_and_history_status(cx: &mut T
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let final_url = format!("{}/anything/redirected", server.url());
@@ -401,7 +401,7 @@ fn get_redirect_follows_to_final_response_and_history_keeps_original_url(cx: &mu
     target.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
     cx: &mut TestAppContext,
 ) {
@@ -541,7 +541,7 @@ fn get_json_renders_the_stable_subset_and_keeps_the_full_lifecycle_in_sync(
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let set_cookie = server
@@ -752,7 +752,7 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
     empty_echo.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -828,7 +828,7 @@ fn delete_sends_no_body_and_keeps_method_response_and_history_in_sync(cx: &mut T
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     cx: &mut TestAppContext,
 ) {
@@ -1051,7 +1051,7 @@ fn response_headers_support_mouse_keyboard_repeated_values_and_empty_state(
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_methods(
     cx: &mut TestAppContext,
 ) {
@@ -1205,7 +1205,7 @@ fn head_and_options_preserve_bodyless_transport_headers_actions_and_history_meth
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn compressed_responses_decode_through_real_controls_and_use_decoded_history_sizes(
     cx: &mut TestAppContext,
 ) {
@@ -1400,7 +1400,7 @@ fn compressed_responses_decode_through_real_controls_and_use_decoded_history_siz
     corrupt.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
@@ -1438,7 +1438,7 @@ fn put_sends_json_body_and_shows_status(cx: &mut TestAppContext) {
     mock.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -1529,7 +1529,7 @@ fn patch_sends_active_json_body_and_keeps_response_and_history_in_sync(cx: &mut 
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_value(
     cx: &mut TestAppContext,
 ) {
@@ -1632,7 +1632,7 @@ fn post_json_merges_generated_headers_with_a_custom_row_and_sends_the_active_val
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn put_raw_sends_active_exact_body_with_automatic_text_content_type_and_records_history(
     cx: &mut TestAppContext,
 ) {
@@ -1749,7 +1749,7 @@ fn put_raw_sends_active_exact_body_with_automatic_text_content_type_and_records_
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn post_urlencoded_validates_incomplete_rows_then_sends_the_active_value(cx: &mut TestAppContext) {
     const ROW_SELECTORS: [&str; 10] = [
         "body-form-row-0",
@@ -2038,7 +2038,7 @@ fn post_urlencoded_validates_incomplete_rows_then_sends_the_active_value(cx: &mu
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let mock = server
@@ -2092,7 +2092,7 @@ fn mouse_and_keyboard_get_reaches_local_server_and_renders_response(cx: &mut Tes
     mock.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -2183,7 +2183,7 @@ fn query_parameters_merge_encode_and_send_without_focus_change(cx: &mut TestAppC
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -2304,7 +2304,7 @@ fn multiple_query_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppCo
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -2368,7 +2368,7 @@ fn add_parameter_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut T
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -2441,7 +2441,7 @@ fn pasting_a_complete_query_url_populates_params_and_sends_each_pair_once(cx: &m
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -2479,7 +2479,7 @@ fn header_is_saved_before_add_or_focus_change(cx: &mut TestAppContext) {
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
     cx: &mut TestAppContext,
 ) {
@@ -2577,7 +2577,7 @@ fn custom_and_disabled_headers_are_visible_but_only_enabled_headers_are_sent(
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let request = server
@@ -2688,7 +2688,7 @@ fn multiple_header_rows_can_be_created_before_editing_and_sent(cx: &mut TestAppC
     request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -2752,7 +2752,7 @@ fn add_header_has_no_row_limit_and_appends_one_blank_row_per_click(cx: &mut Test
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let pending = workspace.update(cx, |workspace, _| {
@@ -2809,7 +2809,7 @@ fn clicking_send_again_cancels_an_in_flight_request(cx: &mut TestAppContext) {
     ));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -2853,7 +2853,7 @@ fn sample_and_clear_buttons_have_their_own_product_semantics(cx: &mut TestAppCon
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAppContext) {
     const KEY_SELECTORS: [&str; 8] = [
         "body-form-key-0",
@@ -2905,7 +2905,7 @@ fn urlencoded_editor_keeps_new_rows_visible_while_the_form_grows(cx: &mut TestAp
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cell(
     cx: &mut TestAppContext,
 ) {
@@ -3026,7 +3026,7 @@ fn multipart_text_rows_are_typed_live_and_sent_without_committing_the_active_cel
     submitted.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/httpbingo-upload.txt");
@@ -3152,7 +3152,7 @@ fn multipart_file_picker_sends_a_typed_file_part(cx: &mut TestAppContext) {
     upload.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     cx: &mut TestAppContext,
 ) {
@@ -3334,7 +3334,7 @@ fn disabled_multipart_rows_preserve_values_metadata_and_history_editor_intent(
     assert!(cx.debug_bounds("body-form-file-metadata-2").is_some());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn missing_multipart_file_replaces_old_response_with_error_and_preserves_editor_state(
     cx: &mut TestAppContext,
 ) {

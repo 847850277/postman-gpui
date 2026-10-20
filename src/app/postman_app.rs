@@ -11,7 +11,7 @@ use crate::{
     },
     ui::theme::{BG, FONT_UI, LINE, PANEL, TEXT},
 };
-use gpui::{
+use gpui_kit::{
     div, prelude::FluentBuilder, px, AppContext, Context, Entity, FocusHandle, InteractiveElement,
     IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
@@ -47,7 +47,7 @@ pub struct PostmanApp {
     route: AppRoute,
     quit_snapshot: Vec<(crate::app::RequestTabId, u64)>,
     flows: Entity<FlowsView>,
-    home_scroll: gpui::ScrollHandle,
+    home_scroll: gpui_kit::ScrollHandle,
     active_tool: Option<ToolDialog>,
     request_workspace: Entity<RequestWorkspace>,
     request_runner: Entity<RequestRunner>,
@@ -267,7 +267,7 @@ impl PostmanApp {
             route: AppRoute::Home,
             quit_snapshot: Vec::new(),
             flows,
-            home_scroll: gpui::ScrollHandle::new(),
+            home_scroll: gpui_kit::ScrollHandle::new(),
             active_tool: None,
             view_model,
             request_workspace,
@@ -657,12 +657,12 @@ impl PostmanApp {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{AppContext, TestAppContext};
+    use gpui_kit::{AppContext, TestAppContext};
 
     #[gpui_kit::test]
     fn auth_and_options_cannot_undo_into_another_equal_valued_tab(cx: &mut TestAppContext) {
         use crate::app::{AuthorizationKind, PostmanApp, RequestPane, WorkspaceViewModel};
-        use gpui::{Modifiers, VisualTestContext};
+        use gpui_kit::{Modifiers, VisualTestContext};
 
         fn click(cx: &mut VisualTestContext, selector: &'static str) {
             let bounds = cx.debug_bounds(selector).expect(selector);

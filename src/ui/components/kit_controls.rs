@@ -1,9 +1,5 @@
 //! Product presentation for native Kit controls. State and callbacks stay with callers.
 use crate::ui::theme::{self, metrics as m, FONT_MONO};
-use gpui::{
-    point, prelude::FluentBuilder, px, App, BoxShadow, ElementId, Entity, Focusable,
-    InteractiveElement, ParentElement, SharedString, Styled, Window,
-};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
@@ -11,6 +7,10 @@ use gpui_kit::component::{
     searchable_list::SearchableVec,
     select::{Select, SelectState},
     ActiveTheme, FocusableExt, Icon,
+};
+use gpui_kit::{
+    point, prelude::FluentBuilder, px, App, BoxShadow, ElementId, Entity, Focusable,
+    InteractiveElement, ParentElement, SharedString, Styled, Window,
 };
 
 pub type MethodState = SelectState<SearchableVec<&'static str>>;
@@ -52,7 +52,7 @@ fn frame(
         })
 }
 
-fn focus_shadow(color: gpui::Hsla) -> Vec<BoxShadow> {
+fn focus_shadow(color: gpui_kit::Hsla) -> Vec<BoxShadow> {
     vec![BoxShadow {
         inset: false,
         color,
@@ -119,7 +119,7 @@ pub fn request_url(
                     .appearance(false)
                     .focus_ring(false)
                     .disabled(disabled)
-                    .h(m::URL - gpui::rems(2. / 16.))
+                    .h(m::URL - gpui_kit::rems(2. / 16.))
                     .border(px(0.))
                     .border_r_1()
                     .border_color(cx.theme().input)
@@ -134,7 +134,7 @@ pub fn request_url(
     .addon(
         InputGroupAddon::new("url-lock")
             .align(InputGroupAddonAlignment::InlineEnd)
-            .w(gpui::rems(2.))
+            .w(gpui_kit::rems(2.))
             .flex_none()
             .child(Icon::new(IconName::Lock).size(m::SMALL_ICON)),
     )
@@ -152,8 +152,8 @@ pub fn parameter_checkbox(
     let focus = cx.theme().ring;
     gpui_kit::base::Checkbox::new(id)
         .checked(checked)
-        .size(gpui::rems(1.))
-        .rounded(gpui::rems(0.125))
+        .size(gpui_kit::rems(1.))
+        .rounded(gpui_kit::rems(0.125))
         .border_1()
         .border_color(if checked {
             green.into()
@@ -169,7 +169,7 @@ pub fn parameter_checkbox(
         .when(checked, |checkbox| {
             checkbox.child(
                 Icon::new(IconName::Check)
-                    .size(gpui::rems(0.75))
+                    .size(gpui_kit::rems(0.75))
                     .text_color(cx.theme().background),
             )
         })

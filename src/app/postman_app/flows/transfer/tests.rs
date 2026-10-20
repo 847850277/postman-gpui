@@ -4,8 +4,8 @@ use super::super::{
 };
 use super::*;
 use crate::app::PostmanApp;
-use gpui::{px, size, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{px, size, TestAppContext, VisualTestContext};
 
 fn owners(
     app: &Entity<PostmanApp>,

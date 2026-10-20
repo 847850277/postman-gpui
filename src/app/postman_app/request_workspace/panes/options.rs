@@ -12,7 +12,7 @@ use crate::{
         },
     },
 };
-use gpui::{
+use gpui_kit::{
     actions, div, px, AppContext, Context, Entity, FocusHandle, FontWeight, InteractiveElement,
     IntoElement, KeyBinding, ParentElement, Render, StatefulInteractiveElement, Styled,
     Subscription, Window,
@@ -402,7 +402,7 @@ impl Render for OptionsPane {
                     )
                     .child(
                         RadioGroup::new("redirect-policy-group")
-                            .axis(gpui::Axis::Horizontal)
+                            .axis(gpui_kit::Axis::Horizontal)
                             .aria_label("Redirect policy")
                             .flex()
                             .items_center()

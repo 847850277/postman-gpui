@@ -1,7 +1,7 @@
 //! P4.1 modal discovery workflows over real Kit controls and SQLite.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use postman_gpui::{
     app::{PostmanApp, WorkspaceViewModel},
     models::{HistoryEntry, HttpMethod, Request},
@@ -31,7 +31,7 @@ fn seed(path: &std::path::Path, count: usize) {
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn modal_blocks_background_commands_traps_tab_and_restores_editor_focus(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();
@@ -82,7 +82,7 @@ fn modal_blocks_background_commands_traps_tab_and_restores_editor_focus(cx: &mut
     assert!(cx.debug_bounds("shortcut-help-dialog").is_none());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn history_confirmation_cancel_refresh_and_long_list_keyboard_replay(cx: &mut TestAppContext) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("history.sqlite3");
@@ -139,10 +139,10 @@ fn history_confirmation_cancel_refresh_and_long_list_keyboard_replay(cx: &mut Te
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn dialogs_fit_all_reference_sizes_and_themes_and_reopen_without_stacking(cx: &mut TestAppContext) {
-    use gpui::{px, size};
     use gpui_kit::component::ThemeMode;
+    use gpui_kit::{px, size};
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |w, cx| {
         ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(model, w, cx))
@@ -182,7 +182,10 @@ fn dialogs_fit_all_reference_sizes_and_themes_and_reopen_without_stacking(cx: &m
                     assert!(cx.debug_bounds(surface).is_none());
                 }
                 click(cx, trigger).unwrap();
-                cx.simulate_click(gpui::point(px(100.), px(200.)), gpui::Modifiers::none());
+                cx.simulate_click(
+                    gpui_kit::point(px(100.), px(200.)),
+                    gpui_kit::Modifiers::none(),
+                );
                 assert!(
                     cx.debug_bounds(surface).is_none(),
                     "backdrop dismisses {surface}"

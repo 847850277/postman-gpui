@@ -1,7 +1,7 @@
 //! Prototype request panes share context while their native editors retain real draft values.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{px, size, AppContext, ClipboardItem, TestAppContext};
+use gpui_kit::{px, size, AppContext, ClipboardItem, TestAppContext};
 use postman_gpui::app::{BodyKind, PostmanApp, RequestPane, WorkspaceViewModel};
 
 #[gpui_kit::test]
@@ -35,7 +35,7 @@ fn auth_and_options_keep_undo_within_a_request_and_reset_it_across_requests(
         ("request-pane-options", "request-timeout-input", "12345"),
         ("request-pane-options", "redirect-max-hops-input", "12"),
     ] {
-        let value = |cx: &gpui::VisualTestContext| {
+        let value = |cx: &gpui_kit::VisualTestContext| {
             model.read_with(cx, |m, _| {
                 let r = m.active_request().unwrap();
                 match field {
@@ -102,7 +102,7 @@ fn auth_and_options_keep_undo_within_a_request_and_reset_it_across_requests(
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn request_context_and_compact_forms_follow_the_selected_request(cx: &mut TestAppContext) {
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();
@@ -198,7 +198,7 @@ fn request_context_and_compact_forms_follow_the_selected_request(cx: &mut TestAp
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn descriptions_follow_rows_tabs_and_resize_without_entering_the_request(cx: &mut TestAppContext) {
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();

@@ -1,8 +1,8 @@
 //! Exercise real Kit overlays against the production shell and authoritative request model.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{AppContext, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{AppContext, TestAppContext, VisualTestContext};
 use postman_gpui::{
     app::{PostmanApp, ResponseState, WorkspaceViewModel},
     models::{HttpMethod, RedirectPolicy, RequestBody},
@@ -154,7 +154,7 @@ fn invalid_export_disables_copy_and_import_is_still_available(cx: &mut TestAppCo
 
 #[gpui_kit::test]
 fn compact_window_keeps_entrypoints_and_dialog_actions_inside_viewport(cx: &mut TestAppContext) {
-    use gpui::{px, size};
+    use gpui_kit::{px, size};
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |w, cx| {
         ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(model, w, cx))
@@ -394,8 +394,8 @@ fn dismissal_restores_trigger_focus_and_keyboard_can_confirm(cx: &mut TestAppCon
     assert!(text(cx).is_empty());
     // A click on the overlay dismisses, without falling through to the navigation rail.
     cx.simulate_click(
-        gpui::point(gpui::px(10.), gpui::px(300.)),
-        gpui::Modifiers::none(),
+        gpui_kit::point(gpui_kit::px(10.), gpui_kit::px(300.)),
+        gpui_kit::Modifiers::none(),
     );
     assert!(cx.debug_bounds("curl-import-dialog").is_none());
     ui::click(cx, "rail-import").unwrap();

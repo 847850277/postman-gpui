@@ -1,7 +1,7 @@
 use super::super::tests::{add, click, create, press, replace, settle, setup};
 use super::*;
-use gpui::{Entity, InputEvent, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{Entity, InputEvent, TestAppContext, VisualTestContext};
 use postman_flow::{compile_flow, parse_flow_yaml, CompileEnvironment, FlowDocument, FlowInputs};
 use postman_http::{
     request::{Request, RequestOptions},
@@ -648,13 +648,13 @@ fn dirty_running_close_cancel_and_save_failure_keep_execution(cx: &mut TestAppCo
     // Closing an invalid hidden draft must not bypass protection or stop the running snapshot.
     click(cx, "flow-url-expression");
     let field = cx.debug_bounds("flow-url-source").unwrap();
-    let position = field.origin + gpui::point(gpui::px(12.), gpui::px(12.));
+    let position = field.origin + gpui_kit::point(gpui_kit::px(12.), gpui_kit::px(12.));
     cx.update(|w, cx| {
         w.dispatch_event(
-            gpui::MouseDownEvent {
+            gpui_kit::MouseDownEvent {
                 position,
-                button: gpui::MouseButton::Left,
-                modifiers: gpui::Modifiers::none(),
+                button: gpui_kit::MouseButton::Left,
+                modifiers: gpui_kit::Modifiers::none(),
                 click_count: 1,
                 first_mouse: false,
             }
@@ -662,10 +662,10 @@ fn dirty_running_close_cancel_and_save_failure_keep_execution(cx: &mut TestAppCo
             cx,
         );
         w.dispatch_event(
-            gpui::MouseUpEvent {
+            gpui_kit::MouseUpEvent {
                 position,
-                button: gpui::MouseButton::Left,
-                modifiers: gpui::Modifiers::none(),
+                button: gpui_kit::MouseButton::Left,
+                modifiers: gpui_kit::Modifiers::none(),
                 click_count: 1,
             }
             .to_platform_input(),
@@ -673,7 +673,7 @@ fn dirty_running_close_cancel_and_save_failure_keep_execution(cx: &mut TestAppCo
         );
     });
     press(cx, "secondary-a");
-    cx.write_to_clipboard(gpui::ClipboardItem::new_string("{unfinished".into()));
+    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("{unfinished".into()));
     press(cx, "secondary-v");
     press(cx, "secondary-w");
     click(cx, "flow-close-save");
@@ -850,7 +850,10 @@ fn editing_a_later_step_does_not_change_the_running_plan(cx: &mut TestAppContext
             (1024., 600.),
         ] {
             let handle = cx.update(|w, _| w.window_handle());
-            cx.simulate_window_resize(handle, gpui::size(gpui::px(width), gpui::px(height)));
+            cx.simulate_window_resize(
+                handle,
+                gpui_kit::size(gpui_kit::px(width), gpui_kit::px(height)),
+            );
             settle(cx);
             for selector in [
                 "flow-run",
@@ -860,9 +863,9 @@ fn editing_a_later_step_does_not_change_the_running_plan(cx: &mut TestAppContext
             ] {
                 let bounds = cx.debug_bounds(selector).unwrap();
                 assert!(
-                    bounds.left() >= gpui::px(0.)
-                        && bounds.right() <= gpui::px(width + 1.)
-                        && bounds.bottom() <= gpui::px(height + 1.),
+                    bounds.left() >= gpui_kit::px(0.)
+                        && bounds.right() <= gpui_kit::px(width + 1.)
+                        && bounds.bottom() <= gpui_kit::px(height + 1.),
                     "{selector}: {bounds:?}"
                 );
             }
@@ -892,11 +895,13 @@ fn invalid_runtime_json_is_not_a_stale_default_and_does_not_fail_document_check(
     settle(cx);
     let field = cx.debug_bounds("flow-input-runtime-0").unwrap();
     cx.simulate_click(
-        field.origin + gpui::point(gpui::px(12.), gpui::px(12.)),
-        gpui::Modifiers::none(),
+        field.origin + gpui_kit::point(gpui_kit::px(12.), gpui_kit::px(12.)),
+        gpui_kit::Modifiers::none(),
     );
     press(cx, "secondary-a");
-    cx.write_to_clipboard(gpui::ClipboardItem::new_string("{secret-invalid".into()));
+    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(
+        "{secret-invalid".into(),
+    ));
     press(cx, "secondary-v");
     click(cx, "flow-node-1-first");
     click(cx, "flow-check");

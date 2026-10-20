@@ -5,11 +5,6 @@ use crate::{
     models::curl::{self, CurlCode, CurlError, CurlImport},
     ui::theme::{metrics as m, ERROR, FONT_MONO, LINE, MUTED, OK, PANEL_ALT, TEXT},
 };
-use gpui::{
-    div, prelude::FluentBuilder, rems, App, AppContext, ClipboardItem, Context, Entity, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -18,6 +13,11 @@ use gpui_kit::{
         scroll::ScrollableElement,
         Disableable, Sizable, WindowExt,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, rems, App, AppContext, ClipboardItem, Context, Entity, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use std::rc::Rc;
 
@@ -113,7 +113,7 @@ impl CurlDialog {
             _subscription: subscription,
         }
     }
-    fn input_height(&self, window: &Window) -> gpui::Pixels {
+    fn input_height(&self, window: &Window) -> gpui_kit::Pixels {
         if self.code.is_none() {
             return (window.rem_size() * 13.).min(window.viewport_size().height * 0.29);
         }
@@ -131,7 +131,7 @@ impl CurlDialog {
         (window.rem_size() * (rows.clamp(3, 18) as f32 * 1.3 + 1.5))
             .min(window.viewport_size().height * 0.50)
     }
-    fn dialog_height(&self, window: &Window) -> gpui::Pixels {
+    fn dialog_height(&self, window: &Window) -> gpui_kit::Pixels {
         let height = if self.code.is_none() {
             window.rem_size()
                 * match self.preview {
@@ -193,7 +193,7 @@ impl CurlDialog {
             cx.notify();
         }
     }
-    fn feedback(&self, cx: &App) -> gpui::AnyElement {
+    fn feedback(&self, cx: &App) -> gpui_kit::AnyElement {
         if let Some(result) = &self.code {
             return match result {
                 Err(error) => error_text(error).text_color(ERROR.resolve(cx)).into_any_element(),
@@ -285,7 +285,7 @@ impl CurlDialog {
 fn preview(text: &str) -> Option<Result<CurlImport, CurlError>> {
     (!text.trim().is_empty()).then(|| curl::parse(text))
 }
-fn error_text(error: &CurlError) -> gpui::Stateful<gpui::Div> {
+fn error_text(error: &CurlError) -> gpui_kit::Stateful<gpui_kit::Div> {
     div()
         .id("curl-error")
         .debug_selector(|| "curl-error".into())

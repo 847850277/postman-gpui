@@ -1,7 +1,7 @@
 //! Kit owns drag geometry. This owner adds per-region preferences and keyboard parity.
 use super::FlowsView;
 use crate::ui::theme::{metrics as m, ACCENT, MUTED};
-use gpui::{
+use gpui_kit::{
     actions, div, prelude::FluentBuilder, px, Along, AnyElement, AppContext, Axis, Bounds, Context,
     Entity, FocusHandle, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement,
     Pixels, Role, StatefulInteractiveElement, Styled, Window,
@@ -146,7 +146,7 @@ impl FlowSplit {
                 .max(min),
         )
     }
-    fn displayed(&self, cx: &gpui::App) -> f32 {
+    fn displayed(&self, cx: &gpui_kit::App) -> f32 {
         self.state
             .read(cx)
             .sizes()
@@ -381,12 +381,12 @@ impl FlowsView {
                 }
             })
             .child(
-                gpui::canvas(|_, _, _| (), {
+                gpui_kit::canvas(|_, _, _| (), {
                     let owner = cx.weak_entity();
                     move |bounds, _, window, _| {
                         let owner = owner.clone();
                         window.on_mouse_event(
-                            move |event: &gpui::MouseDownEvent, phase, window, cx| {
+                            move |event: &gpui_kit::MouseDownEvent, phase, window, cx| {
                                 if !phase.capture()
                                     || event.button != MouseButton::Left
                                     || !bounds.contains(&event.position)

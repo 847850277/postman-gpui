@@ -10,14 +10,14 @@ use crate::{
         theme::{FONT_MONO, LINE, MUTED, PANEL_ALT, TEXT},
     },
 };
-use gpui::{
-    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
-    StatefulInteractiveElement, Styled, Subscription, Window,
-};
 use gpui_kit::{
     base::ElementExt,
     component::scroll::{Scrollbar, ScrollbarMode},
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle,
+    StatefulInteractiveElement, Styled, Subscription, Window,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -408,7 +408,7 @@ impl KeyValueRowsPane {
         self.row_subscriptions.push(subscription);
     }
 
-    fn row_editors_match(&self, rows: &[KeyValueRow], cx: &gpui::App) -> bool {
+    fn row_editors_match(&self, rows: &[KeyValueRow], cx: &gpui_kit::App) -> bool {
         self.row_editors.len() == rows.len()
             && self.row_editors.iter().zip(rows).all(|(editor, row)| {
                 let editor = editor.read(cx);
@@ -462,13 +462,13 @@ impl KeyValueRowsPane {
         }
     }
 
-    fn row_index(&self, row_id: TableRowId, cx: &gpui::App) -> Option<usize> {
+    fn row_index(&self, row_id: TableRowId, cx: &gpui_kit::App) -> Option<usize> {
         self.row_editors
             .iter()
             .position(|editor| editor.read(cx).row_id() == row_id)
     }
 
-    fn cell_entity(&self, cell: TableCellId, cx: &gpui::App) -> Option<Entity<TableCellInput>> {
+    fn cell_entity(&self, cell: TableCellId, cx: &gpui_kit::App) -> Option<Entity<TableCellInput>> {
         if cell.row() == self.draft_row_id {
             return Some(match cell.column() {
                 TableCellColumn::Key => self.draft_key_input.clone(),
@@ -515,7 +515,7 @@ impl KeyValueRowsPane {
         self.project_draft(window, cx);
     }
 
-    fn active_projection(&self, cx: &gpui::App) -> (Option<RequestTabId>, Vec<KeyValueRow>) {
+    fn active_projection(&self, cx: &gpui_kit::App) -> (Option<RequestTabId>, Vec<KeyValueRow>) {
         let view_model = self.view_model.read(cx);
         let Some(request) = view_model.active_request() else {
             return (None, Vec::new());
@@ -858,7 +858,11 @@ impl KeyValueRowsPane {
         cx.notify();
     }
 
-    fn render_rows_editor(&self, panel_height: f32, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_rows_editor(
+        &self,
+        panel_height: f32,
+        cx: &mut Context<Self>,
+    ) -> gpui_kit::AnyElement {
         use crate::ui::{components::kit_controls, theme::metrics as m};
         use gpui_kit::{assets::IconName, component::Icon};
         let headers = self.kind == KeyValueRowsKind::Headers;
@@ -897,7 +901,7 @@ impl KeyValueRowsPane {
             let toggle_selector = format!("{prefix}-row-toggle-{index}");
             let delete_selector = format!("{prefix}-row-delete-{index}");
             let stable_id = self.row_editors[index].entity_id();
-            let on_toggle = cx.listener(move |this, _: &gpui::ClickEvent, _, cx| {
+            let on_toggle = cx.listener(move |this, _: &gpui_kit::ClickEvent, _, cx| {
                 if headers {
                     this.toggle_header(index, cx);
                 } else {
@@ -956,7 +960,7 @@ impl KeyValueRowsPane {
         } else {
             "params-draft-toggle".into()
         };
-        let on_draft_toggle = cx.listener(|this, _: &gpui::ClickEvent, window, cx| {
+        let on_draft_toggle = cx.listener(|this, _: &gpui_kit::ClickEvent, window, cx| {
             this.toggle_header_draft(window, cx)
         });
         let mut draft = div()
@@ -1056,7 +1060,7 @@ impl KeyValueRowsPane {
             .pb_3()
             .child(
                 div()
-                    .h(gpui::rems(if compact { 2. } else { 3.4375 }))
+                    .h(gpui_kit::rems(if compact { 2. } else { 3.4375 }))
                     .flex_none()
                     .flex()
                     .items_center()
@@ -1082,7 +1086,7 @@ impl KeyValueRowsPane {
             )
             .child(
                 div()
-                    .h(gpui::px(table_height))
+                    .h(gpui_kit::px(table_height))
                     .flex_none()
                     .min_h_0()
                     .flex()
@@ -1099,7 +1103,7 @@ impl KeyValueRowsPane {
                             .flex()
                             .items_center()
                             .bg(PANEL_ALT.resolve(cx))
-                            .text_size(gpui::rems(9. / 16.))
+                            .text_size(gpui_kit::rems(9. / 16.))
                             .font_family(FONT_MONO)
                             .text_color(MUTED.resolve(cx))
                             .child(div().w_10().flex_none())
@@ -1136,7 +1140,8 @@ impl KeyValueRowsPane {
                                 let scroll = self.rows_scroll_handle.clone();
                                 let previous = self.rows_have_overflow;
                                 move |_, window, cx| {
-                                    let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                                    let has_overflow =
+                                        scroll.max_offset().y > gpui_kit::Pixels::ZERO;
                                     if has_overflow != previous {
                                         window.defer(cx, move |_, cx| {
                                             let _ = this.update(cx, |this, cx| {
@@ -1215,9 +1220,9 @@ impl Render for KeyValueRowsPane {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{AppContext, TestAppContext};
+    use gpui_kit::{AppContext, TestAppContext};
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn duplicate_param_rows_keep_identity_history_owners_across_append_and_removal(
         cx: &mut TestAppContext,
     ) {
@@ -1268,7 +1273,7 @@ mod tests {
         });
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn table_traversal_resolves_from_stable_cell_identity(cx: &mut TestAppContext) {
         let workspace = cx.new(|_| WorkspaceViewModel::new());
         let panel_layout = cx.new(|_| RequestPanelLayout::default());

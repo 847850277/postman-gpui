@@ -2,10 +2,6 @@
 use super::view::{field, hint};
 use super::*;
 use crate::ui::theme::LINE;
-use gpui::{
-    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
-    StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -15,12 +11,16 @@ use gpui_kit::{
         Disableable, Sizable,
     },
 };
+use gpui_kit::{
+    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
+    StatefulInteractiveElement, Styled,
+};
 use postman_flow::{validate_definition_name, validate_json_path, ResponseExport};
 use std::collections::HashMap;
 
 pub(super) struct ExportRow {
     pub(super) id: u64,
-    pub(super) anchor: gpui::ScrollAnchor,
+    pub(super) anchor: gpui_kit::ScrollAnchor,
     pub(super) name: Entity<InputState>,
     pub(super) path: Entity<InputState>,
     sensitive: bool,
@@ -74,7 +74,7 @@ impl RequestInspector {
             .collect();
         ExportRow {
             id,
-            anchor: gpui::ScrollAnchor::for_handle(scroll.clone()),
+            anchor: gpui_kit::ScrollAnchor::for_handle(scroll.clone()),
             name,
             path,
             sensitive: value.as_ref().is_some_and(|v| v.sensitive),

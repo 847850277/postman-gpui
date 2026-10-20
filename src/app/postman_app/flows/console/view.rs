@@ -2,10 +2,6 @@ use super::*;
 use crate::ui::theme::{
     metrics as m, ACCENT, ERROR, FONT_MONO, INFO, LINE, MUTED, OK, PANEL, PANEL_ALT, TEXT, WARNING,
 };
-use gpui::{
-    div, list, prelude::FluentBuilder, rems, AnyElement, InteractiveElement, IntoElement,
-    ParentElement, Render, Role, StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     base::{Tab, Tabs},
@@ -16,6 +12,10 @@ use gpui_kit::{
         select::Select,
         Disableable, Icon, Selectable, Sizable,
     },
+};
+use gpui_kit::{
+    div, list, prelude::FluentBuilder, rems, AnyElement, InteractiveElement, IntoElement,
+    ParentElement, Render, Role, StatefulInteractiveElement, Styled,
 };
 
 impl FlowConsole {
@@ -41,7 +41,7 @@ impl FlowConsole {
                     .border_color(if selected == view {
                         ACCENT.resolve(cx)
                     } else {
-                        gpui::rgba(0)
+                        gpui_kit::rgba(0)
                     })
                     .text_size(m::COMPACT_LABEL)
                     .text_color(if selected == view {
@@ -349,7 +349,7 @@ impl FlowConsole {
         };
         let revision = entry.run_revision;
         div()
-            .id(gpui::SharedString::from(format!(
+            .id(gpui_kit::SharedString::from(format!(
                 "console-event-{}-{}",
                 self.active.unwrap().0,
                 entry.id
@@ -365,7 +365,7 @@ impl FlowConsole {
             .min_w_0()
             .font_family(FONT_MONO)
             .text_size(m::COMPACT_LABEL)
-            .line_height(gpui::relative(1.6))
+            .line_height(gpui_kit::relative(1.6))
             .child(
                 div()
                     .w_24()
@@ -398,7 +398,7 @@ impl FlowConsole {
                                     .and_then(|s| s.run.as_ref())
                                     .is_some_and(|r| r.id == target.run);
                                 d.child(
-                                    Button::new(gpui::SharedString::from(format!(
+                                    Button::new(gpui_kit::SharedString::from(format!(
                                         "console-http-{}",
                                         entry.id
                                     )))
@@ -423,7 +423,7 @@ impl FlowConsole {
                             })
                             .when_some(entry.step.clone().zip(self.active), |d, (step, flow)| {
                                 d.child(
-                                    Button::new(gpui::SharedString::from(format!(
+                                    Button::new(gpui_kit::SharedString::from(format!(
                                         "console-step-{}-{}",
                                         flow.0, entry.id
                                     )))
@@ -446,7 +446,7 @@ impl FlowConsole {
                             .when_some(entry.diagnostic.clone(), |d, target| {
                                 d.child(
                                     div().flex().items_start().child(
-                                        Button::new(gpui::SharedString::from(format!(
+                                        Button::new(gpui_kit::SharedString::from(format!(
                                             "console-diagnostic-{}",
                                             entry.id
                                         )))

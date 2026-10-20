@@ -1,11 +1,11 @@
 use crate::ui::theme::FONT_MONO;
-use gpui::{
-    actions, div, prelude::*, App, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, KeyBinding, Render, SharedString, Styled, Subscription, Window,
-};
 use gpui_kit::component::{
     input::{Input, InputEvent, InputState},
     Sizable,
+};
+use gpui_kit::{
+    actions, div, prelude::*, App, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    IntoElement, KeyBinding, Render, SharedString, Styled, Subscription, Window,
 };
 
 actions!(header_input, [FocusNext, FocusPrevious]);
@@ -171,13 +171,13 @@ pub fn setup_header_input_key_bindings() -> Vec<KeyBinding> {
 #[cfg(test)]
 mod tests {
     use super::{HeaderInput, HeaderInputEvent};
-    use gpui::{
-        AnyWindowHandle, AppContext, ClipboardItem, Entity, Focusable, TestAppContext,
-        WindowOptions,
-    };
     use gpui_kit::{
         component::input::{Copy, Cut, Paste, SelectAll},
         test::TestWindowExt,
+    };
+    use gpui_kit::{
+        AnyWindowHandle, AppContext, ClipboardItem, Entity, Focusable, TestAppContext,
+        WindowOptions,
     };
     use std::{cell::RefCell, rc::Rc};
 

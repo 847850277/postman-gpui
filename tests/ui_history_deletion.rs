@@ -1,8 +1,8 @@
 //! History deletion uses real Kit controls and a durable SQLite repository.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{AppContext, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{AppContext, TestAppContext, VisualTestContext};
 use postman_gpui::{
     app::{HistoryStorageStage, HistoryStorageStatus, PostmanApp, WorkspaceViewModel},
     models::{HistoryEntry, HttpMethod, Request},

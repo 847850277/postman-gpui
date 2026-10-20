@@ -16,15 +16,15 @@ use crate::ui::components::{
     input::multiline_input::{MultilineInput, MultilineInputEvent},
     kit_controls::MethodState,
 };
-use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle,
-    Subscription, Window,
-};
 use gpui_kit::component::{
     input::{InputEvent, InputState},
     searchable_list::SearchableVec,
     select::{SelectEvent, SelectState},
     IndexPath,
+};
+use gpui_kit::{
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle,
+    Subscription, Window,
 };
 use postman_flow::{
     parse_body_expression, parse_condition_expression, parse_header_expressions,
@@ -56,7 +56,7 @@ pub(super) struct RequestInspector {
     tab: usize,
     tab_focus: [FocusHandle; 3],
     tab_scroll: [ScrollHandle; 3],
-    request_anchors: [gpui::ScrollAnchor; 4],
+    request_anchors: [gpui_kit::ScrollAnchor; 4],
     expression_url: bool,
     expression_headers: bool,
     simple_url_available: bool,
@@ -333,7 +333,7 @@ impl RequestInspector {
             tab: 0,
             tab_focus: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             request_anchors: std::array::from_fn(|_| {
-                gpui::ScrollAnchor::for_handle(tab_scroll[0].clone())
+                gpui_kit::ScrollAnchor::for_handle(tab_scroll[0].clone())
             }),
             tab_scroll,
             expression_url: literal.is_none_or(|s| s.contains(['\r', '\n'])),

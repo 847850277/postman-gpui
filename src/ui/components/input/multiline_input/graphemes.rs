@@ -1,16 +1,16 @@
 //! Kit 0.7.3 navigates/deletes Unicode scalars, which splits combining characters and ZWJ
 //! emoji. Repeat its native action only when crossing such a cluster. Kit retains ownership of
 //! selection direction, edit transactions and undo. Remove when Kit becomes grapheme-aware.
-use gpui::{
-    Action, App, Div, Entity, EntityInputHandler, Focusable, InteractiveElement, MouseButton,
-    Stateful, Window,
-};
 use gpui_kit::{
     base::{
         actions::{SelectLeft, SelectRight},
         input::{AddCursorAbove, AddCursorBelow},
     },
     component::input::{Backspace, Delete, MoveLeft, MoveRight, TextareaState},
+};
+use gpui_kit::{
+    Action, App, Div, Entity, EntityInputHandler, Focusable, InteractiveElement, MouseButton,
+    Stateful, Window,
 };
 use std::{cell::Cell, rc::Rc};
 use unicode_segmentation::UnicodeSegmentation;

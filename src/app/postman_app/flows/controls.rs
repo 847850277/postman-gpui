@@ -1,14 +1,14 @@
 use super::{model::validate_name, FlowsView};
 use crate::ui::theme::{metrics as m, ERROR, MUTED, SUBTEXT};
-use gpui::{
-    div, prelude::FluentBuilder, Context, Focusable, InteractiveElement, ParentElement, Styled,
-    Window,
-};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     dialog::Confirm,
     input::Input,
     Disableable, WindowExt,
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, Context, Focusable, InteractiveElement, ParentElement, Styled,
+    Window,
 };
 
 impl FlowsView {

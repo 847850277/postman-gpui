@@ -4,7 +4,7 @@
 mod ui;
 
 use chrono::{Duration, Utc};
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use postman_gpui::{
     app::{PostmanApp, WorkspaceViewModel},
     models::{HistoryEntry, HttpMethod, Request},
@@ -27,7 +27,7 @@ fn seed_history(path: &Path, entries: &[HistoryEntry]) {
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("global-search.sqlite3");
@@ -111,7 +111,7 @@ fn global_search_filters_groups_and_executes_mouse_commands(cx: &mut TestAppCont
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn global_search_keyboard_selection_empty_clear_and_escape_restore_focus(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("global-search-keyboard.sqlite3");

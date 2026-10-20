@@ -223,7 +223,7 @@ fn exports_retain_invalid_rows_sensitivity_and_refresh_cached_hints(cx: &mut Tes
 
 #[gpui_kit::test]
 fn condition_drafts_tabs_flows_keyboard_and_ime_are_isolated(cx: &mut TestAppContext) {
-    use gpui::EntityInputHandler;
+    use gpui_kit::EntityInputHandler;
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |a, _| a.flows.clone());
     click(cx, "nav-flows");
@@ -376,7 +376,7 @@ fn definition_panes_scroll_at_all_sizes_without_moving_console_or_tabs(cx: &mut 
                 (768., 720.),
                 (1024., 600.),
             ] {
-                cx.simulate_window_resize(handle, gpui::size(px(width), px(height)));
+                cx.simulate_window_resize(handle, gpui_kit::size(px(width), px(height)));
                 settle(cx);
                 if cx.debug_bounds("flow-inspector").is_none() {
                     click(cx, "flow-toggle-details");
@@ -510,7 +510,7 @@ fn check_collects_hidden_check_export_condition_and_expression_drafts(cx: &mut T
         settle(cx);
         cx.update(|w, cx| {
             w.click(
-                gpui::SharedString::from(format!("console-diagnostic-{id}")),
+                gpui_kit::SharedString::from(format!("console-diagnostic-{id}")),
                 cx,
             )
         });

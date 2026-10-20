@@ -1,10 +1,10 @@
 use super::*;
 use crate::ui::theme::{metrics as m, ACCENT, LINE, MUTED};
-use gpui::{
+use gpui_kit::base::{Tab, Tabs};
+use gpui_kit::{
     actions, AnyElement, InteractiveElement, IntoElement, KeyBinding, ParentElement,
     StatefulInteractiveElement, Styled,
 };
-use gpui_kit::base::{Tab, Tabs};
 
 actions!(
     flow_inspector,
@@ -58,7 +58,7 @@ impl RequestInspector {
                         .border_color(if self.tab == ix {
                             ACCENT.resolve(cx)
                         } else {
-                            gpui::rgba(0)
+                            gpui_kit::rgba(0)
                         })
                         .text_color(if self.tab == ix { ACCENT } else { MUTED }.resolve(cx))
                         .text_size(m::LABEL)

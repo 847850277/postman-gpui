@@ -10,10 +10,6 @@ use crate::ui::{
         PANEL, PANEL_ALT, SIDEBAR, TEXT,
     },
 };
-use gpui::{
-    div, list, prelude::FluentBuilder, rems, uniform_list, AnyElement, Context, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -23,6 +19,10 @@ use gpui_kit::{
         select::Select,
         Disableable, Icon, Selectable, Sizable,
     },
+};
+use gpui_kit::{
+    div, list, prelude::FluentBuilder, rems, uniform_list, AnyElement, Context, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Window,
 };
 
 impl FlowsView {
@@ -190,7 +190,7 @@ impl FlowsView {
                             let selected=this.library.active().is_some_and(|d|d.id()==id);
                             let title=draft.title().to_owned();
                             let subtitle=format!("{} steps{}",draft.document().flow.steps.len(),if this.is_dirty(id, cx) { " · Unsaved" } else { " · Saved" });
-                            Some(div().h_16().px_2().py_1().child(Button::new(gpui::SharedString::from(format!("flow-row-{}",id.0))).debug_selector(move||format!("flow-row-{}",id.0)).accessibility_label(format!("Open flow {title}")).ghost().selected(selected).w_full().h_full().min_w_0().px_2()
+                            Some(div().h_16().px_2().py_1().child(Button::new(gpui_kit::SharedString::from(format!("flow-row-{}",id.0))).debug_selector(move||format!("flow-row-{}",id.0)).accessibility_label(format!("Open flow {title}")).ghost().selected(selected).w_full().h_full().min_w_0().px_2()
                                 .when(selected,|b|b.bg(ACCENT_SOFT.resolve(cx)))
                                 .on_click(cx.listener(move|this,_,w,c|{this.select_flow(id,w,c);this.library_focus.focus(w,c);} ))
                                 .child(div().w_full().min_w_0().flex().items_center().gap_2()
@@ -327,7 +327,7 @@ impl FlowsView {
             .min_w_0()
             .bg(PANEL_ALT.resolve(cx))
             .child(
-                gpui::canvas(
+                gpui_kit::canvas(
                     |_, _, _| (),
                     move |bounds, _, window, _| {
                         let spacing = window.rem_size() * 1.5;
@@ -336,8 +336,11 @@ impl FlowsView {
                         while y < bounds.bottom() {
                             let mut x = bounds.left() + spacing / 2.;
                             while x < bounds.right() {
-                                window.paint_quad(gpui::fill(
-                                    gpui::Bounds::new(gpui::point(x, y), gpui::size(dot, dot)),
+                                window.paint_quad(gpui_kit::fill(
+                                    gpui_kit::Bounds::new(
+                                        gpui_kit::point(x, y),
+                                        gpui_kit::size(dot, dot),
+                                    ),
                                     dot_color,
                                 ));
                                 x += spacing;
@@ -440,7 +443,7 @@ impl FlowsView {
             };
             div()
                 .child(
-                    Button::new(gpui::SharedString::from(format!(
+                    Button::new(gpui_kit::SharedString::from(format!(
                         "flow-node-{}-{}",
                         flow.0, id
                     )))
@@ -746,7 +749,7 @@ impl Render for FlowsView {
             .child(div().flex_1().min_w_0().min_h_0().child(layout))
     }
 }
-fn connector(cx: &gpui::App) -> AnyElement {
+fn connector(cx: &gpui_kit::App) -> AnyElement {
     div()
         .h_7()
         .flex()
@@ -756,7 +759,7 @@ fn connector(cx: &gpui::App) -> AnyElement {
         .child(Icon::new(IconName::ArrowDown).size(m::SMALL_ICON))
         .into_any_element()
 }
-fn chain_cap(label: &'static str, count: usize, cx: &gpui::App) -> AnyElement {
+fn chain_cap(label: &'static str, count: usize, cx: &gpui_kit::App) -> AnyElement {
     div()
         .flex()
         .justify_center()

@@ -5,7 +5,7 @@ use crate::{
         theme::{LINE, MUTED, PANEL_ALT},
     },
 };
-use gpui::{
+use gpui_kit::{
     div, prelude::FluentBuilder, AppContext, Context, Entity, InteractiveElement, IntoElement,
     ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
@@ -176,7 +176,7 @@ impl AuthorizationPane {
         &self,
         _window: &Window,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         use crate::ui::theme::metrics as m;
         let model = self.view_model.read(cx);
         let Some(request) = model.active_request() else {
@@ -232,7 +232,7 @@ impl AuthorizationPane {
             .min_w_0()
             .overflow_y_scroll()
             .px_7()
-            .pt(gpui::rems(22. / 16.))
+            .pt(gpui_kit::rems(22. / 16.))
             .pb_2()
             .flex()
             .flex_col()
@@ -241,19 +241,19 @@ impl AuthorizationPane {
                 div()
                     .flex()
                     .items_start()
-                    .gap(gpui::rems(18. / 16.))
+                    .gap(gpui_kit::rems(18. / 16.))
                     .min_w_0()
                     .child(
                         div()
                             .debug_selector(|| "authorization-kind-selector".into())
-                            .w(gpui::rems(140. / 16.))
+                            .w(gpui_kit::rems(140. / 16.))
                             .flex_none()
                             .flex()
                             .flex_col()
                             .gap_2()
                             .child(
                                 div()
-                                    .text_size(gpui::rems(11. / 16.))
+                                    .text_size(gpui_kit::rems(11. / 16.))
                                     .text_color(MUTED.resolve(cx))
                                     .child("Authorization type"),
                             )
@@ -262,9 +262,9 @@ impl AuthorizationPane {
                                     Select::new(&self.kind_selector)
                                         .id("authorization-kind-select")
                                         .accessibility_label("Authorization type")
-                                        .h(gpui::rems(34. / 16.))
+                                        .h(gpui_kit::rems(34. / 16.))
                                         .w_full()
-                                        .text_size(gpui::rems(11. / 16.))
+                                        .text_size(gpui_kit::rems(11. / 16.))
                                         .bg(PANEL_ALT.resolve(cx))
                                         .rounded(m::RADIUS),
                                 ),
@@ -275,7 +275,7 @@ impl AuthorizationPane {
             .child(
                 div()
                     .debug_selector(|| "authorization-status".into())
-                    .text_size(gpui::rems(11. / 16.))
+                    .text_size(gpui_kit::rems(11. / 16.))
                     .text_color(MUTED.resolve(cx))
                     .child(if basic {
                         "Username and password are included in the Authorization header."
@@ -299,7 +299,7 @@ impl AuthorizationPane {
         label: &'static str,
         selector: &'static str,
         input: Entity<HeaderInput>,
-        cx: &gpui::App,
+        cx: &gpui_kit::App,
     ) -> impl IntoElement {
         use crate::ui::theme::metrics as m;
         div()
@@ -310,14 +310,14 @@ impl AuthorizationPane {
             .gap_2()
             .child(
                 div()
-                    .text_size(gpui::rems(11. / 16.))
+                    .text_size(gpui_kit::rems(11. / 16.))
                     .text_color(MUTED.resolve(cx))
                     .child(label),
             )
             .child(
                 div()
                     .debug_selector(move || selector.into())
-                    .h(gpui::rems(34. / 16.))
+                    .h(gpui_kit::rems(34. / 16.))
                     .px_3()
                     .border_1()
                     .border_color(LINE.resolve(cx))

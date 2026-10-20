@@ -6,7 +6,7 @@ use crate::{
         theme::{method_color, metrics as m, ACCENT, FONT_MONO, LINE, MUTED, PANEL, SIDEBAR, TEXT},
     },
 };
-use gpui::{
+use gpui_kit::{
     actions, canvas, div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement,
     KeyBinding, ParentElement, StatefulInteractiveElement, Styled, Window,
 };
@@ -39,7 +39,7 @@ pub(super) fn setup_request_tab_key_bindings() -> Vec<KeyBinding> {
 }
 impl RequestWorkspace {
     fn tab_columns(&self, window: &Window) -> usize {
-        let width = if self.tab_bar_width > gpui::px(0.) {
+        let width = if self.tab_bar_width > gpui_kit::px(0.) {
             self.tab_bar_width
         } else {
             window.viewport_size().width - rems(4.5).to_pixels(window.rem_size())
@@ -64,7 +64,7 @@ impl RequestWorkspace {
         let columns = self.tab_columns(window);
         let row_height = rems(38. / 16.);
         // Limit the strip in short windows so wrapped tabs cannot consume the response.
-        let max_rows = if window.viewport_size().height < gpui::px(800.) {
+        let max_rows = if window.viewport_size().height < gpui_kit::px(800.) {
             2.
         } else {
             6.
@@ -93,7 +93,9 @@ impl RequestWorkspace {
                     move |bounds, _, cx| {
                         cx.defer(move |cx| {
                             let _ = weak.update(cx, |this, cx| {
-                                if (this.tab_bar_width - bounds.size.width).abs() > gpui::px(0.5) {
+                                if (this.tab_bar_width - bounds.size.width).abs()
+                                    > gpui_kit::px(0.5)
+                                {
                                     this.tab_bar_width = bounds.size.width;
                                     cx.notify();
                                 }

@@ -1,7 +1,7 @@
 //! Complete native journeys use the exact HTML design samples and controlled HTTP evidence.
 use super::*;
 use crate::app::postman_app::flows::execution::Status;
-use gpui::{point, px, ClipboardItem, Modifiers};
+use gpui_kit::{point, px, ClipboardItem, Modifiers};
 use serde_json::{json, Value};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -327,7 +327,7 @@ fn rejected_rust_source_preserves_pending_edits_and_recents_then_yaml_recovers(
 
 #[gpui_kit::test]
 fn long_open_diagnostic_keeps_compact_document_and_console_reachable(cx: &mut TestAppContext) {
-    use gpui::{point, px, size, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+    use gpui_kit::{point, px, size, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
     let dir = tempfile::tempdir().unwrap();
     let broken = dir.path().join("broken.yaml");
     // A parser error can contain an arbitrarily long invalid enum value.
@@ -398,7 +398,7 @@ fn long_open_diagnostic_keeps_compact_document_and_console_reachable(cx: &mut Te
 fn compact_flow_actions_share_one_row_and_environment_settings_remain_accessible(
     cx: &mut TestAppContext,
 ) {
-    use gpui::{px, size};
+    use gpui_kit::{px, size};
     let (_, cx) = setup(cx);
     click(cx, "nav-flows");
     create(cx, "Compact workflow");

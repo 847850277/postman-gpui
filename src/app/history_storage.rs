@@ -3,7 +3,7 @@ use crate::{
     models::HistoryEntry,
     persistence::{HistoryLoadResult, HistoryLoadWarningKind, HistoryRepositoryTask},
 };
-use gpui::{Context, Entity};
+use gpui_kit::{Context, Entity};
 use postman_http::request::Request;
 
 /// Convert one successful repository query into the transient render projection. Row-level

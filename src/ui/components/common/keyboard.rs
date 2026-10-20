@@ -1,4 +1,4 @@
-use gpui::actions;
+use gpui_kit::actions;
 
 // Shared presentation-level activation command. Application features bind platform keys and
 // attach business handlers, while reusable UI controls can participate without depending on app.

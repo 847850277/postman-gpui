@@ -1,7 +1,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use postman_gpui::app::{PostmanApp, ResponseState, WorkspaceViewModel};
 use std::{
     sync::{mpsc, Arc, Condvar, Mutex},
@@ -17,7 +17,7 @@ fn release(gate: &Arc<(Mutex<bool>, Condvar)>) {
     wake.notify_all();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn rendered_controls_keep_complete_cancel_and_timeout_in_one_real_lifecycle(
     test_cx: &mut TestAppContext,
 ) {

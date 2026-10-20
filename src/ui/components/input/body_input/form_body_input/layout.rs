@@ -3,10 +3,6 @@ use crate::ui::{
     components::kit_controls,
     theme::{metrics, FONT_MONO, FONT_UI},
 };
-use gpui::{
-    div, prelude::FluentBuilder, rems, AnyElement, Div, ElementId, InteractiveElement, IntoElement,
-    ParentElement, Pixels, Render, StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     base::{Button, ElementExt},
@@ -14,6 +10,10 @@ use gpui_kit::{
         scroll::{Scrollbar, ScrollbarMode},
         ActiveTheme, Icon,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, rems, AnyElement, Div, ElementId, InteractiveElement, IntoElement,
+    ParentElement, Pixels, Render, StatefulInteractiveElement, Styled,
 };
 
 // Prototype dimensions expressed in rem so controls, rows, and the preferred height zoom together.
@@ -40,12 +40,12 @@ fn table_height(rows: usize, narrow: bool) -> f32 {
     row_height(narrow) * rows as f32 + if narrow { 0. } else { HEADER }
 }
 
-fn button(id: impl Into<ElementId>, label: impl Into<gpui::SharedString>, cx: &App) -> Button {
+fn button(id: impl Into<ElementId>, label: impl Into<gpui_kit::SharedString>, cx: &App) -> Button {
     kit_controls::editor_button(id, label, cx)
         .h(rems(ACTION))
         .px_2()
         .text_size(rems(11. / 16.))
-        .font_weight(gpui::FontWeight::NORMAL)
+        .font_weight(gpui_kit::FontWeight::NORMAL)
         .cursor_default()
 }
 
@@ -202,7 +202,7 @@ impl FormBodyInput {
         let entry = &self.form_data_entries[index];
         let row_id = self.row_editors[index].row_id;
         let stable_id = self.row_editors[index].key_input.entity_id();
-        let on_toggle = cx.listener(move |this: &mut Self, _: &gpui::ClickEvent, _, cx| {
+        let on_toggle = cx.listener(move |this: &mut Self, _: &gpui_kit::ClickEvent, _, cx| {
             if let Some(index) = this.entry_index(row_id) {
                 this.toggle_form_data_entry(index, cx);
             }

@@ -6,7 +6,7 @@ use crate::{
         theme::{metrics as m, ACCENT, LINE, MUTED, PANEL, PANEL_ALT, TEXT},
     },
 };
-use gpui::{
+use gpui_kit::{
     actions, div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement,
     KeyBinding, ParentElement, StatefulInteractiveElement, Styled, Window,
 };
@@ -60,13 +60,13 @@ impl RequestComposer {
             .border_color(if active {
                 ACCENT.resolve(cx)
             } else {
-                gpui::rgba(0)
+                gpui_kit::rgba(0)
             })
             .text_size(m::LABEL)
             .font_weight(if active {
                 m::MEDIUM
             } else {
-                gpui::FontWeight::NORMAL
+                gpui_kit::FontWeight::NORMAL
             })
             .text_color(if active { ACCENT } else { MUTED }.resolve(cx))
             .focus_visible(|s| s.bg(PANEL_ALT.resolve(cx)).border_color(ACCENT.resolve(cx)))
@@ -225,8 +225,8 @@ impl RequestComposer {
         let title = active
             .map(|r| r.tab_title())
             .unwrap_or_else(|| "Untitled request".into());
-        let compact = window.viewport_size().height < gpui::px(700.);
-        let narrow = window.viewport_size().width < gpui::px(1100.);
+        let compact = window.viewport_size().height < gpui_kit::px(700.);
+        let narrow = window.viewport_size().width < gpui_kit::px(1100.);
         div()
             .debug_selector(|| "request-head".into())
             .min_w_0()
@@ -244,7 +244,7 @@ impl RequestComposer {
                     (window.viewport_size().height.as_f32() * 0.022).clamp(12., 22.)
                 } / 16.,
             ))
-            .font_weight(gpui::FontWeight::NORMAL)
+            .font_weight(gpui_kit::FontWeight::NORMAL)
             .bg(PANEL.resolve(cx))
             .child(
                 div()
@@ -354,7 +354,7 @@ impl RequestComposer {
                             .icon(gpui_kit::assets::IconName::Save)
                             .label(if model.saving_request().is_some() {
                                 "Saving…"
-                            } else if window.viewport_size().width > gpui::px(1100.) {
+                            } else if window.viewport_size().width > gpui_kit::px(1100.) {
                                 if cfg!(target_os = "macos") {
                                     "Save  ⌘ S"
                                 } else {

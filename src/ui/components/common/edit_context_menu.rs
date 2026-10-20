@@ -5,8 +5,8 @@ use gpui_kit::component::menu::PopupMenu;
 /// that focus on Escape; action_context also routes chosen commands to that editor.
 pub(crate) fn edit_popup_menu(
     mut menu: PopupMenu,
-    focus: gpui::FocusHandle,
-    commands: Vec<(&'static str, Box<dyn gpui::Action>)>,
+    focus: gpui_kit::FocusHandle,
+    commands: Vec<(&'static str, Box<dyn gpui_kit::Action>)>,
 ) -> PopupMenu {
     menu = menu.action_context(focus);
     for (label, action) in commands {

@@ -1,14 +1,14 @@
 use super::*;
 use crate::ui::theme::{metrics as m, ERROR, MUTED};
-use gpui::{
-    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
-    StatefulInteractiveElement, Styled,
-};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     Disableable, Sizable,
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
+    StatefulInteractiveElement, Styled,
 };
 
 impl FlowsView {
@@ -86,7 +86,7 @@ impl FlowsView {
     ) -> AnyElement {
         div().flex_none().min_w_0().when_some(self.files.error.clone(), |d, error| {
             d.child(div().id("flow-file-error").debug_selector(|| "flow-file-error".into())
-                .role(gpui::Role::Alert).w_full().min_w_0().max_h_20()
+                .role(gpui_kit::Role::Alert).w_full().min_w_0().max_h_20()
                 .overflow_y_scroll().track_scroll(&self.files.error_scroll)
                 .px_4().py_2().text_size(m::LABEL).text_color(ERROR.resolve(cx))
                 .child(div().debug_selector(|| "flow-file-error-text".into()).child(error))
@@ -253,7 +253,7 @@ impl FlowsView {
                     .items_center()
                     .gap_2()
                     .child(
-                        Button::new(gpui::SharedString::from(format!(
+                        Button::new(gpui_kit::SharedString::from(format!(
                             "flow-recent-{}",
                             file.path.display()
                         )))
@@ -294,7 +294,7 @@ impl FlowsView {
                         }),
                     )
                     .child(
-                        Button::new(gpui::SharedString::from(format!(
+                        Button::new(gpui_kit::SharedString::from(format!(
                             "flow-forget-{}",
                             file.path.display()
                         )))

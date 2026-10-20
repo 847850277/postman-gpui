@@ -10,7 +10,7 @@ use common::scenario::{
     resolve_scenario_fixture_path, response_redirect_chain, validate_body_row_contract, DraftSpec,
     KeyValueSpec, MultipartPartSpec, RequestScenario, ResponseSpec, ScenarioFile, ScenarioTarget,
 };
-use gpui::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
+use gpui_kit::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use postman_gpui::{
     app::{
         AuthorizationKind, BodyKind, EffectiveHeaderSource, KeyValueRow, PostmanApp,
@@ -866,7 +866,7 @@ fn multi_tab_workflow_contract_keeps_requests_distinguishable() {
     multi_tab_workflow(&files).expect("Issue #79 workflow contract should be complete");
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let mut scenario_count = 0;
@@ -896,7 +896,7 @@ fn httpbingo_scenarios_drive_the_real_application_window(cx: &mut TestAppContext
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
     test_cx: &mut TestAppContext,
 ) {
@@ -906,7 +906,7 @@ fn httpbingo_html_form_is_inspected_then_submitted_in_one_ui_lifecycle(
         .unwrap_or_else(|failure| panic!("Issue #59 HTML form workflow failed:\n{failure}"));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let workflow = cookie_workflow(&files).expect("Issue #65 workflow should be valid");
@@ -914,7 +914,7 @@ fn httpbingo_cookie_is_stored_sent_and_cleared_in_one_ui_lifecycle(test_cx: &mut
         .unwrap_or_else(|failure| panic!("Issue #65 cookie workflow failed:\n{failure}"));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
     test_cx: &mut TestAppContext,
 ) {
@@ -935,7 +935,7 @@ fn httpbingo_delayed_requests_exercise_completion_cancellation_and_timeout(
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_response_headers_are_inspectable_by_mouse_and_keyboard(test_cx: &mut TestAppContext) {
     let files = load_suites(&scenario_root()).expect("scenario files should parse");
     let scenario = find_httpbingo_scenario(&files, RESPONSE_HEADERS_SCENARIO)
@@ -1090,7 +1090,7 @@ fn run_response_headers_workflow(
     Ok(())
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_history_replay_restores_and_resends_the_complete_request(
     test_cx: &mut TestAppContext,
 ) {
@@ -1101,7 +1101,7 @@ fn httpbingo_history_replay_restores_and_resends_the_complete_request(
         .unwrap_or_else(|failure| panic!("Issue #77 History replay workflow failed:\n{failure}"));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_multi_tab_requests_remain_isolated_across_mouse_keyboard_send_and_close(
     test_cx: &mut TestAppContext,
 ) {
@@ -1111,7 +1111,7 @@ fn httpbingo_multi_tab_requests_remain_isolated_across_mouse_keyboard_send_and_c
         .unwrap_or_else(|failure| panic!("Issue #79 multi-tab workflow failed:\n{failure}"));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_keyboard_only_lifecycle_sends_copies_replays_switches_and_closes(
     test_cx: &mut TestAppContext,
 ) {
@@ -1692,7 +1692,7 @@ fn run_history_replay_workflow(
     Ok(())
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_head_and_options_keep_exact_methods_empty_bodies_and_history_restore(
     test_cx: &mut TestAppContext,
 ) {
@@ -1839,7 +1839,7 @@ fn run_head_options_workflow(
     Ok(())
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn httpbingo_compression_decodes_readable_bodies_and_records_decoded_sizes(
     test_cx: &mut TestAppContext,
 ) {

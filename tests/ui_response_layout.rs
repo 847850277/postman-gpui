@@ -1,7 +1,7 @@
 //! Native interactions for P3 response presentation and Kit split panes.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{
+use gpui_kit::{
     point, px, size, AppContext, Modifiers, MouseButton, TestAppContext, VisualTestContext,
 };
 use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
@@ -68,7 +68,7 @@ fn drag(cx: &mut VisualTestContext, dx: f32, dy: f32, cancel: bool) {
     cx.run_until_parked();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
     cx: &mut TestAppContext,
 ) {
@@ -151,9 +151,9 @@ fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
         }
         let before_horizontal = cx.debug_bounds(first_item).unwrap();
         let position = cx.debug_bounds(viewport).unwrap().center();
-        cx.simulate_event(gpui::ScrollWheelEvent {
+        cx.simulate_event(gpui_kit::ScrollWheelEvent {
             position,
-            delta: gpui::ScrollDelta::Pixels(point(px(-80.), px(0.))),
+            delta: gpui_kit::ScrollDelta::Pixels(point(px(-80.), px(0.))),
             ..Default::default()
         });
         assert_eq!(
@@ -175,7 +175,7 @@ fn response_scrollbars_stay_at_viewport_edges_after_scrolling_and_resizing(
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn split_uses_editor_width_restores_preferences_and_keeps_controls_inside_window(
     cx: &mut TestAppContext,
 ) {
@@ -244,7 +244,7 @@ fn split_uses_editor_width_restores_preferences_and_keeps_controls_inside_window
     click(cx, "response-layout-toggle").unwrap();
     assert!((share(cx, false) - preferred).abs() < 0.01);
 }
-#[gpui::test]
+#[gpui_kit::test]
 fn divider_keyboard_escape_reset_and_numeric_controls_use_the_same_split(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |window, cx| {
@@ -271,7 +271,7 @@ fn divider_keyboard_escape_reset_and_numeric_controls_use_the_same_split(cx: &mu
     ui::press(cx, "end");
     assert!((cx.debug_bounds("response-container").unwrap().size.width - px(360.)).abs() < px(1.));
     let handle = cx.debug_bounds("response-resize-handle").unwrap().center();
-    cx.simulate_event(gpui::MouseDownEvent {
+    cx.simulate_event(gpui_kit::MouseDownEvent {
         position: handle,
         button: MouseButton::Left,
         click_count: 2,
@@ -313,7 +313,7 @@ fn divider_keyboard_escape_reset_and_numeric_controls_use_the_same_split(cx: &mu
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 async fn pretty_raw_long_content_and_per_tab_view_state_preserve_the_received_response(
     cx: &mut TestAppContext,
 ) {

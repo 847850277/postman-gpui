@@ -3,7 +3,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::app::{
     AuthorizationKind, BodyKind, KeyValueRow, MultipartDraftPart, MultipartDraftValue, PostmanApp,
@@ -12,7 +12,7 @@ use postman_gpui::app::{
 use postman_gpui::models::{HttpMethod, MultipartPart, MultipartValue, RequestBody};
 use ui::{choose_method, click, replace_text, scroll_down, scroll_up, type_into};
 
-#[gpui::test]
+#[gpui_kit::test]
 fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -78,7 +78,7 @@ fn new_switch_and_close_tabs_preserve_independent_drafts(cx: &mut TestAppContext
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     cx: &mut TestAppContext,
 ) {
@@ -281,7 +281,7 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
     tab_b_request.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -501,7 +501,7 @@ fn every_composer_pane_restores_active_edits_for_its_request_tab(cx: &mut TestAp
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let completed = server
@@ -581,7 +581,7 @@ fn response_and_history_remain_wired_through_workspace_children(cx: &mut TestApp
     completed.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -635,7 +635,7 @@ fn row_editors_project_independent_pane_and_tab_drafts(cx: &mut TestAppContext) 
     }));
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
     cx: &mut TestAppContext,
 ) {
@@ -716,7 +716,7 @@ fn url_encoded_rows_are_owned_by_the_tab_and_projected_without_normalization(
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut TestAppContext) {
     let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/httpbingo-upload.txt");
@@ -829,7 +829,7 @@ fn multipart_rows_and_file_metadata_are_projected_after_switching_tabs(cx: &mut 
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn left_rail_new_request_is_a_real_command(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -851,7 +851,7 @@ fn left_rail_new_request_is_a_real_command(cx: &mut TestAppContext) {
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let alpha = server
@@ -900,7 +900,7 @@ fn history_search_filters_completed_requests(cx: &mut TestAppContext) {
     beta.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let secured = server
@@ -985,7 +985,7 @@ fn bearer_authorization_editor_affects_the_real_request(cx: &mut TestAppContext)
     secured.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let secured = server
@@ -1113,7 +1113,7 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
     secured.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn script_and_test_editors_are_saved_per_tab(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();

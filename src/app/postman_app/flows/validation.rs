@@ -1,7 +1,7 @@
 //! Document-only validation. Locations capture a revision, never a mutable list index alone.
 use super::{console, FlowId, FlowsView};
-use gpui::{App, AppContext, Context, Focusable, Window};
 use gpui_kit::component::{notification::Notification, WindowExt};
+use gpui_kit::{App, AppContext, Context, Focusable, Window};
 use postman_flow::{compile_flow, CompileEnvironment};
 
 #[derive(Clone, Debug)]

@@ -3,11 +3,6 @@ use super::{
     Environments,
 };
 use crate::ui::theme::{metrics as m, ERROR, FONT_MONO, LINE, MUTED, OK, PANEL, PANEL_ALT, TEXT};
-use gpui::{
-    div, prelude::FluentBuilder, App, AppContext, Context, Entity, IntoElement, ParentElement,
-    Render, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window,
-};
-use gpui::{Focusable, InteractiveElement};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -17,6 +12,11 @@ use gpui_kit::{
         Disableable, FocusableExt, Sizable, WindowExt,
     },
 };
+use gpui_kit::{
+    div, prelude::FluentBuilder, App, AppContext, Context, Entity, IntoElement, ParentElement,
+    Render, ScrollHandle, StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window,
+};
+use gpui_kit::{Focusable, InteractiveElement};
 
 struct EnvironmentRow {
     id: String,
@@ -280,7 +280,7 @@ impl EnvironmentEditor {
         let remove_id = format!("environment-remove-{}", row.id);
         let selector = remove_id.clone();
         div()
-            .id(gpui::SharedString::from(format!(
+            .id(gpui_kit::SharedString::from(format!(
                 "environment-card-{}",
                 row.id
             )))
@@ -311,8 +311,8 @@ impl EnvironmentEditor {
                                 .text_size(m::CAPTION)
                                 .text_color(OK.resolve(cx))
                                 .bg(OK.resolve(cx).opacity(0.1))
-                                .px(gpui::rems(6. / 16.))
-                                .py(gpui::rems(2. / 16.))
+                                .px(gpui_kit::rems(6. / 16.))
+                                .py(gpui_kit::rems(2. / 16.))
                                 .rounded_sm()
                                 .child("Active"),
                         )

@@ -1,7 +1,7 @@
 use super::super::tests::{add, click, create, press, replace, settle, setup};
 use super::*;
-use gpui::{ElementInputHandler, InputHandler, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{ElementInputHandler, InputHandler, TestAppContext, VisualTestContext};
 
 fn command(cx: &mut VisualTestContext, value: &str) {
     replace(cx, "console-command", value);
@@ -14,7 +14,7 @@ fn text(console: &Entity<FlowConsole>, cx: &mut VisualTestContext) -> String {
 
 #[gpui_kit::test]
 fn short_console_empty_message_starts_inside_its_scroll_view(cx: &mut TestAppContext) {
-    use gpui::{point, px, size, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+    use gpui_kit::{point, px, size, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
     let (_, cx) = setup(cx);
     click(cx, "nav-flows");
     create(cx, "Small window");
@@ -90,7 +90,9 @@ fn commands_history_completion_and_view_keys_use_real_kit_controls(cx: &mut Test
     console.read_with(cx, |v, _| {
         assert_eq!(v.current().unwrap().view, View::Steps)
     });
-    cx.update(|_, cx| cx.write_to_clipboard(gpui::ClipboardItem::new_string("unchanged".into())));
+    cx.update(|_, cx| {
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("unchanged".into()))
+    });
     click(cx, "console-copy");
     cx.update(|_, cx| {
         assert_eq!(
@@ -274,9 +276,9 @@ fn virtual_logs_follow_pause_and_step_links_restore_canvas(cx: &mut TestAppConte
         assert!(v.scroll.is_following_tail());
     });
     let bounds = cx.debug_bounds("console-content").unwrap();
-    cx.simulate_event(gpui::ScrollWheelEvent {
+    cx.simulate_event(gpui_kit::ScrollWheelEvent {
         position: bounds.center(),
-        delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(0.), gpui::px(150.))),
+        delta: gpui_kit::ScrollDelta::Pixels(gpui_kit::point(gpui_kit::px(0.), gpui_kit::px(150.))),
         ..Default::default()
     });
     settle(cx);

@@ -6,7 +6,7 @@
 
 use super::multiline_input::{MultilineInput, MultilineInputEvent};
 use form_body_input::{FormBodyInput, FormBodyInputEvent};
-use gpui::{
+use gpui_kit::{
     div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
@@ -155,7 +155,7 @@ impl BodyInput {
     /// Pass the actual editor width and clamp the result to the available pane height;
     /// rows scroll within a smaller allocation while Add field remains accessible.
     /// Excludes surrounding pane chrome.
-    pub fn preferred_form_height(&self, width: gpui::Pixels, cx: &App) -> gpui::Pixels {
+    pub fn preferred_form_height(&self, width: gpui_kit::Pixels, cx: &App) -> gpui_kit::Pixels {
         self.form_input.read(cx).preferred_height(width, cx)
     }
 
@@ -187,7 +187,7 @@ impl BodyInput {
         }
     }
 
-    pub(crate) fn text_value(&self, cx: &App) -> gpui::SharedString {
+    pub(crate) fn text_value(&self, cx: &App) -> gpui_kit::SharedString {
         self.text_input.read(cx).value()
     }
 
@@ -298,7 +298,7 @@ impl Render for BodyInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{AppContext, TestAppContext};
+    use gpui_kit::{AppContext, TestAppContext};
 
     struct EventRecorder {
         events: Vec<BodyInputEvent>,
@@ -326,7 +326,7 @@ mod tests {
         }
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn form_row_count_tracks_edits_including_disabled_and_blank_rows(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(BodyInput::new);
@@ -375,7 +375,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn view_model_projection_preserves_row_count_and_user_events(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(BodyInput::new);

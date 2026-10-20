@@ -3,7 +3,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext};
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext};
 use postman_gpui::{
     app::{
         AuthorizationKind, BodyKind, PostmanApp, RequestBodyDraft, RequestPane, ResponseState,
@@ -13,7 +13,7 @@ use postman_gpui::{
 };
 use ui::click;
 
-#[gpui::test]
+#[gpui_kit::test]
 fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let response = server
@@ -107,7 +107,7 @@ fn application_shortcuts_manage_tabs_focus_send_history_and_help(cx: &mut TestAp
     response.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -311,7 +311,7 @@ fn option_groups_and_dynamic_rows_are_fully_keyboard_operable(cx: &mut TestAppCo
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn cookie_overlay_controls_activate_and_restore_focus_on_close(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -352,7 +352,7 @@ fn cookie_overlay_controls_activate_and_restore_focus_on_close(cx: &mut TestAppC
     assert!(cx.debug_bounds("cookie-jar-panel").is_none());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -396,7 +396,7 @@ fn text_editing_shortcuts_remain_local_and_projection_safe(cx: &mut TestAppConte
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_url_submit_shortcuts_send_exactly_once_from_the_focused_edit(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let workspace = cx.new(|_| WorkspaceViewModel::new());
@@ -429,7 +429,7 @@ fn kit_url_submit_shortcuts_send_exactly_once_from_the_focused_edit(cx: &mut Tes
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn identical_urls_in_different_tabs_do_not_share_undo_history(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -452,7 +452,7 @@ fn identical_urls_in_different_tabs_do_not_share_undo_history(cx: &mut TestAppCo
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn send_shortcuts_work_from_kit_fields_without_submitting_table_rows(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let workspace = cx.new(|_| WorkspaceViewModel::new());

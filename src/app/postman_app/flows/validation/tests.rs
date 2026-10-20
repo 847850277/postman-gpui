@@ -1,10 +1,10 @@
 use super::super::tests::{add, click, create, press, replace, settle, setup};
 use super::*;
-use gpui::{
+use gpui_kit::test::TestWindowExt;
+use gpui_kit::{
     point, px, ClipboardItem, Entity, Modifiers, ScrollDelta, ScrollWheelEvent, SharedString,
     TestAppContext, TouchPhase, VisualTestContext,
 };
-use gpui_kit::test::TestWindowExt;
 use postman_flow::{
     parse_flow_yaml, FlowDefinition, FlowDocument, FlowInputSpec, HttpRequestTemplate,
     HttpStepDefinition, TextTemplate,

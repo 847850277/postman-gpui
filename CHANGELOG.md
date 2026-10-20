@@ -5,6 +5,12 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+### Changed
+
+- Use GPUI Kit as the application's only direct UI framework dependency, including native
+  test and font-verification APIs. Release validation checks resolved platform features
+  without requiring separate GPUI or platform declarations.
+
 ## [0.1.1] - 2026-10-20
 
 ### Added

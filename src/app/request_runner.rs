@@ -9,7 +9,7 @@ use crate::{
         HistoryRepositoryWorker, VersionedHistorySnapshot, DEFAULT_HISTORY_RETENTION_LIMIT,
     },
 };
-use gpui::{Context, Entity};
+use gpui_kit::{Context, Entity};
 use std::{collections::HashMap, sync::Arc};
 
 /// Application service that owns HTTP task lifetimes.
@@ -151,10 +151,10 @@ impl Drop for RequestRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::AppContext;
+    use gpui_kit::AppContext;
 
-    #[gpui::test]
-    fn starts_empty(cx: &mut gpui::TestAppContext) {
+    #[gpui_kit::test]
+    fn starts_empty(cx: &mut gpui_kit::TestAppContext) {
         let runner = cx.new(|_| RequestRunner::new(None));
         assert_eq!(
             runner.read_with(cx, |runner, _| runner.in_flight_count()),

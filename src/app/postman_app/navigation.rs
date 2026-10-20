@@ -1,6 +1,6 @@
 use super::PostmanApp;
 use crate::app::RequestTabId;
-use gpui::{Context, Window};
+use gpui_kit::{Context, Window};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum AppRoute {

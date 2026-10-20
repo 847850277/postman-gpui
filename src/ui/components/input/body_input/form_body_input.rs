@@ -3,7 +3,7 @@ use crate::ui::components::input::table_cell_input::{
     TableCellColumn, TableCellId, TableCellInput, TableCellInputEvent, TableCellTraversal,
     TableRowId,
 };
-use gpui::{
+use gpui_kit::{
     px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle,
     Subscription, Window,
 };
@@ -44,7 +44,7 @@ enum PendingFormFocus {
 pub(super) struct FormBodyInput {
     form_data_allows_files: bool,
     form_data_scroll: ScrollHandle,
-    viewport_width: gpui::Pixels,
+    viewport_width: gpui_kit::Pixels,
     has_overflow: bool,
     focused_row: Option<TableRowId>,
     form_data_entries: Vec<FormDataEntry>,
@@ -311,7 +311,7 @@ impl FormBodyInput {
             return;
         }
 
-        let paths = cx.prompt_for_paths(gpui::PathPromptOptions {
+        let paths = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
             files: true,
             directories: false,
             multiple: false,
@@ -533,10 +533,10 @@ impl FormBodyInput {
 mod tests {
     use super::FormBodyInput;
     use crate::ui::components::input::body_input::FormDataEntry;
-    use gpui::{Focusable, TestAppContext};
+    use gpui_kit::{Focusable, TestAppContext};
     use std::path::PathBuf;
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn row_insertion_removal_and_enabled_state_preserve_order(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(FormBodyInput::new);
@@ -575,7 +575,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn duplicate_rows_keep_identity_across_append_and_neighbor_removal(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(FormBodyInput::new);
@@ -606,7 +606,7 @@ mod tests {
         });
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn same_tab_projection_retains_cells_but_request_rebind_resets_them(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(FormBodyInput::new);
@@ -624,7 +624,7 @@ mod tests {
         });
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn stable_cell_event_updates_the_same_logical_row_after_deletion(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, visual) = cx.add_window_view(FormBodyInput::new);
@@ -656,7 +656,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn kit_cell_tab_traverses_and_appends_form_rows(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, visual) = cx.add_window_view(FormBodyInput::new);
@@ -687,7 +687,7 @@ mod tests {
         });
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn text_and_file_transitions_retain_typed_metadata_and_enabled_state(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (input, cx) = cx.add_window_view(FormBodyInput::new);

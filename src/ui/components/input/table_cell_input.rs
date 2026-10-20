@@ -1,12 +1,12 @@
 use crate::ui::theme::{FONT_MONO, PANEL, TEXT};
-use gpui::{
-    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Global,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString, Styled,
-    Subscription, Window,
-};
 use gpui_kit::component::{
     input::{Input, InputEvent, InputState},
     Sizable,
+};
+use gpui_kit::{
+    actions, div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Global,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString, Styled,
+    Subscription, Window,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -204,8 +204,8 @@ impl Render for TableCellInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{EntityInputHandler, TestAppContext};
     use gpui_kit::component::input::{Redo, Undo};
+    use gpui_kit::{EntityInputHandler, TestAppContext};
 
     struct CellPair {
         first: Entity<TableCellInput>,
@@ -260,7 +260,7 @@ mod tests {
         }
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn cell_identity_survives_unicode_ime_and_per_cell_history(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (pair, visual) = cx.add_window_view(CellPair::new);
@@ -294,7 +294,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn undo_history_is_isolated_between_neighboring_cells(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (pair, visual) = cx.add_window_view(CellPair::new);
@@ -319,7 +319,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn projection_is_silent_and_equal_values_preserve_selection_and_undo(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (pair, visual) = cx.add_window_view(CellPair::new);
@@ -355,7 +355,7 @@ mod tests {
         );
     }
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn kit_typing_submit_and_tab_emit_stable_table_events(cx: &mut TestAppContext) {
         cx.update(crate::ui::kit::init);
         let (pair, visual) = cx.add_window_view(CellPair::new);

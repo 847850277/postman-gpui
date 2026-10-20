@@ -3,11 +3,6 @@
 use super::RequestWorkspace;
 use crate::app::http_layout::{HttpLayout, HttpLayoutPreferences, DEFAULT_SHARE};
 use crate::ui::theme::{metrics as m, ACCENT, LINE, PANEL, SUBTEXT};
-use gpui::{
-    actions, div, prelude::FluentBuilder, px, Along, AppContext, Axis, Bounds, Context, Entity,
-    FocusHandle, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Pixels,
-    Role, StatefulInteractiveElement, Styled, Window,
-};
 use gpui_kit::base::ElementExt;
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
@@ -17,6 +12,11 @@ use gpui_kit::component::{
         h_resizable, resizable_panel, resize_handle_appearance, v_resizable, ResizableState,
     },
     Disableable, WindowExt,
+};
+use gpui_kit::{
+    actions, div, prelude::FluentBuilder, px, Along, AppContext, Axis, Bounds, Context, Entity,
+    FocusHandle, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement, Pixels,
+    Role, StatefulInteractiveElement, Styled, Window,
 };
 use std::{cell::Cell, rc::Rc};
 
@@ -89,7 +89,7 @@ impl HttpSplit {
         let response = (if self.stacked { 210_f32 } else { 360. }).min(total * 0.45);
         (minimum, (total - response).max(minimum))
     }
-    fn displayed(&self, cx: &gpui::App) -> f32 {
+    fn displayed(&self, cx: &gpui_kit::App) -> f32 {
         self.state()
             .read(cx)
             .sizes()
@@ -289,7 +289,7 @@ impl RequestWorkspace {
             .when(!stacked, |d| {
                 d.child(
                     div()
-                        .h(gpui::rems(50. / 16.))
+                        .h(gpui_kit::rems(50. / 16.))
                         .flex_none()
                         .px_7()
                         .flex()
@@ -406,11 +406,11 @@ impl RequestWorkspace {
             // Kit's grab band occludes ancestor hitboxes. Observe its pointer-down
             // in the window capture phase; Kit still owns the complete drag itself.
             .child(
-                gpui::canvas(|_, _, _| (), {
+                gpui_kit::canvas(|_, _, _| (), {
                     let this = cx.weak_entity();
                     move |bounds, _, window, _| {
                         window.on_mouse_event(
-                            move |event: &gpui::MouseDownEvent, phase, window, cx| {
+                            move |event: &gpui_kit::MouseDownEvent, phase, window, cx| {
                                 if window.has_active_dialog(cx)
                                     || !phase.capture()
                                     || event.button != MouseButton::Left

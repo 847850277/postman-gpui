@@ -2,16 +2,16 @@ use crate::ui::theme::{
     CODE_BG, CODE_TEXT, FONT_HEADING, FONT_MONO, FONT_UI, INFO, LINE, MUTED, PANEL_ALT, SUBTEXT,
     TEXT,
 };
-use gpui::{
+use gpui_kit::component::scroll::{ScrollableElement, ScrollbarAxis};
+use gpui_kit::{
     div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
     Role, StatefulInteractiveElement, Styled,
 };
-use gpui_kit::component::scroll::{ScrollableElement, ScrollbarAxis};
 
 pub(super) fn render_response_headers(
     headers: &[(String, String)],
-    scroll: &gpui::ScrollHandle,
-    cx: &gpui::App,
+    scroll: &gpui_kit::ScrollHandle,
+    cx: &gpui_kit::App,
 ) -> impl IntoElement {
     let header_count = headers.len();
     let rows = headers.to_vec();

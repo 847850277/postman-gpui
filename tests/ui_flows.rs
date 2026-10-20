@@ -1,10 +1,10 @@
 //! Responsive native Flow layout and pointer/keyboard splitter behavior.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{
+use gpui_kit::test::TestWindowExt;
+use gpui_kit::{
     point, px, size, AppContext, Modifiers, MouseButton, TestAppContext, VisualTestContext,
 };
-use gpui_kit::test::TestWindowExt;
 use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
 fn click(cx: &mut VisualTestContext, id: &'static str) -> Result<(), String> {
     if ui::kit_control_exists(cx, id) {

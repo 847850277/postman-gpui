@@ -1,8 +1,8 @@
 //! Real Kit environment interactions, durable commits, and request isolation.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{AppContext, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{AppContext, TestAppContext, VisualTestContext};
 use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
 use serde_json::{json, Value};
 use std::{fs, path::Path};
@@ -187,7 +187,7 @@ fn save_failure_preserves_draft_and_retry_commits_it(cx: &mut TestAppContext) {
 
 #[gpui_kit::test]
 fn dialog_geometry_keyboard_validation_and_active_deletion(cx: &mut TestAppContext) {
-    use gpui::{px, size};
+    use gpui_kit::{px, size};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("environments.json");
     seed(&path, "https://api.example.com", "http://localhost:3000");
@@ -378,7 +378,7 @@ fn environment_switch_during_http_keeps_sent_snapshot_and_uses_new_target_next(
 
 #[gpui_kit::test]
 fn long_environment_list_keeps_actions_visible_and_added_fields_focused(cx: &mut TestAppContext) {
-    use gpui::{px, size};
+    use gpui_kit::{px, size};
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("environments.json");
     let rows:Vec<_>=(0..8).map(|n|json!({"id":format!("env{n}"),"name":format!("Environment {n}"),"base_url":format!("https://host{n}.example.com")})).collect();

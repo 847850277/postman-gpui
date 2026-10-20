@@ -5,7 +5,7 @@ use crate::{
         theme::{CODE_BG, CODE_TEXT, FONT_UI, MUTED},
     },
 };
-use gpui::{
+use gpui_kit::{
     div, px, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
     ParentElement, Render, Styled, Subscription, Window,
 };
@@ -114,8 +114,8 @@ impl ScriptPane {
         hint: &'static str,
         input: Entity<MultilineInput>,
         selector: &'static str,
-        cx: &gpui::App,
-    ) -> gpui::AnyElement {
+        cx: &gpui_kit::App,
+    ) -> gpui_kit::AnyElement {
         div()
             .flex_1()
             .min_h_0()

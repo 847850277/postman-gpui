@@ -5,8 +5,8 @@ use super::super::{
     FlowsView,
 };
 use super::*;
-use gpui::{point, px, ClipboardItem, Modifiers, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{point, px, ClipboardItem, Modifiers, TestAppContext, VisualTestContext};
 
 fn inspector(flows: &Entity<FlowsView>, cx: &mut VisualTestContext) -> Entity<RequestInspector> {
     flows.read_with(cx, |v, _| v.inspector().unwrap().clone())
@@ -253,18 +253,22 @@ fn invalid_buffers_survive_steps_flows_theme_resize_navigation_and_undo(cx: &mut
     assert!(first.read_with(cx, |v, _| v.body_error.is_none()));
 }
 
-fn scroll(cx: &mut VisualTestContext, position: gpui::Point<gpui::Pixels>, delta: gpui::Pixels) {
-    cx.simulate_event(gpui::ScrollWheelEvent {
+fn scroll(
+    cx: &mut VisualTestContext,
+    position: gpui_kit::Point<gpui_kit::Pixels>,
+    delta: gpui_kit::Pixels,
+) {
+    cx.simulate_event(gpui_kit::ScrollWheelEvent {
         position,
-        delta: gpui::ScrollDelta::Pixels(point(px(0.), delta)),
-        touch_phase: gpui::TouchPhase::Moved,
+        delta: gpui_kit::ScrollDelta::Pixels(point(px(0.), delta)),
+        touch_phase: gpui_kit::TouchPhase::Moved,
         modifiers: Modifiers::none(),
     });
 }
 
 #[gpui_kit::test]
 fn body_ime_clipboard_and_keyboard_traversal_use_retained_kit_state(cx: &mut TestAppContext) {
-    use gpui::{EntityInputHandler, Focusable};
+    use gpui_kit::{EntityInputHandler, Focusable};
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |app, _| app.flows.clone());
     click(cx, "nav-flows");
@@ -347,7 +351,7 @@ fn long_source_errors_fit_the_inspector_at_all_supported_sizes(cx: &mut TestAppC
                 (768., 720.),
                 (1024., 600.),
             ] {
-                cx.simulate_window_resize(handle, gpui::size(px(width), px(height)));
+                cx.simulate_window_resize(handle, gpui_kit::size(px(width), px(height)));
                 settle(cx);
                 top(cx);
                 let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();

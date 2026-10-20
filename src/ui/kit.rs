@@ -1,7 +1,7 @@
 //! Shared GPUI Kit initialization for application windows and native UI tests.
 
-use gpui::App;
 use gpui_kit::component::ThemeMode;
+use gpui_kit::App;
 
 /// Call once after registering the application's embedded fonts and before opening windows.
 pub fn init(cx: &mut App) {
@@ -16,13 +16,13 @@ pub fn init(cx: &mut App) {
         "RequestTextInput > Input",
     ] {
         cx.bind_keys([
-            gpui::KeyBinding::new("ctrl-a", SelectAll, Some(context)),
-            gpui::KeyBinding::new("ctrl-c", Copy, Some(context)),
-            gpui::KeyBinding::new("ctrl-x", Cut, Some(context)),
-            gpui::KeyBinding::new("ctrl-v", Paste, Some(context)),
-            gpui::KeyBinding::new("ctrl-z", Undo, Some(context)),
-            gpui::KeyBinding::new("ctrl-y", Redo, Some(context)),
-            gpui::KeyBinding::new("ctrl-shift-z", Redo, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-a", SelectAll, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-c", Copy, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-x", Cut, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-v", Paste, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-z", Undo, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-y", Redo, Some(context)),
+            gpui_kit::KeyBinding::new("ctrl-shift-z", Redo, Some(context)),
         ]);
     }
     super::theme::apply(ThemeMode::Light, cx);

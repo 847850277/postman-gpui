@@ -1,9 +1,9 @@
 use super::*;
-use gpui::{
+use gpui_kit::{component::input::EditorState, test::TestWindowExt};
+use gpui_kit::{
     point, size, AnyWindowHandle, Bounds, EntityInputHandler, InputEvent, MouseButton,
     MouseDownEvent, MouseUpEvent, ScrollDelta, TestAppContext, WindowBounds, WindowOptions,
 };
-use gpui_kit::{component::input::EditorState, test::TestWindowExt};
 use postman_http::HttpResponse;
 
 fn open(
@@ -194,7 +194,7 @@ fn response_metadata_preserves_status_and_only_projects_cookie_name_and_origin()
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_response_selection_handles_unicode_copy_and_readonly_edit_paths(cx: &mut TestAppContext) {
     let text = "A😀中 emoji\nsecond line";
     let (handle, viewer, _) = open(text, cx);
@@ -289,7 +289,7 @@ fn kit_response_selection_handles_unicode_copy_and_readonly_edit_paths(cx: &mut 
     .unwrap();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_response_scrollbars_stay_in_viewport_and_raw_wraps_without_horizontal_overflow(
     cx: &mut TestAppContext,
 ) {
@@ -385,7 +385,7 @@ fn kit_response_scrollbars_stay_in_viewport_and_raw_wraps_without_horizontal_ove
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn response_document_survives_theme_model_updates_and_request_switches(cx: &mut TestAppContext) {
     let raw = serde_json::to_string(
         &(0..100)
@@ -458,7 +458,7 @@ fn response_document_survives_theme_model_updates_and_request_switches(cx: &mut 
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn large_response_is_shared_and_draft_edits_do_not_notify_or_reset_the_viewer(
     cx: &mut TestAppContext,
 ) {
@@ -552,7 +552,7 @@ fn large_response_is_shared_and_draft_edits_do_not_notify_or_reset_the_viewer(
     assert_eq!(body_notifications.get(), 0);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn pending_formatting_stays_with_its_tab_and_closed_tabs_release_the_editor(
     cx: &mut TestAppContext,
 ) {

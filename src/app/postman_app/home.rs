@@ -3,16 +3,16 @@ use crate::ui::theme::{
     self, metrics as m, ACCENT, ACCENT_SOFT, FONT_MONO, INFO, LINE, LINE_STRONG, MUTED, PANEL,
     PANEL_ALT, SUBTEXT, TEXT,
 };
-use gpui::{
-    div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement, ParentElement,
-    StatefulInteractiveElement, Styled, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
         button::{Button, ButtonVariants},
         Icon,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, rems, Context, InteractiveElement, IntoElement, ParentElement,
+    StatefulInteractiveElement, Styled, Window,
 };
 
 impl PostmanApp {
@@ -40,21 +40,21 @@ impl PostmanApp {
         let eyebrow = div()
             .font_family(FONT_MONO)
             .text_size(rems(11. / 16.))
-            .line_height(gpui::relative(14. / 11.))
+            .line_height(gpui_kit::relative(14. / 11.))
             .text_color(ACCENT.resolve(cx))
             .mb_4()
             .child("POSTMAN / GPUI");
         let heading = div()
             .debug_selector(|| "home-title".into())
             .text_size(rems(if stacked { 2. } else { 2.625 }))
-            .line_height(gpui::relative(1.15))
+            .line_height(gpui_kit::relative(1.15))
             .font_weight(m::SEMIBOLD)
             .child("One request. Or the whole flow.");
         let subtitle = div()
             .mt(rems(14. / 16.))
             .mb(rems(if short { 1.5 } else { 34. / 16. }))
             .text_size(rems(14. / 16.))
-            .line_height(gpui::relative(1.7))
+            .line_height(gpui_kit::relative(1.7))
             .text_color(SUBTEXT.resolve(cx))
             .child("Choose how you want to work. Your requests and flows are always a click away.");
         let cards = div()
@@ -191,63 +191,64 @@ impl PostmanApp {
                         )
                     })
                     .children(recent_flows.into_iter().map(|(id, title, steps)| {
-                        Button::new(gpui::SharedString::from(format!("recent-flow-{}", id.0)))
-                            .ghost()
-                            .debug_selector(move || format!("recent-flow-{}", id.0))
-                            .accessibility_label(format!("Continue flow {title}"))
-                            .w_full()
-                            .min_w_0()
-                            .h_16()
-                            .px_0()
-                            .border_b_1()
-                            .border_color(LINE.resolve(cx))
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.flows
-                                    .update(cx, |flows, cx| flows.select_flow(id, window, cx));
-                                this.navigate(AppRoute::Flows, window, cx);
-                            }))
-                            .child(
-                                div()
-                                    .w_full()
-                                    .min_w_0()
-                                    .flex()
-                                    .items_center()
-                                    .gap_3()
-                                    .child(
-                                        Icon::new(IconName::Workflow)
-                                            .size(m::SMALL_ICON)
-                                            .text_color(INFO.resolve(cx)),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .flex()
-                                            .flex_col()
-                                            .gap_1()
-                                            .child(
-                                                div()
-                                                    .w_full()
-                                                    .truncate()
-                                                    .text_size(m::LABEL)
-                                                    .child(title),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_size(m::CAPTION)
-                                                    .text_color(MUTED.resolve(cx))
-                                                    .child(format!(
-                                                        "{steps} steps · Session draft"
-                                                    )),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_size(m::CAPTION)
-                                            .text_color(MUTED.resolve(cx))
-                                            .child("Open"),
-                                    ),
-                            )
+                        Button::new(gpui_kit::SharedString::from(format!(
+                            "recent-flow-{}",
+                            id.0
+                        )))
+                        .ghost()
+                        .debug_selector(move || format!("recent-flow-{}", id.0))
+                        .accessibility_label(format!("Continue flow {title}"))
+                        .w_full()
+                        .min_w_0()
+                        .h_16()
+                        .px_0()
+                        .border_b_1()
+                        .border_color(LINE.resolve(cx))
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            this.flows
+                                .update(cx, |flows, cx| flows.select_flow(id, window, cx));
+                            this.navigate(AppRoute::Flows, window, cx);
+                        }))
+                        .child(
+                            div()
+                                .w_full()
+                                .min_w_0()
+                                .flex()
+                                .items_center()
+                                .gap_3()
+                                .child(
+                                    Icon::new(IconName::Workflow)
+                                        .size(m::SMALL_ICON)
+                                        .text_color(INFO.resolve(cx)),
+                                )
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(
+                                            div()
+                                                .w_full()
+                                                .truncate()
+                                                .text_size(m::LABEL)
+                                                .child(title),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_size(m::CAPTION)
+                                                .text_color(MUTED.resolve(cx))
+                                                .child(format!("{steps} steps · Session draft")),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(m::CAPTION)
+                                        .text_color(MUTED.resolve(cx))
+                                        .child("Open"),
+                                ),
+                        )
                     })),
             );
 
@@ -275,8 +276,8 @@ impl PostmanApp {
             .bg(PANEL.resolve(cx))
             .text_color(TEXT.resolve(cx))
             .text_size(m::BODY)
-            .font_weight(gpui::FontWeight::NORMAL)
-            .line_height(gpui::relative(1.5))
+            .font_weight(gpui_kit::FontWeight::NORMAL)
+            .line_height(gpui_kit::relative(1.5))
             .child(
                 div()
                     .px(rems(inset))
@@ -362,17 +363,17 @@ impl PostmanApp {
             .focus_visible(|style| style.border_color(ACCENT.resolve(cx)))
             .active(|style| style.bg(PANEL_ALT.resolve(cx)))
             .on_click(cx.listener(move |this, _, window, cx| this.navigate(route, window, cx)));
-        let content = div().w_full().min_w_0().flex().flex_col().items_start().whitespace_normal().line_height(gpui::relative(1.5)).text_color(TEXT.resolve(cx))
+        let content = div().w_full().min_w_0().flex().flex_col().items_start().whitespace_normal().line_height(gpui_kit::relative(1.5)).text_color(TEXT.resolve(cx))
                 .child(div().w_full().flex().items_center().justify_between()
                     .child(div().size(rems(42./16.)).rounded_lg().border_1().border_color(LINE.resolve(cx)).bg(if http {ACCENT_SOFT} else {PANEL_ALT}.resolve(cx)).flex().items_center().justify_center()
                         .child(Icon::new(if http {IconName::Terminal} else {IconName::Workflow}).size(m::ICON).text_color(color.resolve(cx))))
                     .child(div().font_family(FONT_MONO).text_size(m::CAPTION).text_color(MUTED.resolve(cx)).child(if http {"01 / REQUEST"} else {"02 / ORCHESTRATE"})))
                 .child(div().mt_5().mb_2().text_size(rems(1.5)).font_weight(m::SEMIBOLD).child(route.label()))
-                .child(div().text_size(m::LABEL).font_weight(gpui::FontWeight::NORMAL).line_height(gpui::relative(1.8)).text_color(SUBTEXT.resolve(cx))
+                .child(div().text_size(m::LABEL).font_weight(gpui_kit::FontWeight::NORMAL).line_height(gpui_kit::relative(1.8)).text_color(SUBTEXT.resolve(cx))
                     .child(if http {"Compose, send, and inspect an API request.\nStart from a URL in the HTTP editor."} else {"Connect requests into a repeatable sequence.\nCreate a session draft and add HTTP steps."}))
                 .when(!compact, |card| card.child(div().w_full().h(rems(135./16.)).mt(rems(22./16.)).p(rems(14./16.)).rounded(m::URL_RADIUS).border_1().border_color(LINE.resolve(cx)).bg(PANEL_ALT.resolve(cx))
                     .child(if http {
-                        div().flex().flex_col().gap_3().font_family(FONT_MONO).text_size(m::CAPTION).font_weight(gpui::FontWeight::NORMAL)
+                        div().flex().flex_col().gap_3().font_family(FONT_MONO).text_size(m::CAPTION).font_weight(gpui_kit::FontWeight::NORMAL)
                             .child(div().pb_3().border_b_1().border_color(LINE.resolve(cx)).text_color(SUBTEXT.resolve(cx)).child("METHOD   URL"))
                             .child(div().text_color(MUTED.resolve(cx)).child("Compose → Send → Inspect"))
                             .child(div().text_color(MUTED.resolve(cx)).child("Your response appears after sending.")).into_any_element()
@@ -389,7 +390,7 @@ impl PostmanApp {
     }
 }
 
-fn group_label(label: &'static str, cx: &gpui::App) -> impl IntoElement {
+fn group_label(label: &'static str, cx: &gpui_kit::App) -> impl IntoElement {
     div()
         .font_family(FONT_MONO)
         .text_size(m::CAPTION)

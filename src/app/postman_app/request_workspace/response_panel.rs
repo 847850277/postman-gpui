@@ -3,13 +3,13 @@ use crate::ui::{
     components::kit_controls,
     theme::{metrics as m, ERROR_SOFT, SIDEBAR},
 };
-use gpui::{
+use gpui_kit::base::{ElementExt, TestSupportExt};
+use gpui_kit::{
     actions, div, prelude::FluentBuilder, px, rems, App, AppContext, ClipboardItem, Context,
     Entity, EventEmitter, FocusHandle, Focusable, FontWeight, InteractiveElement, IntoElement,
     KeyBinding, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
     Subscription, Window,
 };
-use gpui_kit::base::{ElementExt, TestSupportExt};
 use gpui_kit::{
     assets::IconName,
     base::Tab,
@@ -138,7 +138,7 @@ pub struct ResponseViewer {
     active_tab: Option<RequestTabId>,
     retained: HashMap<RequestTabId, ResponsePresentation>,
     body: Entity<ResponseBody>,
-    header_scroll: gpui::ScrollHandle,
+    header_scroll: gpui_kit::ScrollHandle,
     body_tab_focus_handle: FocusHandle,
     headers_tab_focus_handle: FocusHandle,
     cookies_tab_focus_handle: FocusHandle,
@@ -152,13 +152,13 @@ struct ResponsePresentation {
     pane: ResponsePane,
     pretty: bool,
     body: Entity<ResponseBody>,
-    header_scroll: gpui::ScrollHandle,
+    header_scroll: gpui_kit::ScrollHandle,
 }
 
 impl EventEmitter<ResponseViewerEvent> for ResponseViewer {}
 
 impl Focusable for ResponseViewer {
-    fn focus_handle(&self, cx: &gpui::App) -> FocusHandle {
+    fn focus_handle(&self, cx: &gpui_kit::App) -> FocusHandle {
         self.body.read(cx).focus_handle(cx)
     }
 }
@@ -190,7 +190,7 @@ impl ResponseViewer {
             active_tab,
             retained: HashMap::new(),
             body: cx.new(|cx| ResponseBody::new(window, cx)),
-            header_scroll: gpui::ScrollHandle::new(),
+            header_scroll: gpui_kit::ScrollHandle::new(),
             body_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             headers_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
             cookies_tab_focus_handle: cx.focus_handle().tab_index(0).tab_stop(true),
@@ -241,7 +241,7 @@ impl ResponseViewer {
             self.pane = ResponsePane::Body;
             self.pretty = true;
             self.body = cx.new(|cx| ResponseBody::new(window, cx));
-            self.header_scroll = gpui::ScrollHandle::new();
+            self.header_scroll = gpui_kit::ScrollHandle::new();
         }
         self.active_tab = active;
     }
@@ -1370,7 +1370,7 @@ impl Render for ResponseViewer {
                     .text_color(MUTED.resolve(cx))
                     .child(div()
                         .id("response-body-metadata")
-                        .role(gpui::Role::Status)
+                        .role(gpui_kit::Role::Status)
                         .test_support()
                         .aria_label(body_metadata.clone())
                         .min_w_0()
@@ -1382,7 +1382,11 @@ impl Render for ResponseViewer {
     }
 }
 
-fn render_redirect_chain(chain: &[RedirectHop], partial: bool, cx: &gpui::App) -> impl IntoElement {
+fn render_redirect_chain(
+    chain: &[RedirectHop],
+    partial: bool,
+    cx: &gpui_kit::App,
+) -> impl IntoElement {
     let redirect_count = chain
         .iter()
         .filter(|hop| (300..400).contains(&hop.status))

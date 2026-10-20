@@ -19,16 +19,16 @@ mod tests;
 mod view;
 
 use crate::app::environments::Environments;
-use gpui::{
-    actions, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, SharedString,
-    Subscription, UniformListScrollHandle, Window,
-};
 use gpui_kit::component::{
     input::{InputEvent, InputState},
     notification::Notification,
     searchable_list::{SearchableListItem, SearchableVec},
     select::{SelectEvent, SelectState},
     WindowExt,
+};
+use gpui_kit::{
+    actions, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, SharedString,
+    Subscription, UniformListScrollHandle, Window,
 };
 use layout::{FlowSplit, SplitKind};
 pub(super) use model::FlowId;
@@ -69,7 +69,7 @@ pub(super) enum FlowsEvent {
     QuitReady,
     CookiesChanged(Vec<(String, String)>),
 }
-impl gpui::EventEmitter<FlowsEvent> for FlowsView {}
+impl gpui_kit::EventEmitter<FlowsEvent> for FlowsView {}
 
 pub(super) struct FlowsView {
     library: FlowLibrary,
@@ -99,8 +99,8 @@ pub(super) struct FlowsView {
     create_attempted: bool,
     details: bool,
     library_scroll: UniformListScrollHandle,
-    canvas_scroll: HashMap<FlowId, gpui::ListState>,
-    canvas_rem: gpui::Pixels,
+    canvas_scroll: HashMap<FlowId, gpui_kit::ListState>,
+    canvas_rem: gpui_kit::Pixels,
     splits: [FlowSplit; 3],
     _subscriptions: Vec<Subscription>,
 }
@@ -181,7 +181,7 @@ impl FlowsView {
         subscriptions.push(cx.subscribe_in(&filter, window, |this, _, event, _, cx| {
             if matches!(event, InputEvent::Change) {
                 this.library_scroll
-                    .scroll_to_item(0, gpui::ScrollStrategy::Top);
+                    .scroll_to_item(0, gpui_kit::ScrollStrategy::Top);
                 cx.notify();
             }
         }));
@@ -342,9 +342,9 @@ impl FlowsView {
             self.inputs.insert(flow, editor);
         }
         self.canvas_scroll.entry(draft.id()).or_insert_with(|| {
-            gpui::ListState::new(
+            gpui_kit::ListState::new(
                 draft.document().flow.steps.len() + 3,
-                gpui::ListAlignment::Top,
+                gpui_kit::ListAlignment::Top,
                 window.rem_size() * 3.,
             )
         });
@@ -464,9 +464,9 @@ impl FlowsView {
                     if scroll.bounds_for_item(index + 1).is_some() {
                         scroll.scroll_to_reveal_item(index + 1);
                     } else {
-                        scroll.scroll_to(gpui::ListOffset {
+                        scroll.scroll_to(gpui_kit::ListOffset {
                             item_ix: index + 1,
-                            offset_in_item: gpui::px(0.),
+                            offset_in_item: gpui_kit::px(0.),
                         });
                     }
                 }
@@ -491,7 +491,7 @@ impl FlowsView {
         self.reveal_step();
         self.canvas_focus.focus(window, cx);
     }
-    fn filtered(&self, cx: &gpui::App) -> Vec<FlowId> {
+    fn filtered(&self, cx: &gpui_kit::App) -> Vec<FlowId> {
         let filter = self.filter.read(cx).value().to_lowercase();
         self.library
             .drafts()
@@ -513,7 +513,7 @@ impl FlowsView {
         });
         self.select_flow(filtered[next], window, cx);
         self.library_scroll
-            .scroll_to_item(next, gpui::ScrollStrategy::Nearest);
+            .scroll_to_item(next, gpui_kit::ScrollStrategy::Nearest);
         self.library_focus.focus(window, cx);
     }
 }

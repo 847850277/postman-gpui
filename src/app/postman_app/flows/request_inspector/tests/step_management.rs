@@ -5,7 +5,7 @@ use postman_flow::{FlowDocument, ResponseExport};
 fn reorder_refreshes_cached_hints_and_preserves_invalid_sources_tabs_and_ime(
     cx: &mut TestAppContext,
 ) {
-    use gpui::{ElementInputHandler, InputHandler};
+    use gpui_kit::{ElementInputHandler, InputHandler};
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |app, _| app.flows.clone());
     let mut flow = postman_flow::FlowDefinition::new("Draft retention");

@@ -9,6 +9,9 @@ This runbook covers versioned prereleases and final releases. Platform acceptanc
 - A tag must be `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-PRERELEASE` and its base version must
   exactly match `Cargo.toml`.
 - `cargo-packager` is pinned to `0.11.8` in CI and local commands.
+- GPUI Kit supplies the application's GPUI and platform dependencies. Metadata validation checks
+  the resolved production dependency graph for every release target, including transitive
+  `font-kit`, `wayland`, and `x11` features. Development-only features cannot satisfy this check.
 - Linux AppImages are built through `scripts/release.py package`. It verifies the upstream
   AppRun download, fixes its cached permissions to `0755`, and packages with umask `0022`.
   This works around cargo-packager 0.11.8's owner-only executable launcher permissions.

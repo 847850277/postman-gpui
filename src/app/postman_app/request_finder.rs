@@ -9,11 +9,6 @@ use crate::{
     },
 };
 use chrono::{Local, NaiveDate};
-use gpui::{
-    actions, div, prelude::FluentBuilder, App, AppContext, Context, Entity, EventEmitter,
-    Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window,
-};
 use gpui_kit::assets::IconName;
 use gpui_kit::base::actions::{Confirm, SelectDown, SelectUp};
 use gpui_kit::component::{
@@ -22,6 +17,11 @@ use gpui_kit::component::{
     input::{Input, InputEvent, InputState},
     list::{List, ListDelegate, ListEvent, ListItem, ListState},
     Disableable, Icon, IndexPath, Sizable, WindowExt,
+};
+use gpui_kit::{
+    actions, div, prelude::FluentBuilder, App, AppContext, Context, Entity, EventEmitter,
+    Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString,
+    StatefulInteractiveElement, Styled, Subscription, WeakEntity, Window,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -126,12 +126,12 @@ impl ListDelegate for RequestResults {
         let busy = self.busy;
         Some(
             ListItem::new(id)
-                .role(gpui::Role::Button)
+                .role(gpui_kit::Role::Button)
                 .debug_selector(move || selector.clone())
                 .accessibility_label(format!("Open {} {}", row.method, row.name))
                 .px_3()
                 .py_3()
-                .h(gpui::rems(if self.compact { 3.5 } else { 5.0 }))
+                .h(gpui_kit::rems(if self.compact { 3.5 } else { 5.0 }))
                 .child(
                     div()
                         .flex()
@@ -142,7 +142,11 @@ impl ListDelegate for RequestResults {
                         .child(
                             div()
                                 .debug_selector(move || method_selector.clone())
-                                .w(gpui::rems(if self.compact { 38. / 16. } else { 34. / 16. }))
+                                .w(gpui_kit::rems(if self.compact {
+                                    38. / 16.
+                                } else {
+                                    34. / 16.
+                                }))
                                 .flex_none()
                                 .pt_0p5()
                                 .font_family(FONT_MONO)
@@ -300,8 +304,8 @@ impl RequestFinder {
     ) -> Self {
         cx.bind_keys([
             // Let Kit Button own native Enter/Space activation instead of the parent List.
-            KeyBinding::new("enter", gpui::NoAction, Some("HistoryDelete")),
-            KeyBinding::new("space", gpui::NoAction, Some("HistoryDelete")),
+            KeyBinding::new("enter", gpui_kit::NoAction, Some("HistoryDelete")),
+            KeyBinding::new("space", gpui_kit::NoAction, Some("HistoryDelete")),
             KeyBinding::new(
                 "space",
                 Confirm { secondary: false },
@@ -630,7 +634,7 @@ impl RequestFinder {
                 })
         });
     }
-    fn forward(&self, action: &dyn gpui::Action, window: &mut Window, cx: &mut Context<Self>) {
+    fn forward(&self, action: &dyn gpui_kit::Action, window: &mut Window, cx: &mut Context<Self>) {
         self.results
             .read(cx)
             .focus_handle(cx)

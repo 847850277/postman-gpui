@@ -9,8 +9,8 @@ mod tests;
 use super::{FlowId, FlowsEvent, FlowsView};
 use crate::http::executor::RequestExecutor;
 use futures::StreamExt;
-use gpui::{Context, Window};
 use gpui_kit::component::WindowExt;
+use gpui_kit::{Context, Window};
 use postman_flow::{execute_flow, FlowEvent, FlowPlan, FlowSessionEnvironment};
 use postman_http::HttpTransport;
 use std::{

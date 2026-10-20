@@ -1,9 +1,9 @@
 use super::*;
-use gpui::{
+use gpui_kit::test::TestWindowExt;
+use gpui_kit::{
     point, px, size, AnyWindowHandle, Bounds, EntityInputHandler, ScrollDelta, TestAppContext,
     WindowBounds, WindowOptions,
 };
-use gpui_kit::test::TestWindowExt;
 use std::{cell::RefCell, rc::Rc};
 
 fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<MultilineInput>) {
@@ -24,7 +24,7 @@ fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<MultilineInput>) {
     .unwrap()
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_ime_commits_one_undo_unit_and_projection_is_silent_even_when_equal(cx: &mut TestAppContext) {
     let (handle, input) = open(cx);
     let values = Rc::new(RefCell::new(Vec::new()));
@@ -72,7 +72,7 @@ fn kit_ime_commits_one_undo_unit_and_projection_is_silent_even_when_equal(cx: &m
     assert!(values.borrow().is_empty());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn grapheme_navigation_selection_and_deletion_keep_kit_undo_and_direction(cx: &mut TestAppContext) {
     let (handle, input) = open(cx);
     for cluster in ["e\u{301}", "👩‍💻", "🇨🇳", "\r\n"] {
@@ -114,10 +114,10 @@ fn grapheme_navigation_selection_and_deletion_keep_kit_undo_and_direction(cx: &m
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn request_editors_keep_one_caret_for_unicode_edits(cx: &mut TestAppContext) {
-    use gpui::{InputEvent as _, Modifiers, MouseDownEvent, MouseUpEvent};
     use gpui_kit::base::input::{AddCursorAbove, AddCursorBelow};
+    use gpui_kit::{InputEvent as _, Modifiers, MouseDownEvent, MouseUpEvent};
 
     let (handle, input) = open(cx);
     cx.update_window(handle, |_, window, cx| {
@@ -125,7 +125,7 @@ fn request_editors_keep_one_caret_for_unicode_edits(cx: &mut TestAppContext) {
         for (text, action) in [
             (
                 "abc\nAe\u{301}",
-                Box::new(AddCursorAbove) as Box<dyn gpui::Action>,
+                Box::new(AddCursorAbove) as Box<dyn gpui_kit::Action>,
             ),
             ("Ae\u{301}\nabc", Box::new(AddCursorBelow)),
         ] {
@@ -185,7 +185,7 @@ fn request_editors_keep_one_caret_for_unicode_edits(cx: &mut TestAppContext) {
     .unwrap();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_viewport_scrolls_to_caret_and_thumb_drag_preserves_text_and_selection(
     cx: &mut TestAppContext,
 ) {

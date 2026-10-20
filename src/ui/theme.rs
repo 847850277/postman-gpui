@@ -2,8 +2,8 @@
 //! Kit owns the active mode; legacy controls resolve the same tokens at render time.
 
 use crate::models::HttpMethod;
-use gpui::{px, App, Rgba};
 use gpui_kit::component::{Theme, ThemeMode};
+use gpui_kit::{px, App, Rgba};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ColorToken {
@@ -15,7 +15,7 @@ impl ColorToken {
         Self { light, dark }
     }
     pub fn for_mode(self, mode: ThemeMode) -> Rgba {
-        gpui::rgb(if mode.is_dark() {
+        gpui_kit::rgb(if mode.is_dark() {
             self.dark
         } else {
             self.light
@@ -68,10 +68,10 @@ pub const FONT_MONO: &str = "JetBrains Mono";
 /// All product lengths are relative to the 16px Kit rem base. The prototype's
 /// 13px body type is a separate role, so control geometry and type zoom together.
 pub mod metrics {
-    pub const BOLD: gpui::FontWeight = gpui::FontWeight::BOLD;
-    pub const MEDIUM: gpui::FontWeight = gpui::FontWeight::MEDIUM;
-    pub const SEMIBOLD: gpui::FontWeight = gpui::FontWeight::SEMIBOLD;
-    use gpui::{rems, Rems};
+    pub const BOLD: gpui_kit::FontWeight = gpui_kit::FontWeight::BOLD;
+    pub const MEDIUM: gpui_kit::FontWeight = gpui_kit::FontWeight::MEDIUM;
+    pub const SEMIBOLD: gpui_kit::FontWeight = gpui_kit::FontWeight::SEMIBOLD;
+    use gpui_kit::{rems, Rems};
     pub const BODY: Rems = rems(13. / 16.);
     pub const LABEL: Rems = rems(12. / 16.);
     pub const COMPACT_LABEL: Rems = rems(11. / 16.);
@@ -191,7 +191,7 @@ pub fn apply(mode: ThemeMode, cx: &mut App) {
         t.scrollbar_thumb_hover = c(MUTED);
         t.drag_border = c(ACCENT);
         t.link = c(INFO);
-        t.overlay = gpui::rgba(0x08090b99).into();
+        t.overlay = gpui_kit::rgba(0x08090b99).into();
         let highlight = std::sync::Arc::make_mut(&mut t.highlight_theme);
         highlight.style.editor_background = Some(c(SIDEBAR));
         highlight.style.editor_foreground = Some(c(TEXT));
@@ -212,12 +212,12 @@ pub fn apply(mode: ThemeMode, cx: &mut App) {
 }
 
 /// HTML's modal elevation; stored here alongside the semantic palette.
-pub fn dialog_shadow(cx: &App) -> Vec<gpui::BoxShadow> {
+pub fn dialog_shadow(cx: &App) -> Vec<gpui_kit::BoxShadow> {
     let dark = cx.try_global::<Theme>().is_some_and(|t| t.mode.is_dark());
-    vec![gpui::BoxShadow {
+    vec![gpui_kit::BoxShadow {
         inset: false,
-        color: gpui::rgba(if dark { 0x00000077 } else { 0x20231b26 }).into(),
-        offset: gpui::point(px(0.), px(20.)),
+        color: gpui_kit::rgba(if dark { 0x00000077 } else { 0x20231b26 }).into(),
+        offset: gpui_kit::point(px(0.), px(20.)),
         blur_radius: px(80.),
         spread_radius: px(0.),
     }]

@@ -2,10 +2,6 @@ use super::*;
 use crate::ui::theme::{
     metrics as m, ACCENT, ACCENT_SOFT, ERROR, FONT_MONO, MUTED, PANEL, SUBTEXT,
 };
-use gpui::{
-    div, prelude::FluentBuilder, rems, AnyElement, InteractiveElement, IntoElement, ParentElement,
-    Render, StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -15,6 +11,10 @@ use gpui_kit::{
         select::Select,
         Disableable, Icon, Selectable, Sizable,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, rems, AnyElement, InteractiveElement, IntoElement, ParentElement,
+    Render, StatefulInteractiveElement, Styled,
 };
 
 pub(super) fn field(label: &'static str, control: impl IntoElement, cx: &App) -> AnyElement {
@@ -32,7 +32,7 @@ pub(super) fn field(label: &'static str, control: impl IntoElement, cx: &App) ->
         .child(control)
         .into_any_element()
 }
-pub(super) fn hint(text: impl Into<gpui::SharedString>, error: bool, cx: &App) -> AnyElement {
+pub(super) fn hint(text: impl Into<gpui_kit::SharedString>, error: bool, cx: &App) -> AnyElement {
     div()
         .w_full()
         .min_w_0()

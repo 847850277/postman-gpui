@@ -5,14 +5,14 @@ use crate::{
     persistence::request_documents::DocumentRepository,
     ui::theme::{metrics as m, ERROR, MUTED},
 };
-use gpui::{
-    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
-};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     input::{Input, InputEvent, InputState},
     Disableable, Sizable, WindowExt,
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 use std::{collections::HashSet, path::PathBuf};
 

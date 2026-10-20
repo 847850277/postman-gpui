@@ -99,7 +99,8 @@ impl RequestInspector {
                 self.tab = 0;
                 if self.readonly.is_some() {
                     self.tab_focus[0].focus(window, cx);
-                    self.tab_scroll[0].set_offset(gpui::point(gpui::px(0.), gpui::px(0.)));
+                    self.tab_scroll[0]
+                        .set_offset(gpui_kit::point(gpui_kit::px(0.), gpui_kit::px(0.)));
                 } else {
                     let (index, focus) = if field.starts_with("when") {
                         self.condition_open = true;
@@ -132,7 +133,8 @@ impl RequestInspector {
                     if let Some(anchor) = self.request_anchors.get(index) {
                         anchor.scroll_to(window, cx);
                     } else {
-                        self.tab_scroll[0].set_offset(gpui::point(gpui::px(0.), gpui::px(0.)));
+                        self.tab_scroll[0]
+                            .set_offset(gpui_kit::point(gpui_kit::px(0.), gpui_kit::px(0.)));
                     }
                 }
             }

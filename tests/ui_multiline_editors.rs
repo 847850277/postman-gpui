@@ -2,7 +2,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use postman_gpui::app::{PostmanApp, RequestViewModel, WorkspaceViewModel};
 
 #[gpui_kit::test]
@@ -21,7 +21,7 @@ fn same_request_pane_switch_preserves_caret_and_undo(cx: &mut TestAppContext) {
         ("request-pane-scripts", None, "script-editor"),
         ("request-pane-tests", None, "tests-editor"),
     ] {
-        let value = |cx: &gpui::VisualTestContext| {
+        let value = |cx: &gpui_kit::VisualTestContext| {
             workspace.read_with(cx, |m, _| {
                 let r = m.active_request().unwrap();
                 match pane {
@@ -63,7 +63,7 @@ fn same_request_pane_switch_preserves_caret_and_undo(cx: &mut TestAppContext) {
     }
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn body_scripts_and_tests_keep_newlines_focus_and_equal_valued_request_boundaries(
     cx: &mut TestAppContext,
 ) {

@@ -1,14 +1,14 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, TestAppContext};
+use gpui_kit::{AppContext, TestAppContext};
 use postman_gpui::{
     app::{PostmanApp, ResponseState, WorkspaceViewModel},
     models::{RedirectHop, RedirectPolicy},
 };
 use ui::{click, replace_text, type_into};
 
-#[gpui::test]
+#[gpui_kit::test]
 fn rendered_redirect_controls_cover_follow_no_follow_and_limit_in_one_lifecycle(
     test_cx: &mut TestAppContext,
 ) {

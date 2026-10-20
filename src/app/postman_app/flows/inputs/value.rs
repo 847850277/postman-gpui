@@ -3,15 +3,15 @@ use crate::ui::{
     components::input::multiline_input::{MultilineInput, MultilineInputEvent},
     theme::{metrics as m, MUTED},
 };
-use gpui::{
-    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
-    Window,
-};
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     Disableable, Selectable, Sizable,
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
+    Window,
 };
 use serde_json::Value;
 

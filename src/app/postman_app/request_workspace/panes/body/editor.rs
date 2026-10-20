@@ -7,9 +7,9 @@ use crate::{
     models::request_draft::RawBodyFormat,
     ui::theme::{metrics as m, ERROR},
 };
-use gpui::{ExternalPaths, Focusable};
 use gpui_kit::component::scroll::{ScrollableElement, ScrollbarAxis};
 use gpui_kit::{assets::IconName, component::Icon};
+use gpui_kit::{ExternalPaths, Focusable};
 use std::path::PathBuf;
 
 pub(super) const RAW_LABELS: [&str; 4] = ["Text", "XML", "HTML", "JavaScript"];
@@ -76,7 +76,7 @@ impl BodyPane {
         let Some((tab_id, revision)) = self.binary_file_target(cx) else {
             return;
         };
-        let paths = cx.prompt_for_paths(gpui::PathPromptOptions {
+        let paths = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
             files: true,
             directories: false,
             multiple: false,
@@ -212,7 +212,7 @@ impl BodyPane {
             })
     }
 
-    pub(super) fn render_prototype_editor(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    pub(super) fn render_prototype_editor(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
         let model = self.view_model.read(cx);
         let Some(request) = model.active_request() else {
             return div().into_any_element();
@@ -261,7 +261,7 @@ impl BodyPane {
                     .child(div().debug_selector(|| "body-types".into()).flex_none().flex().flex_wrap().gap_1().children(TYPES.into_iter().map(|(item, label, id)| {
                         editor_button(id, label, cx).selected(kind == item).debug_selector(move || id.into()).accessibility_label(format!("{label} body"))
                             .h(px(30.)).px(px(10.)).text_size(m::LABEL).font_weight(FontWeight::NORMAL).rounded(m::RADIUS).border_1()
-                            .border_color(if kind == item { LINE.resolve(cx) } else { gpui::rgba(0) })
+                            .border_color(if kind == item { LINE.resolve(cx) } else { gpui_kit::rgba(0) })
                             .bg(if kind == item { PANEL_ALT.resolve(cx) } else { PANEL.resolve(cx) })
                             .on_click(cx.listener(move |this, _, window, cx| this.set_body_kind(item, window, cx)))
                     })))
@@ -289,7 +289,7 @@ impl BodyPane {
         kind: BodyKind,
         body: &str,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let json = kind == BodyKind::Json;
         let valid = json && serde_json::from_str::<serde_json::Value>(body).is_ok();
         div()
@@ -378,7 +378,7 @@ impl BodyPane {
         kind: BodyKind,
         body: &str,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let encoded = kind == BodyKind::UrlEncoded;
         let available = (self.panel_layout.read(cx).height() - if encoded { 310. } else { 260. })
             .clamp(130., 360.);
@@ -405,7 +405,7 @@ impl BodyPane {
         draft: RequestBodyDraft,
         size: Option<u64>,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let path = match draft {
             RequestBodyDraft::Binary(path) => path,
             _ => PathBuf::new(),

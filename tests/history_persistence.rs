@@ -3,7 +3,7 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext};
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{
@@ -39,7 +39,7 @@ fn stored_history_count(path: &Path) -> usize {
         .len()
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -120,7 +120,7 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
     assert_eq!(stored_history_count(&database_path), 0);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -188,7 +188,7 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
     assert!(cx.debug_bounds("response-copy-button").is_some());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
     cx: &mut TestAppContext,
 ) {
@@ -254,7 +254,7 @@ fn append_failure_keeps_the_response_usable_without_a_volatile_history_row(
     ui::close_history(cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -356,7 +356,7 @@ fn historical_truncation_and_unsupported_body_states_are_rendered(cx: &mut TestA
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn corrupt_database_shows_unavailable_state_without_an_in_memory_fallback(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");

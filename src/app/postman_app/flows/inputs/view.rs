@@ -1,9 +1,5 @@
 use super::*;
 use crate::ui::theme::{metrics as m, CODE_BG, ERROR, LINE, MUTED, PANEL};
-use gpui::{
-    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
-    Render, StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -13,8 +9,12 @@ use gpui_kit::{
         Disableable, Selectable, Sizable,
     },
 };
+use gpui_kit::{
+    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement,
+    Render, StatefulInteractiveElement, Styled,
+};
 
-pub(super) fn hint(text: impl Into<gpui::SharedString>, error: bool, cx: &App) -> AnyElement {
+pub(super) fn hint(text: impl Into<gpui_kit::SharedString>, error: bool, cx: &App) -> AnyElement {
     div()
         .min_w_0()
         .text_size(m::COMPACT_LABEL)

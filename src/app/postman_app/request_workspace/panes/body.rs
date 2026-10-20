@@ -19,7 +19,7 @@ use crate::{
         },
     },
 };
-use gpui::{
+use gpui_kit::{
     div, prelude::FluentBuilder, px, AppContext, Context, Entity, FontWeight, InteractiveElement,
     IntoElement, ParentElement, Render, ScrollHandle, StatefulInteractiveElement, Styled,
     Subscription, Window,
@@ -204,7 +204,8 @@ impl BodyPane {
     fn set_body_kind(&mut self, kind: BodyKind, window: &mut Window, cx: &mut Context<Self>) {
         self.show_details = false;
         self.editor_error = None;
-        self.editor_scroll.set_offset(gpui::point(px(0.), px(0.)));
+        self.editor_scroll
+            .set_offset(gpui_kit::point(px(0.), px(0.)));
         self.update_active_request(cx, |request| request.set_body_kind(kind));
         self.project_active_request(window, cx);
     }
@@ -321,7 +322,7 @@ impl BodyPane {
         cx.notify();
     }
 
-    fn render_body_editor(&self, window: &Window, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_body_editor(&self, window: &Window, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
         if !self.show_details {
             return self.render_prototype_editor(cx);
         }
@@ -430,7 +431,7 @@ impl BodyPane {
         panel_height: f32,
         _window: &Window,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let (method, effective_url, effective_headers) = request_projection;
         let is_json = kind == BodyKind::Json;
         let is_raw = kind == BodyKind::Raw;
@@ -504,7 +505,7 @@ impl BodyPane {
         let selector = BODY_SELECTORS[body_kind_index(kind)];
         div()
             .debug_selector(|| "body-kind-selector".into())
-            .h(gpui::rems(55. / 16.))
+            .h(gpui_kit::rems(55. / 16.))
             .flex_none()
             .px_7()
             .flex()
@@ -513,7 +514,7 @@ impl BodyPane {
             .child(
                 div()
                     .flex_none()
-                    .text_size(gpui::rems(11. / 16.))
+                    .text_size(gpui_kit::rems(11. / 16.))
                     .text_color(TEXT.resolve(cx))
                     .child("Request body"),
             )
@@ -525,14 +526,14 @@ impl BodyPane {
                         Select::new(&self.kind_selector)
                             .id("body-kind-select")
                             .accessibility_label("Request body format")
-                            .h(gpui::rems(28. / 16.))
-                            .w(gpui::rems(match kind {
+                            .h(gpui_kit::rems(28. / 16.))
+                            .w(gpui_kit::rems(match kind {
                                 BodyKind::Multipart => 6.5,
                                 BodyKind::UrlEncoded => 8.,
                                 _ => 5.5,
                             }))
-                            .menu_width(gpui::rems(12.))
-                            .text_size(gpui::rems(11. / 16.))
+                            .menu_width(gpui_kit::rems(12.))
+                            .text_size(gpui_kit::rems(11. / 16.))
                             .bg(PANEL_ALT.resolve(cx))
                             .rounded(m::RADIUS),
                     ),
@@ -595,8 +596,8 @@ impl BodyPane {
         &self,
         body: String,
         effective_headers: Vec<EffectiveHeader>,
-        cx: &gpui::App,
-    ) -> gpui::AnyElement {
+        cx: &gpui_kit::App,
+    ) -> gpui_kit::AnyElement {
         let field_count = form_urlencoded::parse(body.as_bytes()).count();
         let request_headers = effective_headers
             .into_iter()
@@ -716,8 +717,8 @@ impl BodyPane {
         request_body: RequestBody,
         omitted_count: usize,
         file_error: Option<String>,
-        cx: &gpui::App,
-    ) -> gpui::AnyElement {
+        cx: &gpui_kit::App,
+    ) -> gpui_kit::AnyElement {
         let parts = match request_body {
             RequestBody::Multipart(parts) => parts,
             _ => Vec::new(),
@@ -874,7 +875,7 @@ impl BodyPane {
         &self,
         headers: Vec<EffectiveHeader>,
         cx: &mut Context<Self>,
-    ) -> gpui::AnyElement {
+    ) -> gpui_kit::AnyElement {
         let count = headers.len();
         div()
             .debug_selector(|| "body-effective-headers".into())
@@ -978,7 +979,7 @@ impl BodyPane {
                         let scroll = self.effective_headers_scroll.clone();
                         let previous = self.effective_headers_have_overflow;
                         move |_, window, cx| {
-                            let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                            let has_overflow = scroll.max_offset().y > gpui_kit::Pixels::ZERO;
                             if has_overflow != previous {
                                 window.defer(cx, move |_, cx| {
                                     let _ = this.update(cx, |this, cx| {
@@ -1118,7 +1119,7 @@ fn multipart_parts_preview(parts: &[MultipartPart]) -> String {
         .join("  ·  ")
 }
 
-fn render_effective_header(header: EffectiveHeader, cx: &gpui::App) -> gpui::AnyElement {
+fn render_effective_header(header: EffectiveHeader, cx: &gpui_kit::App) -> gpui_kit::AnyElement {
     let selector = body_effective_header_selector(&header.name);
     let generated = header.source == EffectiveHeaderSource::Generated;
     div()
@@ -1190,7 +1191,10 @@ fn render_effective_header(header: EffectiveHeader, cx: &gpui::App) -> gpui::Any
         .into_any_element()
 }
 
-fn render_url_encoded_header_chip(header: EffectiveHeader, cx: &gpui::App) -> gpui::AnyElement {
+fn render_url_encoded_header_chip(
+    header: EffectiveHeader,
+    cx: &gpui_kit::App,
+) -> gpui_kit::AnyElement {
     let selector = body_effective_header_selector(&header.name);
     let generated = header.source == EffectiveHeaderSource::Generated;
     div()

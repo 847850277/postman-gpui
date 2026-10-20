@@ -106,6 +106,59 @@ class ReleaseConfigurationTests(unittest.TestCase):
                 {"tag": tag, "version": version, "prerelease": "false"},
             )
 
+    def test_transitive_platform_features_exclude_dev_only_features(self) -> None:
+        required = ["font-kit", "wayland", "x11"]
+        cases = [(None, None), ("macos", "font-kit"), ("linux", "wayland"), ("linux", "x11")]
+        for missing_platform, missing_feature in cases:
+            with self.subTest(platform=missing_platform, feature=missing_feature), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "Cargo.toml").write_text(textwrap.dedent('''\
+                    [workspace]
+                    members = ["kit", "platform"]
+                    resolver = "2"
+                    [package]
+                    name = "postman-gpui"
+                    version = "0.0.0"
+                    edition = "2021"
+                    [dependencies]
+                    gpui-kit = { path = "kit" }
+                    [dev-dependencies]
+                    gpui-pre-platform = { path = "platform", features = ["font-kit", "wayland", "x11"] }
+                    '''))
+                for directory in (root, root / "kit", root / "platform"):
+                    (directory / "src").mkdir(parents=True)
+                    (directory / "src/lib.rs").write_text("")
+                (root / "platform/Cargo.toml").write_text(textwrap.dedent('''\
+                    [package]
+                    name = "gpui-pre-platform"
+                    version = "0.3.9"
+                    edition = "2021"
+                    [features]
+                    font-kit = []
+                    wayland = []
+                    x11 = []
+                    '''))
+                kit_manifest = '[package]\nname = "gpui-kit"\nversion = "0.7.3"\nedition = "2021"\n'
+                for platform_name in release.DEFAULT_TARGETS:
+                    features = [f for f in required if (platform_name, f) != (missing_platform, missing_feature)]
+                    kit_manifest += (
+                        f'\n[target.\'cfg(target_os = "{platform_name}")\'.dependencies]\n'
+                        f'gpui_platform = {{ package = "gpui-pre-platform", path = "../platform", features = {json.dumps(features)} }}\n'
+                    )
+                (root / "kit/Cargo.toml").write_text(kit_manifest)
+                manifest = root / "Cargo.toml"
+                subprocess.run(
+                    ["cargo", "generate-lockfile", "--offline", "--manifest-path", str(manifest)],
+                    check=True, capture_output=True, text=True,
+                )
+                with mock.patch.object(release, "MANIFEST_PATH", manifest):
+                    if missing_feature:
+                        target = release.DEFAULT_TARGETS[missing_platform]
+                        with self.assertRaisesRegex(release.ReleaseError, f"{target}.*{missing_feature}"):
+                            release.verify_release_platform_features()
+                    else:
+                        release.verify_release_platform_features()
+
     def test_linux_smoke_install_uses_an_absolute_deb_path(self) -> None:
         workflow = (release.ROOT / ".github/workflows/release.yml").read_text(
             encoding="utf-8"

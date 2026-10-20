@@ -10,17 +10,17 @@ use crate::{
         },
     },
 };
-use gpui::{
-    div, prelude::FluentBuilder, relative, rems, App, AppContext, Context, Entity, FocusHandle,
-    Focusable, HighlightStyle, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    SharedString, StatefulInteractiveElement, Styled, Subscription, Task, Window,
-};
 use gpui_kit::component::{
     input::{
         Copy, Editor, EditorState, Escape, SelectAll, TextDecoration, TextDecorationCollection,
     },
     menu::ContextMenuExt,
     Theme,
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, relative, rems, App, AppContext, Context, Entity, FocusHandle,
+    Focusable, HighlightStyle, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, Task, Window,
 };
 use std::{ops::Range, sync::Arc};
 
@@ -265,7 +265,7 @@ impl Render for ResponseBody {
                     div()
                         .id("response-preparing")
                         .debug_selector(|| "response-preparing".into())
-                        .role(gpui::Role::Status)
+                        .role(gpui_kit::Role::Status)
                         .absolute()
                         .top_0()
                         .left_0()
@@ -346,14 +346,14 @@ mod tests {
     use super::*;
     use crate::models::HistoricalResponse;
 
-    #[gpui::test]
+    #[gpui_kit::test]
     fn late_preparation_cannot_replace_a_new_mode_response_or_cancellation(
-        cx: &mut gpui::TestAppContext,
+        cx: &mut gpui_kit::TestAppContext,
     ) {
         cx.update(crate::ui::kit::init);
         let (handle, body) = cx
             .update(|cx| {
-                gpui_kit::open_window(gpui::WindowOptions::default(), cx, |window, cx| {
+                gpui_kit::open_window(gpui_kit::WindowOptions::default(), cx, |window, cx| {
                     cx.new(|cx| ResponseBody::new(window, cx))
                 })
             })

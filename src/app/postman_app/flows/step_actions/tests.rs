@@ -1,7 +1,7 @@
 use super::super::tests::{add, click, create, press, replace, settle, setup};
 use super::*;
-use gpui::{TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{TestAppContext, VisualTestContext};
 
 fn tab_to(cx: &mut VisualTestContext, id: &'static str) {
     for _ in 0..6 {

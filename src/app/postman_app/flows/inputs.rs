@@ -3,11 +3,11 @@
 mod tests;
 mod value;
 mod view;
-use gpui::{
+use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle,
     Subscription, Window,
 };
-use gpui_kit::component::input::{InputEvent, InputState};
 use postman_flow::{validate_definition_name, FlowInputSpec, FlowInputs};
 use serde_json::Value;
 use std::{borrow::Cow, collections::HashMap};
@@ -32,7 +32,7 @@ struct Row {
     overridden: bool,
     applied: Option<FlowInputSpec>,
     error: Option<String>,
-    anchor: gpui::ScrollAnchor,
+    anchor: gpui_kit::ScrollAnchor,
     _subscriptions: Vec<Subscription>,
 }
 pub(super) struct InputsInspector {
@@ -137,7 +137,7 @@ impl InputsInspector {
             overridden: false,
             applied,
             error: None,
-            anchor: gpui::ScrollAnchor::for_handle(self.scroll[1].clone()),
+            anchor: gpui_kit::ScrollAnchor::for_handle(self.scroll[1].clone()),
             _subscriptions: subscriptions,
         }
     }

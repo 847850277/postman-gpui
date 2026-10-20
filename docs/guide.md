@@ -76,8 +76,10 @@ and restores that choice on restart. Home cards stack at compact window widths;
 the native minimum is 768 × 600.
 
 GPUI Kit migration happens directly in the application opened by `cargo run --locked`.
-The application and native tests pin GPUI Kit **0.7.3** with its matching
-**gpui-pre 0.3.9** snapshot; update these together and regenerate `Cargo.lock`.
+The application and native tests depend only on GPUI Kit **0.7.3** for UI APIs.
+Kit owns the matching **gpui-pre 0.3.9** snapshot and platform features; use
+`gpui_kit` imports and enable its `test-support` feature for native tests.
+When upgrading Kit, update both dependency declarations and regenerate `Cargo.lock`.
 History, global search, and keyboard help now use Kit modal dialogs. History groups real
 SQLite records by local date, filters method/name/URL/headers/body, and replays the stored
 request and response without sending. Each row's trash button deletes only that history entry

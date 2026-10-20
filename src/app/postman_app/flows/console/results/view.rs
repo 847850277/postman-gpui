@@ -1,9 +1,6 @@
 //! Native presentation of the retained result inspector.
 use super::*;
 use crate::ui::theme::{metrics as m, ERROR, LINE, MUTED, OK, PANEL_ALT, WARNING};
-use gpui::{
-    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement, Styled,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -12,6 +9,9 @@ use gpui_kit::{
         switch::Switch,
         Disableable, Selectable, Sizable,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AnyElement, InteractiveElement, IntoElement, ParentElement, Styled,
 };
 
 impl FlowConsole {
@@ -334,7 +334,7 @@ impl FlowConsole {
                             .min_h_0()
                             .min_w_0()
                             .child(
-                                gpui::uniform_list(
+                                gpui_kit::uniform_list(
                                     "result-list",
                                     i.rows.len(),
                                     cx.processor(|this, range: std::ops::Range<usize>, _, cx| {
@@ -413,7 +413,7 @@ impl FlowConsole {
             .border_color(LINE.resolve(cx))
             .when(i.selected == index, |d| d.bg(PANEL_ALT.resolve(cx)))
             .child(
-                Button::new(gpui::SharedString::from(format!("result-row-{index}")))
+                Button::new(gpui_kit::SharedString::from(format!("result-row-{index}")))
                     .ghost()
                     .small()
                     .w_full()

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gpui::{
+use gpui_kit::{
     point, px, InputEvent, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, ScrollDelta,
     ScrollWheelEvent, VisualTestContext,
 };
@@ -193,14 +193,14 @@ pub fn body_action(cx: &mut VisualTestContext, index: usize) -> Result<(), Strin
 /// Build the same Kit Root and Home-first shell as the executable; HTTP tests navigate
 /// through visible controls explicitly rather than substituting a test-only start route.
 pub fn shell(
-    window: &mut gpui::Window,
-    cx: &mut gpui::Context<gpui_kit::component::Root>,
+    window: &mut gpui_kit::Window,
+    cx: &mut gpui_kit::Context<gpui_kit::component::Root>,
     build: impl FnOnce(
-        &mut gpui::Window,
-        &mut gpui::Context<postman_gpui::app::PostmanApp>,
+        &mut gpui_kit::Window,
+        &mut gpui_kit::Context<postman_gpui::app::PostmanApp>,
     ) -> postman_gpui::app::PostmanApp,
 ) -> gpui_kit::component::Root {
-    use gpui::AppContext;
+    use gpui_kit::AppContext;
     if cx.try_global::<gpui_kit::component::Theme>().is_none() {
         postman_gpui::assets::fonts::load_embedded_fonts(cx).unwrap();
         postman_gpui::ui::kit::init(cx);

@@ -5635,8 +5635,6 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "gpui-kit",
- "gpui-pre",
- "gpui-pre-platform",
  "mime_guess",
  "mockito",
  "postman-flow",

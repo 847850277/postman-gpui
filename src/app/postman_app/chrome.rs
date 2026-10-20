@@ -6,16 +6,16 @@ use crate::{
         theme::{metrics as m, ACCENT, ACCENT_SOFT, BG, LINE, MUTED, SIDEBAR, SUBTEXT, TEXT},
     },
 };
-use gpui::{
-    div, prelude::FluentBuilder, App, Context, InteractiveElement, IntoElement, ParentElement,
-    Styled, Window,
-};
 use gpui_kit::{
     assets::IconName,
     component::{
         button::{Button, ButtonVariants},
         Icon, TitleBar,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, App, Context, InteractiveElement, IntoElement, ParentElement,
+    Styled, Window,
 };
 
 fn rail_button(
@@ -31,7 +31,7 @@ fn rail_button(
         .accessibility_label(label)
         .toggled(selected)
         .w_full()
-        .h(gpui::rems(3.5))
+        .h(gpui_kit::rems(3.5))
         .p_1()
         .bg(if selected { ACCENT_SOFT } else { SIDEBAR }.resolve(cx))
         .text_color(if selected { ACCENT } else { MUTED }.resolve(cx))
@@ -99,11 +99,12 @@ impl PostmanApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         // Keep every navigation/HTTP tool reachable at the Flow editor's 600px minimum height.
-        let item_height = gpui::rems(if window.viewport_size().height / window.rem_size() < 40. {
-            3.
-        } else {
-            3.5
-        });
+        let item_height =
+            gpui_kit::rems(if window.viewport_size().height / window.rem_size() < 40. {
+                3.
+            } else {
+                3.5
+            });
         div()
             .id("left-rail")
             .debug_selector(|| "left-rail".into())

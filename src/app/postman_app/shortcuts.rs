@@ -4,11 +4,11 @@ use crate::app::{
     FocusNextControl, FocusPreviousControl, FocusUrl, NewRequest, SendOrCancel, ToggleShortcutHelp,
 };
 use crate::ui::theme::{metrics as m, FONT_MONO, LINE, MUTED};
-use gpui::{div, Context, InteractiveElement, ParentElement, Styled, Window};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     IconName, Sizable, WindowExt,
 };
+use gpui_kit::{div, Context, InteractiveElement, ParentElement, Styled, Window};
 
 impl PostmanApp {
     pub(super) fn save_request_command(

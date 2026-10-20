@@ -1,10 +1,10 @@
 use super::*;
 use crate::app::{PostmanApp, WorkspaceViewModel};
-use gpui::{
+use gpui_kit::{component::WindowExt, test::TestWindowExt};
+use gpui_kit::{
     point, px, size, Bounds, ElementInputHandler, InputHandler, TestAppContext, VisualTestContext,
     WindowBounds, WindowOptions,
 };
-use gpui_kit::{component::WindowExt, test::TestWindowExt};
 
 pub(super) fn setup(cx: &mut TestAppContext) -> (Entity<PostmanApp>, &mut VisualTestContext) {
     cx.update(|cx| {
@@ -83,7 +83,7 @@ fn title_undo_survives_step_changes_but_not_equal_named_flow_changes(cx: &mut Te
     add(cx);
     click(cx, "flow-title");
     press(cx, "secondary-a");
-    cx.write_to_clipboard(gpui::ClipboardItem::new_string("Shared name".into()));
+    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("Shared name".into()));
     press(cx, "secondary-v");
     press(cx, "secondary-z");
     assert_eq!(current(&flows, cx).flow.name, "Original flow");

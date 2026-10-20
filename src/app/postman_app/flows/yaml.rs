@@ -1,13 +1,13 @@
 //! Retained per-Flow readonly source view. No runtime values enter this projection.
 use crate::ui::theme::{metrics as m, ACCENT, CODE_STRING, FONT_MONO, LINE, MUTED, PANEL, WARNING};
-use gpui::{
-    div, relative, AppContext, ClipboardItem, Context, Entity, HighlightStyle, InteractiveElement,
-    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
-};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     input::{Editor, EditorState, TextDecoration, TextDecorationCollection},
     Disableable, Sizable, Theme,
+};
+use gpui_kit::{
+    div, relative, AppContext, ClipboardItem, Context, Entity, HighlightStyle, InteractiveElement,
+    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
 };
 use postman_flow::{write_flow_yaml, FlowDocument};
 
@@ -159,7 +159,7 @@ impl Render for YamlPreview {
                     .child(
                         div()
                             .id("flow-yaml-status")
-                            .role(gpui::Role::Status)
+                            .role(gpui_kit::Role::Status)
                             .flex_1()
                             .min_w_0()
                             .text_size(m::COMPACT_LABEL)

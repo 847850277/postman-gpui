@@ -1,14 +1,14 @@
 //! Prototype Body workflows use the same native controls and send path as the application.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{px, size, AppContext, TestAppContext};
+use gpui_kit::{px, size, AppContext, TestAppContext};
 use postman_gpui::{
     app::{BodyKind, PostmanApp, RequestBodyDraft, RequestPane, ResponseState, WorkspaceViewModel},
     models::{HttpMethod, RequestBody},
 };
 use ui::{choose_body_kind, click, replace_text, type_into};
 
-#[gpui::test]
+#[gpui_kit::test]
 fn json_format_validation_and_independent_modes(cx: &mut TestAppContext) {
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();
@@ -79,7 +79,7 @@ fn json_format_validation_and_independent_modes(cx: &mut TestAppContext) {
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn encoded_fields_preview_and_retention_are_visible_without_details(cx: &mut TestAppContext) {
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();
@@ -135,7 +135,7 @@ fn encoded_fields_preview_and_retention_are_visible_without_details(cx: &mut Tes
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn binary_picker_sends_exact_file_bytes_and_remove_requires_a_file(cx: &mut TestAppContext) {
     let file = tempfile::Builder::new().suffix(".bin").tempfile().unwrap();
     let bytes = vec![0, 255, 128, 1, 13, 10, 0, 42];
@@ -204,7 +204,7 @@ fn binary_picker_sends_exact_file_bytes_and_remove_requires_a_file(cx: &mut Test
     assert_eq!(model.read_with(cx, |m, _| m.history_len()), 1);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn late_binary_picker_does_not_replace_a_newly_selected_body_mode(cx: &mut TestAppContext) {
     let file = tempfile::NamedTempFile::new().unwrap();
     let model = cx.new(|_| WorkspaceViewModel::new());
@@ -236,7 +236,7 @@ fn late_binary_picker_does_not_replace_a_newly_selected_body_mode(cx: &mut TestA
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn late_binary_picker_does_not_overwrite_a_reloaded_request(cx: &mut TestAppContext) {
     let first = tempfile::NamedTempFile::new().unwrap();
     let second = tempfile::NamedTempFile::new().unwrap();
@@ -280,7 +280,7 @@ fn late_binary_picker_does_not_overwrite_a_reloaded_request(cx: &mut TestAppCont
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn raw_format_select_sets_the_header_used_by_send(cx: &mut TestAppContext) {
     let mut server = mockito::Server::new();
     let sent = server
@@ -329,7 +329,7 @@ fn raw_format_select_sets_the_header_used_by_send(cx: &mut TestAppContext) {
     sent.assert();
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn form_fields_wrap_inside_the_minimum_request_width(cx: &mut TestAppContext) {
     let model = cx.new(|_| WorkspaceViewModel::new());
     let observed = model.clone();

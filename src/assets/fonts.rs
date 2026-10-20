@@ -1,6 +1,6 @@
 //! Fonts embedded in the executable for consistent rendering on every platform.
 
-use gpui::App;
+use gpui_kit::App;
 use std::borrow::Cow;
 
 static INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/inter/Inter-Regular.ttf");
@@ -18,15 +18,15 @@ const EMBEDDED_FONT_FAMILIES: [&str; 2] = ["Inter", "JetBrains Mono"];
 /// registration can only be verified through the normal platform initialization. Linux headless
 /// mode retains the Cosmic Text backend when the Wayland/X11 features are enabled, and macOS
 /// retains its font-kit backend.
-pub fn runtime_asset_application() -> gpui::Application {
+pub fn runtime_asset_application() -> gpui_kit::Application {
     #[cfg(target_os = "windows")]
     {
-        gpui_platform::application()
+        gpui_kit::platform::application()
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        gpui_platform::headless()
+        gpui_kit::platform::headless()
     }
 }
 

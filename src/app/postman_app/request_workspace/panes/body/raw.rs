@@ -3,13 +3,13 @@ use crate::{
     models::HttpMethod,
     ui::theme::{FONT_MONO, FONT_UI, INFO, INFO_SOFT, LINE, OK, OK_SOFT, PANEL, SUBTEXT, TEXT},
 };
-use gpui::{
-    div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
-    ScrollHandle, StatefulInteractiveElement, Styled,
-};
 use gpui_kit::{
     base::ElementExt,
     component::scroll::{Scrollbar, ScrollbarMode},
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, px, FontWeight, InteractiveElement, IntoElement, ParentElement,
+    ScrollHandle, StatefulInteractiveElement, Styled,
 };
 
 struct RawSemanticsRow {
@@ -29,8 +29,8 @@ pub(super) fn render_raw_request_semantics(
     effective_headers: Vec<EffectiveHeader>,
     scroll_handle: &ScrollHandle,
     has_overflow: bool,
-    cx: &mut gpui::Context<super::BodyPane>,
-) -> gpui::AnyElement {
+    cx: &mut gpui_kit::Context<super::BodyPane>,
+) -> gpui_kit::AnyElement {
     let generated_count = effective_headers
         .iter()
         .filter(|header| header.source == EffectiveHeaderSource::Generated)
@@ -180,7 +180,7 @@ pub(super) fn render_raw_request_semantics(
                     let scroll = scroll_handle.clone();
                     let previous = has_overflow;
                     move |_, window, cx| {
-                        let has_overflow = scroll.max_offset().y > gpui::Pixels::ZERO;
+                        let has_overflow = scroll.max_offset().y > gpui_kit::Pixels::ZERO;
                         if has_overflow != previous {
                             window.defer(cx, move |_, cx| {
                                 let _ = this.update(cx, |this, cx| {
@@ -239,7 +239,7 @@ pub(super) fn render_raw_request_semantics(
         .into_any_element()
 }
 
-fn render_raw_semantics_row(row: RawSemanticsRow, cx: &gpui::App) -> gpui::AnyElement {
+fn render_raw_semantics_row(row: RawSemanticsRow, cx: &gpui_kit::App) -> gpui_kit::AnyElement {
     let RawSemanticsRow {
         selector,
         value_selector,
@@ -310,7 +310,11 @@ fn raw_request_target(method: HttpMethod, effective_url: &str) -> String {
     format!("{method} {target}")
 }
 
-fn raw_semantics_mark(label: &'static str, success: bool, cx: &gpui::App) -> gpui::AnyElement {
+fn raw_semantics_mark(
+    label: &'static str,
+    success: bool,
+    cx: &gpui_kit::App,
+) -> gpui_kit::AnyElement {
     div()
         .size(px(26.0))
         .flex_none()
@@ -327,7 +331,11 @@ fn raw_semantics_mark(label: &'static str, success: bool, cx: &gpui::App) -> gpu
         .into_any_element()
 }
 
-fn raw_semantics_state(label: &'static str, success: bool, cx: &gpui::App) -> gpui::AnyElement {
+fn raw_semantics_state(
+    label: &'static str,
+    success: bool,
+    cx: &gpui_kit::App,
+) -> gpui_kit::AnyElement {
     div()
         .h(px(22.0))
         .px_2()

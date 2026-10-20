@@ -1,7 +1,7 @@
 //! Real Kit controls exercise durable Save, reopening, keyboard ownership and close protection.
 #[path = "common/ui.rs"]
 mod ui;
-use gpui::{AppContext, TestAppContext, VisualTestContext};
+use gpui_kit::{AppContext, TestAppContext, VisualTestContext};
 use postman_gpui::app::{PostmanApp, WorkspaceViewModel};
 
 fn save_key(cx: &mut VisualTestContext) {
@@ -242,8 +242,8 @@ fn quit_visits_each_dirty_document_and_cancel_keeps_all_tabs(cx: &mut TestAppCon
 fn save_dialog_and_toolbar_fit_reference_and_compact_windows_in_both_themes(
     cx: &mut TestAppContext,
 ) {
-    use gpui::{px, size};
     use gpui_kit::component::ThemeMode;
+    use gpui_kit::{px, size};
     let model = cx.new(|_| WorkspaceViewModel::new());
     let (_, cx) = cx.add_window_view(move |w, cx| {
         ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(model, w, cx))

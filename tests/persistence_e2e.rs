@@ -9,7 +9,7 @@ mod ui;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{TimeZone, Utc};
-use gpui::{AppContext, Entity, TestAppContext, VisualTestContext};
+use gpui_kit::{AppContext, Entity, TestAppContext, VisualTestContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{
@@ -197,7 +197,7 @@ fn wait_for(
     panic!("timed out waiting for {description}");
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_and_space(
     test_cx: &mut TestAppContext,
 ) {
@@ -376,7 +376,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     close_app(app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     test_cx: &mut TestAppContext,
 ) {
@@ -573,7 +573,7 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -689,7 +689,7 @@ fn raw_and_urlencoded_bodies_recover_and_replay_after_restart(test_cx: &mut Test
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn binary_file_validation_and_exact_replay_survive_a_sqlite_restart(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -820,7 +820,7 @@ fn binary_file_validation_and_exact_replay_survive_a_sqlite_restart(test_cx: &mu
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -992,7 +992,7 @@ fn multipart_file_and_editor_intent_recover_and_replay_after_restart(test_cx: &m
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn missing_multipart_file_after_restart_uses_the_normal_validation_error(
     test_cx: &mut TestAppContext,
 ) {
@@ -1076,7 +1076,7 @@ fn missing_multipart_file_after_restart_uses_the_normal_validation_error(
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn completed_response_is_usable_before_locked_sqlite_append_commits(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -1140,7 +1140,7 @@ fn completed_response_is_usable_before_locked_sqlite_append_commits(test_cx: &mu
     close_app(app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn non_2xx_recovers_but_cancel_timeout_and_transport_failures_never_persist(
     test_cx: &mut TestAppContext,
 ) {
@@ -1286,7 +1286,7 @@ fn non_2xx_recovers_but_cancel_timeout_and_transport_failures_never_persist(
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn retention_retry_and_search_use_the_latest_fifty_sqlite_rows(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -1401,7 +1401,7 @@ fn retention_retry_and_search_use_the_latest_fifty_sqlite_rows(test_cx: &mut Tes
     close_app(app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn successful_clear_stays_empty_after_restart(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -1480,7 +1480,7 @@ fn successful_clear_stays_empty_after_restart(test_cx: &mut TestAppContext) {
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn failed_clear_keeps_sqlite_and_the_last_successful_query_result(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
@@ -1543,7 +1543,7 @@ fn failed_clear_keeps_sqlite_and_the_last_successful_query_result(test_cx: &mut 
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bodies(
     test_cx: &mut TestAppContext,
 ) {
@@ -1701,7 +1701,7 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     close_app(app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn legacy_schema_migrates_and_a_malformed_newer_row_is_skipped_after_restart(
     test_cx: &mut TestAppContext,
 ) {
@@ -1804,7 +1804,7 @@ fn legacy_schema_migrates_and_a_malformed_newer_row_is_skipped_after_restart(
     close_app(second_app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn future_schema_is_not_downgraded_and_does_not_enable_a_volatile_fallback(
     test_cx: &mut TestAppContext,
 ) {
@@ -1872,7 +1872,7 @@ fn future_schema_is_not_downgraded_and_does_not_enable_a_volatile_fallback(
     close_app(app, cx);
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn refresh_load_failure_keeps_the_last_successful_sqlite_projection(test_cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");

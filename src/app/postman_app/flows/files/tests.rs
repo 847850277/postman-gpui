@@ -1,7 +1,7 @@
 use super::super::tests::{add, click, create, press, replace, settle, setup};
 use super::*;
-use gpui::{Entity, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{Entity, TestAppContext, VisualTestContext};
 use std::{fs, path::Path};
 
 mod acceptance;
@@ -39,7 +39,7 @@ fn dirty(flows: &Entity<FlowsView>, cx: &mut VisualTestContext) -> bool {
     flows.read_with(cx, |v, cx| v.is_dirty(v.library.active().unwrap().id(), cx))
 }
 fn recent(cx: &mut VisualTestContext, path: &Path) {
-    let id = gpui::SharedString::from(format!(
+    let id = gpui_kit::SharedString::from(format!(
         "flow-recent-{}",
         path.canonicalize().unwrap().display()
     ));
@@ -163,7 +163,7 @@ fn cancel_picker_close_and_edit_during_save_preserve_drafts(cx: &mut TestAppCont
 }
 #[gpui_kit::test]
 fn save_identity_and_close_rechecks_survive_late_edits(cx: &mut TestAppContext) {
-    use gpui::Focusable;
+    use gpui_kit::Focusable;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("first.http.yml");
     let second = dir.path().join("second.http.yml");
@@ -287,7 +287,7 @@ fn external_conflict_and_failed_save_keep_last_baseline(cx: &mut TestAppContext)
 }
 
 fn edit_source(cx: &mut VisualTestContext, id: &'static str, text: &str) {
-    use gpui::{point, px, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+    use gpui_kit::{point, px, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
     for _ in 0..6 {
         let panel = cx.debug_bounds("flow-inspector-scroll").unwrap();
         let field = cx.debug_bounds(id).unwrap();
@@ -305,7 +305,7 @@ fn edit_source(cx: &mut VisualTestContext, id: &'static str, text: &str) {
     let b = cx.debug_bounds(id).unwrap();
     cx.simulate_click(b.origin + point(px(12.), px(12.)), Modifiers::none());
     press(cx, "secondary-a");
-    cx.write_to_clipboard(gpui::ClipboardItem::new_string(text.into()));
+    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(text.into()));
     press(
         cx,
         if text.is_empty() {
@@ -404,7 +404,7 @@ fn open_errors_collision_and_missing_recent_leave_existing_editors_intact(cx: &m
     settle(cx);
     fs::remove_file(&second).unwrap();
     click(cx, "flow-recent");
-    let id = gpui::SharedString::from(format!(
+    let id = gpui_kit::SharedString::from(format!(
         "flow-recent-{}",
         path.canonicalize()
             .unwrap()
@@ -449,8 +449,8 @@ fn mixed_http_flow_quit_cancellation_keeps_both_sessions(cx: &mut TestAppContext
 }
 #[gpui_kit::test]
 fn file_commands_and_close_dialog_fit_themes_and_compact_windows(cx: &mut TestAppContext) {
-    use gpui::{px, size};
     use gpui_kit::component::ThemeMode;
+    use gpui_kit::{px, size};
     let (_, cx) = setup(cx);
     settle(cx);
     click(cx, "nav-flows");

@@ -1,8 +1,8 @@
 //! The only persisted P1 preference. Kit remains the source of the active mode.
 
-use gpui::{App, Global, Task};
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{assets::IconName, component::ActiveTheme};
+use gpui_kit::{App, Global, Task};
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -109,7 +109,7 @@ fn save(path: &Path, mode: ThemeMode) -> io::Result<()> {
     result
 }
 
-pub fn button(id: &'static str, cx: &gpui::App) -> gpui_kit::component::button::Button {
+pub fn button(id: &'static str, cx: &gpui_kit::App) -> gpui_kit::component::button::Button {
     let dark = cx.theme().mode.is_dark();
     crate::ui::components::kit_controls::icon_button(
         id,
@@ -128,7 +128,7 @@ mod tests {
     use super::*;
     #[gpui_kit::test]
     fn preference_survives_restart_and_invalid_values_fall_back_to_light(
-        cx: &mut gpui::TestAppContext,
+        cx: &mut gpui_kit::TestAppContext,
     ) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("appearance.json");
@@ -155,7 +155,7 @@ mod tests {
 
     #[gpui_kit::test]
     fn rapid_toggles_save_the_last_choice_and_failures_remain_visible(
-        cx: &mut gpui::TestAppContext,
+        cx: &mut gpui_kit::TestAppContext,
     ) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("appearance.json");

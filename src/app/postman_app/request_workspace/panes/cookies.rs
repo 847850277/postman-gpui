@@ -8,7 +8,7 @@ use crate::{
         },
     },
 };
-use gpui::{
+use gpui_kit::{
     div, prelude::FluentBuilder, px, Context, Entity, EventEmitter, FocusHandle, FontWeight,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };

@@ -9,15 +9,15 @@ mod tests;
 mod view;
 
 use super::FlowId;
-use gpui::{
-    actions, AppContext, ClipboardItem, Context, Entity, EntityInputHandler, EventEmitter,
-    FocusHandle, Focusable, KeyBinding, Keystroke, ListAlignment, ListState, Subscription, Window,
-};
 use gpui_kit::component::{
     input::{InputEvent, InputState},
     searchable_list::SearchableVec,
     select::{SelectEvent, SelectState},
     IndexPath,
+};
+use gpui_kit::{
+    actions, AppContext, ClipboardItem, Context, Entity, EntityInputHandler, EventEmitter,
+    FocusHandle, Focusable, KeyBinding, Keystroke, ListAlignment, ListState, Subscription, Window,
 };
 use model::{Level, Session, View, COMMANDS};
 use std::collections::HashMap;
@@ -83,12 +83,12 @@ pub(super) struct FlowConsole {
     input: Entity<InputState>,
     filter: Entity<SelectState<SearchableVec<&'static str>>>,
     scroll: ListState,
-    empty_scroll: gpui::ScrollHandle,
+    empty_scroll: gpui_kit::ScrollHandle,
     visible: Vec<u64>,
     tab_focus: [FocusHandle; 3],
     mode: ConsoleMode,
     hint: String,
-    rem: gpui::Pixels,
+    rem: gpui_kit::Pixels,
     _subscriptions: Vec<Subscription>,
 }
 impl EventEmitter<ConsoleEvent> for FlowConsole {}
@@ -139,7 +139,7 @@ impl FlowConsole {
                         if let Some(session) = this.current_mut() {
                             if session.follow {
                                 session.follow = false;
-                                this.scroll.set_follow_mode(gpui::FollowMode::Normal);
+                                this.scroll.set_follow_mode(gpui_kit::FollowMode::Normal);
                                 cx.notify();
                             }
                         }
@@ -186,7 +186,7 @@ impl FlowConsole {
             input,
             filter,
             scroll,
-            empty_scroll: gpui::ScrollHandle::new(),
+            empty_scroll: gpui_kit::ScrollHandle::new(),
             visible: Vec::new(),
             tab_focus: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             mode: ConsoleMode::Normal,
@@ -351,9 +351,9 @@ impl FlowConsole {
         self.visible = next;
         let follow = self.current().is_some_and(|s| s.follow);
         self.scroll.set_follow_mode(if follow {
-            gpui::FollowMode::Tail
+            gpui_kit::FollowMode::Tail
         } else {
-            gpui::FollowMode::Normal
+            gpui_kit::FollowMode::Normal
         });
     }
     pub(super) fn set_mode(&mut self, mode: ConsoleMode, cx: &mut Context<Self>) {
@@ -412,9 +412,9 @@ impl FlowConsole {
         }
         self.scroll
             .set_follow_mode(if self.current().is_some_and(|s| s.follow) {
-                gpui::FollowMode::Tail
+                gpui_kit::FollowMode::Tail
             } else {
-                gpui::FollowMode::Normal
+                gpui_kit::FollowMode::Normal
             });
         cx.notify();
     }
@@ -490,9 +490,9 @@ impl FlowConsole {
         }
         self.sync_filter(window, cx);
         self.refresh_logs(true);
-        self.scroll.scroll_to(gpui::ListOffset {
+        self.scroll.scroll_to(gpui_kit::ListOffset {
             item_ix: report_start,
-            offset_in_item: gpui::px(0.),
+            offset_in_item: gpui_kit::px(0.),
         });
         cx.notify();
     }

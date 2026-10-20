@@ -6,11 +6,7 @@ mod storage;
 
 use crate::ui::theme::{metrics as m, ERROR};
 use dialog::EnvironmentEditor;
-use gpui::InteractiveElement;
-use gpui::{
-    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, IntoElement,
-    ParentElement, Render, SharedString, Styled, Subscription, Task, Window,
-};
+use gpui_kit::InteractiveElement;
 use gpui_kit::{
     assets::IconName,
     component::{
@@ -19,6 +15,10 @@ use gpui_kit::{
         select::{Select, SelectEvent, SelectState},
         Disableable, Sizable, WindowExt,
     },
+};
+use gpui_kit::{
+    div, prelude::FluentBuilder, AppContext, Context, Entity, EventEmitter, IntoElement,
+    ParentElement, Render, SharedString, Styled, Subscription, Task, Window,
 };
 pub(crate) use model::rebase_url;
 use model::EnvironmentSet;
@@ -298,8 +298,8 @@ impl Render for Environments {
                                 "No environment"
                             })
                             .small()
-                            .w(gpui::rems(11.))
-                            .menu_width(gpui::rems(17.))
+                            .w(gpui_kit::rems(11.))
+                            .menu_width(gpui_kit::rems(17.))
                             .disabled(self.loading || self.saving || self.blocked),
                     ),
             )

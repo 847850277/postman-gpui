@@ -3,8 +3,8 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext, VisualTestContext};
 use gpui_kit::test::TestWindowExt;
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext, VisualTestContext};
 use postman_gpui::app::{
     BodyKind, MultipartDraftValue, PostmanApp, RequestBodyDraft, WorkspaceViewModel,
 };
@@ -39,7 +39,7 @@ fn choose_body_menu_action(cx: &mut VisualTestContext, index: usize, label: &str
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_menu(
     cx: &mut TestAppContext,
 ) {
@@ -93,7 +93,7 @@ fn text_body_keeps_unicode_graphemes_intact_across_cursor_selection_and_context_
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
     cx: &mut TestAppContext,
 ) {
@@ -158,7 +158,7 @@ fn multiline_body_history_context_menu_and_mode_switch_keep_the_saved_draft(
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();
@@ -198,7 +198,7 @@ fn form_body_tab_navigation_persists_unicode_active_cells_and_scrolls(cx: &mut T
     assert!(cx.debug_bounds("body-form-row-27").is_some());
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn cancelling_multipart_file_selection_leaves_the_typed_row_unchanged(cx: &mut TestAppContext) {
     let workspace = cx.new(|_| WorkspaceViewModel::new());
     let observed = workspace.clone();

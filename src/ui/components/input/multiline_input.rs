@@ -3,14 +3,14 @@ use crate::ui::{
     components::common::edit_context_menu::edit_popup_menu,
     theme::{metrics as m, CODE_BG, FONT_MONO},
 };
-use gpui::{
-    div, relative, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, Render, SharedString, Styled,
-    Subscription, Window,
-};
 use gpui_kit::component::{
     input::{Copy, Cut, InputEvent, Paste, Redo, SelectAll, Textarea, TextareaState, Undo},
     menu::ContextMenuExt,
+};
+use gpui_kit::{
+    div, relative, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, MouseButton, ParentElement, Render, SharedString, Styled,
+    Subscription, Window,
 };
 
 mod graphemes;

@@ -3,11 +3,11 @@ use super::super::{
     FlowsView,
 };
 use super::*;
-use gpui::{
+use gpui_kit::test::TestWindowExt;
+use gpui_kit::{
     point, px, ClipboardItem, Modifiers, ScrollDelta, ScrollWheelEvent, SharedString,
     TestAppContext, TouchPhase, VisualTestContext,
 };
-use gpui_kit::test::TestWindowExt;
 use postman_flow::{parse_flow_yaml, write_flow_yaml, FlowDocument};
 use serde_json::json;
 
@@ -40,7 +40,10 @@ fn install(flows: &Entity<FlowsView>, values: Vec<FlowInputSpec>, cx: &mut Visua
     click(cx, "flow-inputs");
     settle(cx);
 }
-fn reveal(cx: &mut VisualTestContext, id: gpui::ElementId) -> gpui::Bounds<gpui::Pixels> {
+fn reveal(
+    cx: &mut VisualTestContext,
+    id: gpui_kit::ElementId,
+) -> gpui_kit::Bounds<gpui_kit::Pixels> {
     for _ in 0..8 {
         let bounds = cx.update(|w, _| w.find(id.clone()).bounds());
         let panel = cx.debug_bounds("flow-inputs-scroll").unwrap();
@@ -68,7 +71,7 @@ fn named_click(cx: &mut VisualTestContext, id: &str) {
     cx.update(|w, cx| w.click(id, cx));
     settle(cx);
 }
-fn edit(cx: &mut VisualTestContext, id: gpui::ElementId, source: &str) {
+fn edit(cx: &mut VisualTestContext, id: gpui_kit::ElementId, source: &str) {
     let b = reveal(cx, id);
     cx.simulate_click(b.origin + point(px(12.), px(12.)), Modifiers::none());
     press(cx, "secondary-a");
@@ -424,7 +427,7 @@ fn sensitive_reveal_is_temporary_and_parameter_errors_are_redacted(cx: &mut Test
 
 #[gpui_kit::test]
 fn inputs_keep_ime_undo_focus_and_row_identity(cx: &mut TestAppContext) {
-    use gpui::EntityInputHandler;
+    use gpui_kit::EntityInputHandler;
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |a, _| a.flows.clone());
     click(cx, "nav-flows");
@@ -499,7 +502,7 @@ fn inputs_keep_ime_undo_focus_and_row_identity(cx: &mut TestAppContext) {
 
 #[gpui_kit::test]
 fn inputs_layout_keeps_actions_reachable_and_console_geometry(cx: &mut TestAppContext) {
-    use gpui::size;
+    use gpui_kit::size;
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |a, _| a.flows.clone());
     click(cx, "nav-flows");

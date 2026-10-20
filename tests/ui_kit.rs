@@ -3,11 +3,11 @@
 #[path = "common/ui.rs"]
 mod ui;
 
-use gpui::{AppContext, ClipboardItem, TestAppContext};
 use gpui_kit::{
     component::{Root, Theme, ThemeMode},
     test::TestWindowExt,
 };
+use gpui_kit::{AppContext, ClipboardItem, TestAppContext};
 use postman_gpui::{
     app::{PostmanApp, ResponseState, WorkspaceViewModel},
     assets::fonts::load_embedded_fonts,
@@ -26,7 +26,7 @@ fn init(cx: &mut TestAppContext) {
     });
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn http_url_clipboard_and_help_preserve_text_and_focus_across_theme_changes(
     cx: &mut TestAppContext,
 ) {
@@ -78,7 +78,7 @@ fn http_url_clipboard_and_help_preserve_text_and_focus_across_theme_changes(
     );
 }
 
-#[gpui::test]
+#[gpui_kit::test]
 fn kit_root_preserves_existing_http_shortcuts_focused_input_and_history(cx: &mut TestAppContext) {
     init(cx);
     let mut server = mockito::Server::new();
@@ -120,7 +120,7 @@ fn kit_root_preserves_existing_http_shortcuts_focused_input_and_history(cx: &mut
 // never excuse overlapping bounds or clipped editor geometry.
 const GEOMETRY_EPSILON: f32 = 0.5;
 
-fn assert_one_focus_frame(window: &gpui::Window, cx: &gpui::App, group: &'static str) {
+fn assert_one_focus_frame(window: &gpui_kit::Window, cx: &gpui_kit::App, group: &'static str) {
     let bounds = window.find(group).bounds().scale(window.scale_factor());
     let frames: Vec<_> = window
         .painted_quads()
@@ -149,7 +149,7 @@ fn http_url_group_keeps_one_focus_frame_and_long_text_inside_its_bounds(cx: &mut
     init(cx);
     for (width, height) in [(1440., 960.), (960., 640.)] {
         let handle = cx.open_window(
-            gpui::size(gpui::px(width), gpui::px(height)),
+            gpui_kit::size(gpui_kit::px(width), gpui_kit::px(height)),
             |window, cx| {
                 let model = cx.new(|_| WorkspaceViewModel::new());
                 let view = cx.new(|cx| PostmanApp::with_view_model(model, window, cx));
@@ -165,7 +165,7 @@ fn http_url_group_keeps_one_focus_frame_and_long_text_inside_its_bounds(cx: &mut
             assert!(input.left() >= method.right());
             assert!(input.right() < group.right());
             assert!(input.top() >= group.top() && input.bottom() <= group.bottom());
-            assert!(group.right() <= gpui::px(width));
+            assert!(group.right() <= gpui_kit::px(width));
             window.click("request-url-input", cx);
             assert_one_focus_frame(window, cx, "request-url-group");
             let long = format!("https://example.test/{}", "长路径🦀?q=x&".repeat(80));
@@ -194,7 +194,7 @@ fn http_url_group_keeps_one_focus_frame_and_long_text_inside_its_bounds(cx: &mut
 
 #[test]
 fn product_icons_are_embedded_alongside_kits_default_icons() {
-    use gpui::AssetSource;
+    use gpui_kit::AssetSource;
     for icon in [
         gpui_kit::assets::IconName::Lock,
         gpui_kit::assets::IconName::Moon,

@@ -1,8 +1,8 @@
 //! Retained drilldown and a native readonly editor; no runtime transformation in render.
 use super::super::execution::results::{HttpPart, HttpTarget, NamedValue, Results};
 use super::*;
-use gpui::{ScrollStrategy, UniformListScrollHandle};
 use gpui_kit::component::input::EditorState;
+use gpui_kit::{ScrollStrategy, UniformListScrollHandle};
 mod view;
 
 #[derive(Clone, Copy, PartialEq, Eq)]

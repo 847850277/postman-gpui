@@ -6,8 +6,8 @@ mod tests;
 mod view;
 
 use super::{FlowId, FlowsView};
-use gpui::{App, Context, Window};
 use gpui_kit::component::WindowExt;
+use gpui_kit::{App, Context, Window};
 use postman_flow::FlowDocument;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -61,12 +61,12 @@ pub(super) struct Files {
     recent: Vec<storage::Recent>,
     recent_error: Option<String>,
     error: Option<String>,
-    error_scroll: gpui::ScrollHandle,
+    error_scroll: gpui_kit::ScrollHandle,
     busy: bool,
     busy_flow: Option<FlowId>,
     conflict: Option<Write>,
     dialog: Option<DialogKind>,
-    return_focus: Option<gpui::FocusHandle>,
+    return_focus: Option<gpui_kit::FocusHandle>,
     close: Option<CloseTarget>,
     discarded: HashMap<FlowId, u64>,
     stop_approved: HashMap<FlowId, u64>,
@@ -352,7 +352,7 @@ impl FlowsView {
         }
         self.files.busy = true;
         self.files.error = None;
-        let selection = cx.prompt_for_paths(gpui::PathPromptOptions {
+        let selection = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
             files: true,
             directories: false,
             multiple: false,
