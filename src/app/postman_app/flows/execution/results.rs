@@ -12,6 +12,28 @@ pub(in super::super) const MAX_ROWS: usize = 2000;
 const MAX_VALUES: usize = 128;
 const MAX_CHECKS: usize = 128;
 const MAX_VALUE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_HTTP_BYTES: usize = 2 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in super::super) enum HttpPart {
+    Request,
+    Response,
+}
+impl HttpPart {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Request => "Request",
+            Self::Response => "Response",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in super::super) struct HttpTarget {
+    pub run: u64,
+    pub node: usize,
+    pub part: HttpPart,
+}
 
 #[derive(Clone)]
 struct Template {
@@ -71,6 +93,8 @@ pub(in super::super) struct Node {
     pub status: Status,
     pub detail: String,
     pub response: Option<(u16, u128)>,
+    pub http: [Option<NamedValue>; 2],
+    pub http_omitted: bool,
     pub checks: Vec<Check>,
     pub check_count: usize,
     pub expected_checks: usize,
@@ -152,6 +176,7 @@ pub(in super::super) struct Results {
     pub output_count: usize,
     pub complete: bool,
     value_bytes: usize,
+    http_bytes: usize,
     outputs_copy: Option<String>,
     templates: Vec<Arc<Template>>,
     active_templates: Vec<Option<Arc<Template>>>,
@@ -209,6 +234,8 @@ impl Results {
             status: Status::NotExecuted,
             detail: String::new(),
             response: None,
+            http: [None, None],
+            http_omitted: false,
             checks: Vec::new(),
             check_count: 0,
             expected_checks: if iteration.is_none() {
@@ -262,6 +289,30 @@ impl Results {
     fn node(&mut self, id: Option<usize>) -> Option<&mut Node> {
         id.map(|id| Arc::make_mut(&mut self.nodes[id]))
     }
+    pub fn http_target(&self, event: &FlowEvent, run: u64) -> Option<HttpTarget> {
+        let part = match event {
+            FlowEvent::RequestPrepared { .. } => HttpPart::Request,
+            FlowEvent::ResponseReceived { .. } => HttpPart::Response,
+            _ => return None,
+        };
+        let node = self.active.last().copied().flatten()?;
+        self.nodes[node].http[part as usize].as_ref()?;
+        Some(HttpTarget { run, node, part })
+    }
+    fn retain_http(&mut self, active: Option<usize>, part: HttpPart, value: &InspectionValue) {
+        let retain = self.http_bytes.saturating_add(value.byte_len()) <= MAX_HTTP_BYTES;
+        if let Some(n) = self.node(active) {
+            if retain {
+                n.http[part as usize] = Some(NamedValue {
+                    name: part.label().into(),
+                    value: value.clone(),
+                });
+                self.http_bytes += value.byte_len();
+            } else {
+                n.http_omitted = true;
+            }
+        }
+    }
     pub fn event(&mut self, event: &FlowEvent, observed: Instant) {
         let active = self.active.last().copied().flatten();
         match event {
@@ -290,12 +341,19 @@ impl Results {
                     n.detail = "Run condition was false; no request executed.".into();
                 }
             }
+            FlowEvent::RequestPrepared { inspection, .. } => {
+                self.retain_http(active, HttpPart::Request, inspection);
+            }
             FlowEvent::ResponseReceived {
-                status, elapsed_ms, ..
+                status,
+                elapsed_ms,
+                inspection,
+                ..
             } => {
                 if let Some(n) = self.node(active) {
                     n.response = Some((*status, *elapsed_ms));
                 }
+                self.retain_http(active, HttpPart::Response, inspection);
             }
             FlowEvent::CheckFinished {
                 success,

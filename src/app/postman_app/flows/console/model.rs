@@ -67,6 +67,7 @@ pub(super) struct LogEntry {
     pub(super) message: String,
     pub(super) step: Option<String>,
     pub(super) run_revision: Option<u64>,
+    pub(super) http: Option<super::super::execution::results::HttpTarget>,
     pub(super) diagnostic: Option<super::super::validation::DiagnosticTarget>,
 }
 
@@ -117,6 +118,7 @@ impl Session {
             step,
             diagnostic: None,
             run_revision: None,
+            http: None,
         });
         if self.logs.len() > 500 {
             self.logs.pop_front();

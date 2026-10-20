@@ -386,50 +386,86 @@ impl FlowConsole {
                     .flex_1()
                     .min_w_0()
                     .overflow_hidden()
-                    .when_some(entry.step.clone().zip(self.active), |d, (step, flow)| {
-                        d.child(
-                            Button::new(gpui::SharedString::from(format!(
-                                "console-step-{}-{}",
-                                flow.0, entry.id
-                            )))
-                            .ghost()
-                            .small()
-                            .label(step.clone())
-                            .icon(IconName::ArrowRight)
-                            .on_click(cx.listener(
-                                move |this, _, _, cx| {
-                                    if this.mode == ConsoleMode::Maximized {
-                                        this.set_mode(ConsoleMode::Normal, cx);
-                                    }
-                                    cx.emit(ConsoleEvent::LocateStep {
-                                        flow,
-                                        revision,
-                                        step: step.clone(),
-                                    });
-                                },
-                            )),
-                        )
-                    })
-                    .when_some(entry.diagnostic.clone(), |d, target| {
-                        d.child(
-                            div().flex().items_start().child(
-                                Button::new(gpui::SharedString::from(format!(
-                                    "console-diagnostic-{}",
-                                    entry.id
-                                )))
-                                .ghost()
-                                .small()
-                                .label("Locate")
-                                .icon(IconName::ArrowRight)
-                                .accessibility_label(format!("Locate {}", entry.message))
-                                .on_click(cx.listener(
-                                    move |_, _, _, cx| {
-                                        cx.emit(ConsoleEvent::LocateDiagnostic(target.clone()))
-                                    },
-                                )),
-                            ),
-                        )
-                    })
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .flex_wrap()
+                            .when_some(entry.http, |d, target| {
+                                let available = self
+                                    .current()
+                                    .and_then(|s| s.run.as_ref())
+                                    .is_some_and(|r| r.id == target.run);
+                                d.child(
+                                    Button::new(gpui::SharedString::from(format!(
+                                        "console-http-{}",
+                                        entry.id
+                                    )))
+                                    .ghost()
+                                    .small()
+                                    .label(target.part.label())
+                                    .accessibility_label(if available {
+                                        format!("Inspect {}", target.part.label().to_lowercase())
+                                    } else {
+                                        format!("{} unavailable · Earlier run", target.part.label())
+                                    })
+                                    .disabled(!available)
+                                    .tooltip(if available {
+                                        "Inspect sanitized HTTP parameters"
+                                    } else {
+                                        "Details from an earlier run are no longer retained"
+                                    })
+                                    .on_click(cx.listener(move |this, _, w, cx| {
+                                        this.open_http(target, w, cx)
+                                    })),
+                                )
+                            })
+                            .when_some(entry.step.clone().zip(self.active), |d, (step, flow)| {
+                                d.child(
+                                    Button::new(gpui::SharedString::from(format!(
+                                        "console-step-{}-{}",
+                                        flow.0, entry.id
+                                    )))
+                                    .ghost()
+                                    .small()
+                                    .label(step.clone())
+                                    .icon(IconName::ArrowRight)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        if this.mode == ConsoleMode::Maximized {
+                                            this.set_mode(ConsoleMode::Normal, cx);
+                                        }
+                                        cx.emit(ConsoleEvent::LocateStep {
+                                            flow,
+                                            revision,
+                                            step: step.clone(),
+                                        });
+                                    })),
+                                )
+                            })
+                            .when_some(entry.diagnostic.clone(), |d, target| {
+                                d.child(
+                                    div().flex().items_start().child(
+                                        Button::new(gpui::SharedString::from(format!(
+                                            "console-diagnostic-{}",
+                                            entry.id
+                                        )))
+                                        .ghost()
+                                        .small()
+                                        .label("Locate")
+                                        .icon(IconName::ArrowRight)
+                                        .accessibility_label(format!("Locate {}", entry.message))
+                                        .on_click(
+                                            cx.listener(move |_, _, _, cx| {
+                                                cx.emit(ConsoleEvent::LocateDiagnostic(
+                                                    target.clone(),
+                                                ))
+                                            }),
+                                        ),
+                                    ),
+                                )
+                            }),
+                    )
                     .child(div().whitespace_normal().child(entry.message.clone())),
             )
             .into_any_element()

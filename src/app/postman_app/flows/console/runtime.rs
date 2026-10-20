@@ -93,6 +93,7 @@ impl FlowConsole {
             };
             session.push(level, event.message, event.step);
             session.logs.back_mut().unwrap().run_revision = Some(run.revision);
+            session.logs.back_mut().unwrap().http = event.http;
         }
         session.run = Some(run);
         self.refresh_results();

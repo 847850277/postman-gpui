@@ -485,7 +485,19 @@ assertion text. Consumers must not reconstruct extraction values or reevaluate a
 Inspection preserves JSON types and explicit redacted JSON pointers (empty pointer means whole-value
 redaction). No value means size/depth/node limit, not JSON null. It removes annotated secrets, sensitive
 field names and known credential echoes from input/request/response bindings, including encoded strings.
-Credential-budget exhaustion redacts whole values. It does not provide raw request/response inspection.
+Credential-budget exhaustion redacts whole values.
+
+`RequestPrepared.inspection` provides sanitized, bounded resolved method/URL/query/headers/body
+before the transport is polled. Dropping the stream at that point sends no request.
+`ResponseReceived.inspection` includes terminal status/timing/headers/body even if later checks or
+extractions fail. Sensitive exports are registered before projecting that response. These snapshots
+are not raw wire captures: automatic transport headers/cookies and intermediate redirect requests are
+not captured. Userinfo/fragments, file paths and binary/file contents are omitted. Duplicate parameter
+and header names keep their order. Body previews use at most 8 KiB of source text; parameter collections
+use at most 64 entries / 4 KiB. Oversized sections carry an omission reason; the complete snapshot still
+obeys the 16 KiB inspection limit. GUI consumers keep request/response evidence session-only and bound
+aggregate retention separately from extraction values. CLI report contents/schema are unchanged.
+
 Credential names are matched as words (including snake/kebab/camel case), so `token_count` and
 `secretary` are ordinary data. Only credential-named URL query parameters are automatically
 registered as secrets; ordinary parameters such as `page` and `q` are not. Use `sensitive: true`

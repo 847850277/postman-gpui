@@ -1,5 +1,5 @@
 //! Retained drilldown and a native readonly editor; no runtime transformation in render.
-use super::super::execution::results::{NamedValue, Results};
+use super::super::execution::results::{HttpPart, HttpTarget, NamedValue, Results};
 use super::*;
 use gpui::{ScrollStrategy, UniformListScrollHandle};
 use gpui_kit::component::input::EditorState;
@@ -10,16 +10,19 @@ enum Row {
     Node(usize),
     Check(usize),
     Value(usize),
+    Http(HttpPart),
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct SelectedValue {
     node: Option<usize>,
     index: usize,
+    http: Option<HttpPart>,
 }
 pub(super) struct Inspector {
     scope: Option<usize>,
     values: HashMap<bool, SelectedValue>,
     rows: Vec<Row>,
+    rows_key: Option<(bool, Option<usize>)>,
     selected: usize,
     selected_by_scope: HashMap<(bool, Option<usize>), usize>,
     scrolls: HashMap<(bool, Option<usize>), UniformListScrollHandle>,
@@ -47,6 +50,7 @@ impl Inspector {
             scope: None,
             values: HashMap::new(),
             rows: Vec::new(),
+            rows_key: None,
             selected: 0,
             selected_by_scope: HashMap::new(),
             scrolls: HashMap::new(),
@@ -78,6 +82,11 @@ impl Inspector {
                 .copied()
                 .unwrap_or(0);
         }
+        let selected = if self.rows_key == Some(self.key()) {
+            self.rows.get(self.selected).copied()
+        } else {
+            None
+        };
         self.rows = if outputs {
             (0..if results.complete {
                 results.outputs.len()
@@ -93,11 +102,21 @@ impl Inspector {
                 .map(Row::Node)
                 .chain((0..node.checks.len()).map(Row::Check))
                 .chain((0..node.values.len()).map(Row::Value))
+                .chain(
+                    [HttpPart::Request, HttpPart::Response]
+                        .into_iter()
+                        .filter(|part| node.http[*part as usize].is_some())
+                        .map(Row::Http),
+                )
                 .collect()
         } else {
             results.roots.iter().copied().map(Row::Node).collect()
         };
-        self.selected = self.selected.min(self.rows.len().saturating_sub(1));
+        self.selected = selected
+            .and_then(|row| self.rows.iter().position(|r| *r == row))
+            .unwrap_or(self.selected)
+            .min(self.rows.len().saturating_sub(1));
+        self.rows_key = Some(self.key());
         self.scrolls.entry(self.key()).or_default();
     }
     fn selected_value<'a>(&self, results: &'a Results) -> Option<&'a NamedValue> {
@@ -109,13 +128,51 @@ impl Inspector {
                 None
             }
         } else if v.node == self.scope {
-            results.nodes.get(v.node?)?.values.get(v.index)
+            let node = results.nodes.get(v.node?)?;
+            if let Some(part) = v.http {
+                node.http[part as usize].as_ref()
+            } else {
+                node.values.get(v.index)
+            }
         } else {
             None
         }
     }
 }
 impl FlowConsole {
+    pub(super) fn open_http(
+        &mut self,
+        target: HttpTarget,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.current_mut() else {
+            return;
+        };
+        let (Some(i), Some(run)) = (&mut session.inspector, &session.run) else {
+            return;
+        };
+        if run.id != target.run
+            || run
+                .results
+                .nodes
+                .get(target.node)
+                .and_then(|n| n.http[target.part as usize].as_ref())
+                .is_none()
+        {
+            return;
+        }
+        session.view = View::Steps;
+        i.scope = Some(target.node);
+        i.values.remove(&false);
+        i.refresh(&run.results, false);
+        let row = i
+            .rows
+            .iter()
+            .position(|row| *row == Row::Http(target.part))
+            .unwrap();
+        self.result_open(row, window, cx);
+    }
     pub(super) fn refresh_results(&mut self) {
         for session in self.sessions.values_mut() {
             if let (Some(inspector), Some(run)) = (&mut session.inspector, &session.run) {
@@ -162,12 +219,18 @@ impl FlowConsole {
                 i.refresh(&run.results, false);
                 i.focus.focus(window, cx);
             }
-            Row::Value(index) => {
+            Row::Value(_) | Row::Http(_) => {
+                let (index, http) = match selected {
+                    Row::Value(index) => (index, None),
+                    Row::Http(part) => (0, Some(part)),
+                    _ => unreachable!(),
+                };
                 i.values.insert(
                     i.showing_outputs,
                     SelectedValue {
                         node: if i.showing_outputs { None } else { i.scope },
                         index,
+                        http,
                     },
                 );
                 if let Some(value) = i.selected_value(&run.results) {

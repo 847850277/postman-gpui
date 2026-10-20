@@ -1,4 +1,6 @@
 //! A retained, session-only Console. Documents and execution remain owned elsewhere.
+#[cfg(test)]
+mod http_tests;
 mod model;
 mod results;
 mod runtime;

@@ -307,7 +307,8 @@ Canvas/Console show step progress, response status/timing, check outcomes, loop 
 status. Check results remain separate from execution results. Logs are bounded; Clear keeps results and
 command history. Runtime feedback intentionally omits raw inputs, headers, bodies, output values and
 potentially sensitive error payloads. Safe error categories still distinguish timeouts, network failures
-and checks. Steps and Outputs provide the detailed inspection described below.
+and checks. Request / Response buttons in Logs open sanitized HTTP details in Steps.
+Steps and Outputs provide the detailed inspection described below.
 
 **Succeeded** means execution, configured response checks and extractions completed. It does
 not imply HTTP 2xx: a response such as 400 or 404 can be an expected test result. Add a **Checks**
@@ -534,6 +535,23 @@ expected/actual values when a response exists. Other comparisons keep unsafe pay
 text out of the inspector. Failed/skipped/unexecuted requests do not invent checks or extractions.
 Select a check to read its full description in the detail heading. **Locate** selects the owning
 editable step; nested readonly results navigate to their top-level owner. Old-revision navigation is disabled.
+
+Select **Request** or **Response** in a log entry or in a request's Steps results to inspect and copy
+sanitized JSON. Request details contain the resolved method, URL, separate Query parameters, ordered
+Headers and Body; duplicate parameter/header names are retained. The URL omits userinfo and fragments.
+These are parameters passed to the transport, not a wire capture: automatic headers, cookie-jar injection
+and intermediate redirect requests are not included. Response details contain the terminal HTTP status,
+elapsed time, Headers and decoded Body (parsed as JSON when possible). Failed checks retain the response;
+timeouts/cancellations retain the prepared request without inventing a response. Each loop invocation
+keeps its own details. A new run disables links to the previous run; clearing logs keeps Steps details.
+
+HTTP details use the same redaction rules as outputs, including sensitive exports even when a check
+fails. Body previews are limited to 8 KiB before formatting. Binary/file contents and local file paths
+are omitted; body size remains visible when available. Header/form/query collections are limited to
+64 entries and 4 KiB. Limits omit a whole section with an explicit reason instead of showing a partial
+value as complete. Request/response snapshots share a separate 2 MiB per-run retention budget and the
+16 KiB formatted-value limit below. **Copy visible logs** copies summaries; **Copy value** copies the
+selected sanitized details. There is no raw-secret reveal action.
 
 Select an extraction or final output to open a native readonly JSON editor. **Copy value** copies only
 that sanitized value; the Outputs toolbar copies the complete output object when all values are

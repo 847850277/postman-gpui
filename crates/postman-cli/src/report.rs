@@ -318,7 +318,7 @@ impl ReportBuilder {
 
     pub(crate) fn record(&mut self, event: FlowEvent, progress: &mut impl FnMut(LoopProgress<'_>)) {
         match event {
-            FlowEvent::FlowStarted { .. } => {}
+            FlowEvent::FlowStarted { .. } | FlowEvent::RequestPrepared { .. } => {}
             FlowEvent::StepStarted { step_id, name } => {
                 if let Some(&(kind, limit)) = self.loop_specs.get(&step_id) {
                     let report_index = self.new_loop(step_id, name, kind, limit);
@@ -357,6 +357,7 @@ impl ReportBuilder {
                 step_id,
                 status,
                 elapsed_ms,
+                ..
             } => {
                 if let Some(request) = self.requests.get_mut(&step_id) {
                     request.status = Some(status);

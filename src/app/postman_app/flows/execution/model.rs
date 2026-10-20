@@ -52,6 +52,7 @@ pub(in super::super) struct Feedback {
     pub(in super::super) status: Status,
     pub(in super::super) message: String,
     pub(in super::super) step: Option<String>,
+    pub(in super::super) http: Option<super::results::HttpTarget>,
 }
 impl Run {
     pub(super) fn new(id: u64, revision: u64, document: &FlowDocument) -> Self {
@@ -116,12 +117,14 @@ impl Run {
     pub(super) fn event(&mut self, event: FlowEvent, observed: Instant) -> Option<Feedback> {
         self.tick();
         self.results.event(&event, observed);
+        let http = self.results.http_target(&event, self.id);
         let (id, status, message, terminal_step) = match event {
             FlowEvent::FlowStarted { total_steps, .. } => {
                 return Some(Feedback {
                     status: Status::Running,
                     message: format!("Run started · {total_steps} top-level steps."),
                     step: None,
+                    http: None,
                 })
             }
             FlowEvent::StepStarted { step_id, .. } => {
@@ -133,14 +136,33 @@ impl Run {
                 "Skipped by run condition.".into(),
                 true,
             ),
+            FlowEvent::RequestPrepared { step_id, .. } => (
+                step_id,
+                Status::Running,
+                if http.is_some() {
+                    "Request prepared · parameters available in Steps."
+                } else {
+                    "Request prepared · details omitted (retention limit)."
+                }
+                .into(),
+                false,
+            ),
             FlowEvent::ResponseReceived {
                 step_id,
                 status,
                 elapsed_ms,
+                ..
             } => (
                 step_id,
                 Status::Running,
-                format!("HTTP {status} · {elapsed_ms} ms"),
+                format!(
+                    "HTTP {status} · {elapsed_ms} ms · {}",
+                    if http.is_some() {
+                        "response available in Steps."
+                    } else {
+                        "details omitted (retention limit)."
+                    }
+                ),
                 false,
             ),
             FlowEvent::CheckFinished {
@@ -251,6 +273,7 @@ impl Run {
                 return Some(Feedback {
                     status,
                     step: Some(owner),
+                    http: None,
                     message: format!(
                         "Loop finished · {total_executed} iterations · {}.",
                         loop_reason(reason)
@@ -275,6 +298,7 @@ impl Run {
             status,
             message,
             step: Some(owner),
+            http,
         })
     }
 }

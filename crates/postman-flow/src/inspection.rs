@@ -2,6 +2,8 @@
 use serde_json::Value;
 use std::{collections::BTreeSet, sync::Arc};
 
+mod http;
+
 const MAX_BYTES: usize = 16 * 1024;
 const MAX_NODES: usize = 2048;
 const MAX_SECRET_BYTES: usize = 256 * 1024;
@@ -151,11 +153,7 @@ impl Redactor {
         use postman_http::request::{MultipartValue, RequestBody};
         match body {
             RequestBody::UrlEncoded(text) => {
-                for (name, value) in url::form_urlencoded::parse(text.as_bytes()) {
-                    if sensitive_name(&name) {
-                        self.remember_text(&value);
-                    }
-                }
+                self.form_secrets(text);
             }
             RequestBody::Multipart(parts) => {
                 for part in parts {
@@ -172,6 +170,13 @@ impl Redactor {
                 }
             }
             _ => {}
+        }
+    }
+    fn form_secrets(&mut self, text: &str) {
+        for (name, value) in url::form_urlencoded::parse(text.as_bytes()) {
+            if sensitive_name(&name) {
+                self.remember_text(&value);
+            }
         }
     }
     pub(crate) fn remember(&mut self, value: &Value) {
@@ -214,6 +219,15 @@ impl Redactor {
     }
     pub(crate) fn headers(&mut self, headers: &[(String, String)]) {
         for (name, value) in headers {
+            if name.eq_ignore_ascii_case("location") || name.eq_ignore_ascii_case("referer") {
+                // Location may be relative. Register its credentials before
+                // projecting headers or any echoed values from the same response.
+                if let Ok(url) =
+                    url::Url::parse("https://inspection.invalid/").and_then(|base| base.join(value))
+                {
+                    self.url(url.as_str());
+                }
+            }
             if !sensitive_name(name) {
                 continue;
             }

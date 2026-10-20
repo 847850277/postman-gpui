@@ -77,6 +77,7 @@ pub async fn run_live(
                 step_id,
                 status,
                 elapsed_ms,
+                ..
             } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
@@ -106,7 +107,8 @@ pub async fn run_live(
             } => {
                 tracing::info!(step_id = %step_id, step_name = %name, reason = %reason, "⏭ 步骤跳过");
             }
-            FlowEvent::LoopStarted { .. }
+            FlowEvent::RequestPrepared { .. }
+            | FlowEvent::LoopStarted { .. }
             | FlowEvent::IterationStarted { .. }
             | FlowEvent::IterationFinished { .. }
             | FlowEvent::LoopWaiting { .. }

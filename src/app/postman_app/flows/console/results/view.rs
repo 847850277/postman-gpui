@@ -23,6 +23,11 @@ impl FlowConsole {
         let results = &run.results;
         let outputs = session.view == View::Outputs;
         let value = i.selected_value(results);
+        let http = i
+            .values
+            .get(&false)
+            .filter(|_| !outputs)
+            .and_then(|v| v.http);
         let scope = if outputs {
             None
         } else {
@@ -30,7 +35,12 @@ impl FlowConsole {
         };
         let title = if let Some(value) = value {
             format!(
-                "{} · {}{}",
+                "{}{} · {}{}",
+                if http.is_some() {
+                    scope.map_or(String::new(), |n| format!("{} · ", n.path))
+                } else {
+                    String::new()
+                },
                 value.name,
                 value.value.kind(),
                 if value.value.redacted_paths().is_empty() {
@@ -49,7 +59,12 @@ impl FlowConsole {
         let description = if let Some(value) = value {
             let paths = value.value.redacted_paths();
             format!(
-                "Readonly JSON · Copy value includes only this sanitized value.{}",
+                "{}{}",
+                match http {
+                    Some(HttpPart::Request) => "Readonly JSON · Resolved request, before automatic headers, cookies and redirects. Query shown separately.",
+                    Some(HttpPart::Response) => "Readonly JSON · Final response; large bodies and binary contents omitted.",
+                    None => "Readonly JSON · Copy value includes only this sanitized value.",
+                },
                 if paths.is_empty() {
                     String::new()
                 } else if paths.iter().any(String::is_empty) {
@@ -95,7 +110,8 @@ impl FlowConsole {
                 n.expected_checks,
                 n.value_count,
                 n.expected_values,
-                if n.check_count > n.checks.len()
+                if n.http_omitted
+                    || n.check_count > n.checks.len()
                     || n.value_count > n.values.len()
                     || results.total_rows > results.nodes.len()
                 {
@@ -229,11 +245,12 @@ impl FlowConsole {
             .map(|d| {
                 if value.is_some() {
                     d.child(
-                        div()
-                            .flex_1()
-                            .min_h_0()
-                            .min_w_0()
-                            .child(Editor::new(i.editor()).size_full()),
+                        div().flex_1().min_h_0().min_w_0().child(
+                            Editor::new(i.editor())
+                                .readonly(true)
+                                .aria_label("Sanitized result JSON")
+                                .size_full(),
+                        ),
                     )
                 } else if i.rows.is_empty() {
                     d.child(
@@ -302,11 +319,14 @@ impl FlowConsole {
                     if c.success { OK } else { ERROR },
                 )
             }
-            Row::Value(id) => {
-                let v = if i.showing_outputs {
-                    &run.results.outputs[id]
-                } else {
-                    &run.results.nodes[i.scope.unwrap()].values[id]
+            Row::Value(_) | Row::Http(_) => {
+                let v = match i.rows[index] {
+                    Row::Value(id) if i.showing_outputs => &run.results.outputs[id],
+                    Row::Value(id) => &run.results.nodes[i.scope.unwrap()].values[id],
+                    Row::Http(part) => run.results.nodes[i.scope.unwrap()].http[part as usize]
+                        .as_ref()
+                        .unwrap(),
+                    _ => unreachable!(),
                 };
                 (
                     v.name.clone(),

@@ -278,6 +278,7 @@ impl FlowsView {
                     run.elapsed.as_secs_f32()
                 ),
                 step: None,
+                http: None,
             });
             self.execution.tasks.remove(&flow);
         }
@@ -319,6 +320,7 @@ impl FlowsView {
                         status: Status::Stopping,
                         message: "Cancellation requested. Waiting for execution to stop.".into(),
                         step: None,
+                        http: None,
                     }],
                     cx,
                 )

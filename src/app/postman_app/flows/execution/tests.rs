@@ -126,6 +126,9 @@ async fn cancellation_drops_the_active_request_before_ack_and_prevents_later_ste
     assert_eq!(run.steps[1].status, Status::NotExecuted);
     assert_eq!(run.results.nodes[0].status, Status::Cancelled);
     assert_eq!(run.results.nodes[1].status, Status::NotExecuted);
+    assert!(run.results.nodes[0].http[0].is_some());
+    assert!(run.results.nodes[0].http[1].is_none());
+    assert!(run.results.nodes[1].http.iter().all(Option::is_none));
     assert!(run.results.outputs_json().is_none());
 }
 

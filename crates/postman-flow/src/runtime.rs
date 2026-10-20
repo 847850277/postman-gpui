@@ -175,6 +175,15 @@ struct RunMachine<T> {
     success: bool,
 }
 
+struct PreparedHttp {
+    step_id: String,
+    request: Request,
+    options: RequestOptions,
+    checks: Vec<CompiledCheck>,
+    exports: Vec<CompiledExport>,
+    deadline: Option<Instant>,
+}
+
 enum Task {
     RunSequence {
         steps: Vec<HttpStepPlan>,
@@ -201,6 +210,7 @@ enum Task {
         exports: Vec<CompiledExport>,
         deadline: Option<Instant>,
     },
+    SendHttp(PreparedHttp),
     StartForEach {
         step_id: String,
         plan: ForEachPlan,
@@ -409,9 +419,9 @@ impl<T: HttpTransport> RunMachine<T> {
                     exports,
                     deadline,
                 } => {
-                    self.execute_http_step(step_id, request, checks, exports, deadline)
-                        .await;
+                    self.prepare_http_step(step_id, request, checks, exports, deadline);
                 }
+                Task::SendHttp(prepared) => self.execute_http_step(prepared).await,
                 Task::StartForEach {
                     step_id,
                     plan,
@@ -811,7 +821,7 @@ impl<T: HttpTransport> RunMachine<T> {
         }
     }
 
-    async fn execute_http_step(
+    fn prepare_http_step(
         &mut self,
         step_id: String,
         compiled_request: CompiledRequest,
@@ -830,6 +840,61 @@ impl<T: HttpTransport> RunMachine<T> {
         self.context.inspection.url(&request.url);
         self.context.inspection.headers(&request.headers);
         self.context.inspection.body(&request.body);
+        if let Some(crate::model::AuthTemplate::HmacSha256 { param, .. }) =
+            &compiled_request.template.auth
+        {
+            if let Ok(url) = url::Url::parse(&request.url) {
+                let body = match &request.body {
+                    RequestBody::UrlEncoded(body) => body.as_str(),
+                    _ => "",
+                };
+                for source in [url.query().unwrap_or_default(), body] {
+                    for (_, value) in url::form_urlencoded::parse(source.as_bytes())
+                        .filter(|(name, _)| name == param)
+                    {
+                        self.context
+                            .inspection
+                            .remember(&Value::String(value.into_owned()));
+                    }
+                }
+            }
+        }
+
+        let mut options = self.environment.request_options;
+        if let Some(timeout_ms) = compiled_request.template.options.timeout_ms {
+            options.timeout_ms = Some(timeout_ms);
+        }
+        if let Some(policy) = compiled_request.template.options.redirect_policy {
+            options.redirect_policy = policy;
+        }
+        if let Some(max_hops) = compiled_request.template.options.max_redirect_hops {
+            options.max_redirect_hops = max_hops;
+        }
+        // Yield the safe request before waiting for transport. Cancelling an
+        // in-flight request can then retain its parameters without a response.
+        self.pending.push_back(FlowEvent::RequestPrepared {
+            step_id: step_id.clone(),
+            inspection: self.context.inspection.request(&request),
+        });
+        self.tasks.push(Task::SendHttp(PreparedHttp {
+            step_id,
+            request,
+            options,
+            checks,
+            exports,
+            deadline,
+        }));
+    }
+
+    async fn execute_http_step(&mut self, prepared: PreparedHttp) {
+        let PreparedHttp {
+            step_id,
+            request,
+            mut options,
+            checks,
+            exports,
+            deadline,
+        } = prepared;
 
         tracing::info!(
             step_id = %step_id,
@@ -855,16 +920,6 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         }
 
-        let mut options = self.environment.request_options;
-        if let Some(timeout_ms) = compiled_request.template.options.timeout_ms {
-            options.timeout_ms = Some(timeout_ms);
-        }
-        if let Some(policy) = compiled_request.template.options.redirect_policy {
-            options.redirect_policy = policy;
-        }
-        if let Some(max_hops) = compiled_request.template.options.max_redirect_hops {
-            options.max_redirect_hops = max_hops;
-        }
         if let Some(deadline) = deadline {
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
@@ -957,10 +1012,20 @@ impl<T: HttpTransport> RunMachine<T> {
             }
         };
 
+        // Sensitive exports may use ordinary field names. Register them before
+        // exposing response evidence, including on check/extraction failure.
+        for export in &exports {
+            if export.sensitive || crate::inspection::sensitive_name(&export.name) {
+                if let Ok(value) = extract_output(export, &response) {
+                    self.context.inspection.remember(&value);
+                }
+            }
+        }
         self.pending.push_back(FlowEvent::ResponseReceived {
             step_id: step_id.clone(),
             status: response.status,
             elapsed_ms: response.elapsed_ms,
+            inspection: self.context.inspection.response(&response),
         });
 
         let mut checks_succeeded = true;

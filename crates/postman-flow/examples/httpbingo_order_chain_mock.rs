@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_id,
                 status,
                 elapsed_ms,
+                ..
             } => {
                 tracing::info!(step_id = %step_id, status, elapsed_ms, "↳ 收到响应");
             }
@@ -77,7 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 tracing::info!(step_id = %step_id, step_name = %name, reason = %reason, "⏭ 步骤跳过");
             }
-            FlowEvent::LoopStarted { .. }
+            FlowEvent::RequestPrepared { .. }
+            | FlowEvent::LoopStarted { .. }
             | FlowEvent::IterationStarted { .. }
             | FlowEvent::IterationFinished { .. }
             | FlowEvent::LoopWaiting { .. }

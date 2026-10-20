@@ -273,6 +273,7 @@ fn native_steps_values_outputs_keyboard_copy_and_rerun(cx: &mut TestAppContext) 
     settle(cx); // root
     click(cx, "result-row-0");
     settle(cx);
+    click(cx, "result-row-0"); // select the check before keyboard navigation
     press(cx, "down");
     press(cx, "enter");
     settle(cx);
@@ -396,4 +397,39 @@ async fn value_and_output_retention_are_bounded_and_copy_is_disabled_when_incomp
     .await;
     assert!(huge.results.nodes[0].values[0].value.is_truncated());
     assert!(!huge.results.can_copy_outputs());
+}
+
+#[tokio::test]
+async fn http_retention_does_not_consume_extraction_budget() {
+    let mut doc = inspected_document("https://example.test");
+    let mut template = doc.flow.steps[0].clone();
+    template.exports = vec![postman_flow::ResponseExport::json("small", "$.small")];
+    doc.flow.steps = (0..400)
+        .map(|ix| {
+            let mut step = template.clone();
+            step.id = format!("request-{ix}");
+            step
+        })
+        .collect();
+    doc.flow.outputs.clear();
+    let run = projected(
+        &doc,
+        Ok(HttpResponse::new(
+            200,
+            vec![],
+            json!({"large":"x".repeat(6000), "small":true}).to_string(),
+        )),
+    )
+    .await;
+    assert_eq!(run.status, Status::Succeeded);
+    assert!(run.results.nodes.last().unwrap().http_omitted);
+    assert!(run.results.nodes.iter().all(|node| node.values.len() == 1));
+    let retained: usize = run
+        .results
+        .nodes
+        .iter()
+        .flat_map(|node| node.http.iter().flatten())
+        .map(|v| v.value.byte_len())
+        .sum();
+    assert!(retained <= 2 * 1024 * 1024);
 }
