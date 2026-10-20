@@ -9,6 +9,7 @@ use gpui_kit::{
     component::{
         button::{Button, ButtonVariants},
         input::Editor,
+        switch::Switch,
         Disableable, Selectable, Sizable,
     },
 };
@@ -23,6 +24,7 @@ impl FlowConsole {
         let results = &run.results;
         let outputs = session.view == View::Outputs;
         let value = i.selected_value(results);
+        let original = i.showing_original();
         let http = i
             .values
             .get(&false)
@@ -42,8 +44,10 @@ impl FlowConsole {
                     String::new()
                 },
                 value.name,
-                value.value.kind(),
-                if value.value.redacted_paths().is_empty() {
+                if original { "JSON" } else { value.value.kind() },
+                if original {
+                    " · Original"
+                } else if value.value.redacted_paths().is_empty() {
                     ""
                 } else {
                     " · Redacted"
@@ -65,7 +69,13 @@ impl FlowConsole {
                     Some(HttpPart::Response) => "Readonly JSON · Final response; large bodies and binary contents omitted.",
                     None => "Readonly JSON · Copy value includes only this sanitized value.",
                 },
-                if paths.is_empty() {
+                if original {
+                    if value.value.original_json().is_some() {
+                        " · Sensitive values shown for this run".into()
+                    } else {
+                        " · Original unavailable (size limit)".into()
+                    }
+                } else if paths.is_empty() {
                     String::new()
                 } else if paths.iter().any(String::is_empty) {
                     " · Whole value redacted".into()
@@ -151,6 +161,12 @@ impl FlowConsole {
         };
         let back = value.is_some() || scope.is_some();
         let copy = value.and_then(|v| v.value.json());
+        let original_json = value.and_then(|v| v.value.original_json());
+        let original_available = original_json.is_some();
+        let original_copy = original
+            .then_some(original_json)
+            .flatten()
+            .map(str::to_owned);
         let flow = self.active.unwrap();
         let revision = Some(run.revision);
         div()
@@ -218,7 +234,7 @@ impl FlowConsole {
                                     Button::new("result-copy-value")
                                         .ghost()
                                         .small()
-                                        .label("Copy value")
+                                        .label(if http.is_some() { "Copy sanitized" } else { "Copy value" })
                                         .disabled(copy.is_none())
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             if let Some(copy) = &copy {
@@ -234,6 +250,48 @@ impl FlowConsole {
                                 )
                             }),
                     )
+                    .when(http.is_some() && value.is_some(), |d| {
+                        d.child(
+                            div()
+                                .flex()
+                                .flex_wrap()
+                                .items_center()
+                                .gap_2()
+                                .min_h_8()
+                                .py_1()
+                                .child(
+                                    Switch::new("result-show-sensitive")
+                                        .small()
+                                        .label("Show sensitive values")
+                                        .checked(i.show_sensitive)
+                                        .disabled(!original_available && !i.show_sensitive)
+                                        .tooltip(if original_available {
+                                            "Applies to HTTP details in this run; resets on the next run"
+                                        } else {
+                                            "Original unavailable: inspection size limit exceeded"
+                                        })
+                                        .on_change(cx.listener(|this, visible, w, cx| {
+                                            this.set_sensitive_visible(*visible, w, cx);
+                                        })),
+                                )
+                                .when(original, |d| {
+                                    d.child(
+                                        Button::new("result-copy-original")
+                                            .ghost()
+                                            .small()
+                                            .label("Copy original")
+                                            .disabled(!original_available)
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                if let Some(copy) = &original_copy {
+                                                    cx.write_to_clipboard(ClipboardItem::new_string(copy.clone()));
+                                                    this.hint = "Original HTTP details copied, including sensitive values.".into();
+                                                    cx.notify();
+                                                }
+                                            })),
+                                    )
+                                }),
+                        )
+                    })
                     .child(
                         div()
                             .text_size(m::CAPTION)
@@ -248,7 +306,7 @@ impl FlowConsole {
                         div().flex_1().min_h_0().min_w_0().child(
                             Editor::new(i.editor())
                                 .readonly(true)
-                                .aria_label("Sanitized result JSON")
+                                .aria_label(if original { "Original HTTP JSON" } else { "Sanitized result JSON" })
                                 .size_full(),
                         ),
                     )

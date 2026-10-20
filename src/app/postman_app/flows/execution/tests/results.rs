@@ -429,7 +429,7 @@ async fn http_retention_does_not_consume_extraction_budget() {
         .nodes
         .iter()
         .flat_map(|node| node.http.iter().flatten())
-        .map(|v| v.value.byte_len())
+        .map(|v| v.value.retained_byte_len())
         .sum();
     assert!(retained <= 2 * 1024 * 1024);
 }

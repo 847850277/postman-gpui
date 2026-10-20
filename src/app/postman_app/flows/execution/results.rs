@@ -300,14 +300,14 @@ impl Results {
         Some(HttpTarget { run, node, part })
     }
     fn retain_http(&mut self, active: Option<usize>, part: HttpPart, value: &InspectionValue) {
-        let retain = self.http_bytes.saturating_add(value.byte_len()) <= MAX_HTTP_BYTES;
+        let retain = self.http_bytes.saturating_add(value.retained_byte_len()) <= MAX_HTTP_BYTES;
         if let Some(n) = self.node(active) {
             if retain {
                 n.http[part as usize] = Some(NamedValue {
                     name: part.label().into(),
                     value: value.clone(),
                 });
-                self.http_bytes += value.byte_len();
+                self.http_bytes += value.retained_byte_len();
             } else {
                 n.http_omitted = true;
             }

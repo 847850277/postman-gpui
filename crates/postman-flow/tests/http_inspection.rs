@@ -51,7 +51,7 @@ fn inspections(events: &[FlowEvent]) -> Vec<&InspectionValue> {
 #[tokio::test]
 async fn resolved_parameters_preserve_duplicates_and_redact_both_sides_even_when_checks_fail() {
     for status in [200, 503] {
-        let payload = json!({"opaque":"export-SYNTH", "echo":"auth-SYNTH== query-SYNTH body-SYNTH cookie-SYNTH", "safe":[0,false,null]});
+        let payload = json!({"opaque":"export-SYNTH", "echo":"auth-SYNTH== query-SYNTH body-SYNTH cookie-SYNTH", "safe":[0,false,null,true], "text":"true result"});
         let transport = FakeTransport::new([Ok(HttpResponse::new(
             status,
             vec![
@@ -59,6 +59,7 @@ async fn resolved_parameters_preserve_duplicates_and_redact_both_sides_even_when
                 ("Set-Cookie".into(), "sid=cookie-SYNTH; Path=/".into()),
                 ("X-Label".into(), "first".into()),
                 ("X-Label".into(), "second".into()),
+                ("Access-Control-Allow-Credentials".into(), "true".into()),
             ],
             payload.to_string(),
         )
@@ -71,6 +72,11 @@ async fn resolved_parameters_preserve_duplicates_and_redact_both_sides_even_when
             assert!(!value.json().unwrap().contains("SYNTH"));
             assert!(!format!("{value:?}").contains("SYNTH"));
             assert!(!value.redacted_paths().is_empty());
+            assert!(value.original_json().unwrap().contains("SYNTH"));
+            assert_eq!(
+                value.retained_byte_len(),
+                value.byte_len() + value.original_json().unwrap().len()
+            );
         }
         let req = snapshots[0].value().unwrap();
         assert_eq!(req["method"], "POST");
@@ -89,8 +95,24 @@ async fn resolved_parameters_preserve_duplicates_and_redact_both_sides_even_when
         assert_eq!(resp["status"], status);
         assert_eq!(resp["elapsed_ms"], 12);
         assert_eq!(resp["body"]["value"]["opaque"], "[REDACTED]");
-        assert_eq!(resp["body"]["value"]["safe"], json!([0, false, null]));
+        assert_eq!(resp["body"]["value"]["safe"], json!([0, false, null, true]));
+        assert_eq!(resp["body"]["value"]["text"], "true result");
+        assert_eq!(
+            resp["headers"][4]["Access-Control-Allow-Credentials"],
+            "true"
+        );
         assert_eq!(resp["headers"][3]["X-Label"], "second");
+        let original: serde_json::Value =
+            serde_json::from_str(snapshots[0].original_json().unwrap()).unwrap();
+        assert_eq!(
+            original["headers"][0]["Authorization"],
+            "Basic auth-SYNTH=="
+        );
+        assert_eq!(original["query"][2]["access_token"], "query-SYNTH");
+        assert_eq!(original["body"]["value"]["password"], "body-SYNTH");
+        let original: serde_json::Value =
+            serde_json::from_str(snapshots[1].original_json().unwrap()).unwrap();
+        assert_eq!(original["body"]["value"], payload);
         assert!(transport.requests()[0].0.url.contains("query-SYNTH"));
         assert!(transport.requests()[0]
             .0
@@ -163,6 +185,7 @@ async fn large_binary_and_plain_text_bodies_keep_truthful_metadata() {
         assert_eq!(resp["body"]["bytes"], expected_bytes);
         if let Some(reason) = reason {
             assert!(snapshots[1].json().unwrap().contains(reason));
+            assert!(snapshots[1].original_json().unwrap().contains(reason));
         } else {
             assert!(resp["body"]["value"].is_string());
         }
@@ -197,6 +220,7 @@ async fn forms_keep_safe_fields_and_file_bodies_do_not_load_or_expose_paths() {
         .await;
         for value in inspections(&events) {
             assert!(!value.json().unwrap().contains("SYNTH"));
+            assert!(!value.original_json().unwrap().contains("/does/not/exist"));
         }
         assert_eq!(
             inspections(&events)[1].value().unwrap()["body"]["value"],

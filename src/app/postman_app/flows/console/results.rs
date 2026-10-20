@@ -29,6 +29,8 @@ pub(super) struct Inspector {
     focus: FocusHandle,
     editors: [Entity<EditorState>; 2],
     showing_outputs: bool,
+    // Inspector is replaced on each run; this choice is never persisted.
+    show_sensitive: bool,
 }
 impl Inspector {
     pub fn new(window: &mut Window, cx: &mut Context<FlowConsole>) -> Self {
@@ -57,6 +59,7 @@ impl Inspector {
             focus: cx.focus_handle().tab_stop(true),
             editors,
             showing_outputs: false,
+            show_sensitive: false,
         }
     }
     fn editor(&self) -> &Entity<EditorState> {
@@ -138,8 +141,51 @@ impl Inspector {
             None
         }
     }
+    fn showing_original(&self) -> bool {
+        self.show_sensitive
+            && !self.showing_outputs
+            && self.values.get(&false).is_some_and(|v| v.http.is_some())
+    }
+    fn sync_editor(&self, results: &Results, window: &mut Window, cx: &mut Context<FlowConsole>) {
+        if let Some(value) = self.selected_value(results) {
+            let source = if self.showing_original() {
+                value.value.original_json().map(str::to_owned)
+            } else {
+                value.value.json()
+            }
+            .unwrap_or_else(|| "Value unavailable: inspection size limit exceeded.".into());
+            self.editor()
+                .update(cx, |e, cx| e.set_value(source, window, cx));
+        }
+    }
 }
 impl FlowConsole {
+    fn set_sensitive_visible(
+        &mut self,
+        visible: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.current_mut() else {
+            return;
+        };
+        let (Some(i), Some(run)) = (&mut session.inspector, &session.run) else {
+            return;
+        };
+        if i.showing_outputs || !i.values.get(&false).is_some_and(|v| v.http.is_some()) {
+            return;
+        }
+        if visible
+            && i.selected_value(&run.results)
+                .and_then(|v| v.value.original_json())
+                .is_none()
+        {
+            return;
+        }
+        i.show_sensitive = visible;
+        i.sync_editor(&run.results, window, cx);
+        cx.notify();
+    }
     pub(super) fn open_http(
         &mut self,
         target: HttpTarget,
@@ -233,14 +279,8 @@ impl FlowConsole {
                         http,
                     },
                 );
-                if let Some(value) = i.selected_value(&run.results) {
-                    let source = value.value.json().unwrap_or_else(|| {
-                        "Value unavailable: inspection size limit exceeded.".into()
-                    });
-                    i.editor()
-                        .update(cx, |e, cx| e.set_value(source, window, cx));
-                    i.editor().focus_handle(cx).focus(window, cx);
-                }
+                i.sync_editor(&run.results, window, cx);
+                i.editor().focus_handle(cx).focus(window, cx);
             }
             Row::Check(_) => {
                 i.focus.focus(window, cx);

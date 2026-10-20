@@ -20,6 +20,7 @@ fn typed_values_and_redaction_metadata_are_distinct() {
             value
         );
         assert!(inspected.redacted_paths().is_empty());
+        assert!(inspected.original_json().is_none());
     }
     let literal = r.inspect("value", &json!("[REDACTED]"), false);
     assert_eq!(literal.kind(), "string");
@@ -165,6 +166,9 @@ fn credential_names_do_not_include_unrelated_words_or_metadata() {
         "passwordHash",
         "accessTokenValue",
         "secretValue",
+        "credentials",
+        "clientCredentials",
+        "X-Credentials",
     ] {
         assert!(sensitive_name(name), "{name}");
         assert_eq!(
@@ -172,6 +176,25 @@ fn credential_names_do_not_include_unrelated_words_or_metadata() {
             "redacted",
             "{name}"
         );
+    }
+}
+
+#[test]
+fn cors_credentials_policy_is_not_a_secret_or_an_echo_pattern() {
+    for name in [
+        "access-control-allow-credentials",
+        "Access-Control-Allow-Credentials",
+    ] {
+        let mut r = Redactor::default();
+        r.headers(&[(name.into(), "true".into())]);
+        let value = json!({name:"true", "enabled":true, "text":"return true", "credentials":"private-SYNTH"});
+        r.discover(&value);
+        let inspected = r.inspect("response", &value, false);
+        let safe = inspected.value().unwrap();
+        assert_eq!(safe[name], "true");
+        assert_eq!(safe["enabled"], true);
+        assert_eq!(safe["text"], "return true");
+        assert_eq!(safe["credentials"], "[REDACTED]");
     }
 }
 

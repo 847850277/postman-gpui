@@ -8,11 +8,22 @@ const MAX_BYTES: usize = 16 * 1024;
 const MAX_NODES: usize = 2048;
 const MAX_SECRET_BYTES: usize = 256 * 1024;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A bounded sanitized value. HTTP snapshots additionally retain an in-memory
+/// original for explicit local inspection; ordinary accessors and Debug stay sanitized.
+#[derive(Clone, PartialEq, Eq)]
 pub struct InspectionValue {
     value: Option<Arc<Value>>,
     redacted_paths: Arc<Vec<String>>,
     json: Option<Arc<str>>,
+    original_json: Option<Arc<str>>,
+}
+impl std::fmt::Debug for InspectionValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InspectionValue")
+            .field("value", &self.value)
+            .field("redacted_paths", &self.redacted_paths)
+            .finish_non_exhaustive()
+    }
 }
 impl InspectionValue {
     pub fn value(&self) -> Option<&Value> {
@@ -45,6 +56,16 @@ impl InspectionValue {
     pub fn json(&self) -> Option<String> {
         self.json.as_ref().map(|v| v.to_string())
     }
+    /// Unredacted HTTP preview, for an explicit local reveal/copy action only.
+    /// Never persist or include it in logs/reports. Size and content omissions
+    /// still apply. Non-HTTP values and over-budget originals return None.
+    pub fn original_json(&self) -> Option<&str> {
+        self.original_json.as_deref()
+    }
+    /// Retention cost of both JSON representations, including the original.
+    pub fn retained_byte_len(&self) -> usize {
+        self.byte_len() + self.original_json.as_ref().map_or(0, |v| v.len())
+    }
 }
 
 #[derive(Clone, Default)]
@@ -61,6 +82,11 @@ impl std::fmt::Debug for Redactor {
     }
 }
 pub(crate) fn sensitive_name(name: &str) -> bool {
+    // This standard CORS header describes policy, not credentials. In
+    // particular, its "true" value must not become a global echo pattern.
+    if name.eq_ignore_ascii_case("access-control-allow-credentials") {
+        return false;
+    }
     // Recognize credential words, including snake/kebab/camel case, without
     // treating metadata such as token_count or unrelated words as credentials.
     let mut separated = String::with_capacity(name.len());
@@ -300,6 +326,7 @@ impl Redactor {
             paths.clear();
         }
         InspectionValue {
+            original_json: None,
             json: value
                 .as_ref()
                 .and_then(|v| serde_json::to_string_pretty(v).ok())

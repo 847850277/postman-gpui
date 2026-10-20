@@ -495,11 +495,18 @@ are not raw wire captures: automatic transport headers/cookies and intermediate 
 not captured. Userinfo/fragments, file paths and binary/file contents are omitted. Duplicate parameter
 and header names keep their order. Body previews use at most 8 KiB of source text; parameter collections
 use at most 64 entries / 4 KiB. Oversized sections carry an omission reason; the complete snapshot still
-obeys the 16 KiB inspection limit. GUI consumers keep request/response evidence session-only and bound
-aggregate retention separately from extraction values. CLI report contents/schema are unchanged.
+obeys the 16 KiB inspection limit. HTTP snapshots also retain an unredacted preview, accessible only
+through `InspectionValue::original_json()` for explicit local reveal/copy. Originals independently
+obey the 16 KiB / 2,048-node / depth-32 limits and keep the same content omissions; an unavailable
+original returns `None`. `value()`, `json()` and `Debug` remain sanitized. Non-HTTP inspection
+values never retain originals. GUI consumers keep request/response evidence session-only and use
+`retained_byte_len()` to count both JSON representations against their separate HTTP retention
+budget. Do not persist originals or include them in logs/reports. CLI report contents/schema are unchanged.
 
 Credential names are matched as words (including snake/kebab/camel case), so `token_count` and
-`secretary` are ordinary data. Only credential-named URL query parameters are automatically
+`secretary` are ordinary data. `Access-Control-Allow-Credentials` is a standard CORS policy header,
+not a credential; its value must not become an echo-redaction pattern.
+Only credential-named URL query parameters are automatically
 registered as secrets; ordinary parameters such as `page` and `q` are not. Use `sensitive: true`
 for custom secret inputs/exports. URL credentials retain raw, decoded and encoded match patterns.
 Formatted JSON is prepared once; consumers additionally bound per-run retention. UI inspection is transient

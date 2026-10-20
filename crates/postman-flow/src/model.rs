@@ -619,14 +619,16 @@ pub enum FlowEvent {
     },
     RequestPrepared {
         step_id: String,
-        /// Bounded, sanitized parameters before transport execution; not a wire capture.
+        /// Bounded parameters before transport execution; not a wire capture.
+        /// Accessors default to sanitized data; original_json is explicit local inspection only.
         inspection: crate::InspectionValue,
     },
     ResponseReceived {
         step_id: String,
         status: u16,
         elapsed_ms: u128,
-        /// Bounded, sanitized terminal response, available even when checks fail.
+        /// Bounded terminal response, available even when checks fail.
+        /// Accessors default to sanitized data; original_json is explicit local inspection only.
         inspection: crate::InspectionValue,
     },
     CheckFinished {

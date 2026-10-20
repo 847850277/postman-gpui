@@ -1,4 +1,4 @@
-//! Safe snapshots of resolved HTTP parameters, never raw wire captures.
+//! Bounded HTTP previews with sanitized defaults and explicit local originals.
 use super::{InspectionValue, Redactor};
 use postman_http::{
     request::{MultipartValue, Request, RequestBody},
@@ -88,6 +88,31 @@ fn request_body(body: &RequestBody) -> Value {
 }
 
 impl Redactor {
+    fn inspect_http(&self, name: &str, value: &Value) -> InspectionValue {
+        // Bound the original independently: redaction may reduce a large or
+        // deep secret to one short marker. Never use that as the raw budget.
+        fn fits(value: &Value, depth: usize, nodes: &mut usize) -> bool {
+            if depth > 32 || *nodes == 0 {
+                return false;
+            }
+            *nodes -= 1;
+            match value {
+                Value::Object(v) => v.values().all(|v| fits(v, depth + 1, nodes)),
+                Value::Array(v) => v.iter().all(|v| fits(v, depth + 1, nodes)),
+                _ => true,
+            }
+        }
+        let mut inspected = self.inspect(name, value, false);
+        let mut nodes = super::MAX_NODES;
+        if fits(value, 0, &mut nodes) {
+            inspected.original_json = serde_json::to_string_pretty(value)
+                .ok()
+                .filter(|s| s.len() <= super::MAX_BYTES)
+                .map(std::sync::Arc::from);
+        }
+        inspected
+    }
+
     pub(crate) fn request(&mut self, request: &Request) -> InspectionValue {
         let body = if let RequestBody::Raw(text) = &request.body {
             if form_content_type(&request.headers) {
@@ -122,13 +147,13 @@ impl Redactor {
         } else {
             (omitted("Invalid URL"), Value::Array(Vec::new()))
         };
-        self.inspect("request", &json!({
+        self.inspect_http("request", &json!({
             "method": request.method.to_string(),
             "url": base,
             "query": query,
             "headers": parameters(request.headers.iter().map(|(k, v)| (k.as_str(), v.as_str()))),
             "body": body,
-        }), false)
+        }))
     }
 
     pub(crate) fn response(&mut self, response: &HttpResponse) -> InspectionValue {
@@ -147,11 +172,40 @@ impl Redactor {
             self.discover(&value);
             json!({"kind": if is_form { "form" } else { "text" }, "bytes": response.body_bytes().len(), "value": value})
         };
-        self.inspect("response", &json!({
+        self.inspect_http("response", &json!({
             "status": response.status,
             "elapsed_ms": u64::try_from(response.elapsed_ms).unwrap_or(u64::MAX),
             "headers": parameters(response.headers.iter().map(|(k, v)| (k.as_str(), v.as_str()))),
             "body": body,
-        }), false)
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn original_limits_are_independent_of_redacted_size() {
+        let r = Redactor::default();
+        let mut deep = json!("secret");
+        for _ in 0..34 {
+            deep = json!([deep]);
+        }
+        for secret in [
+            json!("s".repeat(super::super::MAX_BYTES)),
+            json!("\u{0}".repeat(4096)),
+            json!(vec![0; super::super::MAX_NODES]),
+            deep,
+        ] {
+            let inspected = r.inspect_http("response", &json!({"password":secret}));
+            assert_eq!(inspected.value().unwrap()["password"], "[REDACTED]");
+            assert!(inspected.original_json().is_none());
+            assert_eq!(inspected.byte_len(), inspected.retained_byte_len());
+        }
+        let inspected = r.inspect_http("response", &json!({"password":"secret-SYNTH", "ok":true}));
+        assert!(inspected.original_json().unwrap().contains("secret-SYNTH"));
+        assert!(!format!("{inspected:?}").contains("secret-SYNTH"));
+        assert!(!inspected.json().unwrap().contains("secret-SYNTH"));
     }
 }

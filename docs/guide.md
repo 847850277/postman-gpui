@@ -549,18 +549,30 @@ HTTP details use the same redaction rules as outputs, including sensitive export
 fails. Body previews are limited to 8 KiB before formatting. Binary/file contents and local file paths
 are omitted; body size remains visible when available. Header/form/query collections are limited to
 64 entries and 4 KiB. Limits omit a whole section with an explicit reason instead of showing a partial
-value as complete. Request/response snapshots share a separate 2 MiB per-run retention budget and the
-16 KiB formatted-value limit below. **Copy visible logs** copies summaries; **Copy value** copies the
-selected sanitized details. There is no raw-secret reveal action.
+value as complete. Request/response snapshots share a separate 2 MiB per-run retention budget,
+counting both sanitized and original JSON. Each representation independently follows the 16 KiB,
+2,048-node and depth-32 limits below.
+
+HTTP details default to sanitized JSON. Turn on **Show sensitive values** to inspect original
+parameter values for the current run; the heading identifies **Original**. The choice applies only
+to HTTP details in that Flow's current run and resets on rerun. **Copy sanitized** always copies
+the sanitized preview; **Copy original** appears while originals are shown and includes sensitive
+values. Editor selection/copy follows the displayed content. The reveal action does not restore
+omitted sections or capture additional transport data. When an original exceeds the inspection
+limit, reveal/copy is unavailable with a reason. Originals remain in session memory only.
+**Copy visible logs** still copies summaries.
 
 Select an extraction or final output to open a native readonly JSON editor. **Copy value** copies only
 that sanitized value; the Outputs toolbar copies the complete output object when all values are
 available. JSON preserves `null`, `false`, `0`, empty strings and containers. Explicit **Redacted**
 metadata distinguishes masking from a literal `[REDACTED]` string. A wholly sensitive value hides its
-shape. Known credentials and echoes are masked even without an explicit annotation; there is no reveal action.
+shape. Known credentials and echoes are masked even without an explicit annotation; extractions and
+final outputs remain sanitized regardless of the HTTP reveal setting.
 
 Credential names use whole words, including `access_token`, `clientSecret` and `X-API-Key`;
-metadata such as `token_count` is not a credential. Ordinary URL query parameters such as
+metadata such as `token_count` is not a credential. The standard `Access-Control-Allow-Credentials`
+header is CORS policy, so its boolean value is neither masked nor registered as a secret.
+Ordinary URL query parameters such as
 `page` and `q` remain inspectable. Mark custom secret Inputs/Exports `sensitive: true`; arbitrary
 parameter names cannot identify secrets reliably. Sensitive URL parameters and userinfo are
 masked in their raw, decoded and encoded forms, including echoed values.
