@@ -5,6 +5,8 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-23
+
 ### Fixed
 
 - Automatically retain sent Authorization, AppToken and other request headers, exact query
