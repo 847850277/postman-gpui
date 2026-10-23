@@ -121,7 +121,9 @@ fn startup_loads_rows_from_sqlite_and_clear_requeries_the_database(cx: &mut Test
 }
 
 #[gpui_kit::test]
-fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut TestAppContext) {
+fn completed_request_is_persisted_with_credentials_then_rendered_from_sqlite(
+    cx: &mut TestAppContext,
+) {
     let directory = tempfile::tempdir().unwrap();
     let database_path = directory.path().join("history.sqlite3");
     let mut server = mockito::Server::new();
@@ -157,14 +159,7 @@ fn completed_response_is_sanitized_persisted_then_rendered_from_sqlite(cx: &mut 
             ResponseState::Success { status: 200, body, .. } if body == "persisted"
         ));
         assert_eq!(workspace.history_len(), 1);
-        assert_eq!(
-            workspace.history()[0].request.url,
-            format!("{}/ok", server.url())
-        );
-        assert!(!workspace.history()[0]
-            .request
-            .url
-            .contains("history-secret"));
+        assert_eq!(workspace.history()[0].request.url, sent_url);
         assert_eq!(
             workspace.history_storage_status(),
             &HistoryStorageStatus::Ready { skipped_rows: 0 }

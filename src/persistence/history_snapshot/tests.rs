@@ -26,7 +26,7 @@ fn completed_entry(method: HttpMethod, body: RequestBody) -> HistoryEntry {
 
 fn round_trip(entry: &HistoryEntry) -> HistoryEntry {
     let versioned = VersionedHistorySnapshot::try_from(entry).unwrap();
-    assert_eq!(versioned.version(), HISTORY_SNAPSHOT_VERSION_V2);
+    assert_eq!(versioned.version(), HISTORY_SNAPSHOT_VERSION_V3);
     let bytes = versioned.to_json_bytes().unwrap();
     let decoded = VersionedHistorySnapshot::from_json_bytes(&bytes).unwrap();
     HistoryEntry::try_from(decoded).unwrap()
@@ -136,7 +136,7 @@ fn multipart_editor_intent_preserves_real_disabled_rows_but_drops_placeholders()
 }
 
 #[test]
-fn credentials_are_absent_from_serialized_payload_case_insensitively() {
+fn legacy_v2_credentials_remain_absent_from_serialized_payload_case_insensitively() {
     let original_url = "https://url-user:url-password@api.example.com/v1/items?tag=rust&API_Key=query-secret&access_token=access-secret&X-Amz-Signature=signature-secret";
     let mut request = Request::new(HttpMethod::POST, original_url);
     request.headers = vec![
@@ -165,7 +165,7 @@ fn credentials_are_absent_from_serialized_payload_case_insensitively() {
     );
     let mut entry = HistoryEntry::completed(request, String::new(), 200, 5, 64);
     entry.name = "Replay query-secret with header-api-secret".to_string();
-    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let snapshot = VersionedHistorySnapshot::V2(HistorySnapshotV2::try_from(&entry).unwrap());
     let serialized = snapshot.to_json_string().unwrap();
 
     for denied in [
@@ -237,6 +237,43 @@ fn decoded_v1_payload_is_sanitized_again_before_use() {
     assert_eq!(decoded.as_v1().request().headers().len(), 1);
     assert_eq!(decoded.as_v1().request().headers()[0].name(), "X-Trace");
     assert_eq!(decoded.as_v1().request().query().len(), 2);
+}
+
+#[test]
+fn complete_history_validates_sensitive_headers_and_rejects_ambiguous_urls() {
+    let mut entry = completed_entry(HttpMethod::POST, RequestBody::None);
+    entry
+        .request
+        .add_header("AppToken", "fake-token\r\ninjected: value");
+    assert!(matches!(
+        VersionedHistorySnapshot::try_from(&entry),
+        Err(HistorySnapshotError::InvalidField {
+            field: "request.headers.value",
+            ..
+        })
+    ));
+
+    entry.request.headers = vec![("Authorization".into(), "Bearer fake-token".into())];
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let original: Value = serde_json::from_slice(&snapshot.to_json_bytes().unwrap()).unwrap();
+    for (field, value) in [
+        (
+            "query",
+            serde_json::json!([{"name": "token", "value": "conflicting"}]),
+        ),
+        ("url", serde_json::json!("file:///invalid")),
+        (
+            "headers",
+            serde_json::json!([{"name": "AppToken", "value": "invalid\r\nvalue"}]),
+        ),
+    ] {
+        let mut payload = original.clone();
+        payload["snapshot"]["request"][field] = value;
+        assert!(
+            VersionedHistorySnapshot::from_json_bytes(&serde_json::to_vec(&payload).unwrap())
+                .is_err()
+        );
+    }
 }
 
 #[test]
@@ -447,7 +484,7 @@ fn received_size_survives_history_for_binary_and_reencoded_text() {
 }
 
 #[test]
-fn v2_json_response_round_trip_sanitizes_headers_and_structured_secret_fields() {
+fn v3_json_response_round_trip_still_sanitizes_response_secrets() {
     let entry = entry_with_response(
         418,
         vec![
@@ -465,7 +502,7 @@ fn v2_json_response_round_trip_sanitizes_headers_and_structured_secret_fields() 
     );
 
     let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
-    assert_eq!(snapshot.version(), HISTORY_SNAPSHOT_VERSION_V2);
+    assert_eq!(snapshot.version(), HISTORY_SNAPSHOT_VERSION_V3);
     let response = snapshot.as_v2().unwrap().response().unwrap();
     assert_eq!(response.status(), 418);
     assert_eq!(response.headers().len(), 2);

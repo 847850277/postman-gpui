@@ -382,7 +382,11 @@ node --test prototypes/curl-request.test.cjs prototypes/flow-model.test.cjs
 ## 本地数据与隐私
 
 已完成请求的历史记录保存在操作系统本地应用数据目录下的
-`postman-gpui/request-history.sqlite3`。已知凭据和 Cookie 在持久化前会被移除；取消请求和传输失败
+`postman-gpui/request-history.sqlite3`，无需手动 Save。新历史记录保留发送时的完整 URL / Query、
+Header（包括 Authorization、AppToken 和手动填写的 Cookie）、Body / 文件引用及请求选项。
+后续编辑不会改写已发送的记录，重启后从 History 打开也能恢复这些参数。数据以未加密形式
+保存在本地，Unix 上数据库及已有 WAL 文件仅允许当前用户读写。运行时 Cookie Jar 不会恢复，
+响应预览仍会限长并脱敏。旧 V1/V2 记录继续可读，但旧版本已经移除的凭据无法找回。取消请求和传输失败
 不会写入历史。
 
 ## 许可证

@@ -516,9 +516,15 @@ a normal workspace test run alone does not establish that these suites ran.
 
 ## Local data and privacy
 
-Completed request history is stored in `postman-gpui/request-history.sqlite3` under the operating
-system's local application-data directory. Known credentials and cookies are removed before
-persistence. Cancelled requests and transport failures are not recorded.
+Completed requests are automatically recorded in `postman-gpui/request-history.sqlite3` under
+the operating system's local application-data directory; **Save is not required for History**.
+New history records retain the request captured at Send: method, exact URL/query, all explicit
+headers (including Authorization, AppToken and Cookie), body/file references and request options.
+Later draft edits do not modify that record. Reopening History after restart restores those values
+for replay. This is local, unencrypted storage; Unix database and existing WAL files are restricted
+to their owner. The runtime cookie jar is not restored, and response previews remain bounded and
+sanitized. Existing V1/V2 history remains readable, but credentials removed by older versions cannot
+be recovered. Cancelled requests and transport failures are not recorded.
 
 ## License
 

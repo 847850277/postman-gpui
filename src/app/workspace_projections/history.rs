@@ -86,8 +86,8 @@ pub enum HistoryReplaySource {
     PersistedSnapshot,
 }
 
-/// Complete request input for restoring one History row into a specific request tab. Runtime
-/// overlay inputs may contain secrets and must never cross the persistence boundary.
+/// Complete request input for restoring one History row into a specific request tab.
+/// V3 snapshots retain request credentials; legacy snapshots may need a current-session overlay.
 #[derive(Clone)]
 pub struct HistoryReplayInput {
     entry_id: String,

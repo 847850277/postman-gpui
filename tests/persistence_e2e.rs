@@ -241,22 +241,19 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     assert_eq!(confirmed.len(), 1);
     let original = confirmed[0].clone();
     let original_id = original.id.clone();
-    assert_eq!(
-        original.request.url,
-        format!("{}/current-session-replay?existing=1", server.url())
-    );
+    assert_eq!(original.request.url, request_url);
     assert!(original
         .request
         .headers
         .iter()
-        .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+        .any(|(name, value)| name.eq_ignore_ascii_case("authorization")
+            && value == "Bearer history-e2e-token"));
     let payload = database_payload(&database_path);
-    for denied in ["current-session-secret", "history-e2e-token"] {
-        assert!(!payload.contains(denied), "SQLite leaked {denied}");
+    for retained in ["current-session-secret", "history-e2e-token"] {
+        assert!(payload.contains(retained), "History lost {retained}");
     }
 
-    // Mouse activation restores the runtime-complete Request while the rendered History row
-    // remains the sanitized SQLite projection.
+    // Mouse activation restores the same complete Request that SQLite stores.
     click(cx, "new-tab-button").unwrap();
     type_into(cx, "url-input", "https://draft.example/mouse").unwrap();
     ui::open_history(cx);
@@ -369,11 +366,82 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     assert!(same_history_entry(&replayed[1], &original));
     assert_eq!(replayed[0].request, replayed[1].request);
     let payload = database_payload(&database_path);
-    for denied in ["current-session-secret", "history-e2e-token"] {
-        assert!(!payload.contains(denied), "SQLite leaked {denied}");
+    for retained in ["current-session-secret", "history-e2e-token"] {
+        assert!(payload.contains(retained), "History lost {retained}");
     }
 
     close_app(app, cx);
+}
+
+#[gpui_kit::test]
+fn manual_authorization_and_app_token_replay_after_restart_without_save(
+    test_cx: &mut TestAppContext,
+) {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("history.sqlite3");
+    let mut server = mockito::Server::new();
+    let request_url = format!(
+        "{}/manual-headers?api_key=test-query&tag=one&tag=two",
+        server.url()
+    );
+    let request = server
+        .mock("POST", "/manual-headers")
+        .match_query(Matcher::Exact("api_key=test-query&tag=one&tag=two".into()))
+        .match_header("authorization", "bearer test-manual-authorization")
+        .match_header("apptoken", "test-manual-app-token")
+        .match_body(Matcher::Exact(r#"{"message":"sent"}"#.into()))
+        .with_status(200)
+        .with_body("ok")
+        .expect(2)
+        .create();
+    let (first_app, first_workspace, cx) = launch_app(test_cx, &database_path);
+    choose_method(cx, "POST").unwrap();
+    type_into(cx, "url-input", &request_url).unwrap();
+    click(cx, "request-pane-headers").unwrap();
+    type_into(cx, "row-key-input", "Authorization").unwrap();
+    type_into(cx, "row-value-input", "bearer test-manual-authorization").unwrap();
+    click(cx, "add-row-button").unwrap();
+    type_into(cx, "row-key-input", "AppToken").unwrap();
+    type_into(cx, "row-value-input", "test-manual-app-token").unwrap();
+    click(cx, "request-pane-body").unwrap();
+    ui::choose_body_kind(cx, "body-kind-json").unwrap();
+    replace_text(cx, "body-input", r#"{"message":"sent"}"#).unwrap();
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    let sent = assert_visible_matches_sqlite(&first_workspace, cx, &database_path);
+    assert_eq!(sent.len(), 1);
+    let original = sent[0].request.clone();
+
+    // Later edits must not alter the automatically saved, sent request. Never click Save.
+    replace_text(cx, "body-input", r#"{"message":"unsent edit"}"#).unwrap();
+    close_app(first_app, cx);
+    drop(first_workspace);
+    let (second_app, second_workspace, cx) = launch_app(&mut cx.cx, &database_path);
+    ui::open_history(cx);
+    click(cx, "history-item-0").unwrap();
+    second_workspace.read_with(cx, |workspace, _| {
+        let tab = workspace.active_request().unwrap();
+        assert_eq!(tab.url(), request_url);
+        for (name, value) in [
+            ("Authorization", "bearer test-manual-authorization"),
+            ("AppToken", "test-manual-app-token"),
+        ] {
+            assert!(tab
+                .headers()
+                .iter()
+                .any(|row| row.enabled && row.key == name && row.value == value));
+        }
+        assert_eq!(tab.request_construction().request(), &original);
+    });
+    click(cx, "send-button").unwrap();
+    cx.run_until_parked();
+    request.assert();
+    let replayed = assert_visible_matches_sqlite(&second_workspace, cx, &database_path);
+    assert_eq!(replayed.len(), 2);
+    assert_eq!(replayed[0].request, original);
+    assert_eq!(replayed[1].request, original);
+    assert_ne!(replayed[0].id, replayed[1].id);
+    close_app(second_app, cx);
 }
 
 #[gpui_kit::test]
@@ -399,9 +467,9 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
         .create();
     let replay = server
         .mock("POST", "/restart-json")
-        .match_query(Matcher::Exact("tag=rust".to_string()))
+        .match_query(Matcher::Exact("tag=rust&api_key=query-secret".to_string()))
         .match_header("x-trace", "safe-trace")
-        .match_header("authorization", Matcher::Missing)
+        .match_header("authorization", "Bearer bearer-secret")
         .match_header("cookie", Matcher::Missing)
         .match_body(Matcher::Exact(json_body.to_string()))
         .with_status(202)
@@ -451,7 +519,10 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     assert_eq!(persisted[0].status, Some(201));
     assert_eq!(
         persisted[0].request.url,
-        format!("{}/restart-json?tag=rust", server.url())
+        format!(
+            "{}/restart-json?tag=rust&api_key=query-secret",
+            server.url()
+        )
     );
     assert!(persisted[0]
         .request
@@ -462,16 +533,17 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
         .request
         .headers
         .iter()
-        .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+        .any(|(name, value)| name.eq_ignore_ascii_case("authorization")
+            && value == "Bearer bearer-secret"));
     assert_eq!(
         persisted[0].request.body,
         RequestBody::Json(json_body.to_string())
     );
 
     let payload = database_payload(&database_path);
-    for denied in ["query-secret", "bearer-secret", "jar-secret"] {
-        assert!(!payload.contains(denied), "SQLite leaked {denied}");
-    }
+    assert!(payload.contains("query-secret"));
+    assert!(payload.contains("bearer-secret"));
+    assert!(!payload.contains("jar-secret"));
     assert!(payload.contains(response_body));
     assert!(payload.contains("safe-trace"));
     assert!(payload.contains("body-secret-is-user-authored"));
@@ -519,10 +591,10 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
         assert_eq!(workspace.active_request().unwrap().method(), HttpMethod::POST);
         assert_eq!(
             workspace.active_request().unwrap().url(),
-            format!("{}/restart-json?tag=rust", server.url())
+            format!("{}/restart-json?tag=rust&api_key=query-secret", server.url())
         );
         assert_eq!(workspace.active_request().unwrap().authorization_kind(), AuthorizationKind::Bearer);
-        assert!(workspace.active_request().unwrap().bearer_token().is_empty());
+        assert_eq!(workspace.active_request().unwrap().bearer_token(), "bearer-secret");
         assert!(workspace.active_request().unwrap().basic_username().is_empty());
         assert!(workspace.active_request().unwrap().basic_password().is_empty());
         assert_eq!(workspace.active_request().unwrap().body_kind(), BodyKind::Json);
@@ -1544,7 +1616,7 @@ fn failed_clear_keeps_sqlite_and_the_last_successful_query_result(test_cx: &mut 
 }
 
 #[gpui_kit::test]
-fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bodies(
+fn sqlite_retains_sent_credentials_but_sanitizes_response_and_excludes_cookie_jar(
     test_cx: &mut TestAppContext,
 ) {
     let directory = tempfile::tempdir().unwrap();
@@ -1631,25 +1703,27 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     assert_eq!(
         stored[0].request.url,
         format!(
-            "{}/basic-security?project=gpui&opaque=looks-private-but-user-authored",
+            "{}/basic-security?access_token=access-secret&project=gpui&opaque=looks-private-but-user-authored",
             server.url()
         )
     );
     assert_eq!(
         stored[1].request.url,
-        format!("{}/security?tag=safe", server.url())
+        format!(
+            "{}/security?tag=safe&api_key=query-secret&X-Amz-Signature=signature-secret",
+            server.url()
+        )
     );
     for entry in &stored {
-        assert!(entry.request.headers.iter().all(|(name, _)| {
-            !name.eq_ignore_ascii_case("authorization")
-                && !name.eq_ignore_ascii_case("cookie")
-                && !name.eq_ignore_ascii_case("set-cookie")
-                && !name.eq_ignore_ascii_case("x-api-key")
-        }));
+        assert!(entry
+            .request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("authorization")));
         let response = entry
             .historical_response
             .as_ref()
-            .expect("V2 rows should include response evidence");
+            .expect("V3 rows should include response evidence");
         assert!(response.headers.iter().all(|(name, _)| {
             !postman_gpui::persistence::HistorySensitiveDataPolicy::is_sensitive_header_name(name)
         }));
@@ -1657,32 +1731,31 @@ fn direct_sqlite_inspection_excludes_auth_api_keys_and_cookies_but_keeps_user_bo
     assert_eq!(stored[1].request.body, RequestBody::Json(body.to_string()));
 
     let database_bytes = database_files(&database_path);
-    for denied in [
-        "query-secret",
-        "signature-secret",
-        "bearer-secret",
-        "manual-cookie-secret",
-        "header-api-secret",
-        "access-secret",
-        "security-user",
-        "security-pass",
-        basic_value.as_str(),
-        "jar-secret",
-        "response-secret",
-    ] {
+    for denied in ["jar-secret", "response-secret"] {
         assert!(
             !contains_bytes(&database_bytes, denied),
             "SQLite files leaked {denied}"
         );
     }
     let payload = database_payload(&database_path);
+    for retained in [
+        "query-secret",
+        "signature-secret",
+        "bearer-secret",
+        "manual-cookie-secret",
+        "header-api-secret",
+        "access-secret",
+        basic_value.as_str(),
+    ] {
+        assert!(payload.contains(retained), "History lost {retained}");
+    }
     assert!(payload.contains("safe-trace"));
     assert!(payload.contains("project"));
     assert!(payload.contains("looks-private-but-user-authored"));
     assert!(payload.contains("body-secret-is-user-authored"));
     for row in payload.lines() {
         let value: serde_json::Value = serde_json::from_str(row).unwrap();
-        assert_eq!(value["version"], serde_json::Value::from(2));
+        assert_eq!(value["version"], serde_json::Value::from(3));
         let top_level = value.as_object().unwrap();
         assert_eq!(
             top_level

@@ -43,8 +43,10 @@ tokens, Authorization/Cookie headers, query values and body content. This is
 local, unencrypted storage, disclosed in the save dialog. New database files are
 owner-readable/writable on Unix. Saving does not copy the runtime cookie jar,
 script-produced values, responses, or transient transport state into a document.
-History keeps its existing, separate redaction rules. Do not put the database in
-a public/shared directory if it contains secrets.
+History independently records completed sends, including their explicit request credentials,
+without requiring Save. It restores the sent request; a saved document also retains disabled and
+unfinished editor rows and later unsent edits. Historical response previews remain sanitized.
+Do not put either database in a public/shared directory if it contains secrets.
 
 If a database is unavailable or incompatible, restore access or a compatible
 backup and use **Home → Saved requests → Reload**. Malformed individual records

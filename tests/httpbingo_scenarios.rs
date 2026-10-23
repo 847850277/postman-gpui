@@ -139,7 +139,7 @@ fn persisted_history_projection(
         editor_intent,
     );
     let snapshot = VersionedHistorySnapshot::try_from(&candidate)
-        .map_err(|error| format!("cannot sanitize expected SQLite History: {error}"))?;
+        .map_err(|error| format!("cannot encode expected SQLite History: {error}"))?;
     HistoryEntry::try_from(snapshot)
         .map_err(|error| format!("cannot project expected SQLite History: {error}"))
 }
@@ -1485,15 +1485,6 @@ fn run_multi_tab_workflow(
         .map_err(|error| format!("Tab B SQLite History mismatch: {error}"))?;
     assert_requests_equivalent(&history_after_b[1].request, &persisted_a.request)
         .map_err(|error| format!("Tab A SQLite History changed after Tab B Send: {error}"))?;
-    if history_after_b.iter().any(|entry| {
-        entry
-            .request
-            .headers
-            .iter()
-            .any(|(name, _)| name.eq_ignore_ascii_case("authorization"))
-    }) {
-        return Err("SQLite History persisted Tab B's Authorization secret".to_string());
-    }
     ui::open_history(cx);
     for selector in ["history-method-0", "history-method-1"] {
         if cx.debug_bounds(selector).is_none() {
@@ -1620,7 +1611,7 @@ fn run_history_replay_workflow(
     let original = history_before_replay[0].clone();
     let original_id = original.id.clone();
     assert_requests_equivalent(&original.request, &expected_persisted.request)
-        .map_err(|error| format!("original sanitized History mismatch: {error}"))?;
+        .map_err(|error| format!("original History snapshot mismatch: {error}"))?;
 
     click(cx, "new-tab-button")?;
     type_into(cx, "url-input", "https://draft.example/mouse")?;

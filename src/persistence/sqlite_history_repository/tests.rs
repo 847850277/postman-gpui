@@ -467,7 +467,124 @@ fn failed_delete_preserves_the_committed_history() {
 }
 
 #[test]
-fn direct_database_inspection_finds_no_denied_credentials() {
+fn automatic_history_preserves_sent_credentials_and_exact_url_after_restart() {
+    let (_temporary, mut repository) = isolated_repository();
+    repository.initialize().unwrap();
+    let mut request = Request::new(
+        HttpMethod::POST,
+        "https://user:pass@example.com/post?api_key=test-query&tag=a%2fb&tag=a+b&empty=",
+    );
+    request.headers = vec![
+        ("Authorization".into(), "bearer test-authorization".into()),
+        ("AppToken".into(), "test-app-token".into()),
+        ("Content-Type".into(), "application/json".into()),
+        ("X-Repeat".into(), "first".into()),
+        ("X-Repeat".into(), "second".into()),
+        ("Cookie".into(), "explicit=test-cookie".into()),
+    ];
+    request.body = RequestBody::Json(r#"{"value":"sent"}"#.into());
+    let entry = HistoryEntry::completed(request.clone(), request.url.clone(), 200, 3, 2);
+    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    repository.append_and_trim(&snapshot, 50).unwrap();
+    let path = repository.database_path().to_path_buf();
+    drop(repository);
+
+    // Reopening the database must work without the current-process replay overlay.
+    let mut reopened = SqliteHistoryRepository::new(path).unwrap();
+    reopened.initialize().unwrap();
+    let loaded = reopened.load_recent(50).unwrap();
+    assert!(loaded.warnings().is_empty());
+    let restored = HistoryEntry::try_from(loaded.snapshots()[0].clone()).unwrap();
+    assert_eq!(restored.id, entry.id);
+    assert_eq!(restored.request, request);
+    assert_eq!(restored.request_options, entry.request_options);
+    assert!(!restored.name.contains("test-query"));
+}
+
+#[test]
+fn mixed_legacy_and_complete_history_loads_without_rewriting_old_rows() {
+    let (_temporary, mut repository) = isolated_repository();
+    repository.initialize().unwrap();
+    let mut versions = Vec::new();
+    for version in 1..=3 {
+        let mut request = Request::new(HttpMethod::GET, "https://example.com/?token=fake-secret");
+        request.add_header("AppToken", "fake-app-token");
+        let entry = HistoryEntry::completed(request, "mixed version".into(), 200, 1, 2);
+        let snapshot = match version {
+            1 => VersionedHistorySnapshot::V1(
+                crate::persistence::HistorySnapshotV1::try_from(&entry).unwrap(),
+            ),
+            2 => VersionedHistorySnapshot::V2(
+                crate::persistence::HistorySnapshotV2::try_from(&entry).unwrap(),
+            ),
+            _ => VersionedHistorySnapshot::try_from(&entry).unwrap(),
+        };
+        repository.append_and_trim(&snapshot, 50).unwrap();
+        versions.push(snapshot);
+    }
+    let path = repository.database_path().to_path_buf();
+    drop(repository);
+    let mut reopened = SqliteHistoryRepository::new(path).unwrap();
+    reopened.initialize().unwrap();
+    let loaded = reopened.load_recent(50).unwrap();
+    assert!(loaded.warnings().is_empty());
+    assert_eq!(
+        loaded.snapshots(),
+        versions.into_iter().rev().collect::<Vec<_>>()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn history_database_and_existing_sidecars_are_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let (_temporary, mut repository) = isolated_repository();
+    repository.initialize().unwrap();
+    assert_eq!(
+        fs::metadata(repository.database_path())
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777,
+        0o600
+    );
+    let connection = Connection::open(repository.database_path()).unwrap();
+    connection
+        .query_row("SELECT count(*) FROM history_entries", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap();
+    repository
+        .append_and_trim(&snapshot(1, BASE_TIMESTAMP_MS), 50)
+        .unwrap();
+    let paths: Vec<PathBuf> = ["", "-wal", "-shm"]
+        .into_iter()
+        .map(|suffix| {
+            let mut path = repository.database_path().as_os_str().to_os_string();
+            path.push(suffix);
+            PathBuf::from(path)
+        })
+        .filter(|path| path.exists())
+        .collect();
+    assert_eq!(
+        paths.len(),
+        3,
+        "exercise the existing database, WAL and shared-memory files"
+    );
+    for path in &paths {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
+    }
+    repository.initialize().unwrap();
+    for path in &paths {
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
+#[test]
+fn legacy_v2_database_rows_remain_sanitized() {
     let (_temporary, mut repository) = isolated_repository();
     repository.initialize().unwrap();
     let mut request = Request::new(
@@ -486,7 +603,9 @@ fn direct_database_inspection_finds_no_denied_credentials() {
         r#"{"message":"request bodies are documented user-authored data"}"#.to_string(),
     );
     let entry = HistoryEntry::completed(request, "sensitive request".to_string(), 200, 3, 64);
-    let snapshot = VersionedHistorySnapshot::try_from(&entry).unwrap();
+    let snapshot = VersionedHistorySnapshot::V2(
+        crate::persistence::HistorySnapshotV2::try_from(&entry).unwrap(),
+    );
     repository.append_and_trim(&snapshot, 50).unwrap();
 
     let connection = Connection::open(repository.database_path()).unwrap();

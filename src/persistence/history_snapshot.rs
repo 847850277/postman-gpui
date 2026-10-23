@@ -1,10 +1,9 @@
-//! Versioned, sanitized Request History persistence contract.
+//! Versioned Request History persistence contract.
 //!
 //! `HistoryEntry` remains the runtime projection. Versioned snapshots are the only shapes that may
-//! cross the repository boundary: conversion removes known credentials before a storage adapter
-//! can observe them. V1 contains a replay request only; V2 can additionally contain a bounded,
-//! sanitized textual response preview. Neither version contains GPUI, tab, cookie-jar, or
-//! pending-request state.
+//! cross the repository boundary. Legacy V1/V2 requests are sanitized; V3 retains the complete
+//! sent request, including credentials, for replay after restart. Display names and bounded
+//! response previews remain sanitized. Snapshots contain no GPUI, tab, cookie-jar, or pending state.
 
 use crate::models::{
     HistoricalResponse, HistoricalResponseBody, HistoryEntry, HttpMethod, MultipartEditorPart,
@@ -23,6 +22,7 @@ use uuid::Uuid;
 
 pub const HISTORY_SNAPSHOT_VERSION_V1: u64 = 1;
 pub const HISTORY_SNAPSHOT_VERSION_V2: u64 = 2;
+pub const HISTORY_SNAPSHOT_VERSION_V3: u64 = 3;
 pub const MAX_HISTORICAL_RESPONSE_PREVIEW_BYTES: usize = 256 * 1024;
 
 /// Errors at the runtime/snapshot and serialized-payload boundaries.
@@ -117,6 +117,7 @@ impl std::error::Error for HistorySnapshotError {}
 pub enum VersionedHistorySnapshot {
     V1(HistorySnapshotV1),
     V2(HistorySnapshotV2),
+    V3(HistorySnapshotV3),
 }
 
 impl VersionedHistorySnapshot {
@@ -124,14 +125,16 @@ impl VersionedHistorySnapshot {
         match self {
             Self::V1(_) => HISTORY_SNAPSHOT_VERSION_V1,
             Self::V2(_) => HISTORY_SNAPSHOT_VERSION_V2,
+            Self::V3(_) => HISTORY_SNAPSHOT_VERSION_V3,
         }
     }
 
-    /// Common request/metadata prefix shared by both persisted versions.
+    /// Common request/metadata shape. V3 contains the complete URL and headers, unlike V1/V2.
     pub fn as_v1(&self) -> &HistorySnapshotV1 {
         match self {
             Self::V1(snapshot) => snapshot,
             Self::V2(snapshot) => snapshot.base(),
+            Self::V3(snapshot) => snapshot.record.base(),
         }
     }
 
@@ -139,6 +142,7 @@ impl VersionedHistorySnapshot {
         match self {
             Self::V1(_) => None,
             Self::V2(snapshot) => Some(snapshot),
+            Self::V3(snapshot) => Some(&snapshot.record),
         }
     }
 
@@ -150,6 +154,10 @@ impl VersionedHistorySnapshot {
             }),
             Self::V2(snapshot) => serde_json::to_vec(&HistorySnapshotEnvelope {
                 version: HISTORY_SNAPSHOT_VERSION_V2,
+                snapshot,
+            }),
+            Self::V3(snapshot) => serde_json::to_vec(&HistorySnapshotEnvelope {
+                version: HISTORY_SNAPSHOT_VERSION_V3,
                 snapshot,
             }),
         };
@@ -188,7 +196,7 @@ impl VersionedHistorySnapshot {
         )?;
         if !matches!(
             version,
-            HISTORY_SNAPSHOT_VERSION_V1 | HISTORY_SNAPSHOT_VERSION_V2
+            HISTORY_SNAPSHOT_VERSION_V1 | HISTORY_SNAPSHOT_VERSION_V2 | HISTORY_SNAPSHOT_VERSION_V3
         ) {
             return Err(HistorySnapshotError::UnsupportedVersion { found: version });
         }
@@ -214,6 +222,13 @@ impl VersionedHistorySnapshot {
                 snapshot.sanitize_and_validate()?;
                 Ok(Self::V2(snapshot))
             }
+            HISTORY_SNAPSHOT_VERSION_V3 => {
+                let raw: RawHistorySnapshotV2 =
+                    serde_json::from_value(snapshot_value).map_err(malformed_payload)?;
+                let mut snapshot = HistorySnapshotV3 { record: raw.into() };
+                snapshot.validate_and_sanitize_display()?;
+                Ok(Self::V3(snapshot))
+            }
             found => Err(HistorySnapshotError::UnsupportedVersion { found }),
         }
     }
@@ -227,7 +242,7 @@ impl TryFrom<&HistoryEntry> for VersionedHistorySnapshot {
     type Error = HistorySnapshotError;
 
     fn try_from(entry: &HistoryEntry) -> Result<Self, Self::Error> {
-        HistorySnapshotV2::try_from(entry).map(Self::V2)
+        HistorySnapshotV3::try_from(entry).map(Self::V3)
     }
 }
 
@@ -238,6 +253,7 @@ impl TryFrom<VersionedHistorySnapshot> for HistoryEntry {
         match snapshot {
             VersionedHistorySnapshot::V1(snapshot) => HistoryEntry::try_from(snapshot),
             VersionedHistorySnapshot::V2(snapshot) => HistoryEntry::try_from(snapshot),
+            VersionedHistorySnapshot::V3(snapshot) => HistoryEntry::try_from(snapshot),
         }
     }
 }
@@ -505,6 +521,62 @@ impl TryFrom<HistorySnapshotV2> for HistoryEntry {
             .transpose()?;
         let mut entry = HistoryEntry::try_from(snapshot.base)?;
         entry.historical_response = response;
+        Ok(entry)
+    }
+}
+
+/// V3 uses the same row fields as V2, but `request.url` is the exact sent URL (including query)
+/// and `request.headers` retains all explicit values. `request.query` is empty: there is only one
+/// authoritative URL, preserving duplicate parameters, escaping and empty values verbatim.
+/// The version discriminator prevents older readers from silently stripping these values.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct HistorySnapshotV3 {
+    record: HistorySnapshotV2,
+}
+
+impl HistorySnapshotV3 {
+    fn validate_and_sanitize_display(&mut self) -> Result<(), HistorySnapshotError> {
+        self.record.base.request.validate_complete()?;
+        // Reuse legacy metadata/response validation and name sanitization without allowing its
+        // redaction policy to mutate the request used for replay.
+        let mut display = self.record.clone();
+        display.sanitize_and_validate()?;
+        self.record.base.name = display.base.name;
+        self.record.response = display.response;
+        self.record.base.request.remove_empty_editor_placeholders();
+        Ok(())
+    }
+}
+
+impl TryFrom<&HistoryEntry> for HistorySnapshotV3 {
+    type Error = HistorySnapshotError;
+
+    fn try_from(entry: &HistoryEntry) -> Result<Self, Self::Error> {
+        let mut record = HistorySnapshotV2::try_from(entry)?;
+        record.base.request.url.clone_from(&entry.request.url);
+        record.base.request.query.clear();
+        record.base.request.headers = entry
+            .request
+            .headers
+            .iter()
+            .map(|(name, value)| HeaderSnapshotV1 {
+                name: name.clone(),
+                value: value.clone(),
+            })
+            .collect();
+        record.base.request.validate_complete()?;
+        Ok(Self { record })
+    }
+}
+
+impl TryFrom<HistorySnapshotV3> for HistoryEntry {
+    type Error = HistorySnapshotError;
+
+    fn try_from(snapshot: HistorySnapshotV3) -> Result<Self, Self::Error> {
+        let request = snapshot.record.base.request.to_complete_request()?;
+        let mut entry = HistoryEntry::try_from(snapshot.record)?;
+        entry.request = request;
         Ok(entry)
     }
 }
@@ -913,8 +985,8 @@ impl SanitizedRequest {
     }
 }
 
-/// Sanitized replay request. Query values are kept separate from the credential-free base URL so
-/// storage inspection and policy testing remain deterministic.
+/// Shared wire fields for replay requests. V1/V2 keep query values separate from a sanitized base
+/// URL; V3 retains the exact complete URL with an empty `query` list and preserves all headers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RequestSnapshotV1 {
     method: HttpMethodSnapshotV1,
@@ -957,8 +1029,8 @@ impl RequestSnapshotV1 {
 
     pub fn replay_url(&self) -> Result<String, HistorySnapshotError> {
         let mut url = parse_http_url(&self.url)?;
-        url.set_query(None);
         if !self.query.is_empty() {
+            url.set_query(None);
             let mut query = url.query_pairs_mut();
             for pair in &self.query {
                 query.append_pair(&pair.name, &pair.value);
@@ -1054,6 +1126,43 @@ impl RequestSnapshotV1 {
             editor_intent.validate()?;
         }
         self.options.validate()
+    }
+
+    fn validate_complete(&self) -> Result<(), HistorySnapshotError> {
+        parse_http_url(&self.url)?;
+        if !self.query.is_empty() {
+            return Err(invalid_field(
+                "request.query",
+                "V3 query parameters must be in request.url",
+            ));
+        }
+        for header in &self.headers {
+            HeaderName::from_bytes(header.name.as_bytes()).map_err(|_| {
+                invalid_field("request.headers.name", "must be a valid HTTP header name")
+            })?;
+            HeaderValue::from_str(&header.value).map_err(|_| {
+                invalid_field("request.headers.value", "must be a valid HTTP header value")
+            })?;
+        }
+        self.body.validate()?;
+        if let Some(editor_intent) = &self.editor_intent {
+            editor_intent.validate()?;
+        }
+        self.options.validate()
+    }
+
+    fn to_complete_request(&self) -> Result<Request, HistorySnapshotError> {
+        self.validate_complete()?;
+        Ok(Request {
+            method: self.method.into(),
+            url: self.url.clone(),
+            headers: self
+                .headers
+                .iter()
+                .map(|h| (h.name.clone(), h.value.clone()))
+                .collect(),
+            body: self.body.to_runtime(),
+        })
     }
 
     fn validate_replay_files(&self) -> Result<(), HistorySnapshotError> {

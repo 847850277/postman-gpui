@@ -5,6 +5,13 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+### Fixed
+
+- Automatically retain sent Authorization, AppToken and other request headers, exact query
+  parameters, body and options in History so replay works after restart without explicit Save.
+  V3 snapshots preserve complete requests while keeping response previews sanitized and older
+  snapshots readable. Restrict Unix history database and WAL file permissions to their owner.
+
 ### Changed
 
 - Use GPUI Kit as the application's only direct UI framework dependency, including native

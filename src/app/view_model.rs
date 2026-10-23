@@ -1251,7 +1251,7 @@ impl WorkspaceViewModel {
     }
 
     /// Attach a complete Request only after its History ID has been returned by SQLite.
-    /// Recovered rows intentionally have no overlay and therefore replay their sanitized request.
+    /// Recovered V3 rows replay their complete persisted request without needing this overlay.
     pub(crate) fn confirm_runtime_replay_request(&mut self, entry_id: String, request: Request) {
         if !self
             .projections
@@ -1329,7 +1329,7 @@ mod tests {
     };
 
     /// Unit-test stand-in for the application lifecycle: complete the response, cross the
-    /// sanitized snapshot boundary, then replace History as if SQLite had returned the rows.
+    /// versioned snapshot boundary, then replace History as if SQLite had returned the rows.
     fn complete_and_confirm_history(
         workspace: &mut WorkspaceViewModel,
         pending: PendingRequest,
@@ -2982,11 +2982,19 @@ mod tests {
             .active_request_mut()
             .unwrap()
             .set_url("https://example.com/original");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token("sent-token");
         let pending = workspace.begin_send().unwrap();
         workspace
             .active_request_mut()
             .unwrap()
             .set_url("https://example.com/edited");
+        workspace
+            .active_request_mut()
+            .unwrap()
+            .set_bearer_token("unsent-token");
 
         assert!(complete_and_confirm_history(
             &mut workspace,
@@ -3002,6 +3010,16 @@ mod tests {
         assert_eq!(
             workspace.history()[0].request.url,
             "https://example.com/original"
+        );
+        assert!(workspace.history()[0]
+            .request
+            .headers
+            .iter()
+            .any(|(name, value)| name.eq_ignore_ascii_case("authorization")
+                && value == "Bearer sent-token"));
+        assert_eq!(
+            workspace.active_request().unwrap().bearer_token(),
+            "unsent-token"
         );
     }
 
@@ -3279,7 +3297,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_replay_overlay_requires_a_confirmed_row_and_does_not_survive_recovery() {
+    fn complete_history_replay_survives_recovery_without_a_runtime_overlay() {
         let raw_url = "https://example.com/replay?tag=rust&api_key=runtime-secret";
         let mut raw_request = Request::new(HttpMethod::POST, raw_url);
         raw_request.add_header("X-Replay", "original");
@@ -3298,12 +3316,7 @@ mod tests {
         )
         .expect("snapshot should return to a History entry");
         assert_eq!(confirmed.id, candidate.id);
-        assert_eq!(confirmed.request.url, "https://example.com/replay?tag=rust");
-        assert!(confirmed
-            .request
-            .headers
-            .iter()
-            .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+        assert_eq!(confirmed.request, raw_request);
 
         let mut current_session = WorkspaceViewModel::new();
         current_session.confirm_runtime_replay_request(candidate.id.clone(), raw_request.clone());
@@ -3339,15 +3352,11 @@ mod tests {
         let mut recovered_session = WorkspaceViewModel::new();
         recovered_session.replace_history_query_result(vec![confirmed.clone()], 0);
         recovered_session.load_history_entry(&confirmed);
+        assert_eq!(recovered_session.active_request().unwrap().url(), raw_url);
         assert_eq!(
-            recovered_session.active_request().unwrap().url(),
-            "https://example.com/replay?tag=rust"
+            recovered_session.active_request().unwrap().bearer_token(),
+            "runtime-token"
         );
-        assert!(recovered_session
-            .active_request()
-            .unwrap()
-            .bearer_token()
-            .is_empty());
     }
 
     #[test]

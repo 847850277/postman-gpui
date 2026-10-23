@@ -40,7 +40,7 @@ for an artifact with a different checksum. Use temporary captures and textual is
 - [ ] Type the URL, a parameter, a header, authorization, and each body kind, then click Send while
       the last editor is still focused; the latest value is sent without Enter, Tab, blur, or Add.
 - [ ] Send requests using multiple query/header rows and confirm disabled rows are omitted.
-- [ ] Exercise Basic and Bearer authorization without persisting credentials to History.
+- [ ] Exercise Basic/Bearer auth and manually entered Authorization/AppToken headers; confirm History automatically retains the sent request without Save.
 - [ ] Send representative JSON, raw, URL-encoded, and multipart/file-upload bodies.
 - [ ] Verify compression decoding and a multi-hop redirect with the selected redirect policy.
 - [ ] Verify timeout and cancellation return the UI to a usable state.
@@ -65,7 +65,7 @@ for an artifact with a different checksum. Use temporary captures and textual is
 - [ ] Search History, replay a completed request, and send it again.
 - [ ] Delete one History entry, cancel Clear all, then confirm Clear all; saved requests and
       open drafts remain intact.
-- [ ] Quit and relaunch; completed History remains available and sensitive values remain redacted.
+- [ ] Quit and relaunch; History restores sent headers, query values, auth, body and options for replay. Response previews remain sanitized, and the runtime Cookie Jar is not restored.
 - [ ] Uninstall succeeds. Existing local History behavior matches `docs/installation.md`.
 
 ## Native Flow drafts (P5.1)

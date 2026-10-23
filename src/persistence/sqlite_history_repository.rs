@@ -133,6 +133,46 @@ impl SqliteHistoryRepository {
         Ok(connection)
     }
 
+    fn prepare_private_file(&self) -> Result<(), HistoryRepositoryError> {
+        let prepare = || -> std::io::Result<()> {
+            let mut options = fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            match options.open(&self.path) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+            // V3 retains sent credentials. Tighten existing databases and WAL sidecars too,
+            // before opening a connection which could write a new complete request.
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                for suffix in ["", "-wal", "-shm"] {
+                    let mut path = self.path.as_os_str().to_os_string();
+                    path.push(suffix);
+                    match fs::set_permissions(path, fs::Permissions::from_mode(0o600)) {
+                        Ok(()) => {}
+                        Err(error)
+                            if !suffix.is_empty()
+                                && error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+            }
+            Ok(())
+        };
+        prepare().map_err(|error| HistoryRepositoryError::Io {
+            operation: HistoryRepositoryOperation::Initialize,
+            path: self.path.clone(),
+            message: error.to_string(),
+        })
+    }
+
     fn open_current_schema(
         &self,
         operation: HistoryRepositoryOperation,
@@ -253,6 +293,7 @@ impl SqliteHistoryRepository {
 impl HistoryRepository for SqliteHistoryRepository {
     fn initialize(&mut self) -> Result<(), HistoryRepositoryError> {
         self.ensure_parent_directory()?;
+        self.prepare_private_file()?;
         let mut connection = self.open_connection(HistoryRepositoryOperation::Initialize)?;
         let version = schema_version(
             &connection,
