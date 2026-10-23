@@ -600,8 +600,8 @@ fn cookie_jar_stores_sends_and_clears_through_one_real_ui_session(cx: &mut TestA
         assert_eq!(workspace.history_len(), 1);
         assert_eq!(
             workspace.history()[0].request.url,
-            format!("{}/cookies/set", server.url()),
-            "the SQLite History projection must remove the sensitive session query"
+            set_url,
+            "History must preserve the authored session query for replay"
         );
         assert!(workspace.history()[0].request.headers.is_empty());
         let ResponseState::Success { status, body, .. } =

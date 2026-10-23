@@ -11,6 +11,8 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   parameters, body and options in History so replay works after restart without explicit Save.
   V3 snapshots preserve complete requests while keeping response previews sanitized and older
   snapshots readable. Restrict Unix history database and WAL file permissions to their owner.
+- Update the locked `rustls-webpki` dependency to 0.103.16 to fix certificate verification
+  accepting distrusted intermediates (RUSTSEC-2026-0382).
 
 ### Changed
 

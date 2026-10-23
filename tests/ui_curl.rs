@@ -279,12 +279,30 @@ fn imported_request_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut T
         lower.contains("authorization: bearer first\r\n")
             && lower.contains("authorization: bearer second\r\n")
     );
+    assert!(lower.contains("accept: */*\r\n"));
     assert_eq!(body, "用户 & body");
     model.read_with(cx, |m, _| {
         assert_eq!(m.history_len(), 1);
-        // Existing History redaction canonicalizes percent escapes; the wire assertion above
-        // checks the imported raw query independently.
-        assert_eq!(m.history()[0].request.url, url.replace("%2f", "%2F"));
+        // History preserves the same raw query and ordered headers that reached the server.
+        let recorded = &m.history()[0].request;
+        assert_eq!(recorded.url, url);
+        assert_eq!(recorded.method, HttpMethod::POST);
+        assert_eq!(recorded.body, RequestBody::Raw("用户 & body".to_string()));
+        assert_eq!(
+            recorded
+                .headers
+                .iter()
+                .map(|(name, value)| (name.as_str(), value.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("X-Tag", "one"),
+                ("X-Tag", "two"),
+                ("Authorization", "Bearer first"),
+                ("Authorization", "Bearer second"),
+                ("Content-Type", "text/plain"),
+                ("Accept", "*/*"),
+            ]
+        );
     });
     server.join().unwrap();
 }

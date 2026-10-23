@@ -245,7 +245,8 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
         assert!(newest
             .headers
             .iter()
-            .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
+            .any(|(name, value)| name.eq_ignore_ascii_case("authorization")
+                && value == "Bearer tab-b-e2e-token"));
 
         let oldest = &workspace.history()[1].request;
         assert_eq!(oldest.method, HttpMethod::GET);
@@ -255,6 +256,10 @@ fn multi_tab_mouse_enter_space_keep_requests_responses_and_history_isolated(
             .headers
             .iter()
             .any(|(name, value)| name.eq_ignore_ascii_case("x-tab") && value == "A"));
+        assert!(oldest
+            .headers
+            .iter()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("authorization")));
     });
 
     click(cx, "close-tab-1").unwrap();
@@ -1102,10 +1107,8 @@ fn basic_authorization_editor_affects_the_real_request(cx: &mut TestAppContext) 
             .cloned()
             .collect::<Vec<_>>()
     });
-    assert!(
-        authorization_headers.is_empty(),
-        "the request must send Basic Auth, but SQLite History must not persist it"
-    );
+    assert_eq!(authorization_headers.len(), 1);
+    assert_eq!(authorization_headers[0].1, "Basic dWktdXNlcjp1aS1wYXNz");
     assert!(cx.debug_bounds("response-content").is_some());
     ui::open_history(cx);
     assert!(cx.debug_bounds("history-item-0").is_some());
