@@ -1,6 +1,6 @@
 # Postman GPUI
 
-[![下载量](https://img.shields.io/github/downloads/847850277/postman-gpui/total)](https://github.com/847850277/postman-gpui/releases)
+[![下载量](https://img.shields.io/github/downloads/847850277/postman-gpui/total?v=08dc9a261f6d48efbf347e101b3f9707)](https://github.com/847850277/postman-gpui/releases)
 
 Postman GPUI 使用 Rust 和 GPUI 构建原生跨平台 HTTP 客户端，并提供用于编排可重复执行的
 HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 用于在命令行检查和执行请求文件与流程。

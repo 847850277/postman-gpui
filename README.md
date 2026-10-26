@@ -1,6 +1,6 @@
 # Postman GPUI
 
-[![Downloads](https://img.shields.io/github/downloads/847850277/postman-gpui/total)](https://github.com/847850277/postman-gpui/releases)
+[![Downloads](https://img.shields.io/github/downloads/847850277/postman-gpui/total?v=08dc9a261f6d48efbf347e101b3f9707)](https://github.com/847850277/postman-gpui/releases)
 
 Postman GPUI combines a native, cross-platform HTTP client built with Rust and GPUI with a
 Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requests, or
