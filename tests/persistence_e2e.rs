@@ -9,7 +9,7 @@ mod ui;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{TimeZone, Utc};
-use gpui_kit::{AppContext, Entity, TestAppContext, VisualTestContext};
+use gpui_kit::{AppContext, ClipboardItem, Entity, TestAppContext, VisualTestContext};
 use mockito::Matcher;
 use postman_gpui::{
     app::{
@@ -60,6 +60,24 @@ fn close_app(app: Entity<gpui_kit::component::Root>, cx: &mut VisualTestContext)
     cx.update(|window, _| window.remove_window());
     cx.run_until_parked();
     drop(app);
+}
+
+fn assert_body_editor_text(cx: &mut VisualTestContext, expected: &str) {
+    // Inspect the real editor buffer: a correct ViewModel alone cannot prove that History
+    // projected its JSON into the retained textarea shown to the user.
+    cx.write_to_clipboard(ClipboardItem::new_string("body-copy-sentinel".into()));
+    click(cx, "body-input").unwrap();
+    cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+        "cmd-a cmd-c"
+    } else {
+        "ctrl-a ctrl-c"
+    });
+    assert_eq!(
+        cx.read_from_clipboard()
+            .and_then(|item| item.text())
+            .as_deref(),
+        Some(expected)
+    );
 }
 
 fn seed_history(path: &Path, entries_newest_first: &[HistoryEntry]) {
@@ -253,6 +271,13 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
         assert!(payload.contains(retained), "History lost {retained}");
     }
 
+    // Reopening immediately after Send restores the sent JSON, even if its still-focused
+    // editor was cleared afterwards. Unsent edits must not overwrite the History snapshot.
+    replace_text(cx, "body-input", "").unwrap();
+    ui::open_history(cx);
+    click(cx, "history-item-0").unwrap();
+    assert_body_editor_text(cx, json_body);
+
     // Mouse activation restores the same complete Request that SQLite stores.
     click(cx, "new-tab-button").unwrap();
     type_into(cx, "url-input", "https://draft.example/mouse").unwrap();
@@ -300,6 +325,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
         assert_eq!(workspace.history_len(), 1);
     });
     assert!(cx.debug_bounds("body-input").is_some());
+    assert_body_editor_text(cx, json_body);
     assert!(cx.debug_bounds("response-historical-badge").is_some());
     click(cx, "request-pane-params").unwrap();
     assert!(cx.debug_bounds("param-row-toggle-0").is_some());
@@ -310,6 +336,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
     assert!(cx.debug_bounds("authorization-input").is_some());
     assert!(cx.debug_bounds("authorization-status").is_some());
     click(cx, "request-pane-body").unwrap();
+    assert_body_editor_text(cx, json_body);
 
     // The search editor precedes History rows in the focus order. Tab focuses the first row;
     // Enter and Space must both invoke the same stable-ID command as the mouse path above.
@@ -333,6 +360,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
             .to_string()),
         "history-e2e-token"
     );
+    assert_body_editor_text(cx, json_body);
 
     replace_text(cx, "url-input", "https://draft.example/space").unwrap();
     ui::open_history(cx);
@@ -355,6 +383,7 @@ fn current_session_history_replay_restores_the_complete_request_for_mouse_enter_
             .to_string()),
         "history-e2e-token"
     );
+    assert_body_editor_text(cx, json_body);
 
     // No blur, Enter-on-editor, or submit-time projection is needed before Send.
     click(cx, "send-button").unwrap();
@@ -615,6 +644,7 @@ fn json_request_is_recovered_and_replayed_through_the_rendered_history_action(
     assert!(cx.debug_bounds("response-historical-badge").is_some());
     assert!(cx.debug_bounds("response-copy-button").is_some());
     assert!(cx.debug_bounds("response-pane-cookies").is_none());
+    assert_body_editor_text(cx, json_body);
 
     ui::open_history(cx);
     type_into(cx, "history-search-input", "does-not-match-selected-row").unwrap();
