@@ -108,6 +108,56 @@ fn literal_url_uses_the_inspector_width_and_keeps_native_editing(cx: &mut TestAp
 }
 
 #[gpui_kit::test]
+fn long_url_remains_fully_visible_with_the_caret_at_the_end(cx: &mut TestAppContext) {
+    let (app, cx) = setup(cx);
+    let flows = app.read_with(cx, |app, _| app.flows.clone());
+    click(cx, "nav-flows");
+    create(cx, "Long URL visibility");
+    add(cx);
+    let input = inspector(&flows, cx).read_with(cx, |v, _| v.url.clone());
+    let handle = cx.update(|w, _| w.window_handle());
+    // The URL from #258's reopening, entered through native paste so the caret follows its end.
+    let url = "http://127.0.0.1:18081/ok?query=abcdefghijklmnopqrstuvwxyz";
+    for theme in [
+        gpui_kit::component::ThemeMode::Light,
+        gpui_kit::component::ThemeMode::Dark,
+    ] {
+        cx.update(|_, cx| crate::ui::theme::apply(theme, cx));
+        for scale in [1., 2.] {
+            cx.simulate_window_scale_factor_change(handle, scale);
+            for (width, height) in [(1280., 800.), (1920., 1200.), (1024., 768.), (768., 720.)] {
+                cx.simulate_window_resize(handle, gpui_kit::size(px(width), px(height)));
+                settle(cx);
+                top(cx);
+                inspector_click(cx, "flow-step-url");
+                press(cx, "secondary-a");
+                cx.write_to_clipboard(ClipboardItem::new_string(url.into()));
+                press(cx, "secondary-v");
+                settle(cx);
+                input.read_with(cx, |input, _| {
+                    assert_eq!(input.cursor(), url.len());
+                    assert_eq!(input.value(), url);
+                    assert_eq!(
+                        input.scroll_offset().x,
+                        px(0.),
+                        "URL beginning scrolled out at {width}x{height}, scale {scale}"
+                    );
+                    let viewport = input.text_bounds().unwrap();
+                    let text = input.range_to_bounds(&(0..url.len())).unwrap();
+                    assert!(
+                        text.left() >= viewport.left() && text.right() <= viewport.right(),
+                        "URL clipped at {width}x{height}, scale {scale}: {text:?} in {viewport:?}"
+                    );
+                    let (caret, _) = input.cursor_layout().unwrap();
+                    assert!(caret.left() >= viewport.left() && caret.right() <= viewport.right());
+                });
+                assert_eq!(request(&flows, cx).url, TextTemplate::literal(url));
+            }
+        }
+    }
+}
+
+#[gpui_kit::test]
 fn source_controls_apply_native_semantics_and_keep_last_valid_fields(cx: &mut TestAppContext) {
     let (app, cx) = setup(cx);
     let flows = app.read_with(cx, |app, _| app.flows.clone());

@@ -57,7 +57,9 @@ impl SplitKind {
     fn default_size(self) -> f32 {
         match self {
             Self::Library => 12.25,
-            Self::Inspector => 18.75,
+            // Leave room for a URL's origin, path, and query while editing at the end.
+            // The split still yields space to the canvas at smaller window sizes.
+            Self::Inspector => 32.,
             Self::Results => 15.,
         }
     }
