@@ -1,8 +1,8 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use gpui_kit::{
-    px, size, App, AppContext, Bounds, KeyBinding, Menu, MenuItem, TitlebarOptions, WindowBounds,
-    WindowOptions,
+    px, size, AnyWindowHandle, App, AppContext, Bounds, KeyBinding, Menu, MenuItem,
+    TitlebarOptions, WeakEntity, WindowBounds, WindowOptions,
 };
 use postman_gpui::{
     app::{PostmanApp, Quit},
@@ -90,11 +90,77 @@ fn main() {
             cx.new(|cx| PostmanApp::new(window, cx))
         })
         .expect("failed to open window");
-        let owner = view.downgrade();
-        cx.on_action(move |_: &Quit, cx| {
+        register_quit_handler(window_handle, view.downgrade(), cx);
+    });
+}
+
+fn register_quit_handler(
+    window_handle: AnyWindowHandle,
+    owner: WeakEntity<PostmanApp>,
+    cx: &mut App,
+) {
+    cx.on_action(move |_: &Quit, cx| {
+        // The global fallback can run while GPUI is still dispatching in this window.
+        // Wait for that borrow to end before starting the unsaved-document checks.
+        let owner = owner.clone();
+        cx.defer(move |cx| {
             let _ = window_handle.update(cx, |_, window, cx| {
                 let _ = owner.update(cx, |view, cx| view.request_quit(window, cx));
             });
         });
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui_kit::{test::TestWindowExt, TestAppContext, VisualTestContext};
+    use postman_gpui::app::WorkspaceViewModel;
+    use std::path::Path;
+
+    #[gpui_kit::test]
+    fn menu_quit_after_opening_another_flow_from_a_focused_editor(cx: &mut TestAppContext) {
+        let handle = cx.update(|cx| {
+            load_embedded_fonts(cx).unwrap();
+            postman_gpui::ui::kit::init(cx);
+            cx.set_reduce_motion(true);
+            let model = cx.new(|_| WorkspaceViewModel::new());
+            let (handle, view) = gpui_kit::open_window(WindowOptions::default(), cx, |w, cx| {
+                cx.new(|cx| PostmanApp::with_view_model(model, w, cx))
+            })
+            .unwrap();
+            register_quit_handler(handle, view.downgrade(), cx);
+            handle
+        });
+        let mut win = VisualTestContext::from_window(handle, cx);
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/flows");
+        win.run_until_parked();
+        win.update(|w, cx| {
+            w.activate_window();
+            w.click("nav-flows", cx);
+            w.click("flow-open", cx);
+        });
+        win.simulate_path_prompt_response(|_| Some(vec![fixtures.join("echo-chain.http.yml")]));
+        win.run_until_parked();
+        win.update(|w, cx| {
+            w.click("flow-step-name", cx);
+            w.input(" edited", cx);
+            w.press("secondary-o", cx);
+        });
+        win.simulate_path_prompt_response(|_| Some(vec![fixtures.join("poll-status.http.yml")]));
+        win.run_until_parked();
+        assert!(win.debug_bounds("flow-row-2").is_some());
+
+        cx.update(|cx| {
+            assert_eq!(cx.active_window(), Some(handle));
+            cx.dispatch_action(&Quit);
+        });
+        win.run_until_parked();
+        assert!(win.debug_bounds("flow-close-dialog").is_some());
+        win.update(|w, cx| w.click("flow-close-cancel", cx));
+        win.run_until_parked();
+        assert!(win.debug_bounds("flow-close-dialog").is_none());
+        assert!(win.debug_bounds("flow-row-1").is_some());
+        assert!(win.debug_bounds("flow-row-2").is_some());
+    }
 }
