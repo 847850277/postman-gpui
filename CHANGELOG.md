@@ -5,6 +5,15 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-06
+
+### Fixed
+
+- Widen the Flow inspector's default width to keep long step URLs and the end caret visible
+  while editing. Refs #258.
+- Restore Quit from the application menu after opening another Flow from a focused editor,
+  preserving Save / Discard / Cancel protection for unsaved changes.
+
 ## [0.1.2] - 2026-10-23
 
 ### Fixed
