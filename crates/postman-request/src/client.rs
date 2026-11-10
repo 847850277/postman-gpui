@@ -118,6 +118,20 @@ impl RequestClient {
                         path.display()
                     ))
                 })?;
+                // Hyper needs explicit framing for streamed GET/HEAD bodies on HTTP/1.1.
+                if matches!(request.method, HttpMethod::GET | HttpMethod::HEAD)
+                    && !request.headers.iter().any(|(name, _)| {
+                        name.eq_ignore_ascii_case("content-length")
+                            || name.eq_ignore_ascii_case("transfer-encoding")
+                    })
+                {
+                    builder = match file.metadata().await {
+                        Ok(metadata) if metadata.is_file() => {
+                            builder.header(reqwest::header::CONTENT_LENGTH, metadata.len())
+                        }
+                        _ => builder.header(reqwest::header::TRANSFER_ENCODING, "chunked"),
+                    };
+                }
                 builder.body(reqwest::Body::wrap_stream(
                     tokio_util::io::ReaderStream::new(file),
                 ))

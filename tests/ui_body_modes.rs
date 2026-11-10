@@ -142,15 +142,16 @@ fn binary_picker_sends_exact_file_bytes_and_remove_requires_a_file(cx: &mut Test
     std::fs::write(file.path(), &bytes).unwrap();
     let mut server = mockito::Server::new();
     let sent = server
-        .mock("POST", "/binary")
+        .mock("HEAD", "/binary")
         .match_header("content-type", "application/octet-stream")
+        .match_header("content-length", bytes.len().to_string().as_str())
         .match_body(bytes.clone())
         .with_status(201)
         .create();
     let model = cx.new(|_| {
         let mut model = WorkspaceViewModel::new();
         let request = model.active_request_mut().unwrap();
-        request.set_method(HttpMethod::POST);
+        request.set_method(HttpMethod::HEAD);
         request.set_url(format!("{}/binary", server.url()));
         model
     });

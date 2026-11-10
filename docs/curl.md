@@ -60,9 +60,13 @@ Unsupported options and conflicting modes produce an inline error and disable
 Import; nothing is silently discarded. This includes shell variables/substitution,
 command chaining, pipes/redirection, ANSI-C quoting, unmatched quotes, multiple
 URLs, custom methods, URL credentials, and interactive password prompts. An
-unquoted newline inside a command must be escaped with a continuation. Native
-bodies are supported only for POST, PUT and PATCH: other methods with body data
-must use `--get` or are rejected, including explicit empty bodies.
+unquoted newline inside a command must be escaped with a continuation.
+
+All seven supported methods can carry an explicit body. For example,
+`curl -X DELETE --json '{"ids":[1,2]}' https://example.test/items` imports a
+DELETE request with those JSON bytes. Use `-X GET` to send data in a GET body
+and `--get` to put it in the query string. Use `-X HEAD` for a HEAD request
+with data. cURL's `--head` option conflicts with body data.
 
 File/stdin bodies, header/cookie files, multipart imports, Windows CMD/PowerShell
 syntax, proxy/certificate settings, and `--insecure` are outside this feature.
@@ -77,11 +81,18 @@ and explains `--follow`. Export lets cURL infer POST from its body/form options,
 so ordinary POST, GET and HEAD requests can use `--location` on older versions.
 Other custom methods (including POST without a body) use **`--follow` (requires
 cURL 8.16+)** when Follow redirects is enabled, with a visible version requirement.
-HEAD exports `--head` so cURL does not wait for a response body. Redirect limits and request timeouts are emitted explicitly.
+Bodyless HEAD exports `--head`. HEAD with data exports `--request HEAD` so cURL
+can send the payload. In that mode cURL can wait for response bytes if the server
+advertises a nonzero Content-Length. When following redirects, exported non-POST
+requests with a body retain it on 301 and 302. HEAD also retains it on 303.
+Import checks each of these redirects separately for both `--location` and
+`--follow`. For example, a GET with data needs both `--post301` and `--post302`.
+A HEAD with data also needs `--post303`. An explicit empty body follows the same rules.
+Redirect limits and request timeouts are emitted explicitly.
 See the official [cURL manual](https://curl.se/docs/manpage.html#--follow).
 
 Compared with the JavaScript prototype, the native converter deliberately rejects
-arbitrary method names, insecure TLS, unsupported body/method pairs, and header
+arbitrary method names, insecure TLS, conflicting command-line options, and header
 forms the model cannot express. It persists actual request timeout/redirect
 options instead of retaining inert cURL option strings. It preserves raw queries,
 supports native Basic auth, and refuses conversions that lose header values or the

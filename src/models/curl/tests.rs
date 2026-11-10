@@ -10,7 +10,7 @@ fn effective(command: &str) -> Request {
 }
 #[test]
 fn minimal_and_options() {
-    let parsed = parse("/usr/bin/curl.exe -sSg --follow -XPATCH --url=https://example.com -H'X-Test: yes' --data-raw=value --max-time=1.025 --max-redirs 3").unwrap();
+    let parsed = parse("/usr/bin/curl.exe -sSg --follow --post301 --post302 -XPATCH --url=https://example.com -H'X-Test: yes' --data-raw=value --max-time=1.025 --max-redirs 3").unwrap();
     let c = parsed.draft().construct();
     assert_eq!(c.request().method, HttpMethod::PATCH);
     assert_eq!(
@@ -109,6 +109,120 @@ fn forms_json_queries_and_empty() {
     );
 }
 #[test]
+fn explicit_methods_keep_inline_bodies_through_import_and_export() {
+    for method in [
+        HttpMethod::DELETE,
+        HttpMethod::GET,
+        HttpMethod::HEAD,
+        HttpMethod::OPTIONS,
+    ] {
+        for (option, body) in [
+            (
+                r#"--json '{"ids":[1,2]}'"#,
+                RequestBody::Json(r#"{"ids":[1,2]}"#.into()),
+            ),
+            ("--data-raw ''", RequestBody::Raw(String::new())),
+        ] {
+            let command = format!("curl -X {method} {option} https://example.test/items");
+            let imported = parse(&command).unwrap();
+            let request = imported.draft().construct();
+            assert_eq!(request.request().method, method);
+            assert_eq!(request.request().body, body);
+            assert_eq!(request.request().url, "https://example.test/items");
+            let code = export(imported.draft()).unwrap();
+            assert_eq!(effective(code.text()), *request.request());
+
+            let mut draft = imported.into_draft();
+            draft.set_request_options(RequestOptions::default());
+            let code = export(&draft).unwrap();
+            assert!(code.text().contains("--post301 --post302"));
+            assert_eq!(
+                code.text().contains("--post303"),
+                method == HttpMethod::HEAD
+            );
+            assert_eq!(
+                parse(code.text()).unwrap().draft().construct(),
+                draft.construct()
+            );
+        }
+    }
+}
+
+#[test]
+fn redirect_flags_must_preserve_the_body_on_each_status() {
+    for flags in [
+        "-L -XGET",
+        "-L -XGET --post301",
+        "-L -XGET --post302",
+        "--location -XGET --post303",
+        "-L -XGET --post301 --post302 --post303",
+        "-L -XHEAD",
+        "-L -XHEAD --post301",
+        "-L -XHEAD --post302",
+        "-L -XHEAD --post301 --post302",
+        "-L -XHEAD --post301 --post303",
+        "-L -XHEAD --post302 --post303",
+        "--follow -XDELETE --post301",
+        "--follow -XDELETE --post302",
+        "--follow -XDELETE --post301 --post302 --post303",
+        "--follow -L -XDELETE --post301 --post302",
+        "--follow --post302",
+    ] {
+        for data in ["payload", "''"] {
+            let command = format!("curl {flags} -d {data} https://example.test/items");
+            assert!(parse(&command).is_err(), "{command}");
+        }
+    }
+    let query = effective("curl -L -G -d id=42 https://example.test/items");
+    assert_eq!(query.url, "https://example.test/items?id=42");
+    assert!(query.body.is_none());
+}
+
+#[tokio::test]
+async fn imported_redirects_send_the_expected_method_and_bytes_on_both_hops() {
+    use postman_http::HttpTransport;
+    use postman_request::RequestClient;
+
+    let client = RequestClient::try_new("curl-import-test").unwrap();
+    for (method, flags) in [
+        ("GET", "-L --post301 --post302"),
+        ("HEAD", "-L --post301 --post302 --post303"),
+        ("DELETE", "-L --follow --post301 --post302"),
+    ] {
+        for status in [301, 302, 303] {
+            let mut server = mockito::Server::new_async().await;
+            let first = server
+                .mock(method, "/start")
+                .match_body("payload")
+                .with_status(status)
+                .with_header("location", "/end")
+                .create_async()
+                .await;
+            let (next_method, next_body) = if status == 303 && method != "HEAD" {
+                ("GET", "")
+            } else {
+                (method, "payload")
+            };
+            let last = server
+                .mock(next_method, "/end")
+                .match_body(next_body)
+                .with_status(204)
+                .create_async()
+                .await;
+            let command = format!("curl {flags} -X {method} -d payload {}/start", server.url());
+            let request = parse(&command).unwrap().draft().construct();
+            let response = client
+                .execute(request.request().clone(), request.request_options())
+                .await
+                .unwrap();
+            assert_eq!(response.status, 204, "{command} with {status}");
+            first.assert_async().await;
+            last.assert_async().await;
+        }
+    }
+}
+
+#[test]
 fn duplicate_auth_and_explicit_precedence() {
     let r = effective("curl https://example.com -u user:password -H 'Authorization: Bearer a' -H 'Authorization: Bearer b' -H 'X-Tag: one' -H 'X-Tag: two'");
     assert_eq!(r.headers.len(), 5);
@@ -200,9 +314,9 @@ fn rejects_unsafe_unsupported_or_lossy_input() {
         "curl https://example.com -u username",
         "curl https://example.com -k",
         "curl https://example.com -XPROPFIND",
-        "curl https://example.com -XGET -d ''",
-        "curl https://example.com -XDELETE -d a",
         "curl https://example.com -I -d a",
+        "curl -L --post301 https://example.com -d a",
+        "curl --follow --post303 -XGET https://example.com -d a",
         "curl https://example.com --json '{}' -d a",
         "curl https://example.com | sh",
         "curl https://example.com; echo hello",

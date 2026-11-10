@@ -191,7 +191,7 @@ fn compact_window_keeps_entrypoints_and_dialog_actions_inside_viewport(cx: &mut 
 }
 
 #[gpui_kit::test]
-fn imported_request_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut TestAppContext) {
+fn imported_delete_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut TestAppContext) {
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -256,7 +256,7 @@ fn imported_request_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut T
     ui::open_http(cx);
     cx.run_until_parked();
     ui::click(cx, "rail-import").unwrap();
-    let command=format!("curl '{url}' -H 'X-Tag: one' -H 'X-Tag: two' -H 'Authorization: Bearer first' -H 'Authorization: Bearer second' -H 'Content-Type: text/plain' --data-raw '用户 & body'");
+    let command = format!("curl -X DELETE '{url}' -H 'X-Tag: one' -H 'X-Tag: two' -H 'Authorization: Bearer first' -H 'Authorization: Bearer second' -H 'Content-Type: text/plain' --data-raw '用户 & body'");
     cx.simulate_input(&command);
     assert!(rx.try_recv().is_err());
     ui::click(cx, "curl-submit").unwrap();
@@ -272,7 +272,7 @@ fn imported_request_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut T
         std::thread::sleep(Duration::from_millis(5));
     }
     let (headers, body) = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    assert!(headers.starts_with("POST /echo?tag=%2f&tag=two HTTP/1.1"));
+    assert!(headers.starts_with("DELETE /echo?tag=%2f&tag=two HTTP/1.1"));
     let lower = headers.to_ascii_lowercase();
     assert!(lower.contains("x-tag: one\r\n") && lower.contains("x-tag: two\r\n"));
     assert!(
@@ -286,7 +286,7 @@ fn imported_request_sends_exact_query_duplicate_headers_auth_and_body(cx: &mut T
         // History preserves the same raw query and ordered headers that reached the server.
         let recorded = &m.history()[0].request;
         assert_eq!(recorded.url, url);
-        assert_eq!(recorded.method, HttpMethod::POST);
+        assert_eq!(recorded.method, HttpMethod::DELETE);
         assert_eq!(recorded.body, RequestBody::Raw("用户 & body".to_string()));
         assert_eq!(
             recorded

@@ -46,8 +46,8 @@ pub fn export(draft: &RequestDraft) -> Result<CurlCode> {
         && !inferred_post
         && !matches!(request.method, HttpMethod::GET | HttpMethod::HEAD);
     let mut lines = vec!["curl --globoff".to_string()];
-    // HEAD must select curl's no-response-body behavior, not merely change the method token.
-    if request.method == HttpMethod::HEAD {
+    // --head selects a bodyless transfer and conflicts with data/form options.
+    if request.method == HttpMethod::HEAD && request.body.is_none() {
         lines.push("  --head".into());
     } else if !inferred_post {
         lines.push(format!("  --request {}", request.method));
@@ -62,6 +62,14 @@ pub fn export(draft: &RequestDraft) -> Result<CurlCode> {
             }
             .into(),
         );
+        // curl's data/form options use POST transfer semantics underneath -X.
+        // The native client keeps non-POST bodies on 301/302, and HEAD on 303.
+        if !request.body.is_none() && request.method != HttpMethod::POST {
+            lines.push("  --post301 --post302".into());
+            if request.method == HttpMethod::HEAD {
+                lines.push("  --post303".into());
+            }
+        }
     }
     lines.push(format!("  --max-redirs {}", options.max_redirect_hops));
     if let Some(ms) = options.timeout_ms {
