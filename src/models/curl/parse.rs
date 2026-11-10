@@ -112,7 +112,8 @@ pub fn parse(command: &str) -> Result<CurlImport> {
     let (mut basic, mut bearer) = (None, None);
     let mut suppressed = Vec::new();
     let mut follow = false;
-    let mut keep_post_on_301_or_302 = false;
+    let mut keep_post_on_301 = false;
+    let mut keep_post_on_302 = false;
     let mut keep_post_on_303 = false;
     let mut compressed = false;
     for (flag, value) in args {
@@ -137,11 +138,11 @@ pub fn parse(command: &str) -> Result<CurlImport> {
             "--head" => head = true,
             "--get" => get = true,
             "--globoff" => globoff = true,
-            "--location" => options.redirect_policy = RedirectPolicy::Follow,
-            "--post301" | "--post302" => keep_post_on_301_or_302 = true,
+            "--post301" => keep_post_on_301 = true,
+            "--post302" => keep_post_on_302 = true,
             "--post303" => keep_post_on_303 = true,
-            "--follow" => {
-                follow = true;
+            "--location" | "--follow" => {
+                follow = flag == "--follow";
                 options.redirect_policy = RedirectPolicy::Follow;
             }
             "--max-time" => options.timeout_ms = timeout(&value)?,
@@ -270,21 +271,30 @@ pub fn parse(command: &str) -> Result<CurlImport> {
     } else {
         HttpMethod::GET
     });
-    if options.redirect_policy == RedirectPolicy::Follow
-        && has_body
-        && !get
-        && ((keep_post_on_301_or_302 && request.method == HttpMethod::POST)
-            || (keep_post_on_303 && request.method != HttpMethod::HEAD))
-    {
-        return Err(CurlError::new(
-            "These --post redirect options would retain a body that the native client drops.",
-        ));
-    }
-    if !follow
-        && options.redirect_policy == RedirectPolicy::Follow
-        && method.is_some_and(|m| !matches!(m, HttpMethod::GET | HttpMethod::HEAD))
-    {
-        return Err(CurlError::new("--location with a custom method keeps that method on redirects, which the native client cannot represent. Use --follow (cURL 8.16+) for native redirect semantics."));
+    if options.redirect_policy == RedirectPolicy::Follow {
+        if !follow && method.is_some_and(|m| !matches!(m, HttpMethod::GET | HttpMethod::HEAD)) {
+            return Err(CurlError::new("--location with a custom method keeps that method on redirects, which the native client cannot represent. Use --follow (cURL 8.16+) for native redirect semantics."));
+        }
+        if has_body && !get {
+            // With data, cURL uses POST transfer semantics even when -X changes the verb.
+            let (expected, hint) = match request.method {
+                HttpMethod::POST => (
+                    (false, false, false),
+                    "omit --post301, --post302 and --post303",
+                ),
+                HttpMethod::HEAD => ((true, true, true), "use --post301, --post302 and --post303"),
+                _ => (
+                    (true, true, false),
+                    "use --post301 and --post302 and omit --post303",
+                ),
+            };
+            if (keep_post_on_301, keep_post_on_302, keep_post_on_303) != expected {
+                return Err(CurlError::new(format!(
+                    "To match the native client's redirect behavior for a {} body, {hint}.",
+                    request.method
+                )));
+            }
+        }
     }
     let is_json = !json.is_empty();
     let body = if is_json {

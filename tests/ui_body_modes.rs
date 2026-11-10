@@ -144,6 +144,7 @@ fn binary_picker_sends_exact_file_bytes_and_remove_requires_a_file(cx: &mut Test
     let sent = server
         .mock("HEAD", "/binary")
         .match_header("content-type", "application/octet-stream")
+        .match_header("content-length", bytes.len().to_string().as_str())
         .match_body(bytes.clone())
         .with_status(201)
         .create();

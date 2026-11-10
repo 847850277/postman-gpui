@@ -85,6 +85,9 @@ Bodyless HEAD exports `--head`. HEAD with data exports `--request HEAD` so cURL
 can send the payload. In that mode cURL can wait for response bytes if the server
 advertises a nonzero Content-Length. When following redirects, exported non-POST
 requests with a body retain it on 301 and 302. HEAD also retains it on 303.
+Import checks each of these redirects separately for both `--location` and
+`--follow`. For example, a GET with data needs both `--post301` and `--post302`.
+A HEAD with data also needs `--post303`. An explicit empty body follows the same rules.
 Redirect limits and request timeouts are emitted explicitly.
 See the official [cURL manual](https://curl.se/docs/manpage.html#--follow).
 

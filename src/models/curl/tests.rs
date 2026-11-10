@@ -10,7 +10,7 @@ fn effective(command: &str) -> Request {
 }
 #[test]
 fn minimal_and_options() {
-    let parsed = parse("/usr/bin/curl.exe -sSg --follow -XPATCH --url=https://example.com -H'X-Test: yes' --data-raw=value --max-time=1.025 --max-redirs 3").unwrap();
+    let parsed = parse("/usr/bin/curl.exe -sSg --follow --post301 --post302 -XPATCH --url=https://example.com -H'X-Test: yes' --data-raw=value --max-time=1.025 --max-redirs 3").unwrap();
     let c = parsed.draft().construct();
     assert_eq!(c.request().method, HttpMethod::PATCH);
     assert_eq!(
@@ -144,6 +144,77 @@ fn explicit_methods_keep_inline_bodies_through_import_and_export() {
                 parse(code.text()).unwrap().draft().construct(),
                 draft.construct()
             );
+        }
+    }
+}
+
+#[test]
+fn redirect_flags_must_preserve_the_body_on_each_status() {
+    for flags in [
+        "-L -XGET",
+        "-L -XGET --post301",
+        "-L -XGET --post302",
+        "-L -XGET --post301 --post302 --post303",
+        "-L -XHEAD",
+        "-L -XHEAD --post301 --post302",
+        "-L -XHEAD --post301 --post303",
+        "-L -XHEAD --post302 --post303",
+        "--follow -XDELETE --post301",
+        "--follow -XDELETE --post302",
+        "--follow -XDELETE --post301 --post302 --post303",
+        "--follow -L -XDELETE --post301 --post302",
+        "--follow --post302",
+    ] {
+        for data in ["payload", "''"] {
+            let command = format!("curl {flags} -d {data} https://example.test/items");
+            assert!(parse(&command).is_err(), "{command}");
+        }
+    }
+    let query = effective("curl -L -G -d id=42 https://example.test/items");
+    assert_eq!(query.url, "https://example.test/items?id=42");
+    assert!(query.body.is_none());
+}
+
+#[tokio::test]
+async fn imported_redirects_send_the_expected_method_and_bytes_on_both_hops() {
+    use postman_http::HttpTransport;
+    use postman_request::RequestClient;
+
+    let client = RequestClient::try_new("curl-import-test").unwrap();
+    for (method, flags) in [
+        ("GET", "-L --post301 --post302"),
+        ("HEAD", "-L --post301 --post302 --post303"),
+        ("DELETE", "-L --follow --post301 --post302"),
+    ] {
+        for status in [301, 302, 303] {
+            let mut server = mockito::Server::new_async().await;
+            let first = server
+                .mock(method, "/start")
+                .match_body("payload")
+                .with_status(status)
+                .with_header("location", "/end")
+                .create_async()
+                .await;
+            let (next_method, next_body) = if status == 303 && method != "HEAD" {
+                ("GET", "")
+            } else {
+                (method, "payload")
+            };
+            let last = server
+                .mock(next_method, "/end")
+                .match_body(next_body)
+                .with_status(204)
+                .create_async()
+                .await;
+            let command = format!("curl {flags} -X {method} -d payload {}/start", server.url());
+            let request = parse(&command).unwrap().draft().construct();
+            let response = client
+                .execute(request.request().clone(), request.request_options())
+                .await
+                .unwrap();
+            assert_eq!(response.status, 204, "{command} with {status}");
+            first.assert_async().await;
+            last.assert_async().await;
         }
     }
 }
