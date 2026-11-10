@@ -109,6 +109,46 @@ fn forms_json_queries_and_empty() {
     );
 }
 #[test]
+fn explicit_methods_keep_inline_bodies_through_import_and_export() {
+    for method in [
+        HttpMethod::DELETE,
+        HttpMethod::GET,
+        HttpMethod::HEAD,
+        HttpMethod::OPTIONS,
+    ] {
+        for (option, body) in [
+            (
+                r#"--json '{"ids":[1,2]}'"#,
+                RequestBody::Json(r#"{"ids":[1,2]}"#.into()),
+            ),
+            ("--data-raw ''", RequestBody::Raw(String::new())),
+        ] {
+            let command = format!("curl -X {method} {option} https://example.test/items");
+            let imported = parse(&command).unwrap();
+            let request = imported.draft().construct();
+            assert_eq!(request.request().method, method);
+            assert_eq!(request.request().body, body);
+            assert_eq!(request.request().url, "https://example.test/items");
+            let code = export(imported.draft()).unwrap();
+            assert_eq!(effective(code.text()), *request.request());
+
+            let mut draft = imported.into_draft();
+            draft.set_request_options(RequestOptions::default());
+            let code = export(&draft).unwrap();
+            assert!(code.text().contains("--post301 --post302"));
+            assert_eq!(
+                code.text().contains("--post303"),
+                method == HttpMethod::HEAD
+            );
+            assert_eq!(
+                parse(code.text()).unwrap().draft().construct(),
+                draft.construct()
+            );
+        }
+    }
+}
+
+#[test]
 fn duplicate_auth_and_explicit_precedence() {
     let r = effective("curl https://example.com -u user:password -H 'Authorization: Bearer a' -H 'Authorization: Bearer b' -H 'X-Tag: one' -H 'X-Tag: two'");
     assert_eq!(r.headers.len(), 5);
@@ -200,9 +240,9 @@ fn rejects_unsafe_unsupported_or_lossy_input() {
         "curl https://example.com -u username",
         "curl https://example.com -k",
         "curl https://example.com -XPROPFIND",
-        "curl https://example.com -XGET -d ''",
-        "curl https://example.com -XDELETE -d a",
         "curl https://example.com -I -d a",
+        "curl -L --post301 https://example.com -d a",
+        "curl --follow --post303 -XGET https://example.com -d a",
         "curl https://example.com --json '{}' -d a",
         "curl https://example.com | sh",
         "curl https://example.com; echo hello",

@@ -566,24 +566,19 @@ impl RequestDraft {
             });
         }
 
-        let body = if self.method.allows_body() {
-            if self.content_type_source != ManagedHeaderSource::User
-                && !effective_headers
-                    .iter()
-                    .any(|header| header.name.eq_ignore_ascii_case("content-type"))
-            {
-                if let Some(value) = self.automatic_content_type() {
-                    effective_headers.push(EffectiveHeader {
-                        name: "Content-Type".to_string(),
-                        value: value.to_string(),
-                        source: EffectiveHeaderSource::Generated,
-                    });
-                }
+        if self.content_type_source != ManagedHeaderSource::User
+            && !effective_headers
+                .iter()
+                .any(|header| header.name.eq_ignore_ascii_case("content-type"))
+        {
+            if let Some(value) = self.automatic_content_type() {
+                effective_headers.push(EffectiveHeader {
+                    name: "Content-Type".to_string(),
+                    value: value.to_string(),
+                    source: EffectiveHeaderSource::Generated,
+                });
             }
-            self.body.effective_body()
-        } else {
-            RequestBody::None
-        };
+        }
 
         if self.method == HttpMethod::POST
             && self.accept_source != ManagedHeaderSource::User
@@ -605,7 +600,7 @@ impl RequestDraft {
                 .iter()
                 .map(|header| (header.name.clone(), header.value.clone()))
                 .collect(),
-            body,
+            body: self.effective_body(),
         };
         RequestConstruction {
             request,
@@ -675,8 +670,7 @@ impl RequestDraft {
         &self.body
     }
 
-    /// Effective body before method gating. The normalized construction omits it for methods that
-    /// do not carry a body while this projection preserves the editor's selected payload.
+    /// The outgoing payload for the selected body mode.
     pub fn effective_body(&self) -> RequestBody {
         self.body.effective_body()
     }
@@ -837,9 +831,6 @@ impl RequestDraft {
 
     /// Checks the selected editor draft before Send, without reading files or changing drafts.
     pub fn body_validation_error(&self) -> Option<String> {
-        if !self.method.allows_body() {
-            return None;
-        }
         match &self.body {
             RequestBodyDraft::Json(body) => serde_json::from_str::<serde_json::Value>(body)
                 .err()
@@ -1335,11 +1326,7 @@ impl RequestDraft {
             return false;
         }
 
-        let desired = if self.method.allows_body() {
-            self.automatic_content_type()
-        } else {
-            None
-        };
+        let desired = self.automatic_content_type();
         let content_type_index = self
             .headers
             .iter()
@@ -2212,8 +2199,14 @@ mod tests {
             assert_eq!(draft.construct(), construction);
 
             draft.set_method(HttpMethod::GET);
-            assert_eq!(draft.construct().request().body, RequestBody::None);
-            assert!(header_values(&draft.construct(), "content-type").is_empty());
+            assert_eq!(
+                draft.construct().request().body,
+                RequestBody::Raw(text.into())
+            );
+            assert_eq!(
+                header_values(&draft.construct(), "content-type"),
+                vec![content_type]
+            );
             draft.set_method(HttpMethod::PUT);
             assert_eq!(draft.construct(), construction);
         }
@@ -2414,15 +2407,16 @@ mod tests {
             }
             assert_eq!(draft, before, "validation must be a pure read");
 
-            draft.set_method(HttpMethod::GET);
-            assert_eq!(
-                draft.body_validation_error(),
-                None,
-                "GET does not send {kind:?}"
-            );
-            assert_eq!(draft.body_draft(), &body);
-            draft.set_method(HttpMethod::PUT);
-            assert_eq!(draft.body_validation_error(), actual);
+            for method in [
+                HttpMethod::GET,
+                HttpMethod::HEAD,
+                HttpMethod::OPTIONS,
+                HttpMethod::DELETE,
+            ] {
+                draft.set_method(method);
+                assert_eq!(draft.body_validation_error(), actual, "{method} {kind:?}");
+                assert_eq!(draft.body_draft(), &body);
+            }
         }
     }
 

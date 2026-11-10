@@ -129,7 +129,7 @@ async fn managed_auth_headers_options_and_live_rows_use_send_construction() {
 }
 
 #[tokio::test]
-async fn bodyless_methods_and_inactive_drafts_keep_send_semantics() {
+async fn selected_and_inactive_bodies_keep_send_semantics_across_methods() {
     for method in [
         HttpMethod::GET,
         HttpMethod::HEAD,

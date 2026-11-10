@@ -227,7 +227,7 @@ impl RequestViewModel {
         self.draft.body_draft()
     }
 
-    /// Derives the editor's effective body without applying HTTP-method gating.
+    /// Returns the outgoing payload for the selected body mode.
     pub fn request_body(&self) -> RequestBody {
         self.draft.effective_body()
     }
@@ -598,6 +598,10 @@ impl RequestViewModel {
         self.draft.set_request_options(entry.request_options);
         if let Some(intent) = &entry.editor_intent {
             self.draft.restore_editor_intent(intent);
+            // Older entries could retain a multipart draft while sending no body.
+            if replay_request.body.is_none() {
+                self.draft.set_body_kind(BodyKind::None);
+            }
             self.request_pane = RequestPane::Body;
             self.saved_document = None;
         }
@@ -2280,6 +2284,28 @@ mod tests {
                 RequestBody::File(path.clone())
             );
         }
+    }
+
+    #[test]
+    fn replay_of_legacy_bodyless_request_keeps_multipart_fields_inactive() {
+        let mut entry = HistoryEntry::new(
+            Request::new(HttpMethod::DELETE, "https://example.test/items"),
+            "Delete items".into(),
+        );
+        entry.editor_intent = Some(RequestEditorIntent::Multipart(vec![MultipartEditorPart {
+            enabled: true,
+            name: "id".into(),
+            value: MultipartValue::Text("42".into()),
+        }]));
+        let mut workspace = WorkspaceViewModel::new();
+        assert!(workspace.load_history_entry(&entry));
+        let replay = workspace.active_request_mut().unwrap();
+        assert_eq!(replay.build_request(), entry.request);
+        replay.set_body_kind(BodyKind::Multipart);
+        assert_eq!(
+            replay.request_body(),
+            RequestBody::Multipart(vec![MultipartPart::text("id", "42")])
+        );
     }
 
     #[test]

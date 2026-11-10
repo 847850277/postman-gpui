@@ -3,12 +3,12 @@
   "target": "local",
   "cases": [
     {
-      "name": "methods without request bodies do not send the body buffer",
+      "name": "DELETE sends the selected json body",
       "draft": {
         "method": "DELETE",
-        "path": "/users/42",
-        "body": "this must not be sent",
-        "body_kind": "raw"
+        "path": "/items",
+        "body_kind": "json",
+        "body": "{\"ids\":[1,2]}"
       },
       "mock": {
         "status": 204
@@ -16,9 +16,84 @@
       "expect": {
         "request": {
           "method": "DELETE",
-          "path": "/users/42",
-          "headers": [],
-          "body": null
+          "path": "/items",
+          "headers": [["Content-Type", "application/json"]],
+          "body": "{\"ids\":[1,2]}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 204
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "GET sends the selected raw body",
+      "draft": {
+        "method": "GET",
+        "path": "/items",
+        "body_kind": "raw",
+        "body": "search terms: 珠海"
+      },
+      "mock": {
+        "status": 204
+      },
+      "expect": {
+        "request": {
+          "method": "GET",
+          "path": "/items",
+          "headers": [["Content-Type", "text/plain"]],
+          "body": "search terms: 珠海"
+        },
+        "response": {
+          "kind": "success",
+          "status": 204
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "HEAD sends the selected json body",
+      "draft": {
+        "method": "HEAD",
+        "path": "/items",
+        "body_kind": "json",
+        "body": "{\"id\":42}"
+      },
+      "mock": {
+        "status": 204
+      },
+      "expect": {
+        "request": {
+          "method": "HEAD",
+          "path": "/items",
+          "headers": [["Content-Type", "application/json"]],
+          "body": "{\"id\":42}"
+        },
+        "response": {
+          "kind": "success",
+          "status": 204
+        },
+        "history_len": 1
+      }
+    },
+    {
+      "name": "OPTIONS sends the selected url_encoded body",
+      "draft": {
+        "method": "OPTIONS",
+        "path": "/items",
+        "body_kind": "url_encoded",
+        "body": "feature=a%2Bb&feature=c"
+      },
+      "mock": {
+        "status": 204
+      },
+      "expect": {
+        "request": {
+          "method": "OPTIONS",
+          "path": "/items",
+          "headers": [["Content-Type", "application/x-www-form-urlencoded"]],
+          "body": "feature=a%2Bb&feature=c"
         },
         "response": {
           "kind": "success",

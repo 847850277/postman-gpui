@@ -112,6 +112,8 @@ pub fn parse(command: &str) -> Result<CurlImport> {
     let (mut basic, mut bearer) = (None, None);
     let mut suppressed = Vec::new();
     let mut follow = false;
+    let mut keep_post_on_301_or_302 = false;
+    let mut keep_post_on_303 = false;
     let mut compressed = false;
     for (flag, value) in args {
         match flag.as_str() {
@@ -136,6 +138,8 @@ pub fn parse(command: &str) -> Result<CurlImport> {
             "--get" => get = true,
             "--globoff" => globoff = true,
             "--location" => options.redirect_policy = RedirectPolicy::Follow,
+            "--post301" | "--post302" => keep_post_on_301_or_302 = true,
+            "--post303" => keep_post_on_303 = true,
             "--follow" => {
                 follow = true;
                 options.redirect_policy = RedirectPolicy::Follow;
@@ -266,6 +270,16 @@ pub fn parse(command: &str) -> Result<CurlImport> {
     } else {
         HttpMethod::GET
     });
+    if options.redirect_policy == RedirectPolicy::Follow
+        && has_body
+        && !get
+        && ((keep_post_on_301_or_302 && request.method == HttpMethod::POST)
+            || (keep_post_on_303 && request.method != HttpMethod::HEAD))
+    {
+        return Err(CurlError::new(
+            "These --post redirect options would retain a body that the native client drops.",
+        ));
+    }
     if !follow
         && options.redirect_policy == RedirectPolicy::Follow
         && method.is_some_and(|m| !matches!(m, HttpMethod::GET | HttpMethod::HEAD))
@@ -298,9 +312,6 @@ pub fn parse(command: &str) -> Result<CurlImport> {
             validate_url(&request.url)?;
         }
     } else if has_body {
-        if !request.method.allows_body() {
-            return Err(CurlError::new("The native editor supports bodies only for POST, PUT and PATCH. Use --get to move data into the query."));
-        }
         request.body = if serde_json::from_str::<serde_json::Value>(&body).is_ok() {
             RequestBody::Json(body.clone())
         } else {

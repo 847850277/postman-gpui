@@ -221,7 +221,6 @@ impl BodyPane {
         let body = request.body();
         let draft = request.body_draft().clone();
         let size = request.binary_size();
-        let method = request.method();
         let construction = request.request_construction();
         let header = construction
             .effective_headers()
@@ -236,7 +235,7 @@ impl BodyPane {
                     "Automatic"
                 },
             ),
-            None if kind == BodyKind::Multipart && method.allows_body() => (
+            None if kind == BodyKind::Multipart => (
                 "multipart/form-data · boundary generated when sending".into(),
                 "Automatic",
             ),
@@ -253,35 +252,145 @@ impl BodyPane {
         let validation = self.editor_error.clone().or(send_error);
         let panel_height = self.panel_layout.read(cx).height();
         let is_text = matches!(kind, BodyKind::Json | BodyKind::Raw);
-        div().flex_1().min_h_0().min_w_0().flex().flex_col().relative()
-            .child(div().id("body-editor-scroll").debug_selector(|| "body-editor-scroll".into()).flex_1().min_h_0().min_w_0()
-                .overflow_y_scroll().track_scroll(&self.editor_scroll)
-                .child(div().debug_selector(|| "body-primary-editor".into()).min_h(px(330.)).h(px(panel_height.max(330.))).flex().flex_col().px_7().pt_4().pb_4().gap_3()
-                    .child(div().flex_none().flex().items_center().child(div().text_size(m::LABEL).child("Body type")).child(div().flex_1()).child(self.render_actions(cx)))
-                    .child(div().debug_selector(|| "body-types".into()).flex_none().flex().flex_wrap().gap_1().children(TYPES.into_iter().map(|(item, label, id)| {
-                        editor_button(id, label, cx).selected(kind == item).debug_selector(move || id.into()).accessibility_label(format!("{label} body"))
-                            .h(px(30.)).px(px(10.)).text_size(m::LABEL).font_weight(FontWeight::NORMAL).rounded(m::RADIUS).border_1()
-                            .border_color(if kind == item { LINE.resolve(cx) } else { gpui_kit::rgba(0) })
-                            .bg(if kind == item { PANEL_ALT.resolve(cx) } else { PANEL.resolve(cx) })
-                            .on_click(cx.listener(move |this, _, window, cx| this.set_body_kind(item, window, cx)))
-                    })))
-                    .child(div().debug_selector(|| "body-content-type".into()).flex_none().flex().flex_wrap().items_center().gap_2().text_size(m::CAPTION).text_color(SUBTEXT.resolve(cx))
-                        .child("Content-Type").child(div().font_family(FONT_MONO).child(content_type))
-                        .child(editor_button("body-header-source", source, cx).debug_selector(|| "body-header-source".into()).h(px(22.)).px_1().text_size(m::CAPTION).text_color(ACCENT.resolve(cx))
-                            .on_click(cx.listener(|this, _, _, cx| { this.update_active_request(cx, |request| request.set_request_pane(RequestPane::Headers)); }))))
-                    .when(!method.allows_body() && kind != BodyKind::None, |pane| pane.child(div().text_size(m::CAPTION).text_color(SUBTEXT.resolve(cx)).child(format!("{method} sends no body. Your draft is kept when you change the method."))))
-                    .child(match kind {
-                        BodyKind::None => div().debug_selector(|| "body-empty".into()).flex_1().min_h(px(150.)).flex().flex_col().justify_center().items_center().gap_3().text_color(SUBTEXT.resolve(cx))
-                            .child(Icon::new(IconName::Code).size(px(20.)))
-                            .child(div().text_color(TEXT.resolve(cx)).child("This request has no body"))
-                            .child(div().text_size(m::LABEL).child("Choose a body type to include data with this request.")).into_any_element(),
-                        BodyKind::Json | BodyKind::Raw => self.render_primary_text(kind, &body, cx),
-                        BodyKind::UrlEncoded | BodyKind::Multipart => self.render_primary_form(kind, &body, cx),
-                        BodyKind::Binary => self.render_binary(draft, size, cx),
-                    })
-                    .when_some(validation, |pane, message| pane.child(div().debug_selector(|| "body-validation-error".into()).flex_none().text_size(m::LABEL).text_color(ERROR.resolve(cx)).child(message)))
-                    .when(!is_text, |pane| pane.child(div().flex_1().min_h_0()))
-                )).scrollbar(&self.editor_scroll, ScrollbarAxis::Vertical).into_any_element()
+        div()
+            .flex_1()
+            .min_h_0()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .relative()
+            .child(
+                div()
+                    .id("body-editor-scroll")
+                    .debug_selector(|| "body-editor-scroll".into())
+                    .flex_1()
+                    .min_h_0()
+                    .min_w_0()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.editor_scroll)
+                    .child(
+                        div()
+                            .debug_selector(|| "body-primary-editor".into())
+                            .min_h(px(330.))
+                            .h(px(panel_height.max(330.)))
+                            .flex()
+                            .flex_col()
+                            .px_7()
+                            .pt_4()
+                            .pb_4()
+                            .gap_3()
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
+                                    .child(div().text_size(m::LABEL).child("Body type"))
+                                    .child(div().flex_1())
+                                    .child(self.render_actions(cx)),
+                            )
+                            .child(
+                                div()
+                                    .debug_selector(|| "body-types".into())
+                                    .flex_none()
+                                    .flex()
+                                    .flex_wrap()
+                                    .gap_1()
+                                    .children(TYPES.into_iter().map(|(item, label, id)| {
+                                        editor_button(id, label, cx)
+                                            .selected(kind == item)
+                                            .debug_selector(move || id.into())
+                                            .accessibility_label(format!("{label} body"))
+                                            .h(px(30.))
+                                            .px(px(10.))
+                                            .text_size(m::LABEL)
+                                            .font_weight(FontWeight::NORMAL)
+                                            .rounded(m::RADIUS)
+                                            .border_1()
+                                            .border_color(if kind == item {
+                                                LINE.resolve(cx)
+                                            } else {
+                                                gpui_kit::rgba(0)
+                                            })
+                                            .bg(if kind == item {
+                                                PANEL_ALT.resolve(cx)
+                                            } else {
+                                                PANEL.resolve(cx)
+                                            })
+                                            .on_click(cx.listener(move |this, _, window, cx| {
+                                                this.set_body_kind(item, window, cx)
+                                            }))
+                                    })),
+                            )
+                            .child(
+                                div()
+                                    .debug_selector(|| "body-content-type".into())
+                                    .flex_none()
+                                    .flex()
+                                    .flex_wrap()
+                                    .items_center()
+                                    .gap_2()
+                                    .text_size(m::CAPTION)
+                                    .text_color(SUBTEXT.resolve(cx))
+                                    .child("Content-Type")
+                                    .child(div().font_family(FONT_MONO).child(content_type))
+                                    .child(
+                                        editor_button("body-header-source", source, cx)
+                                            .debug_selector(|| "body-header-source".into())
+                                            .h(px(22.))
+                                            .px_1()
+                                            .text_size(m::CAPTION)
+                                            .text_color(ACCENT.resolve(cx))
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.update_active_request(cx, |request| {
+                                                    request.set_request_pane(RequestPane::Headers)
+                                                });
+                                            })),
+                                    ),
+                            )
+                            .child(match kind {
+                                BodyKind::None => div()
+                                    .debug_selector(|| "body-empty".into())
+                                    .flex_1()
+                                    .min_h(px(150.))
+                                    .flex()
+                                    .flex_col()
+                                    .justify_center()
+                                    .items_center()
+                                    .gap_3()
+                                    .text_color(SUBTEXT.resolve(cx))
+                                    .child(Icon::new(IconName::Code).size(px(20.)))
+                                    .child(
+                                        div()
+                                            .text_color(TEXT.resolve(cx))
+                                            .child("This request has no body"),
+                                    )
+                                    .child(div().text_size(m::LABEL).child(
+                                        "Choose a body type to include data with this request.",
+                                    ))
+                                    .into_any_element(),
+                                BodyKind::Json | BodyKind::Raw => {
+                                    self.render_primary_text(kind, &body, cx)
+                                }
+                                BodyKind::UrlEncoded | BodyKind::Multipart => {
+                                    self.render_primary_form(kind, &body, cx)
+                                }
+                                BodyKind::Binary => self.render_binary(draft, size, cx),
+                            })
+                            .when_some(validation, |pane, message| {
+                                pane.child(
+                                    div()
+                                        .debug_selector(|| "body-validation-error".into())
+                                        .flex_none()
+                                        .text_size(m::LABEL)
+                                        .text_color(ERROR.resolve(cx))
+                                        .child(message),
+                                )
+                            })
+                            .when(!is_text, |pane| pane.child(div().flex_1().min_h_0())),
+                    ),
+            )
+            .scrollbar(&self.editor_scroll, ScrollbarAxis::Vertical)
+            .into_any_element()
     }
 
     fn render_primary_text(

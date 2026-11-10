@@ -30,9 +30,9 @@ impl HttpMethod {
         ]
     }
 
-    /// Methods that carry a request body in this client.
+    /// Every method supported by this client can carry an explicit request body.
     pub fn allows_body(self) -> bool {
-        matches!(self, Self::POST | Self::PUT | Self::PATCH)
+        true
     }
 }
 
