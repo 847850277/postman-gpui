@@ -184,6 +184,13 @@ and refuses to reuse an existing capture path:
 python3 scripts/release_smoke.py serve --port 8765 --log /tmp/postman-native-requests.jsonl
 ```
 
+On Windows, use an existing temporary directory (PowerShell); choose a new log filename for
+each session because the server refuses to append to a previous capture:
+
+```powershell
+python scripts/release_smoke.py serve --port 8765 --log "$env:TEMP\postman-native-requests.jsonl"
+```
+
 Set the two existing Flow fixtures' session `base_url` to `http://127.0.0.1:8765`. The server
 supports `/uuid`, `/post`, `/patch`, `/echo`, `/anything/health?status=ready`,
 `/redirect/301/echo` (also 302/303/307/308, nestable), `/status/500` and `/delay?seconds=2`.
@@ -194,6 +201,9 @@ HEAD cURL requests do not wait for nonexistent response bytes.
 The CLI check uses the real executable, tests 35 method/body combinations (None, explicit-empty
 Raw, Unicode Raw, binary file and empty file across all seven methods), and runs the existing
 echo-chain and polling fixtures. Check must send no traffic; actual methods and bytes must match.
+The CLI subprocess drops HTTP/HTTPS/ALL proxy environment variables in either case while retaining
+unrelated settings. The proxy-isolation regression runs the real CLI with a recording proxy enabled
+and requires all 40 fixture requests to arrive directly, with zero requests at the proxy.
 
 ```bash
 # Source-build evidence only; record the binary SHA256 printed in the JSON report.
@@ -206,12 +216,26 @@ python3 scripts/release_smoke.py cli --archive postman-g-macos-universal.tar.gz 
 ```
 
 On Windows use `postman-g.exe` or `postman-g-windows-x86_64.zip` and `BUILD-INFO-windows.txt`.
+For example, in PowerShell:
+
+```powershell
+python scripts/release_smoke.py cli --binary target/debug/postman-g.exe --output "$env:TEMP\cli-smoke.json"
+python scripts/release_smoke.py cli --archive postman-g-windows-x86_64.zip --checksums SHA256SUMS --build-info BUILD-INFO-windows.txt --output "$env:TEMP\cli-smoke-release.json"
+```
+
 For Linux use its x86_64 archive and `BUILD-INFO-linux.txt`. Archive and optional BUILD-INFO
-hashes are checked before use; the report retains package/binary hashes, source/tag/workflow
+hashes are checked before use. With BUILD-INFO, the archive's release filename must also match
+the metadata filename and target, including `universal-apple-darwin` for the macOS universal
+archive; mismatches fail before CLI execution. Custom archive names remain supported without
+`--build-info`, and neither that mode nor `--binary` claims verified build identity.
+The report retains package/binary hashes, source/tag/workflow
 metadata when supplied, fixture identities and observed requests. A standalone CLI pass is not
 evidence for the desktop editor, file picker, composition, signing or installation. Release CI
 publishes `CLI-SMOKE-<platform>.json` alongside BUILD-INFO, covered by the final SHA256SUMS;
 regular three-platform CI also runs the controlled CLI checks.
+Malformed CLI reports (including non-object JSON) and temporary-directory cleanup errors replace
+any prior success report with `success=false` and a diagnostic, and exit nonzero. The release
+publication gate requires exactly one smoke report for each of the three platforms.
 
 ### #260 Body and cURL acceptance
 

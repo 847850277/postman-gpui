@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -27,6 +28,11 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/flows"
 UUID = "26100000-0000-4000-8000-000000000001"
 MAX_BODY = 2 * 1024 * 1024
+RELEASE_CLI_IDENTITIES = {
+    "postman-g-linux-x86_64.tar.gz": ("BUILD-INFO-linux.txt", "x86_64-unknown-linux-gnu"),
+    "postman-g-windows-x86_64.zip": ("BUILD-INFO-windows.txt", "x86_64-pc-windows-msvc"),
+    "postman-g-macos-universal.tar.gz": ("BUILD-INFO-macos.txt", "universal-apple-darwin"),
+}
 
 
 class SmokeError(RuntimeError):
@@ -191,6 +197,7 @@ def running_server():
 
 
 def verify_checksum(artifact: Path, checksums: Path) -> None:
+    """Accept exactly one well-formed matching entry in a release checksum manifest."""
     entries = []
     for line in checksums.read_text(encoding="utf-8").splitlines():
         parts = line.split()
@@ -203,6 +210,7 @@ def verify_checksum(artifact: Path, checksums: Path) -> None:
 
 
 def read_build_info(path: Path, checksums: Path) -> dict:
+    """Read checksum-verified identity fields; archive compatibility is checked separately."""
     verify_checksum(path, checksums)
     values = {}
     for line in path.read_text(encoding="utf-8-sig").splitlines():
@@ -216,7 +224,17 @@ def read_build_info(path: Path, checksums: Path) -> dict:
     return {**values, "sha256": sha256(path)}
 
 
+def verify_build_identity(archive: Path, metadata: Path, build: dict) -> None:
+    """Require a known release archive and its matching platform/target metadata."""
+    expected = RELEASE_CLI_IDENTITIES.get(archive.name)
+    if expected is None:
+        raise SmokeError("BUILD-INFO requires a recognized release archive; omit --build-info for custom archives")
+    if (metadata.name, build["target"]) != expected:
+        raise SmokeError(f"BUILD-INFO mismatch for {archive.name}: expected {expected[0]} with target={expected[1]}")
+
+
 def extract_cli(archive: Path, checksums: Path, destination: Path) -> Path:
+    """Verify archive bytes and copy only its expected executable into a temporary directory."""
     verify_checksum(archive, checksums)
     name = "postman-g.exe" if archive.suffix == ".zip" else "postman-g"
     # Read only the expected regular-file member, never extract arbitrary paths.
@@ -240,10 +258,15 @@ def extract_cli(archive: Path, checksums: Path, destination: Path) -> Path:
 
 
 def run_cli(binary: Path, fixture: Path, server: FixtureServer, check: bool = False) -> dict:
+    """Run one local fixture without ambient proxies and require a successful report object."""
     command = [str(binary), "run", str(fixture), "--input", "base_url=" + server.url, "--json"]
     if check:
         command.append("--check")
-    result = subprocess.run(command, capture_output=True, encoding="utf-8", timeout=45)
+    # Loopback fixtures must not depend on the caller's HTTP proxy, including
+    # lowercase variants. Keep unrelated environment (PATH, locale, etc.) intact.
+    environment = {key: value for key, value in os.environ.items()
+                   if key.upper() not in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")}
+    result = subprocess.run(command, capture_output=True, encoding="utf-8", timeout=45, env=environment)
     if result.returncode:
         raise SmokeError(f"CLI failed ({fixture.name}, check={check}): {result.stderr or result.stdout}")
     if check:
@@ -253,6 +276,8 @@ def run_cli(binary: Path, fixture: Path, server: FixtureServer, check: bool = Fa
         report = json.loads(result.stdout)
     except ValueError as error:
         raise SmokeError(f"CLI did not return JSON for {fixture.name}") from error
+    if not isinstance(report, dict):
+        raise SmokeError(f"CLI report must be a JSON object for {fixture.name}")
     if report.get("success") is not True:
         raise SmokeError(f"CLI reported failure for {fixture.name}")
     return report
@@ -289,6 +314,7 @@ def observed(records: list[dict]) -> list[tuple[str, str, bytes]]:
 
 
 def check_cli(binary: Path, directory: Path) -> dict:
+    """Compare actual request bytes and Flow hops, and prove Check sends no requests."""
     matrix, expected = body_matrix(directory)
     with running_server() as server:
         fixtures = [matrix, FIXTURES / "echo-chain.http.yml", FIXTURES / "poll-status.http.yml"]
@@ -331,6 +357,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Serve native fixtures or replace CLI evidence with the result, including late failures."""
     args = create_parser().parse_args(argv)
     try:
         if args.command == "serve":
@@ -358,7 +385,9 @@ def main(argv: list[str] | None = None) -> int:
                     report["archive"] = {"filename": args.archive.name, "sha256": sha256(args.archive)}
                     binary = extract_cli(args.archive, args.checksums, directory)
                     if args.build_info:
-                        report["build"] = read_build_info(args.build_info, args.checksums)
+                        build = read_build_info(args.build_info, args.checksums)
+                        verify_build_identity(args.archive, args.build_info, build)
+                        report["build"] = build
                 else:
                     if args.build_info:
                         raise SmokeError("--build-info requires a verified --archive")
@@ -366,6 +395,7 @@ def main(argv: list[str] | None = None) -> int:
                 report["binary"] = {"filename": binary.name, "sha256": sha256(binary)}
                 report.update(check_cli(binary, directory))
         except (SmokeError, OSError, ValueError, subprocess.SubprocessError, tarfile.TarError, zipfile.BadZipFile) as error:
+            report["success"] = False
             report["error"] = str(error)
         # Integrity failures must replace any previous success report too.
         args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

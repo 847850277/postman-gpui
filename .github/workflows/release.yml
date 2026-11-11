@@ -395,6 +395,10 @@ jobs:
           test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-linux-x86_64.tar.gz' -print -quit)"
           test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-windows-x86_64.zip' -print -quit)"
           test "$(find dist -maxdepth 1 -type f -name 'BUILD-INFO-*.txt' | wc -l | tr -d ' ')" = "3"
+          test "$(find dist -maxdepth 1 -type f -name 'CLI-SMOKE-*.json' | wc -l | tr -d ' ')" = "3"
+          for platform in macos windows linux; do
+            test -f "dist/CLI-SMOKE-${platform}.json"
+          done
 
       - name: Generate SHA-256 checksums
         shell: bash

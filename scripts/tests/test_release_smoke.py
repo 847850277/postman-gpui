@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import http.client
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+import textwrap
 import unittest
 from unittest import mock
 import zipfile
@@ -164,8 +167,124 @@ class ArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(smoke.SmokeError, "duplicate"):
             smoke.read_build_info(metadata, self.checksums)
 
+    def run_archive_with_identity(self, archive_name, platform, target):
+        archive = self.make_archive("zip" if archive_name.endswith(".zip") else "tar")
+        archive = archive.replace(self.root / archive_name)
+        metadata = self.root / f"BUILD-INFO-{platform}.txt"
+        metadata.write_text("tag=v1.2.3\ncommit=" + "a" * 40 +
+                            "\nworkflow_run=https://github.com/example/repo/actions/runs/1\n"
+                            f"target={target}\nsigned=false\nnotarized=n/a\n")
+        self.checksums.write_text("".join(f"{smoke.sha256(p)}  {p.name}\n" for p in (archive, metadata)))
+        report_path = self.root / "report.json"
+        report_path.write_text('{"success":true,"build":{"target":"stale"}}')
+        with mock.patch.object(smoke, "check_cli", return_value={"success": True, "body_cases": 35}) as check:
+            result = smoke.main(["cli", "--archive", str(archive), "--checksums", str(self.checksums),
+                                 "--build-info", str(metadata), "--output", str(report_path)])
+        return result, json.loads(report_path.read_text()), check
+
+    def test_archive_identity_matches_platform_and_target_before_execution(self):
+        platforms = [
+            ("postman-g-linux-x86_64.tar.gz", "linux", "x86_64-unknown-linux-gnu"),
+            ("postman-g-windows-x86_64.zip", "windows", "x86_64-pc-windows-msvc"),
+            ("postman-g-macos-universal.tar.gz", "macos", "universal-apple-darwin"),
+        ]
+        for archive, platform, target in platforms:
+            with self.subTest(archive=archive, valid=True):
+                result, report, check = self.run_archive_with_identity(archive, platform, target)
+                self.assertEqual(result, 0)
+                self.assertTrue(report["success"])
+                self.assertEqual(report["build"]["target"], target)
+                check.assert_called_once()
+            for _, other_platform, other_target in platforms:
+                if other_platform == platform:
+                    continue
+                for metadata_platform, metadata_target in ((platform, other_target), (other_platform, target),
+                                                           (other_platform, other_target)):
+                    with self.subTest(archive=archive, metadata=metadata_platform, target=metadata_target):
+                        result, report, check = self.run_archive_with_identity(archive, metadata_platform, metadata_target)
+                        self.assertNotEqual(result, 0)
+                        self.assertFalse(report["success"])
+                        self.assertIn("BUILD-INFO", report["error"])
+                        self.assertNotIn("build", report)
+                        check.assert_not_called()
+
+    def test_custom_archive_cannot_claim_unverified_build_identity(self):
+        result, report, check = self.run_archive_with_identity("custom.tar.gz", "linux", "x86_64-unknown-linux-gnu")
+        self.assertNotEqual(result, 0)
+        self.assertFalse(report["success"])
+        self.assertNotIn("build", report)
+        check.assert_not_called()
+
+    def test_custom_archive_without_build_info_remains_usable(self):
+        archive = self.make_archive()
+        output = self.root / "report.json"
+        with mock.patch.object(smoke, "check_cli", return_value={"success": True, "body_cases": 35}):
+            self.assertEqual(smoke.main(["cli", "--archive", str(archive), "--checksums", str(self.checksums),
+                                         "--output", str(output)]), 0)
+        report = json.loads(output.read_text())
+        self.assertTrue(report["success"])
+        self.assertNotIn("build", report)
+
 
 class RunnerTests(unittest.TestCase):
+    def test_child_environment_removes_only_http_proxy_variables(self):
+        settings = {key: "http://127.0.0.1:1" for key in
+                    ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")}
+        settings.update({"POSTMAN_SMOKE_SENTINEL": "preserved", "FTP_PROXY": "preserved"})
+        result = subprocess.CompletedProcess([], 0, '{"success":true}', "")
+        with mock.patch.dict(os.environ, settings), smoke.running_server() as server:
+            with mock.patch.object(smoke.subprocess, "run", return_value=result) as run:
+                smoke.run_cli(Path("cli"), Path("fixture"), server)
+            child = run.call_args.kwargs["env"]
+            self.assertFalse(any(key.upper() in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY") for key in child))
+            self.assertEqual(child["POSTMAN_SMOKE_SENTINEL"], "preserved")
+            self.assertEqual(child["FTP_PROXY"], "preserved")
+            self.assertEqual(child.get("PATH"), os.environ.get("PATH"))
+            self.assertEqual(os.environ["HTTP_PROXY"], settings["HTTP_PROXY"])
+
+    def test_non_object_cli_json_replaces_old_success_from_main(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary, output = root / "cli", root / "report.json"
+            binary.write_bytes(b"fixture")
+            for stdout in ("[]", "null", "true", "42"):
+                with self.subTest(stdout=stdout):
+                    output.write_text('{"success":true}')
+                    result = subprocess.CompletedProcess([], 0, stdout, "")
+                    with mock.patch.object(smoke.subprocess, "run", return_value=result):
+                        self.assertNotEqual(smoke.main(["cli", "--binary", str(binary), "--output", str(output)]), 0)
+                    report = json.loads(output.read_text())
+                    self.assertFalse(report["success"])
+                    self.assertIn("JSON object", report["error"])
+
+    def test_cleanup_failure_overrides_success_and_exits_nonzero(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary, output = root / "cli", root / "report.json"
+            binary.write_bytes(b"fixture")
+            output.write_text('{"success":true}')
+
+            @contextlib.contextmanager
+            def failed_cleanup(**_):
+                yield temporary
+                raise OSError("temporary cleanup failed")
+
+            with mock.patch.object(smoke.tempfile, "TemporaryDirectory", failed_cleanup):
+                with mock.patch.object(smoke, "check_cli", return_value={"success": True, "body_cases": 35}):
+                    self.assertNotEqual(smoke.main(["cli", "--binary", str(binary), "--output", str(output)]), 0)
+            report = json.loads(output.read_text())
+            self.assertFalse(report["success"])
+            self.assertEqual(report["error"], "temporary cleanup failed")
+
+    def test_binary_mode_does_not_claim_build_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary, output = root / "cli", root / "report.json"
+            binary.write_bytes(b"fixture")
+            with mock.patch.object(smoke, "check_cli", return_value={"success": True, "body_cases": 35}):
+                self.assertEqual(smoke.main(["cli", "--binary", str(binary), "--output", str(output)]), 0)
+            self.assertNotIn("build", json.loads(output.read_text()))
+
     def test_integrity_failure_replaces_a_previous_success_report(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -215,6 +334,56 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(report["native_desktop_acceptance"], "not_run")
             self.assertEqual(report["binary"]["sha256"], smoke.sha256(binary))
             self.assertEqual(report["error"], "wrong bytes")
+
+
+@unittest.skipUnless(os.environ.get("POSTMAN_SMOKE_TEST_CLI"), "set POSTMAN_SMOKE_TEST_CLI to run the built CLI")
+class RealCliProxyTests(unittest.TestCase):
+    def test_all_fixtures_bypass_an_enabled_proxy(self):
+        binary = Path(os.environ["POSTMAN_SMOKE_TEST_CLI"]).resolve()
+        with smoke.running_server() as proxy, tempfile.TemporaryDirectory() as temporary:
+            # Empty bypass settings ensure this test fails if the child inherits proxies.
+            settings = {name: proxy.url for name in
+                        ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")}
+            settings.update({"NO_PROXY": "", "no_proxy": ""})
+            output = Path(temporary) / "report.json"
+            with mock.patch.dict(os.environ, settings):
+                self.assertEqual(smoke.main(["cli", "--binary", str(binary), "--output", str(output)]), 0)
+            report = json.loads(output.read_text())
+            self.assertTrue(report["success"])
+            self.assertEqual(report["body_cases"], 35)
+            self.assertEqual(len(report["flows"]), 3)
+            self.assertTrue(all(flow["check_no_requests"] for flow in report["flows"]))
+            self.assertEqual(len(report["requests"]), 40)
+            self.assertEqual(proxy.records, [])
+
+
+@unittest.skipIf(os.name == "nt", "release publication runs in bash on Linux")
+class PublicationTests(unittest.TestCase):
+    def test_publish_requires_the_three_platform_smoke_reports(self):
+        workflow = (smoke.ROOT / ".github/workflows/release.yml").read_text()
+        step = workflow.split("      - name: Reject partial release output\n", 1)[1].split("      - name:", 1)[0]
+        script = textwrap.dedent(step.split("        run: |\n", 1)[1])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dist = root / "dist"
+            dist.mkdir()
+            for name in ("app.dmg", "app.app.zip", "app.exe", "app.AppImage", "app.deb",
+                         "postman-g-macos-universal.tar.gz", "postman-g-linux-x86_64.tar.gz",
+                         "postman-g-windows-x86_64.zip", "BUILD-INFO-macos.txt",
+                         "BUILD-INFO-linux.txt", "BUILD-INFO-windows.txt"):
+                (dist / name).touch()
+            for platforms, passed in (([], False), (["macos", "linux"], False),
+                                      (["macos", "linux", "windows"], True),
+                                      (["macos", "linux", "unexpected"], False),
+                                      (["macos", "linux", "windows", "extra"], False)):
+                with self.subTest(platforms=platforms):
+                    for report in dist.glob("CLI-SMOKE-*.json"):
+                        report.unlink()
+                    for platform in platforms:
+                        (dist / f"CLI-SMOKE-{platform}.json").write_text('{"success":true}')
+                    result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", script], cwd=root,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode == 0, passed, result.stderr)
 
 
 if __name__ == "__main__":

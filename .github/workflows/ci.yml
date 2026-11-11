@@ -240,6 +240,8 @@ jobs:
         binary=target/release/postman-g
         if [ "$RUNNER_OS" = "Windows" ]; then binary="${binary}.exe"; fi
         python3 scripts/release_smoke.py cli --binary "$binary" --output target/cli-smoke.json
+        POSTMAN_SMOKE_TEST_CLI="$binary" python3 -m unittest discover \
+          -s scripts/tests -p test_release_smoke.py -k RealCliProxyTests -v
 
     - name: Verify embedded fonts with the native text backend
       shell: bash
