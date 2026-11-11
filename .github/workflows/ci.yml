@@ -11,6 +11,28 @@ env:
   RUST_TOOLCHAIN: "1.97.0"
 
 jobs:
+  cli-installer:
+    name: CLI Installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Install Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+
+    - name: Check installer syntax
+      run: /bin/bash -n install.sh
+
+    - name: Test installer without network or Cargo
+      run: python -m unittest discover -s scripts/tests -p test_install.py -v
+
   request-scenarios:
     name: Request Scenario Contract
     runs-on: macos-latest
@@ -206,7 +228,7 @@ jobs:
         sudo apt-get install --yes --no-install-recommends squashfs-tools
 
     - name: Test release tooling
-      run: python -m unittest discover -s scripts/tests
+      run: python -m unittest discover -s scripts/tests -p test_release.py
 
     - name: Validate current release metadata
       run: |
