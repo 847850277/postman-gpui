@@ -12,15 +12,36 @@
 curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh | bash
 ```
 
+To select a release and destination (including paths with spaces):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh \
+  | POSTMAN_VERSION=v0.1.3 POSTMAN_INSTALL_DIR="$HOME/CLI tools/bin" bash
+```
+
+When omitted, the version is resolved once from the latest release. The default destination
+is writable `/usr/local/bin`, then an existing `$HOME/.cargo/bin`, then `$HOME/.local/bin`.
+Prebuilt downloads are verified against that release's `SHA256SUMS` before extraction.
+Only a missing prebuilt asset (HTTP 404) or unsupported prebuilt platform/architecture falls
+back to Cargo, using the same tag and `--locked`. Both paths install
+`$POSTMAN_INSTALL_DIR/postman-g` (or the detected default), and report the release and path.
+Invalid releases, checksum problems, download errors and build/install failures stop with a
+nonzero exit and preserve an existing executable. See the [installation guide](../../docs/installation.md#one-line-installer-macos--linux)
+for dependencies and details.
+
 ### Install with Cargo
 
 ```bash
-# Install from GitHub repository
-cargo install --git https://github.com/847850277/postman-gpui postman-cli --bin postman-g
+# Install a specific release from GitHub
+cargo install --git https://github.com/847850277/postman-gpui --tag v0.1.3 \
+  postman-cli --bin postman-g --locked
 
 # Or install from local workspace
 cargo install --path crates/postman-cli --bin postman-g
 ```
+
+Direct Cargo commands use Cargo's installation root; `POSTMAN_VERSION` and
+`POSTMAN_INSTALL_DIR` apply only to `install.sh`.
 
 ### Prebuilt binaries
 

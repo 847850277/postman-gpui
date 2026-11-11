@@ -90,15 +90,48 @@ sudo apt install build-essential clang cmake libasound2-dev libfontconfig1-dev \
 curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh | bash
 ```
 
+Set `POSTMAN_VERSION` to an exact release tag (`vX.Y.Z` or `vX.Y.Z-prerelease`)
+and `POSTMAN_INSTALL_DIR` to the directory that should contain `postman-g`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/847850277/postman-gpui/main/install.sh \
+  | POSTMAN_VERSION=v0.1.3 POSTMAN_INSTALL_DIR="$HOME/CLI tools/bin" bash
+```
+
+These variables must be passed to `bash`, as shown, or exported before running the pipeline.
+Without `POSTMAN_VERSION`, the installer resolves GitHub's latest release to one concrete tag
+once. It uses that tag for all archive/checksum downloads and any source build. Without
+`POSTMAN_INSTALL_DIR`, it chooses writable `/usr/local/bin`, otherwise an existing
+`$HOME/.cargo/bin`, otherwise `$HOME/.local/bin`. Both paths install exactly
+`<install-directory>/postman-g`; spaces and relative directories are supported. The success
+message reports the selected release tag and installed path, with a PATH hint when needed.
+
+The installer requires Bash and either curl or wget. A prebuilt archive also requires `tar`
+and either `sha256sum` or `shasum`. It downloads `SHA256SUMS` from the same release and checks
+the archive before extracting it. Missing, malformed, duplicate or mismatched checksum entries
+stop installation without source fallback or changes to an existing executable.
+
+Only an unavailable prebuilt asset (HTTP 404) or an unsupported prebuilt platform/architecture
+triggers a Cargo build. The release must first exist. Cargo uses `--tag <selected-tag> --locked`
+and a temporary `--root`; the resulting `bin/postman-g` is then installed in the same requested
+directory. Rust/Cargo and the platform's build dependencies are required for this fallback.
+An invalid/missing release, other download errors, invalid archives, or build/install failures
+produce a nonzero exit and preserve an existing executable. A completed build or verified
+binary is staged in the destination directory before atomically replacing `postman-g`.
+
 ### Install with Cargo
 
 ```bash
-# Install directly from GitHub
-cargo install --git https://github.com/847850277/postman-gpui postman-cli --bin postman-g
+# Install a specific release directly with Cargo
+cargo install --git https://github.com/847850277/postman-gpui --tag v0.1.3 \
+  postman-cli --bin postman-g --locked
 
 # Or build from local checkout
 cargo install --path crates/postman-cli --bin postman-g
 ```
+
+Direct Cargo commands use Cargo's own installation root and do not read `POSTMAN_VERSION`
+or `POSTMAN_INSTALL_DIR`. Use the installer above for the common version/directory contract.
 
 ### Download prebuilt binary
 
