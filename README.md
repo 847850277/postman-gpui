@@ -10,7 +10,7 @@ Flow DSL for repeatable HTTP workflows. Use the desktop app for interactive requ
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/readme/tour-en-static.svg">
-  <img src="assets/readme/tour-en.svg" alt="Postman GPUI autoplay slides: native cross-platform HTTP client and Flow DSL (English first, Chinese second)">
+  <img src="assets/readme/tour-en.svg" alt="Postman GPUI autoplay slides: native cross-platform HTTP client and Flow DSL">
 </picture>
 
 Illustrated with sample data. Current source supports Flow files, Check/YAML, Run/Cancel and detailed results.
