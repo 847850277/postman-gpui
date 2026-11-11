@@ -9,7 +9,7 @@ HTTP 流程的 Flow DSL。桌面应用用于交互式请求调试，`postman-g` 
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/readme/tour-zh-static.svg">
-  <img src="assets/readme/tour-zh.svg" alt="Postman GPUI 自动播放介绍幻灯片：原生跨平台 HTTP 客户端与 Flow DSL">
+  <img src="assets/readme/tour-zh.svg" alt="界面导览：首页、HTTP、Body、历史、搜索、环境、cURL、保存、Cookie、快捷键、分屏与 Flows">
 </picture>
 
 画面为界面示意，使用示例数据。当前源码已支持 Flow 文件、Check/YAML、真实 Run/Cancel 和详细运行结果。
