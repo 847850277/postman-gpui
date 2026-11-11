@@ -1,4 +1,6 @@
-use super::{shell, validate_header, validate_url, CurlError, CurlImport, Result};
+use super::{
+    shell, validate_header, validate_url, CurlError, CurlImport, Result, BODYLESS_REDIRECT_ERROR,
+};
 use crate::models::{
     HttpMethod, RedirectPolicy, Request, RequestBody, RequestDraft, RequestOptions,
     MAX_REDIRECT_HOPS,
@@ -272,6 +274,9 @@ pub fn parse(command: &str) -> Result<CurlImport> {
         HttpMethod::GET
     });
     if options.redirect_policy == RedirectPolicy::Follow {
+        if (!has_body || get) && !matches!(request.method, HttpMethod::GET | HttpMethod::HEAD) {
+            return Err(CurlError::new(BODYLESS_REDIRECT_ERROR));
+        }
         if !follow && method.is_some_and(|m| !matches!(m, HttpMethod::GET | HttpMethod::HEAD)) {
             return Err(CurlError::new("--location with a custom method keeps that method on redirects, which the native client cannot represent. Use --follow (cURL 8.16+) for native redirect semantics."));
         }

@@ -153,6 +153,62 @@ fn invalid_export_disables_copy_and_import_is_still_available(cx: &mut TestAppCo
 }
 
 #[gpui_kit::test]
+fn bodyless_redirect_errors_block_import_and_copy_until_an_explicit_body(cx: &mut TestAppContext) {
+    let model = cx.new(|_| {
+        let mut model = WorkspaceViewModel::new();
+        let request = model.active_request_mut().unwrap();
+        request.set_url("https://example.test/items");
+        request.set_method(HttpMethod::DELETE);
+        model
+    });
+    let observed = model.clone();
+    let (_, cx) = cx.add_window_view(move |w, cx| {
+        ui::shell(w, cx, |w, cx| PostmanApp::with_view_model(observed, w, cx))
+    });
+    ui::open_http(cx);
+    cx.update(|_, cx| {
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("unchanged".into()))
+    });
+    ui::click(cx, "show-code").unwrap();
+    assert!(cx.debug_bounds("curl-error").is_some());
+    ui::click(cx, "curl-copy").unwrap();
+    cx.update(|_, cx| {
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().unwrap(),
+            "unchanged"
+        )
+    });
+    ui::click(cx, "curl-code-import").unwrap();
+    cx.simulate_input("curl --follow -X DELETE https://example.test/items");
+    assert!(cx.debug_bounds("curl-error").is_some());
+    assert!(cx.debug_bounds("curl-preview").is_none());
+    ui::click(cx, "curl-submit").unwrap();
+    model.read_with(cx, |m, _| {
+        assert_eq!(m.tab_count(), 1);
+        assert_eq!(m.in_flight_count(), 0);
+    });
+    ui::replace_text(
+        cx,
+        "curl-input",
+        "curl --follow -X DELETE --post301 --post302 --data-raw '' https://example.test/items",
+    )
+    .unwrap();
+    assert!(cx.debug_bounds("curl-preview").is_some());
+    ui::click(cx, "curl-submit").unwrap();
+    ui::click(cx, "show-code").unwrap();
+    assert!(cx.debug_bounds("curl-error").is_none());
+    let generated = text(cx);
+    assert!(generated.contains("--follow"));
+    ui::click(cx, "curl-copy").unwrap();
+    cx.update(|_, cx| assert_eq!(cx.read_from_clipboard().unwrap().text().unwrap(), generated));
+    model.read_with(cx, |m, _| {
+        assert_eq!(m.tab_count(), 2);
+        assert_eq!(m.in_flight_count(), 0);
+        assert_eq!(m.history_len(), 0);
+    });
+}
+
+#[gpui_kit::test]
 fn compact_window_keeps_entrypoints_and_dialog_actions_inside_viewport(cx: &mut TestAppContext) {
     use gpui_kit::{px, size};
     let model = cx.new(|_| WorkspaceViewModel::new());

@@ -25,6 +25,8 @@ impl fmt::Display for CurlError {
 impl std::error::Error for CurlError {}
 type Result<T> = std::result::Result<T, CurlError>;
 
+const BODYLESS_REDIRECT_ERROR: &str = "cURL redirects for this method without a body differ from native behavior. Use an explicit empty body or turn off Follow redirects.";
+
 /// Validated preview and editable intent. No transport or filesystem work is performed.
 #[derive(Clone, Debug)]
 pub struct CurlImport {

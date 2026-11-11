@@ -79,8 +79,12 @@ explicit request fields, not hidden session state.
 method behavior that differs from the native client. Import rejects that combination
 and explains `--follow`. Export lets cURL infer POST from its body/form options,
 so ordinary POST, GET and HEAD requests can use `--location` on older versions.
-Other custom methods (including POST without a body) use **`--follow` (requires
-cURL 8.16+)** when Follow redirects is enabled, with a visible version requirement.
+Other custom methods with a body use **`--follow` (requires cURL 8.16+)** when
+Follow redirects is enabled, with a visible version requirement. Bodyless
+POST/PUT/PATCH/DELETE/OPTIONS cannot be imported or exported with Follow redirects:
+even `--follow` in cURL 8.16.0 retains the custom method when its underlying
+transfer has no body, unlike the native client. Use an explicit empty body or
+disable Follow redirects. Query data moved by `--get` does not count as a body.
 Bodyless HEAD exports `--head`. HEAD with data exports `--request HEAD` so cURL
 can send the payload. In that mode cURL can wait for response bytes if the server
 advertises a nonzero Content-Length. When following redirects, exported non-POST

@@ -178,6 +178,162 @@ fn redirect_flags_must_preserve_the_body_on_each_status() {
     assert!(query.body.is_none());
 }
 
+#[test]
+fn bodyless_custom_methods_cannot_promise_native_redirects() {
+    for method in [
+        HttpMethod::POST,
+        HttpMethod::PUT,
+        HttpMethod::PATCH,
+        HttpMethod::DELETE,
+        HttpMethod::OPTIONS,
+    ] {
+        for query in ["", "--get --data-raw 'id=42'"] {
+            let command = format!("curl --follow -X {method} {query} https://example.test/items");
+            assert!(parse(&command)
+                .unwrap_err()
+                .to_string()
+                .contains("without a body"));
+        }
+        let mut draft = RequestDraft::from_request(&Request::new(method, "https://example.test"));
+        assert!(export(&draft)
+            .unwrap_err()
+            .to_string()
+            .contains("without a body"));
+        draft.set_request_options(RequestOptions {
+            redirect_policy: RedirectPolicy::DoNotFollow,
+            ..RequestOptions::default()
+        });
+        let code = export(&draft).unwrap();
+        assert!(parse(code.text())
+            .unwrap()
+            .draft()
+            .construct()
+            .request()
+            .body
+            .is_none());
+        draft.set_request_options(RequestOptions::default());
+        draft.set_body_kind(crate::models::BodyKind::Raw);
+        draft.set_body("");
+        let code = export(&draft).unwrap();
+        assert_eq!(
+            parse(code.text()).unwrap().draft().construct(),
+            draft.construct()
+        );
+    }
+    for method in [HttpMethod::GET, HttpMethod::HEAD] {
+        let draft = RequestDraft::from_request(&Request::new(method, "https://example.test"));
+        assert!(export(&draft).is_ok());
+        assert!(parse(&format!("curl --follow -X {method} https://example.test")).is_ok());
+    }
+}
+
+/// Run explicitly with POSTMAN_TEST_CURL pointing to cURL 8.16+ with compression.
+#[tokio::test]
+#[ignore = "requires an explicit cURL 8.16+ executable; see docs/release-smoke-test.md"]
+async fn exported_commands_match_native_redirects_with_real_curl() {
+    use postman_http::HttpTransport;
+    use postman_request::RequestClient;
+
+    let binary = std::env::var_os("POSTMAN_TEST_CURL").expect("set POSTMAN_TEST_CURL");
+    let version = std::process::Command::new(&binary)
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(version.status.success());
+    println!("{}", String::from_utf8_lossy(&version.stdout));
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("upload file.bin");
+    let bytes = b"file\x00\xff\r\n";
+    std::fs::write(&file, bytes).unwrap();
+    let empty_file = directory.path().join("empty file.bin");
+    std::fs::write(&empty_file, []).unwrap();
+    let client = RequestClient::try_new("curl-release-smoke").unwrap();
+    let mut checked = 0;
+    for method in [
+        HttpMethod::GET,
+        HttpMethod::HEAD,
+        HttpMethod::POST,
+        HttpMethod::PUT,
+        HttpMethod::PATCH,
+        HttpMethod::DELETE,
+        HttpMethod::OPTIONS,
+    ] {
+        for body in [
+            RequestBody::None,
+            RequestBody::Raw(String::new()),
+            RequestBody::Raw("body 中文\n".into()),
+            RequestBody::File(file.clone()),
+            RequestBody::File(empty_file.clone()),
+        ] {
+            if body.is_none() && !matches!(method, HttpMethod::GET | HttpMethod::HEAD) {
+                continue; // Rejected at conversion time, covered by the non-ignored test.
+            }
+            let sent = match &body {
+                RequestBody::Raw(value) => value.as_bytes().to_vec(),
+                RequestBody::File(path) => std::fs::read(path).unwrap(),
+                _ => Vec::new(),
+            };
+            for status in [301, 302, 303, 307, 308] {
+                let mut server = mockito::Server::new_async().await;
+                let first = server
+                    .mock(&method.to_string(), "/start")
+                    .match_body(sent.clone())
+                    .with_status(status)
+                    .with_header("location", "/end")
+                    .with_header("content-length", "0")
+                    .expect(2)
+                    .create_async()
+                    .await;
+                let drops_body = (status == 303 && method != HttpMethod::HEAD)
+                    || ([301, 302].contains(&status) && method == HttpMethod::POST);
+                let next_method = if drops_body { HttpMethod::GET } else { method };
+                let next_body = if drops_body { &[][..] } else { sent.as_slice() };
+                let last = server
+                    .mock(&next_method.to_string(), "/end")
+                    .match_body(next_body.to_vec())
+                    .with_status(200)
+                    .with_header("content-length", "0")
+                    .expect(2)
+                    .create_async()
+                    .await;
+                let mut request = Request::new(method, format!("{}/start", server.url()));
+                request.body = body.clone();
+                let mut draft = RequestDraft::from_request(&request);
+                draft.set_request_options(RequestOptions {
+                    timeout_ms: Some(5_000),
+                    ..RequestOptions::default()
+                });
+                let effective = draft.construct();
+                let native = client
+                    .execute(effective.request().clone(), effective.request_options())
+                    .await
+                    .unwrap();
+                assert_eq!(native.status, 200);
+                let code = export(&draft).unwrap();
+                let words = shell::words(code.text()).unwrap();
+                // Execute argv directly: no shell, user configuration, or ambient proxy.
+                let result = std::process::Command::new(&binary)
+                    .args(["-q", "--silent", "--show-error", "--noproxy", "*"])
+                    .args(&words[1..])
+                    .output()
+                    .unwrap();
+                assert!(
+                    result.status.success(),
+                    "{code:?}: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                );
+                first.assert_async().await;
+                last.assert_async().await;
+                checked += 1;
+            }
+        }
+    }
+    assert_eq!(checked, 150);
+    println!(
+        "Compared {checked} exported cURL/native redirect cases, including empty and binary files."
+    );
+}
+
 #[tokio::test]
 async fn imported_redirects_send_the_expected_method_and_bytes_on_both_hops() {
     use postman_http::HttpTransport;
