@@ -152,6 +152,31 @@ jobs:
     - name: Run all tests
       run: cargo test --locked --workspace --all-targets --all-features --verbose
 
+    - name: Build pinned cURL for redirect compatibility checks
+      shell: bash
+      run: |
+        curl_source="$RUNNER_TEMP/postman-curl"
+        mkdir -p "$curl_source"
+        cd "$curl_source"
+        curl --fail --silent --show-error --location --output curl.tar.xz \
+          https://curl.se/download/curl-8.16.0.tar.xz
+        printf '%s  curl.tar.xz\n' 40c8cddbcb6cc6251c03dea423a472a6cea4037be654ba5cf5dec6eb2d22ff1d | shasum -a 256 -c -
+        tar -xf curl.tar.xz
+        cd curl-8.16.0
+        sdk=$(xcrun --show-sdk-path)
+        # Only loopback HTTP is tested; this executable is never installed.
+        CPPFLAGS="-I$sdk/usr/include" LDFLAGS="-L$sdk/usr/lib" \
+          ./configure --disable-shared --disable-dependency-tracking --without-ssl \
+            --without-libpsl --without-libidn2 --without-zstd --without-brotli \
+            --with-zlib="$sdk/usr" --disable-ldap --disable-ldaps --disable-manual
+        make -j3
+        printf 'POSTMAN_TEST_CURL=%s/src/curl\n' "$PWD" >> "$GITHUB_ENV"
+
+    - name: Compare exported cURL commands with native redirects
+      run: >-
+        cargo test --locked --lib models::curl::tests::exported_commands_match_native_redirects_with_real_curl
+        -- --ignored --nocapture
+
     - name: Build release
       run: cargo build --locked --release --verbose
 
@@ -172,6 +197,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
+
+    - name: Install Python for release smoke
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
 
     - name: Install Rust toolchain
       shell: bash
@@ -201,6 +231,18 @@ jobs:
     - name: Build locked release binary
       run: cargo build --locked --release --verbose
 
+    - name: Build locked CLI for controlled release smoke
+      run: cargo build --locked --release -p postman-cli --bin postman-g
+
+    - name: Verify CLI body bytes and Flow fixtures without external services
+      shell: bash
+      run: |
+        binary=target/release/postman-g
+        if [ "$RUNNER_OS" = "Windows" ]; then binary="${binary}.exe"; fi
+        python3 scripts/release_smoke.py cli --binary "$binary" --output target/cli-smoke.json
+        POSTMAN_SMOKE_TEST_CLI="$binary" python3 -m unittest discover \
+          -s scripts/tests -p test_release_smoke.py -k RealCliProxyTests -v
+
     - name: Verify embedded fonts with the native text backend
       shell: bash
       run: |
@@ -228,7 +270,7 @@ jobs:
         sudo apt-get install --yes --no-install-recommends squashfs-tools
 
     - name: Test release tooling
-      run: python -m unittest discover -s scripts/tests -p test_release.py
+      run: python -m unittest discover -s scripts/tests -p 'test_release*.py'
 
     - name: Validate current release metadata
       run: |

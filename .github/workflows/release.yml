@@ -338,6 +338,21 @@ jobs:
           (cd "$smoke_dir" && sudo -H -u "$smoke_user" \
             timeout 30s "$smoke_dir/squashfs-root/AppRun" --verify-runtime-assets)
 
+      - name: Verify packaged CLI against controlled HTTP and Flow fixtures
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS) platform=macos; archive=dist/postman-g-macos-universal.tar.gz ;;
+            Windows) platform=windows; archive=dist/postman-g-windows-x86_64.zip ;;
+            Linux) platform=linux; archive=dist/postman-g-linux-x86_64.tar.gz ;;
+          esac
+          # The final release manifest is generated after all platform jobs finish.
+          # Verify this job's archive before extracting it for the smoke test.
+          python -c 'import hashlib,pathlib,sys; [print(hashlib.file_digest(p.open("rb"), "sha256").hexdigest(), p.name) for p in map(pathlib.Path, sys.argv[1:])]' "$archive" "dist/BUILD-INFO-${platform}.txt" > "$RUNNER_TEMP/cli-SHA256SUMS"
+          python scripts/release_smoke.py cli --archive "$archive" \
+            --checksums "$RUNNER_TEMP/cli-SHA256SUMS" --build-info "dist/BUILD-INFO-${platform}.txt" \
+            --output "dist/CLI-SMOKE-${platform}.json"
+
       - name: Upload native packages
         uses: actions/upload-artifact@v7
         with:
@@ -352,6 +367,7 @@ jobs:
             dist/*.deb
             dist/*.tar.gz
             dist/BUILD-INFO-*.txt
+            dist/CLI-SMOKE-*.json
 
   publish:
     name: Publish GitHub Release
@@ -379,6 +395,10 @@ jobs:
           test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-linux-x86_64.tar.gz' -print -quit)"
           test -n "$(find dist -maxdepth 1 -type f -name 'postman-g-windows-x86_64.zip' -print -quit)"
           test "$(find dist -maxdepth 1 -type f -name 'BUILD-INFO-*.txt' | wc -l | tr -d ' ')" = "3"
+          test "$(find dist -maxdepth 1 -type f -name 'CLI-SMOKE-*.json' | wc -l | tr -d ' ')" = "3"
+          for platform in macos windows linux; do
+            test -f "dist/CLI-SMOKE-${platform}.json"
+          done
 
       - name: Generate SHA-256 checksums
         shell: bash

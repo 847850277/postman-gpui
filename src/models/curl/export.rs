@@ -1,4 +1,4 @@
-use super::{shell, validate_header, validate_url, CurlError, Result};
+use super::{shell, validate_header, validate_url, CurlError, Result, BODYLESS_REDIRECT_ERROR};
 use crate::models::{
     HttpMethod, MultipartValue, RedirectPolicy, RequestBody, RequestDraft, MAX_REDIRECT_HOPS,
 };
@@ -45,6 +45,11 @@ pub fn export(draft: &RequestDraft) -> Result<CurlCode> {
     let requires_modern_curl = options.redirect_policy == RedirectPolicy::Follow
         && !inferred_post
         && !matches!(request.method, HttpMethod::GET | HttpMethod::HEAD);
+    // --follow only resets a custom method when curl switches its underlying
+    // transfer mode. Without data that mode is already GET, so it keeps -X.
+    if requires_modern_curl && request.body.is_none() {
+        return Err(CurlError::new(BODYLESS_REDIRECT_ERROR));
+    }
     let mut lines = vec!["curl --globoff".to_string()];
     // --head selects a bodyless transfer and conflicts with data/form options.
     if request.method == HttpMethod::HEAD && request.body.is_none() {
