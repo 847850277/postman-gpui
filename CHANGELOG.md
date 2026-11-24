@@ -16,6 +16,8 @@ All notable changes to Postman GPUI are documented in this file. The project fol
   explain how to use an explicit empty body or disable redirect following. Refs #264.
 - Pin CLI installation to one release tag, verify downloaded archives against that release's
   checksums, and restrict source fallback to missing platform assets. Refs #262, #263.
+- Update `cookie` to 0.18.3 and `url` to 2.5.9 to address RUSTSEC-2026-0594 and
+  RUSTSEC-2026-0592; update `form_urlencoded` to the patch version required by `url`.
 
 ### Added
 
