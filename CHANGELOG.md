@@ -5,6 +5,32 @@ All notable changes to Postman GPUI are documented in this file. The project fol
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-24
+
+### Fixed
+
+- Send explicitly configured request bodies with all seven HTTP methods, including GET,
+  DELETE, HEAD and OPTIONS. Preserve the distinction between no body and an explicit empty
+  body, including file-backed bodies. Refs #260.
+- Reject cURL import/export when redirect behavior cannot preserve a bodyless custom method;
+  explain how to use an explicit empty body or disable redirect following. Refs #264.
+- Pin CLI installation to one release tag, verify downloaded archives against that release's
+  checksums, and restrict source fallback to missing platform assets. Refs #262, #263.
+
+### Added
+
+- Publish verified CLI smoke reports for macOS, Windows and Linux alongside package build
+  metadata and checksums. Checks cover all method/body combinations and two example Flows,
+  isolate local fixtures from proxy settings, and reject mismatched package metadata. Refs #264.
+
+### Known limitations
+
+- Full installed-desktop acceptance across Linux Wayland/X11, Windows, Intel macOS and Apple
+  Silicon macOS remains pending in #261; automated CLI reports do not establish native UI,
+  input-method or clean-install acceptance.
+- Existing response-viewer, Flow editing and cURL import limitations remain documented in
+  [the guide](docs/guide.md#current-limitations) and [cURL support](docs/curl.md).
+
 ## [0.1.3] - 2026-11-06
 
 ### Fixed
